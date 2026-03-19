@@ -1,0 +1,3 @@
+[submodule "namespace-forest"]
+	path = namespace-forest
+	url = git@github.com:yellow-hammer/namespace-forest.git
