@@ -1,0 +1,70 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "type": "shell",
+      "command": ".\\gradlew.bat build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "javadoc",
+      "type": "shell",
+      "command": ".\\gradlew.bat javadoc",
+      "group": {
+        "kind": "build"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": ".\\gradlew.bat test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "check",
+      "type": "shell",
+      "command": ".\\gradlew.bat check",
+      "group": {
+        "kind": "test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "license",
+      "type": "shell",
+      "command": ".\\gradlew.bat license",
+      "group": {
+        "kind": "test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "run-cli",
+      "type": "shell",
+      "command": ".\\gradlew.bat run --args=\"validate -v V2_20 src/test/resources/fixtures/mdclasses-mini/Configuration.xml namespace-forest --catalog xjb/ns/2.20/catalog.xml\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "xjc-2_20",
+      "type": "shell",
+      "command": ".\\gradlew.bat xjc2_20",
+      "problemMatcher": []
+    },
+    {
+      "label": "xjc-2_21",
+      "type": "shell",
+      "command": ".\\gradlew.bat xjc2_21",
+      "problemMatcher": []
+    }
+  ]
+}
