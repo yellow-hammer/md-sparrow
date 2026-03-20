@@ -4,3 +4,6 @@
 [submodule "fixtures/ssl31"]
 	path = fixtures/ssl31
 	url = git@github.com:yellow-hammer/ssl_3_1.git
+[submodule "fixtures/1c-platform-samples"]
+	path = fixtures/1c-platform-samples
+	url = git@github.com:yellow-hammer/1c-platform-samples.git
