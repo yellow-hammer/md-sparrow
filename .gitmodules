@@ -1,3 +1,6 @@
 [submodule "namespace-forest"]
 	path = namespace-forest
 	url = git@github.com:yellow-hammer/namespace-forest.git
+[submodule "fixtures/ssl31"]
+	path = fixtures/ssl31
+	url = git@github.com:yellow-hammer/ssl_3_1.git
