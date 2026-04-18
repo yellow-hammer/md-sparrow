@@ -1,6 +1,7 @@
 /.gradle/
 /build/
 /out/
+.cursor/plans/
 *.iml
 .idea/
 *.class
