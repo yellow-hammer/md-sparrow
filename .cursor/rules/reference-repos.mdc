@@ -1,0 +1,19 @@
+---
+description: Эталонные репозитории и документация для md-sparrow
+alwaysApply: true
+---
+
+# Ссылки для агента и разработчика
+
+При проектировании API, JAXB или схем ориентироваться на:
+
+- **`yellow-hammer/namespace-forest`** — XSD и catalog для MDClasses / xcf (источник истины для генерации).
+- **`yellow-hammer/md-sparrow`** (этот репозиторий) — потребитель схем, XJC, CLI.
+- **Jakarta XML Binding 4.x** — [спецификация 4.0](https://jakarta.ee/specifications/xml-binding/4.0/)
+- **Eclipse Implementation JAXB** (генерация/рантайм в проекте) — документация по `JAXBContext`, `Marshaller`, `Unmarshaller`.
+
+Для справки по выгрузке 1С и структуре `src/cf` — **`docs/cf-layout.md`** в этом репозитории.
+
+При необходимости смотреть исходники схем или историю изменений — в первую очередь **namespace-forest**, а не дублировать XSD в md-sparrow.
+
+**Эволюция:** `.cursor/rules/evolution-no-legacy.mdc`.

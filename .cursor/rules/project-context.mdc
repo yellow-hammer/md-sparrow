@@ -1,0 +1,38 @@
+---
+description: Контекст md-sparrow — JAXB, submodules, тесты
+alwaysApply: true
+---
+
+# Контекст проекта md-sparrow
+
+Java-библиотека чтения/записи **Designer XML** (`MetaDataObject`) по XSD из submodule **`namespace-forest`**. Тестовая **типовая** выгрузка (не пустая ИБ) — submodule **`fixtures/ssl31`**. Эталон **пустой** выгрузки конфигуратора — **[1c-platform-samples](https://github.com/yellow-hammer/1c-platform-samples) `src/cf`**; правила — **`.cursor/rules/empty-configuration-reference.mdc`**.
+
+## Сборка и версии
+
+- **JDK 21** (`build.gradle.kts`: `JavaVersion.VERSION_21`).
+- **Gradle**: XJC-задачи `xjc2_20`, `xjc2_21` → сгенерированный код в `build/generated/sources/xjc-*`.
+- Версии схем: enum **`SchemaVersion`** (`V2_20` / `V2_21`) — синхронно с `gradle.properties`, `xjb/ns/<версия>/`.
+
+## Точки входа кода
+
+- **`DesignerXml`** — `read` / `write` / `unmarshal` / `marshal` по выбранной `SchemaVersion`.
+- **`XmlValidator`** — валидация по XSD (корень `namespace-forest`).
+- **`DesignerXmlCli`** (picocli) — `validate`, `round-trip`, `add-catalog`, `cf-list-catalogs`, `cf-catalog-form-get`, `cf-catalog-form-set`, `init-empty-cf`, `project-metadata-tree`. Тексты `--help` и подсказок — кратко; детали состава выгрузки — в **`docs/cf-layout.md`**, не дублировать перечни в описаниях команд: **`.cursor/rules/cli-user-facing-text.mdc`**.
+- Пакет **`io.github.yellowhammer.designerxml.cf`** — операции над деревом выгрузки `src/cf`; см. **`docs/cf-layout.md`**. Форма справочника в VS Code — **`CatalogFormEdit`** + `CatalogFormDto` (только JAXB, без правок XML вне библиотеки). Новые справочники (`add-catalog`) — **только `NewCatalogXml`**, без копирования с других `Catalogs/*.xml` и без XML-шаблонов: `.cursor/rules/cf-metadata-jaxb-only.mdc`.
+
+## Submodules
+
+- Не вносить **слу случайные правки** в `namespace-forest` или `fixtures/ssl31` без явной цели задачи.
+- Инициализация: `git submodule update --init --recursive`.
+
+## Тесты
+
+- Системные свойства: **`xsd.root`**, **`fixtures.ssl31.root`** (задаются в `tasks.test` в `build.gradle.kts`).
+- Пути к данным submodule в тестах: например **`Ssl31SubmodulePaths`**, свойство `fixtures.ssl31.root`.
+
+## Соглашения
+
+- Коммиты: [Conventional Commits](https://www.conventionalcommits.org/), сообщения **на русском** (если так принято в репо).
+- Комментарии в коде и пользовательские сообщения — **на русском**, где уже используется русский в проекте.
+- Не дублировать в каждом комментарии полное имя продукта — контекст задаёт путь в репозитории.
+- **Эволюция без самодельной совместимости**: см. `.cursor/rules/evolution-no-legacy.mdc`.

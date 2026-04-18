@@ -1,0 +1,24 @@
+---
+description: Операции над выгрузкой src/cf (AddCatalog и слой cf)
+globs: "**/designerxml/cf/*.java"
+alwaysApply: false
+---
+
+# Слой `io.github.yellowhammer.designerxml.cf`
+
+## Инварианты
+
+- **`AddCatalog`** и CLI **`add-catalog`** создают `Catalogs/<имя>.xml` **по образцу** другого файла в `Catalogs/` той же выгрузки (не из встроенного XML-шаблона в resources).
+- В `Catalogs/` должен существовать хотя бы один другой `.xml` (кроме целевого имени).
+- После изменений структуры применяются **новые UUID** (`DistinctUuidRewrite`) и подмена **stem имени файла-прототипа** на новое имя справочника в тексте XML.
+- Раскладка путей: **`CfLayout`**, документация — **`docs/cf-layout.md`**.
+
+## Имена
+
+- Ограничения на идентификатор справочника — **`CatalogNameConstraints`**.
+
+## Конфигурация
+
+- Запись ссылки в **`Configuration.xml`** — **`ConfigurationCatalogAppender`**; учитывать, что в XML могут быть префиксы пространств имён у элементов `Catalog`.
+
+**Эволюция:** `.cursor/rules/evolution-no-legacy.mdc`.

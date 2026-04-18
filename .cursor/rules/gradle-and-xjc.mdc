@@ -1,0 +1,28 @@
+---
+description: Gradle, XJC, xjb и generated sources в md-sparrow
+globs: "**/*.gradle.kts,**/gradle.properties,xjb/**"
+alwaysApply: false
+---
+
+# Gradle и XJC
+
+## Корень XSD
+
+- Свойство **`xsd.root`** (по умолчанию каталог submodule `namespace-forest`). Переопределение: `./gradlew … -Pxsd.root=/абсолютный/путь`.
+- XJC читает XSD из `namespace-forest/schemas/2.20` и `…/2.21` (см. `gradle.properties`: `xjc.xsdRelative.*`).
+
+## Bindings
+
+- Каталог **`xjb/ns/<версия>/`**: `bindings.xjb`, `catalog.xml` (OASIS) — входы для XJC наряду со схемами.
+- Новая версия набора схем: синхронно обновить **`SchemaVersion`**, **`gradle.properties`**, соответствующий **`xjb/ns/…`**.
+
+## Generated code
+
+- Каталог **`build/generated/sources/xjc-*/`** и классы в пакетах `io.github.yellowhammer.designerxml.jaxb.v2_*` — **не редактировать вручную**; правки через XSD/bindings и пересборку XJC.
+
+## Задачи
+
+- `compileJava` зависит от `xjc2_20`, `xjc2_21`.
+- Тесты: `-Pxsd.root` пробрасывается через `systemProperty` в `tasks.test`.
+
+**Эволюция:** `.cursor/rules/evolution-no-legacy.mdc`.
