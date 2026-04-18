@@ -51,7 +51,7 @@
     {
       "label": "run-cli",
       "type": "shell",
-      "command": ".\\gradlew.bat run --args=\"validate -v V2_20 src/test/resources/fixtures/mdclasses-mini/Configuration.xml namespace-forest --catalog xjb/ns/2.20/catalog.xml\"",
+      "command": ".\\gradlew.bat run --args=\"validate -v V2_20 fixtures/ssl31/src/cf/Configuration.xml namespace-forest --catalog xjb/ns/2.20/catalog.xml\"",
       "problemMatcher": []
     },
     {

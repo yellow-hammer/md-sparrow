@@ -1,0 +1,35 @@
+# Publishes md-sparrow-*-all.jar on Git tag push (e.g. v0.1.0).
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build fat JAR
+        run: ./gradlew shadowJar --no-daemon
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/libs/md-sparrow-*-all.jar
+          generate_release_notes: true

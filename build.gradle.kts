@@ -5,6 +5,7 @@ plugins {
     `java-library`
     application
     id("cloud.rio.license") version "0.18.0"
+    id("com.gradleup.shadow") version "8.3.7"
 }
 
 repositories {
@@ -34,6 +35,8 @@ dependencies {
     api("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
     implementation("org.glassfish.jaxb:jaxb-runtime:4.0.5")
     implementation("info.picocli:picocli:4.7.7")
+    implementation("com.google.code.gson:gson:2.11.0")
+    implementation("com.fasterxml.woodstox:woodstox-core:6.6.0")
 
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -100,9 +103,27 @@ tasks.jar {
     }
 }
 
+tasks.shadowJar {
+    archiveClassifier.set("all")
+    archiveBaseName.set("md-sparrow")
+    mergeServiceFiles()
+    manifest {
+        attributes["Main-Class"] = application.mainClass.get()
+        attributes["Implementation-Title"] = "md-sparrow"
+    }
+}
+
 tasks.test {
     useJUnitPlatform()
     systemProperty("xsd.root", project.file(xsdRootPath).absolutePath)
+    systemProperty(
+        "fixtures.ssl31.root",
+        layout.projectDirectory.dir("fixtures/ssl31").asFile.absolutePath,
+    )
+    systemProperty(
+        "samples.root",
+        layout.projectDirectory.dir("../1c-platform-samples").asFile.absolutePath,
+    )
 }
 
 tasks.check {
