@@ -8,6 +8,7 @@ package io.github.yellowhammer.designerxml.cf;
 import java.util.List;
 
 public enum MdObjectAddType {
+  CATALOG("Catalog", "Catalogs", "Справочник", List.of("Object", "Ref", "Selection", "List", "Manager"), false),
   ENUM("Enum", "Enums", "Перечисление", List.of("Ref", "Manager", "List"), false),
   CONSTANT("Constant", "Constants", "Константа", List.of("Manager", "ValueManager", "ValueKey"), false),
   DOCUMENT("Document", "Documents", "Документ", List.of("Object", "Ref", "Selection", "List", "Manager"), false),

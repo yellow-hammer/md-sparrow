@@ -71,8 +71,8 @@ class GoldenWriterCreateDeterminismTest {
     Path cfgB = cfB.resolve(CfLayout.CONFIGURATION_XML);
     String catalogName = "_GoldenCatalog1";
 
-    AddCatalog.add(cfgA, catalogName, "Golden", false, SchemaVersion.V2_20);
-    AddCatalog.add(cfgB, catalogName, "Golden", false, SchemaVersion.V2_20);
+    MdObjectAdd.add(cfgA, catalogName, SchemaVersion.V2_20, MdObjectAddType.CATALOG, "Golden", false);
+    MdObjectAdd.add(cfgB, catalogName, SchemaVersion.V2_20, MdObjectAddType.CATALOG, "Golden", false);
 
     Path catA = CfLayout.catalogObjectXml(cfA, catalogName);
     Path catB = CfLayout.catalogObjectXml(cfB, catalogName);

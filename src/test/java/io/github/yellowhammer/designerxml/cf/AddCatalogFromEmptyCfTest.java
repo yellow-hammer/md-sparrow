@@ -32,7 +32,7 @@ class AddCatalogFromEmptyCfTest {
     assertThat(Files.readString(cfg)).contains("formatVersion=\"2.20\"");
 
     String name = "_ПервыйИзПустой";
-    AddCatalog.add(cfg, name, "Первый", false, SchemaVersion.V2_20);
+    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.CATALOG, "Первый", false);
 
     Path catXml = CfLayout.catalogObjectXml(cf, name);
     assertThat(catXml).exists();
@@ -50,7 +50,7 @@ class AddCatalogFromEmptyCfTest {
     assertThat(Files.readString(cfg)).contains("formatVersion=\"2.21\"");
 
     String name = "_Первый221";
-    AddCatalog.add(cfg, name, "Первый", false, SchemaVersion.V2_21);
+    MdObjectAdd.add(cfg, name, SchemaVersion.V2_21, MdObjectAddType.CATALOG, "Первый", false);
 
     Path catXml = CfLayout.catalogObjectXml(cf, name);
     assertThat(catXml).exists();

@@ -31,4 +31,4 @@
 
 ## Интеграция в IDE (отдельная задача)
 
-Имеет смысл вызывать библиотеку из расширения **1C: Platform Tools** ([vscode-1c-platform-tools](https://github.com/yellow-hammer/vscode-1c-platform-tools)): JDK 21, артефакт `./gradlew shadowJar` → `build/libs/md-sparrow-*-all.jar`, подпроцесс `java -jar …` с подкомандами CLI (`add-catalog` и др.). Дублировать отдельное мини-расширение под это не обязательно — достаточно настроек путей и команды в существующем дереве инструментов.
+Имеет смысл вызывать библиотеку из расширения **1C: Platform Tools** ([vscode-1c-platform-tools](https://github.com/yellow-hammer/vscode-1c-platform-tools)): JDK 21, артефакт `./gradlew shadowJar` → `build/libs/md-sparrow-*-all.jar`, подпроцесс `java -jar …` с подкомандами CLI (`add-md-object --type CATALOG` и др.). Дублировать отдельное мини-расширение под это не обязательно — достаточно настроек путей и команды в существующем дереве инструментов.

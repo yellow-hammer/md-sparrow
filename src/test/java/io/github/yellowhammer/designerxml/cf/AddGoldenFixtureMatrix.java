@@ -38,7 +38,7 @@ final class AddGoldenFixtureMatrix {
   static List<Entry> allEntries() {
     return List.of(
       new Entry(
-        "add-catalog",
+        CMD_ADD_MD_OBJECT,
         "Catalog",
         FixtureSource.SNAPSHOT_FILE,
         "snapshots/2.20/cf/empty-full-objects/Catalogs/Справочник1.xml",

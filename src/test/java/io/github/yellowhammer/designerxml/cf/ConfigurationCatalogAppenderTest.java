@@ -5,8 +5,6 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
-import io.github.yellowhammer.designerxml.SchemaVersion;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -15,7 +13,7 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ConfigurationCatalogAppenderTest {
+class ConfigurationCatalogChildObjectAppenderTest {
 
   @TempDir
   Path dir;
@@ -36,7 +34,7 @@ class ConfigurationCatalogAppenderTest {
       </Configuration>
       </MetaDataObject>
       """);
-    ConfigurationCatalogAppender.append(cfg, "_НовыйСправочник", SchemaVersion.V2_20);
+    ConfigurationChildObjectAppender.append(cfg, "Catalog", "_НовыйСправочник");
     String text = Files.readString(cfg);
     int idxLang = text.indexOf("<Language>");
     int idxSub = text.indexOf("<Subsystem>");
@@ -62,7 +60,7 @@ class ConfigurationCatalogAppenderTest {
       </Configuration>
       </MetaDataObject>
       """);
-    ConfigurationCatalogAppender.append(cfg, "Бб", SchemaVersion.V2_20);
+    ConfigurationChildObjectAppender.append(cfg, "Catalog", "Бб");
     String text = Files.readString(cfg);
     int a = text.indexOf("<Catalog>Аа</Catalog>");
     int b = text.indexOf("<Catalog>Вв</Catalog>");

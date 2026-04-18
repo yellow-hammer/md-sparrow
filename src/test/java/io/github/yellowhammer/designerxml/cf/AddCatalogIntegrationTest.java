@@ -53,7 +53,7 @@ class AddCatalogIntegrationTest {
     String name = "_MdSparrowAddCatIt";
     String synonym = "Тест md-sparrow";
 
-    AddCatalog.add(cfg, name, synonym, false, SchemaVersion.V2_20);
+    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.CATALOG, synonym, false);
 
     Path catXml = CfLayout.catalogObjectXml(srcCf, name);
     assertThat(catXml).exists();
@@ -106,7 +106,7 @@ class AddCatalogIntegrationTest {
     Files.copy(cfgSrc, cfg);
 
     String name = "_MdSparrowEmptySyn";
-    AddCatalog.add(cfg, name, "долженИгнорироваться", true, SchemaVersion.V2_20);
+    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.CATALOG, "долженИгнорироваться", true);
 
     Path catXml = CfLayout.catalogObjectXml(srcCf, name);
     assertThat(catXml).exists();
@@ -126,7 +126,7 @@ class AddCatalogIntegrationTest {
     Files.copy(cfgSrc, cfg);
 
     String name = "_MdSparrowProfile";
-    AddCatalog.add(cfg, name, "", true, SchemaVersion.V2_20);
+    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.CATALOG, "", true);
 
     Path catXml = CfLayout.catalogObjectXml(srcCf, name);
     String catText = Files.readString(catXml, java.nio.charset.StandardCharsets.UTF_8);

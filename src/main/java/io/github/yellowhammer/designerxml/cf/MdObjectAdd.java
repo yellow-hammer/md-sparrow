@@ -21,6 +21,17 @@ public final class MdObjectAdd {
 
   public static void add(Path configurationXml, String objectName, SchemaVersion version, MdObjectAddType type)
     throws IOException, JAXBException {
+    add(configurationXml, objectName, version, type, null, false);
+  }
+
+  public static void add(
+    Path configurationXml,
+    String objectName,
+    SchemaVersion version,
+    MdObjectAddType type,
+    String catalogSynonymRu,
+    boolean catalogSynonymEmpty)
+    throws IOException, JAXBException {
     CatalogNameConstraints.check(objectName);
     Path cfRoot = configurationXml.getParent();
     if (cfRoot == null || !Files.isRegularFile(configurationXml)) {
@@ -33,7 +44,7 @@ public final class MdObjectAdd {
       throw new IllegalArgumentException("object file already exists: " + out);
     }
 
-    String text = generateObjectXml(type, name, version);
+    String text = generateObjectXml(type, name, version, catalogSynonymRu, catalogSynonymEmpty);
     Files.createDirectories(out.getParent());
     Files.writeString(out, text, StandardCharsets.UTF_8);
     if (type.roleWithExtRights()) {
@@ -61,9 +72,15 @@ public final class MdObjectAdd {
     Files.writeString(rightsXml, RoleRightsXmlWriter.generate(version, CfLayout.DEFAULT_CONFIGURATION_NAME), StandardCharsets.UTF_8);
   }
 
-  private static String generateObjectXml(MdObjectAddType type, String name, SchemaVersion version)
+  private static String generateObjectXml(
+    MdObjectAddType type,
+    String name,
+    SchemaVersion version,
+    String catalogSynonymRu,
+    boolean catalogSynonymEmpty)
     throws JAXBException, IOException {
     return switch (type) {
+      case CATALOG -> CatalogXmlEmitter.emit(name, catalogSynonymRu, catalogSynonymEmpty, version);
       case ENUM -> NewEnumXml.generate(name, version);
       case CONSTANT -> NewConstantXml.generate(name, version);
       case DOCUMENT -> NewDocumentXml.generate(name, version);

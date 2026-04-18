@@ -17,8 +17,8 @@ Java-библиотека чтения/записи **Designer XML** (`MetaDataO
 
 - **`DesignerXml`** — `read` / `write` / `unmarshal` / `marshal` по выбранной `SchemaVersion`.
 - **`XmlValidator`** — валидация по XSD (корень `namespace-forest`).
-- **`DesignerXmlCli`** (picocli) — `validate`, `round-trip`, `add-catalog`, `cf-list-catalogs`, `cf-catalog-form-get`, `cf-catalog-form-set`, `init-empty-cf`, `project-metadata-tree`. Тексты `--help` и подсказок — кратко; детали состава выгрузки — в **`docs/cf-layout.md`**, не дублировать перечни в описаниях команд: **`.cursor/rules/cli-user-facing-text.mdc`**.
-- Пакет **`io.github.yellowhammer.designerxml.cf`** — операции над деревом выгрузки `src/cf`; см. **`docs/cf-layout.md`**. Форма справочника в VS Code — **`CatalogFormEdit`** + `CatalogFormDto` (только JAXB, без правок XML вне библиотеки). Новые справочники (`add-catalog`) — **только `NewCatalogXml`**, без копирования с других `Catalogs/*.xml` и без XML-шаблонов: `.cursor/rules/cf-metadata-jaxb-only.mdc`.
+- **`DesignerXmlCli`** (picocli) — `validate`, `round-trip`, `add-md-object`, `cf-list-catalogs`, `cf-catalog-form-get`, `cf-catalog-form-set`, `init-empty-cf`, `project-metadata-tree`. Тексты `--help` и подсказок — кратко; детали состава выгрузки — в **`docs/cf-layout.md`**, не дублировать перечни в описаниях команд: **`.cursor/rules/cli-user-facing-text.mdc`**.
+- Пакет **`io.github.yellowhammer.designerxml.cf`** — операции над деревом выгрузки `src/cf`; см. **`docs/cf-layout.md`**. Форма справочника в VS Code — **`CatalogFormEdit`** + `CatalogFormDto` (только JAXB, без правок XML вне библиотеки). Новые справочники (`add-md-object --type CATALOG`) — **только `NewCatalogXml`**, без копирования с других `Catalogs/*.xml` и без XML-шаблонов: `.cursor/rules/cf-metadata-jaxb-only.mdc`.
 
 ## Submodules
 

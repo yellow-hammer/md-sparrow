@@ -1,5 +1,5 @@
 ---
-description: Операции над выгрузкой src/cf (AddCatalog и слой cf)
+description: Операции над выгрузкой src/cf (add-md-object и слой cf)
 globs: "**/designerxml/cf/*.java"
 alwaysApply: false
 ---
@@ -8,9 +8,9 @@ alwaysApply: false
 
 ## Инварианты
 
-- **`AddCatalog`** и CLI **`add-catalog`** создают `Catalogs/<имя>.xml` **по образцу** другого файла в `Catalogs/` той же выгрузки (не из встроенного XML-шаблона в resources).
-- В `Catalogs/` должен существовать хотя бы один другой `.xml` (кроме целевого имени).
-- После изменений структуры применяются **новые UUID** (`DistinctUuidRewrite`) и подмена **stem имени файла-прототипа** на новое имя справочника в тексте XML.
+- Для нового справочника использовать **`add-md-object --type CATALOG`** (в коде — `MdObjectAddType.CATALOG`), а не отдельную add-команду.
+- `Catalogs/<имя>.xml` формируется из программной JAXB-модели (`NewCatalogXml`/`CatalogXmlEmitter`), **без** чтения или копирования чужих `Catalogs/*.xml`.
+- После генерации каталога применяется детерминированная нормализация UUID/формата (`DistinctUuidRewrite`, golden post-process).
 - Раскладка путей: **`CfLayout`**, документация — **`docs/cf-layout.md`**.
 
 ## Имена
@@ -19,6 +19,6 @@ alwaysApply: false
 
 ## Конфигурация
 
-- Запись ссылки в **`Configuration.xml`** — **`ConfigurationCatalogAppender`**; учитывать, что в XML могут быть префиксы пространств имён у элементов `Catalog`.
+- Запись ссылки в **`Configuration.xml`** — через `ConfigurationChildObjectAppender.append(..., "Catalog", ...)`; учитывать, что в XML могут быть префиксы пространств имён у элементов `Catalog`.
 
 **Эволюция:** `.cursor/rules/evolution-no-legacy.mdc`.

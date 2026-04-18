@@ -321,6 +321,7 @@ class MdObjectPropertiesEditTest {
 
   private static String kindToDtoKind(MdObjectAddType type) {
     return switch (type) {
+      case CATALOG -> "catalog";
       case ENUM -> "enum";
       case CONSTANT -> "constant";
       case DOCUMENT -> "document";

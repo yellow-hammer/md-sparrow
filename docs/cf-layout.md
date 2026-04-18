@@ -23,7 +23,7 @@
 
 ## Добавление через md-sparrow
 
-Класс `io.github.yellowhammer.designerxml.cf.AddCatalog` и CLI `add-catalog` **всегда** формируют `Catalogs/<имя>.xml` из программной модели (**`NewCatalogXml`**, JAXB по XSD из `namespace-forest`); **не** читают и **не** копируют структуру с других файлов в `Catalogs/`. Для примеров полей справочников и регрессионных тестов используют submodule **`fixtures/ssl31`**; это **не** единственный эталон для атрибутов корня `Configuration.xml` (см. следующий раздел). Затем добавляется `<Catalog>имя</Catalog>` в `Configuration.xml`.
+Создание справочника через `add-md-object --type CATALOG` (внутри `MdObjectAdd`) **всегда** формирует `Catalogs/<имя>.xml` из программной модели (**`NewCatalogXml`**, JAXB по XSD из `namespace-forest`); **не** читает и **не** копирует структуру с других файлов в `Catalogs/`. Для примеров полей справочников и регрессионных тестов используют submodule **`fixtures/ssl31`**; это **не** единственный эталон для атрибутов корня `Configuration.xml` (см. следующий раздел). Затем добавляется `<Catalog>имя</Catalog>` в `Configuration.xml`.
 
 Строка в `Configuration.xml` вставляется **точечно** (без JAXB), с тем же отступом, что у строк `ChildObjects`. Порядок как в типовой выгрузке и в XSD `ConfigurationChildObjects`: **сначала** все типы метаданных до `Catalog` (`Language`, `Subsystem`, …, `CommonForm`), **затем** блок справочников; внутри блока — **по имени** (локаль `ru`, см. `ConfigurationChildObjectsOrder`). Если справочников ещё нет — вставка после последней строки любого типа «до Catalog»; если в файле уже идут только типы после `Catalog` (например `Document`) — новая строка вставляется **перед** первой такой. Дубликат имени проверяется по тексту `ChildObjects`.
 
@@ -56,7 +56,7 @@ init-empty-cf path/to/src/cf -v V2_20 --name МояБаза --synonym-ru "Моя
 
 ## Golden Writer (add-пути)
 
-Для путей **создания** новых объектов (`init-empty-cf`, `add-catalog`, `add-md-object`, `external-artifact-add`) действует единый контракт «golden writer»:
+Для путей **создания** новых объектов (`init-empty-cf`, `add-md-object`, `external-artifact-add`) действует единый контракт «golden writer»:
 
 - запись через JAXB/XSD (без runtime XML-шаблонов);
 - детерминированные UUID для одинакового входа;
@@ -68,8 +68,7 @@ init-empty-cf path/to/src/cf -v V2_20 --name МояБаза --synonym-ru "Моя
 
 | Команда | Тип | Источник fixture | Допустимые отличия |
 | --- | --- | --- | --- |
-| `add-catalog` | `Catalog` | `1c-platform-samples/snapshots/2.20/cf/empty-full-objects/Catalogs/Справочник1.xml` | только пустой `<ChildObjects/>` по умолчанию |
-| `add-md-object` | `ENUM`, `CONSTANT`, `DOCUMENT`, `REPORT`, `DATA_PROCESSOR`, `TASK`, `CHART_OF_ACCOUNTS`, `CHART_OF_CHARACTERISTIC_TYPES`, `CHART_OF_CALCULATION_TYPES`, `COMMON_MODULE`, `SUBSYSTEM`, `SESSION_PARAMETER`, `EXCHANGE_PLAN`, `COMMON_ATTRIBUTE`, `COMMON_PICTURE`, `DOCUMENT_NUMERATOR`, `EXTERNAL_DATA_SOURCE`, `ROLE` | JAXB/XSD генераторы (`New*Xml`) | детерминированные UUID и стабильный golden-format; без template-copy |
+| `add-md-object` | `CATALOG`, `ENUM`, `CONSTANT`, `DOCUMENT`, `REPORT`, `DATA_PROCESSOR`, `TASK`, `CHART_OF_ACCOUNTS`, `CHART_OF_CHARACTERISTIC_TYPES`, `CHART_OF_CALCULATION_TYPES`, `COMMON_MODULE`, `SUBSYSTEM`, `SESSION_PARAMETER`, `EXCHANGE_PLAN`, `COMMON_ATTRIBUTE`, `COMMON_PICTURE`, `DOCUMENT_NUMERATOR`, `EXTERNAL_DATA_SOURCE`, `ROLE` | `CATALOG`: snapshot `1c-platform-samples/snapshots/2.20/cf/empty-full-objects/Catalogs/Справочник1.xml`; остальные типы — JAXB/XSD генераторы (`New*Xml`) | `CATALOG`: только пустой `<ChildObjects/>` по умолчанию; остальные типы — детерминированные UUID и стабильный golden-format, без template-copy |
 
 `external-artifact-add` пока **не имеет fixture snapshot** в workspace (`src/erf` / `src/epf` эталонов нет), поэтому для него зафиксированы инварианты: детерминизм, golden-format и читаемость JAXB без snapshot-сравнения.
 

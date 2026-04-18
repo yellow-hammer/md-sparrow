@@ -28,7 +28,6 @@ import io.github.yellowhammer.designerxml.XmlValidator;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import io.github.yellowhammer.designerxml.cf.AddCatalog;
 import io.github.yellowhammer.designerxml.cf.CatalogFormDto;
 import io.github.yellowhammer.designerxml.cf.CatalogFormEdit;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
@@ -68,7 +67,6 @@ import java.util.concurrent.Callable;
   subcommands = {
     DesignerXmlCli.ValidateCmd.class,
     DesignerXmlCli.RoundTripCmd.class,
-    DesignerXmlCli.AddCatalogCmd.class,
     DesignerXmlCli.CfListCatalogsCmd.class,
     DesignerXmlCli.CfListChildObjectsCmd.class,
     DesignerXmlCli.AddMdObjectCmd.class,
@@ -175,41 +173,6 @@ public final class DesignerXmlCli implements Callable<Integer> {
   }
 
   @Command(
-    name = "add-catalog",
-    description = "Создать справочник и добавить его в Configuration.xml."
-  )
-  static final class AddCatalogCmd implements Callable<Integer> {
-    @Parameters(index = "0", description = "Путь к Configuration.xml (каталог src/cf)")
-    Path configurationXml;
-
-    @Parameters(index = "1", description = "Имя справочника (идентификатор 1С)")
-    String catalogName;
-
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
-    SchemaVersion version;
-
-    @Option(names = "--synonym-ru", description = "Синоним (ru); по умолчанию совпадает с именем")
-    String synonymRu;
-
-    @Option(
-      names = "--synonym-empty",
-      description = "Пустой синоним ru (как в эталонной выгрузке); приоритетнее --synonym-ru")
-    boolean synonymEmpty;
-
-    @Override
-    public Integer call() throws Exception {
-      try {
-        AddCatalog.add(configurationXml, catalogName, synonymRu, synonymEmpty, version);
-      } catch (IllegalArgumentException e) {
-        System.err.println(e.getMessage());
-        return 2;
-      }
-      System.out.println("OK");
-      return 0;
-    }
-  }
-
-  @Command(
     name = "cf-list-catalogs",
     description = "Вывести JSON-массив имён справочников из Configuration.xml (ChildObjects/Catalog)."
   )
@@ -278,14 +241,25 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
     SchemaVersion version;
 
-    @Option(names = "--type", required = true, description = "ENUM, CONSTANT, DOCUMENT, REPORT, DATA_PROCESSOR, TASK, CHART_OF_ACCOUNTS, …")
+    @Option(names = "--type", required = true, description = "CATALOG, ENUM, CONSTANT, DOCUMENT, REPORT, DATA_PROCESSOR, TASK, CHART_OF_ACCOUNTS, …")
     String type;
+
+    @Option(names = "--synonym-ru", description = "Синоним ru (только для --type CATALOG)")
+    String catalogSynonymRu;
+
+    @Option(
+      names = "--synonym-empty",
+      description = "Пустой синоним ru (только для --type CATALOG; приоритетнее --synonym-ru)")
+    boolean catalogSynonymEmpty;
 
     @Override
     public Integer call() throws Exception {
       try {
         MdObjectAddType k = MdObjectAddType.fromCliName(type);
-        MdObjectAdd.add(configurationXml, objectName, version, k);
+        if (k != MdObjectAddType.CATALOG && (catalogSynonymEmpty || catalogSynonymRu != null)) {
+          throw new IllegalArgumentException("--synonym-ru/--synonym-empty поддерживаются только для --type CATALOG");
+        }
+        MdObjectAdd.add(configurationXml, objectName, version, k, catalogSynonymRu, catalogSynonymEmpty);
       } catch (IllegalArgumentException e) {
         System.err.println(e.getMessage());
         return 2;
