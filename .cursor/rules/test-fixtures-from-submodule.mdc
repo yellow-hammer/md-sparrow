@@ -1,0 +1,69 @@
+---
+description: Тестовые данные — из submodule fixtures, а не литералы в коде
+globs: "src/test/**/*.java"
+alwaysApply: false
+---
+
+# Никаких фикстур в коде тестов
+
+Входные данные тестов (XML-фрагменты, ссылки на объекты метаданных, имена реальных
+типов и т.п.) **не пишем литералами в коде**. Берём из submodule
+[`fixtures/ssl31`](mdc:fixtures/ssl31) или
+[`fixtures/1c-platform-samples`](mdc:fixtures/1c-platform-samples) — см.
+`.cursor/rules/fixture-ssl31-policy.mdc` и `.cursor/rules/empty-configuration-reference.mdc`.
+
+Реальные данные ловят регрессии, которые синтетика пропустит (новые типы в
+`KNOWN_ROOT_TYPES`, неучтённые xsi:type, варианты атрибутов, и т.п.).
+
+## Запреты
+
+- Не вшивать имена/пути объектов метаданных как строковые литералы:
+  `"Catalog._ДемоОрганизации"`, `"cfg:CatalogRef.X"`, `"Document.Y.TabularSection.Z"` и т.п.
+- Не собирать «маленький XML руками» в `String triple-quoted` / heredoc, если в submodule
+  уже есть подходящий пример.
+- Не дублировать в `src/test/resources/` файлы, которые уже лежат в submodule.
+
+## Как правильно
+
+1. Адресуем фикстуры через `Ssl31SubmodulePaths` / аналог, а не через жёсткие пути.
+2. Открываем нужный XML через `XmlGraphReader.parse(...)`, извлекаем интересующие узлы
+   через `descendantsLocal` / `firstChildLocal`, и **вход парсера берём из реального файла**.
+3. Проверяем контракт парсера/билдера на множестве реальных значений, а не на одной строке.
+4. Если для теста требуется правка дерева — **копия в `@TempDir`**, индекс submodule не трогаем.
+
+## Пример
+
+```java
+// ❌ BAD — фикстуры в коде
+assertThat(MetadataRefParser.normalizeMdObjectRef("Catalog._ДемоОрганизации"))
+  .contains("Catalog._ДемоОрганизации");
+
+// ✅ GOOD — данные из ssl31
+Path xml = Ssl31SubmodulePaths.projectRoot()
+  .resolve("src/cf/Subsystems/_ДемоАнкетирование/Subsystems/Респонденты.xml");
+Document doc = XmlGraphReader.parse(xml);
+List<String> refs = XmlGraphReader.descendantsLocal(doc.getDocumentElement(), "Item").stream()
+  .filter(e -> "MDObjectRef".equals(stripPrefix(e.getAttributeNS(XSI_NS, "type"))))
+  .map(XmlGraphReader::text).filter(Objects::nonNull).toList();
+assertThat(refs).isNotEmpty();
+for (String raw : refs) {
+  assertThat(MetadataRefParser.normalizeMdObjectRef(raw)).as(raw).isPresent();
+}
+```
+
+## Исключения
+
+- **Контракт API** (например, отрицательная проверка «парсер отвергает любой
+  неизвестный корневой тип») допустим в виде проверки **по реальным данным** —
+  утверждаем, что все распарсенные `objectType` входят в `KNOWN_ROOT_TYPES`. Если
+  такого реального кейса нет — лучше не писать тест вовсе, чем плодить синтетику.
+- **Юнит-тест чистой утилиты без I/O** (без типов/имён метаданных) может использовать
+  литералы — но не путайте такие утилиты с парсерами Designer XML.
+- **Интеграционные тесты сборки графа** (`ProjectMetadataGraphBuilderTest` и подобные),
+  которые прогоняют весь billder против полного корпуса ssl_3_1 и проверяют
+  итоговые рёбра/узлы, могут называть конкретные ключи (`"Catalog.X"`,
+  `"Document.Y"`) в **assertions** — но не в качестве входных данных; входом
+  всегда служит реальная выгрузка через `Ssl31SubmodulePaths`.
+
+**Связанные правила:** `fixture-ssl31-policy.mdc`, `empty-configuration-reference.mdc`,
+`evolution-no-legacy.mdc`.
