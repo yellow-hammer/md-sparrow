@@ -65,7 +65,7 @@ import java.util.concurrent.Callable;
 @Command(
   name = "md-sparrow",
   mixinStandardHelpOptions = true,
-  version = "md-sparrow 0.1",
+  version = "md-sparrow 0.2",
   subcommands = {
     DesignerXmlCli.ValidateCmd.class,
     DesignerXmlCli.RoundTripCmd.class,
