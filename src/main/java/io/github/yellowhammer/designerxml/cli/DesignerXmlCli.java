@@ -42,6 +42,8 @@ import io.github.yellowhammer.designerxml.cf.CfLayout;
 import io.github.yellowhammer.designerxml.cf.MdObjectAdd;
 import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 import io.github.yellowhammer.designerxml.cf.NewConfigurationXml;
+import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphBuilder;
+import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphDto;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
 import picocli.CommandLine;
@@ -99,7 +101,8 @@ import java.util.concurrent.Callable;
     MdObjectMutationCommands.CfMdObjectRenameCmd.class,
     MdObjectMutationCommands.CfMdObjectDuplicateCmd.class,
     DesignerXmlCli.InitEmptyCfCmd.class,
-    DesignerXmlCli.ProjectMetadataTreeCmd.class
+    DesignerXmlCli.ProjectMetadataTreeCmd.class,
+    DesignerXmlCli.CfMdGraphCmd.class
   },
   description = "Чтение/запись Designer XML по XSD (JAXB)."
 )
@@ -506,7 +509,10 @@ public final class DesignerXmlCli implements Callable<Integer> {
     description = "Дерево метаданных проекта (src/cf, расширения, внешние отчёты/обработки) в JSON."
   )
   static final class ProjectMetadataTreeCmd implements Callable<Integer> {
-    @Parameters(index = "0", description = "Корень проекта (каталог с src/cf)")
+    @Parameters(
+      index = "0",
+      description = "Корень проекта (с src/cf и опционально src/cfe/*, src/erf/*, src/epf/*)"
+    )
     Path projectRoot;
 
     @Option(names = "--pretty", description = "Форматировать JSON")
@@ -516,6 +522,38 @@ public final class DesignerXmlCli implements Callable<Integer> {
     public Integer call() throws Exception {
       try {
         ProjectMetadataTreeDto dto = ProjectMetadataTreeBuilder.build(projectRoot);
+        Gson gson =
+          pretty
+            ? new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
+            : new GsonBuilder().disableHtmlEscaping().create();
+        System.out.println(gson.toJson(dto));
+      } catch (Exception e) {
+        System.err.println(e.getMessage());
+        return 2;
+      }
+      return 0;
+    }
+  }
+
+  @Command(
+    name = "cf-md-graph",
+    description = "Граф метаданных проекта (узлы + типизированные связи) "
+      + "по основной выгрузке src/cf, расширениям src/cfe/* и внешним отчётам/обработкам src/erf/*, src/epf/* в JSON."
+  )
+  static final class CfMdGraphCmd implements Callable<Integer> {
+    @Parameters(
+      index = "0",
+      description = "Корень проекта (с src/cf и опционально src/cfe/*, src/erf/*, src/epf/*)"
+    )
+    Path projectRoot;
+
+    @Option(names = "--pretty", description = "Форматировать JSON")
+    boolean pretty;
+
+    @Override
+    public Integer call() throws Exception {
+      try {
+        ProjectMetadataGraphDto dto = ProjectMetadataGraphBuilder.build(projectRoot);
         Gson gson =
           pretty
             ? new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
