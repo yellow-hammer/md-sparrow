@@ -47,7 +47,10 @@ public final class MdObjectPropertiesEdit {
     new SimpleKindDef("commonPicture", "getCommonPicture"),
     new SimpleKindDef("documentNumerator", "getDocumentNumerator"),
     new SimpleKindDef("externalDataSource", "getExternalDataSource"),
-    new SimpleKindDef("role", "getRole")
+    new SimpleKindDef("role", "getRole"),
+    new SimpleKindDef("eventSubscription", "getEventSubscription"),
+    new SimpleKindDef("scheduledJob", "getScheduledJob"),
+    new SimpleKindDef("commonCommand", "getCommonCommand")
   );
 
   private MdObjectPropertiesEdit() {

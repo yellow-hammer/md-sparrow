@@ -18,7 +18,8 @@ import java.util.List;
  * {@code dataProcessor} | {@code task} | {@code chartOfAccounts} | {@code chartOfCharacteristicTypes} |
  * {@code chartOfCalculationTypes} | {@code commonModule} | {@code subsystem} | {@code sessionParameter} |
  * {@code exchangePlan} | {@code commonAttribute} | {@code commonPicture} | {@code documentNumerator} |
- * {@code externalDataSource} | {@code role}.
+ * {@code externalDataSource} | {@code role} | {@code eventSubscription} | {@code scheduledJob} |
+ * {@code commonCommand}.
  */
 public final class MdObjectPropertiesDto {
 
