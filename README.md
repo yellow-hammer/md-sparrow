@@ -1,5 +1,9 @@
 # md-sparrow
 
+[![OpenYellow](https://openyellow.openintegrations.dev/data/badges/1113279075.png)](https://openyellow.org/grid?filter=top&repo=1113279075)
+[![telegram chat](resources/badges/telegram-chat.png)](https://t.me/wonder_yellow)
+[![Ask Devin](resources/badges/deepwiki-badge.png)](https://deepwiki.com/yellow-hammer/md-sparrow)
+
 Java-библиотека для чтения/записи XML метаданных 1С (`MetaDataObject`) по XSD из [namespace-forest](https://github.com/yellow-hammer/namespace-forest).
 
 ## Что важно перед стартом
