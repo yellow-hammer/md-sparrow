@@ -51,19 +51,7 @@
     {
       "label": "run-cli",
       "type": "shell",
-      "command": ".\\gradlew.bat run --args=\"validate -v V2_20 fixtures/ssl31/src/cf/Configuration.xml namespace-forest --catalog xjb/ns/2.20/catalog.xml\"",
-      "problemMatcher": []
-    },
-    {
-      "label": "xjc-2_20",
-      "type": "shell",
-      "command": ".\\gradlew.bat xjc2_20",
-      "problemMatcher": []
-    },
-    {
-      "label": "xjc-2_21",
-      "type": "shell",
-      "command": ".\\gradlew.bat xjc2_21",
+      "command": ".\\gradlew.bat run --args=\"validate -v V2_20 fixtures/ssl31/src/cf/Configuration.xml resources/namespace-forest\"",
       "problemMatcher": []
     }
   ]
