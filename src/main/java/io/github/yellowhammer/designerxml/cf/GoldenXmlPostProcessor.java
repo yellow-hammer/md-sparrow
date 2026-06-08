@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * Единая пост-обработка XML для add-путей golden writer.
  */
 final class GoldenXmlPostProcessor {
-  private static final String META_DATA_OBJECT_START_V220 =
+  private static final String META_DATA_OBJECT_START_TEMPLATE =
     "<MetaDataObject xmlns=\"http://v8.1c.ru/8.3/MDClasses\""
       + " xmlns:app=\"http://v8.1c.ru/8.2/managed-application/core\""
       + " xmlns:cfg=\"http://v8.1c.ru/8.1/data/enterprise/current-config\""
@@ -34,9 +34,7 @@ final class GoldenXmlPostProcessor {
       + " xmlns:xr=\"http://v8.1c.ru/8.3/xcf/readable\""
       + " xmlns:xs=\"http://www.w3.org/2001/XMLSchema\""
       + " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
-      + " version=\"2.20\">";
-  private static final String META_DATA_OBJECT_START_V221 =
-    META_DATA_OBJECT_START_V220.replace("version=\"2.20\"", "version=\"2.21\"");
+      + " version=\"%s\">";
 
   private static final Pattern GENERATED_TYPE_ATTR_ORDER = Pattern.compile(
     "<xr:GeneratedType\\s+category=\"([^\"]+)\"\\s+name=\"([^\"]+)\">");
@@ -71,10 +69,8 @@ final class GoldenXmlPostProcessor {
       return xml;
     }
 
-    String replacement = switch (version) {
-      case V2_20 -> META_DATA_OBJECT_START_V220;
-      case V2_21 -> META_DATA_OBJECT_START_V221;
-    };
+    String replacement =
+      META_DATA_OBJECT_START_TEMPLATE.formatted(version.metadataObjectVersionAttribute());
     return xml.substring(0, start) + replacement + xml.substring(end + 1);
   }
 }

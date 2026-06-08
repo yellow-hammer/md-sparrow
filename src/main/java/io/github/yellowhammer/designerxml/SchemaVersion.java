@@ -27,60 +27,57 @@ import jakarta.xml.bind.JAXBException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Поддерживаемая версия набора XSD (подкаталог в корне репозитория {@code namespace-forest}, submodule).
+ * Поддерживаемая версия набора XSD (подкаталог в submodule {@code resources/namespace-forest}).
  */
 public enum SchemaVersion {
 
-  /**
-   * Схемы из каталога {@code schemas/2.20} (см. {@code gradle.properties} и {@code xjb/ns/2.20/}).
-   */
-  V2_20(
-    "schemas/2.20",
-    jaxbContextPath("io.github.yellowhammer.designerxml.jaxb.v2_20")),
+  V2_10, V2_11, V2_12, V2_13, V2_14, V2_15,
+  V2_16, V2_17, V2_18, V2_19, V2_20, V2_21;
 
   /**
-   * Схемы из каталога {@code schemas/2.21} (см. {@code gradle.properties} и {@code xjb/ns/2.21/}).
-   */
-  V2_21(
-    "schemas/2.21",
-    jaxbContextPath("io.github.yellowhammer.designerxml.jaxb.v2_21"));
-
-  private final String xsdDirectoryName;
-  private final String jaxbContextPath;
-
-  SchemaVersion(String xsdDirectoryName, String jaxbContextPath) {
-    this.xsdDirectoryName = xsdDirectoryName;
-    this.jaxbContextPath = jaxbContextPath;
-  }
-
-  /**
-   * Подкаталог с {@code *.xsd} относительно корня {@code namespace-forest} (например {@code schemas/2.21}).
+   * Подкаталог с {@code *.xsd} относительно корня {@code resources/namespace-forest} (например {@code schemas/2.21}).
    *
    * @return относительный путь вида {@code schemas/2.21}
    */
   public String xsdDirectoryName() {
-    return xsdDirectoryName;
+    return "schemas/" + metadataObjectVersionAttribute();
   }
 
   /**
    * Значение атрибута {@code version} у корневого элемента {@code MetaDataObject} в XML метаданных.
    *
-   * @return например {@code "2.20"} для {@link #V2_20}
+   * @return например {@code "2.20"} для {@link #V2_20} (выводится из имени константы)
    */
   public String metadataObjectVersionAttribute() {
-    return switch (this) {
-      case V2_20 -> "2.20";
-      case V2_21 -> "2.21";
-    };
+    return name().substring(1).replace('_', '.');
   }
 
   /**
-   * Строка контекста JAXB (пакеты через {@code :}).
+   * Поддерживаемый {@link SchemaVersion} по значению атрибута {@code version} (или {@link Optional#empty()}).
+   *
+   * @param versionAttribute например {@code "2.17"}
+   */
+  public static java.util.Optional<SchemaVersion> byVersionAttribute(String versionAttribute) {
+    if (versionAttribute == null) {
+      return java.util.Optional.empty();
+    }
+    String v = versionAttribute.trim();
+    for (SchemaVersion sv : values()) {
+      if (sv.metadataObjectVersionAttribute().equals(v)) {
+        return java.util.Optional.of(sv);
+      }
+    }
+    return java.util.Optional.empty();
+  }
+
+  /**
+   * Строка контекста JAXB (пакеты через {@code :}); пакет выводится из имени константы
+   * (например {@code V2_17} → {@code …jaxb.v2_17.*}, см. сгенерированные XJC-модели в build.gradle.kts).
    *
    * @return список пакетов для {@link JAXBContext#newInstance(String, ClassLoader)}
    */
   public String jaxbContextPath() {
-    return jaxbContextPath;
+    return jaxbContextPath("io.github.yellowhammer.designerxml.jaxb." + name().toLowerCase());
   }
 
   private static final ConcurrentHashMap<SchemaVersion, JAXBContext> CONTEXT_CACHE = new ConcurrentHashMap<>();

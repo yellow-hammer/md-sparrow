@@ -8,97 +8,67 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
+
+import java.util.List;
+
 /**
- * Синоним и представления ru для полей Designer XML (JAXB v2_20 / v2_21).
+ * Чтение/запись ru-представления у {@code LocalStringType} Designer XML — версионно-нейтрально
+ * (через {@link JaxbReflect}; структура {@code getItem()/getLang()/getContent()} одинакова во всех версиях).
  */
 public final class LocalStringSync {
+
+  private static final String RU = "ru";
 
   private LocalStringSync() {
   }
 
-  public static String firstRuV20(io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.LocalStringType lst) {
-    if (lst == null) {
+  /**
+   * Содержимое ru-элемента или {@code ""} (включая {@code null}-аргумент).
+   */
+  public static String firstRu(Object localString) {
+    if (localString == null) {
       return "";
     }
-    for (var it : lst.getItem()) {
-      if ("ru".equals(it.getLang())) {
-        return it.getContent() == null ? "" : it.getContent();
+    for (Object item : JaxbReflect.<Object>list(localString, "getItem")) {
+      if (RU.equals(JaxbReflect.getString(item, "getLang"))) {
+        String c = JaxbReflect.getString(item, "getContent");
+        return c == null ? "" : c;
       }
     }
     return "";
   }
 
-  public static String firstRuV21(io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.LocalStringType lst) {
-    if (lst == null) {
-      return "";
-    }
-    for (var it : lst.getItem()) {
-      if ("ru".equals(it.getLang())) {
-        return it.getContent() == null ? "" : it.getContent();
-      }
-    }
-    return "";
-  }
-
-  public static void setOrPutRuV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.LocalStringType lst,
-    String content) {
-    if (lst == null) {
+  /**
+   * Устанавливает ru-содержимое; если ru-элемента нет — добавляет его.
+   */
+  public static void setOrPutRu(Object localString, String content) {
+    if (localString == null) {
       return;
     }
-    for (var it : lst.getItem()) {
-      if ("ru".equals(it.getLang())) {
-        it.setContent(content);
+    List<Object> items = JaxbReflect.list(localString, "getItem");
+    for (Object item : items) {
+      if (RU.equals(JaxbReflect.getString(item, "getLang"))) {
+        JaxbReflect.set(item, "setContent", content);
         return;
       }
     }
-    var item = new io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.LocalStringItemType();
-    item.setLang("ru");
-    item.setContent(content);
-    lst.getItem().add(item);
+    Object item = JaxbReflect.newInstance(localString.getClass().getPackageName() + ".LocalStringItemType");
+    JaxbReflect.set(item, "setLang", RU);
+    JaxbReflect.set(item, "setContent", content);
+    items.add(item);
   }
 
-  public static void replaceRuV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.LocalStringType lst,
-    String content) {
-    if (lst == null) {
+  /**
+   * Обновляет ru-содержимое, только если ru-элемент уже есть (иначе ничего не делает).
+   */
+  public static void replaceRu(Object localString, String content) {
+    if (localString == null) {
       return;
     }
-    for (var it : lst.getItem()) {
-      if ("ru".equals(it.getLang())) {
-        it.setContent(content);
-        return;
-      }
-    }
-  }
-
-  public static void setOrPutRuV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.LocalStringType lst,
-    String content) {
-    if (lst == null) {
-      return;
-    }
-    for (var it : lst.getItem()) {
-      if ("ru".equals(it.getLang())) {
-        it.setContent(content);
-        return;
-      }
-    }
-    var item = new io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.LocalStringItemType();
-    item.setLang("ru");
-    item.setContent(content);
-    lst.getItem().add(item);
-  }
-
-  public static void replaceRuV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.LocalStringType lst,
-    String content) {
-    if (lst == null) {
-      return;
-    }
-    for (var it : lst.getItem()) {
-      if ("ru".equals(it.getLang())) {
-        it.setContent(content);
+    for (Object item : JaxbReflect.<Object>list(localString, "getItem")) {
+      if (RU.equals(JaxbReflect.getString(item, "getLang"))) {
+        JaxbReflect.set(item, "setContent", content);
         return;
       }
     }

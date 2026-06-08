@@ -8,12 +8,17 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
+
 import jakarta.xml.bind.JAXBException;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
- * Заполнение {@link MdCatalogPropertiesDto} из JAXB и обратная запись в {@code CatalogProperties} (2_20 / 2_21).
+ * Заполнение {@link MdCatalogPropertiesDto} из JAXB и обратная запись в {@code CatalogProperties} —
+ * версионно-нейтрально через {@link JaxbReflect} (структура свойств одинакова во всех версиях схем).
  */
 public final class MdCatalogPropertiesBridge {
 
@@ -32,594 +37,214 @@ public final class MdCatalogPropertiesBridge {
     return s;
   }
 
-  public static void readV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.CatalogProperties p,
-    MdObjectPropertiesDto dto) {
+  /**
+   * Читает {@code CatalogProperties} ({@code p}, любой версии) в {@code dto.catalog}.
+   */
+  public static void read(SchemaVersion version, Object p, MdObjectPropertiesDto dto) {
     MdCatalogPropertiesDto c = new MdCatalogPropertiesDto();
-    if (p.getObjectBelonging() != null) {
-      c.objectBelonging = p.getObjectBelonging().name();
-    }
-    c.extendedConfigurationObject = nullIfBlankUuid(p.getExtendedConfigurationObject());
-    c.hierarchical = p.isHierarchical();
-    if (p.getHierarchyType() != null) {
-      c.hierarchyType = p.getHierarchyType().name();
-    }
-    c.limitLevelCount = p.isLimitLevelCount();
-    c.levelCount = decimalToString(p.getLevelCount());
-    c.foldersOnTop = p.isFoldersOnTop();
-    c.useStandardCommands = p.isUseStandardCommands();
-    if (p.getOwners() != null) {
-      c.owners.addAll(MdListTypeRefs.readItemTexts(p.getOwners().getItem()));
-    }
-    if (p.getSubordinationUse() != null) {
-      c.subordinationUse = p.getSubordinationUse().name();
-    }
-    c.codeLength = decimalToString(p.getCodeLength());
-    c.descriptionLength = decimalToString(p.getDescriptionLength());
-    if (p.getCodeType() != null) {
-      c.codeType = p.getCodeType().name();
-    }
-    if (p.getCodeAllowedLength() != null) {
-      c.codeAllowedLength = p.getCodeAllowedLength().name();
-    }
-    if (p.getCodeSeries() != null) {
-      c.codeSeries = p.getCodeSeries().name();
-    }
-    c.checkUnique = p.isCheckUnique();
-    c.autonumbering = p.isAutonumbering();
-    if (p.getDefaultPresentation() != null) {
-      c.defaultPresentation = p.getDefaultPresentation().name();
-    }
-    try {
-      c.standardAttributesXml = MdCfCatalogSubtreeXml.marshalStandardAttributesV21(p.getStandardAttributes());
-    } catch (JAXBException e) {
-      c.standardAttributesXml = "";
-    }
-    try {
-      c.characteristicsXml = MdCfCatalogSubtreeXml.marshalCharacteristicsV21(p.getCharacteristics());
-    } catch (JAXBException e) {
-      c.characteristicsXml = "";
-    }
-    c.predefined = p.getPredefined();
-    if (p.getPredefinedDataUpdate() != null) {
-      c.predefinedDataUpdate = p.getPredefinedDataUpdate().name();
-    }
-    if (p.getEditType() != null) {
-      c.editType = p.getEditType().name();
-    }
-    c.quickChoice = p.isQuickChoice();
-    if (p.getChoiceMode() != null) {
-      c.choiceMode = p.getChoiceMode().name();
-    }
-    if (p.getInputByString() != null) {
-      c.inputByString.addAll(p.getInputByString().getField());
-    }
-    if (p.getSearchStringModeOnInputByString() != null) {
-      c.searchStringModeOnInputByString = p.getSearchStringModeOnInputByString().name();
-    }
-    if (p.getFullTextSearchOnInputByString() != null) {
-      c.fullTextSearchOnInputByString = p.getFullTextSearchOnInputByString().name();
-    }
-    if (p.getChoiceDataGetModeOnInputByString() != null) {
-      c.choiceDataGetModeOnInputByString = p.getChoiceDataGetModeOnInputByString().name();
-    }
-    c.defaultObjectForm = p.getDefaultObjectForm();
-    c.defaultFolderForm = p.getDefaultFolderForm();
-    c.defaultListForm = p.getDefaultListForm();
-    c.defaultChoiceForm = p.getDefaultChoiceForm();
-    c.defaultFolderChoiceForm = p.getDefaultFolderChoiceForm();
-    c.auxiliaryObjectForm = p.getAuxiliaryObjectForm();
-    c.auxiliaryFolderForm = p.getAuxiliaryFolderForm();
-    c.auxiliaryListForm = p.getAuxiliaryListForm();
-    c.auxiliaryChoiceForm = p.getAuxiliaryChoiceForm();
-    c.auxiliaryFolderChoiceForm = p.getAuxiliaryFolderChoiceForm();
-    c.objectModule = p.getObjectModule();
-    c.managerModule = p.getManagerModule();
-    c.includeHelpInContents = p.isIncludeHelpInContents();
-    c.help = p.getHelp();
-    if (p.getBasedOn() != null) {
-      c.basedOn.addAll(MdListTypeRefs.readItemTexts(p.getBasedOn().getItem()));
-    }
-    if (p.getDataLockFields() != null) {
-      c.dataLockFields.addAll(p.getDataLockFields().getField());
-    }
-    if (p.getDataLockControlMode() != null) {
-      c.dataLockControlMode = p.getDataLockControlMode().name();
-    }
-    if (p.getFullTextSearch() != null) {
-      c.fullTextSearch = p.getFullTextSearch().name();
-    }
-    c.objectPresentationRu = LocalStringSync.firstRuV21(p.getObjectPresentation());
-    c.extendedObjectPresentationRu = LocalStringSync.firstRuV21(p.getExtendedObjectPresentation());
-    c.listPresentationRu = LocalStringSync.firstRuV21(p.getListPresentation());
-    c.extendedListPresentationRu = LocalStringSync.firstRuV21(p.getExtendedListPresentation());
-    c.explanationRu = LocalStringSync.firstRuV21(p.getExplanation());
-    if (p.getCreateOnInput() != null) {
-      c.createOnInput = p.getCreateOnInput().name();
-    }
-    if (p.getChoiceHistoryOnInput() != null) {
-      c.choiceHistoryOnInput = p.getChoiceHistoryOnInput().name();
-    }
-    if (p.getDataHistory() != null) {
-      c.dataHistory = p.getDataHistory().name();
-    }
-    c.updateDataHistoryImmediatelyAfterWrite = p.isUpdateDataHistoryImmediatelyAfterWrite();
-    c.executeAfterWriteDataHistoryVersionProcessing = p.isExecuteAfterWriteDataHistoryVersionProcessing();
-    c.additionalIndexes = p.getAdditionalIndexes();
+    c.objectBelonging = en(p, "getObjectBelonging");
+    c.extendedConfigurationObject = nullIfBlankUuid(JaxbReflect.getStringOptional(p, "getExtendedConfigurationObject"));
+    c.hierarchical = JaxbReflect.getBooleanOptional(p, "isHierarchical");
+    c.hierarchyType = en(p, "getHierarchyType");
+    c.limitLevelCount = JaxbReflect.getBooleanOptional(p, "isLimitLevelCount");
+    c.levelCount = dec(p, "getLevelCount");
+    c.foldersOnTop = JaxbReflect.getBooleanOptional(p, "isFoldersOnTop");
+    c.useStandardCommands = JaxbReflect.getBooleanOptional(p, "isUseStandardCommands");
+    addItems(c.owners, JaxbReflect.getOptional(p, "getOwners"));
+    c.subordinationUse = en(p, "getSubordinationUse");
+    c.codeLength = dec(p, "getCodeLength");
+    c.descriptionLength = dec(p, "getDescriptionLength");
+    c.codeType = en(p, "getCodeType");
+    c.codeAllowedLength = en(p, "getCodeAllowedLength");
+    c.codeSeries = en(p, "getCodeSeries");
+    c.checkUnique = JaxbReflect.getBooleanOptional(p, "isCheckUnique");
+    c.autonumbering = JaxbReflect.getBooleanOptional(p, "isAutonumbering");
+    c.defaultPresentation = en(p, "getDefaultPresentation");
+    c.standardAttributesXml = tryMarshalStandardAttributes(version, JaxbReflect.getOptional(p, "getStandardAttributes"));
+    c.characteristicsXml = tryMarshalCharacteristics(version, JaxbReflect.getOptional(p, "getCharacteristics"));
+    c.predefined = JaxbReflect.getStringOptional(p, "getPredefined");
+    c.predefinedDataUpdate = en(p, "getPredefinedDataUpdate");
+    c.editType = en(p, "getEditType");
+    c.quickChoice = JaxbReflect.getBooleanOptional(p, "isQuickChoice");
+    c.choiceMode = en(p, "getChoiceMode");
+    addFields(c.inputByString, JaxbReflect.getOptional(p, "getInputByString"));
+    c.searchStringModeOnInputByString = en(p, "getSearchStringModeOnInputByString");
+    c.fullTextSearchOnInputByString = en(p, "getFullTextSearchOnInputByString");
+    c.choiceDataGetModeOnInputByString = en(p, "getChoiceDataGetModeOnInputByString");
+    c.defaultObjectForm = JaxbReflect.getStringOptional(p, "getDefaultObjectForm");
+    c.defaultFolderForm = JaxbReflect.getStringOptional(p, "getDefaultFolderForm");
+    c.defaultListForm = JaxbReflect.getStringOptional(p, "getDefaultListForm");
+    c.defaultChoiceForm = JaxbReflect.getStringOptional(p, "getDefaultChoiceForm");
+    c.defaultFolderChoiceForm = JaxbReflect.getStringOptional(p, "getDefaultFolderChoiceForm");
+    c.auxiliaryObjectForm = JaxbReflect.getStringOptional(p, "getAuxiliaryObjectForm");
+    c.auxiliaryFolderForm = JaxbReflect.getStringOptional(p, "getAuxiliaryFolderForm");
+    c.auxiliaryListForm = JaxbReflect.getStringOptional(p, "getAuxiliaryListForm");
+    c.auxiliaryChoiceForm = JaxbReflect.getStringOptional(p, "getAuxiliaryChoiceForm");
+    c.auxiliaryFolderChoiceForm = JaxbReflect.getStringOptional(p, "getAuxiliaryFolderChoiceForm");
+    c.objectModule = JaxbReflect.getStringOptional(p, "getObjectModule");
+    c.managerModule = JaxbReflect.getStringOptional(p, "getManagerModule");
+    c.includeHelpInContents = JaxbReflect.getBooleanOptional(p, "isIncludeHelpInContents");
+    c.help = JaxbReflect.getStringOptional(p, "getHelp");
+    addItems(c.basedOn, JaxbReflect.getOptional(p, "getBasedOn"));
+    addFields(c.dataLockFields, JaxbReflect.getOptional(p, "getDataLockFields"));
+    c.dataLockControlMode = en(p, "getDataLockControlMode");
+    c.fullTextSearch = en(p, "getFullTextSearch");
+    c.objectPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getObjectPresentation"));
+    c.extendedObjectPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedObjectPresentation"));
+    c.listPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getListPresentation"));
+    c.extendedListPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
+    c.explanationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExplanation"));
+    c.createOnInput = en(p, "getCreateOnInput");
+    c.choiceHistoryOnInput = en(p, "getChoiceHistoryOnInput");
+    c.dataHistory = en(p, "getDataHistory");
+    c.updateDataHistoryImmediatelyAfterWrite = JaxbReflect.getBooleanOptional(p, "isUpdateDataHistoryImmediatelyAfterWrite");
+    c.executeAfterWriteDataHistoryVersionProcessing =
+      JaxbReflect.getBooleanOptional(p, "isExecuteAfterWriteDataHistoryVersionProcessing");
+    c.additionalIndexes = JaxbReflect.getStringOptional(p, "getAdditionalIndexes");
     dto.catalog = c;
   }
 
-  public static void applyV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.CatalogProperties p,
-    MdObjectPropertiesDto dto) {
+  /**
+   * Применяет {@code dto.catalog} к {@code CatalogProperties} ({@code p}, любой версии).
+   */
+  public static void apply(SchemaVersion version, Object p, MdObjectPropertiesDto dto) {
     MdCatalogPropertiesDto c = dto.catalog;
     if (c == null) {
       throw new IllegalArgumentException("catalog required");
     }
-    if (!dto.internalName.equals(p.getName())) {
+    if (!dto.internalName.equals(JaxbReflect.getStringOptional(p, "getName"))) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
     String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV21(p.getSynonym(), syn);
-    p.setComment(dto.comment == null ? "" : dto.comment);
-    if (c.objectBelonging != null && !c.objectBelonging.isEmpty()) {
-      p.setObjectBelonging(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ObjectBelonging.valueOf(c.objectBelonging));
-    }
-    p.setExtendedConfigurationObject(nullIfBlankUuid(c.extendedConfigurationObject));
-    p.setHierarchical(c.hierarchical);
-    if (c.hierarchyType != null && !c.hierarchyType.isEmpty()) {
-      p.setHierarchyType(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.HierarchyType.valueOf(c.hierarchyType));
-    }
-    p.setLimitLevelCount(c.limitLevelCount);
-    p.setLevelCount(new BigDecimal(nzDecimal(c.levelCount)));
-    p.setFoldersOnTop(c.foldersOnTop);
-    p.setUseStandardCommands(c.useStandardCommands);
-    MdListTypeRefs.replaceItemsV21(p.getOwners(), c.owners);
-    if (c.subordinationUse != null && !c.subordinationUse.isEmpty()) {
-      p.setSubordinationUse(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.SubordinationUse.valueOf(c.subordinationUse));
-    }
-    p.setCodeLength(new BigDecimal(nzDecimal(c.codeLength)));
-    p.setDescriptionLength(new BigDecimal(nzDecimal(c.descriptionLength)));
-    if (c.codeType != null && !c.codeType.isEmpty()) {
-      p.setCodeType(io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.CatalogCodeType.valueOf(c.codeType));
-    }
-    if (c.codeAllowedLength != null && !c.codeAllowedLength.isEmpty()) {
-      p.setCodeAllowedLength(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.AllowedLength.valueOf(c.codeAllowedLength));
-    }
-    if (c.codeSeries != null && !c.codeSeries.isEmpty()) {
-      p.setCodeSeries(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.CatalogCodesSeries.valueOf(c.codeSeries));
-    }
-    p.setCheckUnique(c.checkUnique);
-    p.setAutonumbering(c.autonumbering);
-    if (c.defaultPresentation != null && !c.defaultPresentation.isEmpty()) {
-      p.setDefaultPresentation(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.CatalogMainPresentation.valueOf(
-          c.defaultPresentation));
-    }
+    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getSynonym"), syn);
+    JaxbReflect.setOptional(p, "setComment", dto.comment == null ? "" : dto.comment);
+    JaxbReflect.setEnumOrKeep(p, "setObjectBelonging", c.objectBelonging);
+    JaxbReflect.setOptional(p, "setExtendedConfigurationObject", nullIfBlankUuid(c.extendedConfigurationObject));
+    JaxbReflect.setOptional(p, "setHierarchical", c.hierarchical);
+    JaxbReflect.setEnumOrKeep(p, "setHierarchyType", c.hierarchyType);
+    JaxbReflect.setOptional(p, "setLimitLevelCount", c.limitLevelCount);
+    JaxbReflect.setOptional(p, "setLevelCount", new BigDecimal(nzDecimal(c.levelCount)));
+    JaxbReflect.setOptional(p, "setFoldersOnTop", c.foldersOnTop);
+    JaxbReflect.setOptional(p, "setUseStandardCommands", c.useStandardCommands);
+    MdListTypeRefs.replaceItems(JaxbReflect.getOptional(p, "getOwners"), c.owners);
+    JaxbReflect.setEnumOrKeep(p, "setSubordinationUse", c.subordinationUse);
+    JaxbReflect.setOptional(p, "setCodeLength", new BigDecimal(nzDecimal(c.codeLength)));
+    JaxbReflect.setOptional(p, "setDescriptionLength", new BigDecimal(nzDecimal(c.descriptionLength)));
+    JaxbReflect.setEnumOrKeep(p, "setCodeType", c.codeType);
+    JaxbReflect.setEnumOrKeep(p, "setCodeAllowedLength", c.codeAllowedLength);
+    JaxbReflect.setEnumOrKeep(p, "setCodeSeries", c.codeSeries);
+    JaxbReflect.setOptional(p, "setCheckUnique", c.checkUnique);
+    JaxbReflect.setOptional(p, "setAutonumbering", c.autonumbering);
+    JaxbReflect.setEnumOrKeep(p, "setDefaultPresentation", c.defaultPresentation);
     if (c.standardAttributesXml != null && !c.standardAttributesXml.isBlank()) {
       try {
-        p.setStandardAttributes(MdCfCatalogSubtreeXml.unmarshalStandardAttributesV21(c.standardAttributesXml.trim()));
+        JaxbReflect.setOptional(p, "setStandardAttributes",
+          MdCfCatalogSubtreeXml.unmarshalStandardAttributes(version, c.standardAttributesXml.trim()));
       } catch (JAXBException e) {
         throw new IllegalArgumentException("standardAttributesXml: " + e.getMessage(), e);
       }
     }
     if (c.characteristicsXml != null && !c.characteristicsXml.isBlank()) {
       try {
-        p.setCharacteristics(MdCfCatalogSubtreeXml.unmarshalCharacteristicsV21(c.characteristicsXml.trim()));
+        JaxbReflect.setOptional(p, "setCharacteristics",
+          MdCfCatalogSubtreeXml.unmarshalCharacteristics(version, c.characteristicsXml.trim()));
       } catch (JAXBException e) {
         throw new IllegalArgumentException("characteristicsXml: " + e.getMessage(), e);
       }
     }
-    p.setPredefined(c.predefined);
-    if (c.predefinedDataUpdate != null && !c.predefinedDataUpdate.isEmpty()) {
-      p.setPredefinedDataUpdate(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.PredefinedDataUpdate.valueOf(
-          c.predefinedDataUpdate));
-    }
-    if (c.editType != null && !c.editType.isEmpty()) {
-      p.setEditType(io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.EditType.valueOf(c.editType));
-    }
-    p.setQuickChoice(c.quickChoice);
-    if (c.choiceMode != null && !c.choiceMode.isEmpty()) {
-      p.setChoiceMode(io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ChoiceMode.valueOf(c.choiceMode));
-    }
-    if (p.getInputByString() != null) {
-      p.getInputByString().getField().clear();
-      if (c.inputByString != null) {
-        p.getInputByString().getField().addAll(c.inputByString);
-      }
-    }
-    if (c.searchStringModeOnInputByString != null && !c.searchStringModeOnInputByString.isEmpty()) {
-      p.setSearchStringModeOnInputByString(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_2_managed_application_logform.SearchStringModeOnInputByString.valueOf(
-          c.searchStringModeOnInputByString));
-    }
-    if (c.fullTextSearchOnInputByString != null && !c.fullTextSearchOnInputByString.isEmpty()) {
-      p.setFullTextSearchOnInputByString(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_2_managed_application_logform.FullTextSearchOnInputByString.valueOf(
-          c.fullTextSearchOnInputByString));
-    }
-    if (c.choiceDataGetModeOnInputByString != null && !c.choiceDataGetModeOnInputByString.isEmpty()) {
-      p.setChoiceDataGetModeOnInputByString(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_2_managed_application_logform.ChoiceDataGetModeOnInputByString.valueOf(
-          c.choiceDataGetModeOnInputByString));
-    }
-    p.setDefaultObjectForm(c.defaultObjectForm);
-    p.setDefaultFolderForm(c.defaultFolderForm);
-    p.setDefaultListForm(c.defaultListForm);
-    p.setDefaultChoiceForm(c.defaultChoiceForm);
-    p.setDefaultFolderChoiceForm(c.defaultFolderChoiceForm);
-    p.setAuxiliaryObjectForm(c.auxiliaryObjectForm);
-    p.setAuxiliaryFolderForm(c.auxiliaryFolderForm);
-    p.setAuxiliaryListForm(c.auxiliaryListForm);
-    p.setAuxiliaryChoiceForm(c.auxiliaryChoiceForm);
-    p.setAuxiliaryFolderChoiceForm(c.auxiliaryFolderChoiceForm);
-    p.setObjectModule(c.objectModule);
-    p.setManagerModule(c.managerModule);
-    p.setIncludeHelpInContents(c.includeHelpInContents);
-    p.setHelp(c.help);
-    MdListTypeRefs.replaceItemsV21(p.getBasedOn(), c.basedOn);
-    if (p.getDataLockFields() != null) {
-      p.getDataLockFields().getField().clear();
-      if (c.dataLockFields != null) {
-        p.getDataLockFields().getField().addAll(c.dataLockFields);
-      }
-    }
-    if (c.dataLockControlMode != null && !c.dataLockControlMode.isEmpty()) {
-      p.setDataLockControlMode(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.DefaultDataLockControlMode.valueOf(
-          c.dataLockControlMode));
-    }
-    if (c.fullTextSearch != null && !c.fullTextSearch.isEmpty()) {
-      p.setFullTextSearch(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.FullTextSearchUsing.valueOf(c.fullTextSearch));
-    }
-    ensureLsV21(p);
-    LocalStringSync.setOrPutRuV21(p.getObjectPresentation(), c.objectPresentationRu == null ? "" : c.objectPresentationRu);
-    LocalStringSync.setOrPutRuV21(
-      p.getExtendedObjectPresentation(),
-      c.extendedObjectPresentationRu == null ? "" : c.extendedObjectPresentationRu);
-    LocalStringSync.setOrPutRuV21(p.getListPresentation(), c.listPresentationRu == null ? "" : c.listPresentationRu);
-    LocalStringSync.setOrPutRuV21(
-      p.getExtendedListPresentation(),
-      c.extendedListPresentationRu == null ? "" : c.extendedListPresentationRu);
-    LocalStringSync.setOrPutRuV21(p.getExplanation(), c.explanationRu == null ? "" : c.explanationRu);
-    if (c.createOnInput != null && !c.createOnInput.isEmpty()) {
-      p.setCreateOnInput(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.CreateOnInput.valueOf(c.createOnInput));
-    }
-    if (c.choiceHistoryOnInput != null && !c.choiceHistoryOnInput.isEmpty()) {
-      p.setChoiceHistoryOnInput(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_2_managed_application_logform.ChoiceHistoryOnInput.valueOf(
-          c.choiceHistoryOnInput));
-    }
-    if (c.dataHistory != null && !c.dataHistory.isEmpty()) {
-      p.setDataHistory(
-        io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.DataHistoryUse.valueOf(c.dataHistory));
-    }
-    p.setUpdateDataHistoryImmediatelyAfterWrite(c.updateDataHistoryImmediatelyAfterWrite);
-    p.setExecuteAfterWriteDataHistoryVersionProcessing(c.executeAfterWriteDataHistoryVersionProcessing);
-    p.setAdditionalIndexes(c.additionalIndexes);
+    JaxbReflect.setOptional(p, "setPredefined", c.predefined);
+    JaxbReflect.setEnumOrKeep(p, "setPredefinedDataUpdate", c.predefinedDataUpdate);
+    JaxbReflect.setEnumOrKeep(p, "setEditType", c.editType);
+    JaxbReflect.setOptional(p, "setQuickChoice", c.quickChoice);
+    JaxbReflect.setEnumOrKeep(p, "setChoiceMode", c.choiceMode);
+    setFields(JaxbReflect.getOptional(p, "getInputByString"), c.inputByString);
+    JaxbReflect.setEnumOrKeep(p, "setSearchStringModeOnInputByString", c.searchStringModeOnInputByString);
+    JaxbReflect.setEnumOrKeep(p, "setFullTextSearchOnInputByString", c.fullTextSearchOnInputByString);
+    JaxbReflect.setEnumOrKeep(p, "setChoiceDataGetModeOnInputByString", c.choiceDataGetModeOnInputByString);
+    JaxbReflect.setOptional(p, "setDefaultObjectForm", c.defaultObjectForm);
+    JaxbReflect.setOptional(p, "setDefaultFolderForm", c.defaultFolderForm);
+    JaxbReflect.setOptional(p, "setDefaultListForm", c.defaultListForm);
+    JaxbReflect.setOptional(p, "setDefaultChoiceForm", c.defaultChoiceForm);
+    JaxbReflect.setOptional(p, "setDefaultFolderChoiceForm", c.defaultFolderChoiceForm);
+    JaxbReflect.setOptional(p, "setAuxiliaryObjectForm", c.auxiliaryObjectForm);
+    JaxbReflect.setOptional(p, "setAuxiliaryFolderForm", c.auxiliaryFolderForm);
+    JaxbReflect.setOptional(p, "setAuxiliaryListForm", c.auxiliaryListForm);
+    JaxbReflect.setOptional(p, "setAuxiliaryChoiceForm", c.auxiliaryChoiceForm);
+    JaxbReflect.setOptional(p, "setAuxiliaryFolderChoiceForm", c.auxiliaryFolderChoiceForm);
+    JaxbReflect.setOptional(p, "setObjectModule", c.objectModule);
+    JaxbReflect.setOptional(p, "setManagerModule", c.managerModule);
+    JaxbReflect.setOptional(p, "setIncludeHelpInContents", c.includeHelpInContents);
+    JaxbReflect.setOptional(p, "setHelp", c.help);
+    MdListTypeRefs.replaceItems(JaxbReflect.getOptional(p, "getBasedOn"), c.basedOn);
+    setFields(JaxbReflect.getOptional(p, "getDataLockFields"), c.dataLockFields);
+    JaxbReflect.setEnumOrKeep(p, "setDataLockControlMode", c.dataLockControlMode);
+    JaxbReflect.setEnumOrKeep(p, "setFullTextSearch", c.fullTextSearch);
+    ensureAndSetRu(p, "getObjectPresentation", "setObjectPresentation", c.objectPresentationRu);
+    ensureAndSetRu(p, "getExtendedObjectPresentation", "setExtendedObjectPresentation", c.extendedObjectPresentationRu);
+    ensureAndSetRu(p, "getListPresentation", "setListPresentation", c.listPresentationRu);
+    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", c.extendedListPresentationRu);
+    ensureAndSetRu(p, "getExplanation", "setExplanation", c.explanationRu);
+    JaxbReflect.setEnumOrKeep(p, "setCreateOnInput", c.createOnInput);
+    JaxbReflect.setEnumOrKeep(p, "setChoiceHistoryOnInput", c.choiceHistoryOnInput);
+    JaxbReflect.setEnumOrKeep(p, "setDataHistory", c.dataHistory);
+    JaxbReflect.setOptional(p, "setUpdateDataHistoryImmediatelyAfterWrite", c.updateDataHistoryImmediatelyAfterWrite);
+    JaxbReflect.setOptional(p, "setExecuteAfterWriteDataHistoryVersionProcessing",
+      c.executeAfterWriteDataHistoryVersionProcessing);
+    JaxbReflect.setOptional(p, "setAdditionalIndexes", c.additionalIndexes);
   }
 
-  private static void ensureLsV21(io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.CatalogProperties p) {
-    if (p.getObjectPresentation() == null) {
-      p.setObjectPresentation(new io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.LocalStringType());
-    }
-    if (p.getExtendedObjectPresentation() == null) {
-      p.setExtendedObjectPresentation(new io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.LocalStringType());
-    }
-    if (p.getListPresentation() == null) {
-      p.setListPresentation(new io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.LocalStringType());
-    }
-    if (p.getExtendedListPresentation() == null) {
-      p.setExtendedListPresentation(new io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.LocalStringType());
-    }
-    if (p.getExplanation() == null) {
-      p.setExplanation(new io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.LocalStringType());
+  private static void ensureAndSetRu(Object p, String getter, String setter, String ru) {
+    Object ls = JaxbReflect.ensureOptional(p, getter, setter);
+    LocalStringSync.setOrPutRu(ls, ru == null ? "" : ru);
+  }
+
+  private static String en(Object p, String getter) {
+    Object v = JaxbReflect.getOptional(p, getter);
+    return v == null ? null : ((Enum<?>) v).name();
+  }
+
+  private static String dec(Object p, String getter) {
+    Object v = JaxbReflect.getOptional(p, getter);
+    return v == null ? "0" : ((BigDecimal) v).toPlainString();
+  }
+
+  private static void addItems(List<String> out, Object mdListType) {
+    if (mdListType != null) {
+      out.addAll(MdListTypeRefs.readItemTexts(JaxbReflect.list(mdListType, "getItem")));
     }
   }
 
-  public static void readV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.CatalogProperties p,
-    MdObjectPropertiesDto dto) {
-    MdCatalogPropertiesDto c = new MdCatalogPropertiesDto();
-    if (p.getObjectBelonging() != null) {
-      c.objectBelonging = p.getObjectBelonging().name();
+  private static void addFields(List<String> out, Object fieldList) {
+    if (fieldList != null) {
+      out.addAll(JaxbReflect.<String>list(fieldList, "getField"));
     }
-    c.extendedConfigurationObject = nullIfBlankUuid(p.getExtendedConfigurationObject());
-    c.hierarchical = p.isHierarchical();
-    if (p.getHierarchyType() != null) {
-      c.hierarchyType = p.getHierarchyType().name();
+  }
+
+  private static void setFields(Object fieldList, List<String> values) {
+    if (fieldList == null) {
+      return;
     }
-    c.limitLevelCount = p.isLimitLevelCount();
-    c.levelCount = decimalToString(p.getLevelCount());
-    c.foldersOnTop = p.isFoldersOnTop();
-    c.useStandardCommands = p.isUseStandardCommands();
-    if (p.getOwners() != null) {
-      c.owners.addAll(MdListTypeRefs.readItemTexts(p.getOwners().getItem()));
+    List<Object> field = JaxbReflect.list(fieldList, "getField");
+    field.clear();
+    if (values != null) {
+      field.addAll(values);
     }
-    if (p.getSubordinationUse() != null) {
-      c.subordinationUse = p.getSubordinationUse().name();
-    }
-    c.codeLength = decimalToString(p.getCodeLength());
-    c.descriptionLength = decimalToString(p.getDescriptionLength());
-    if (p.getCodeType() != null) {
-      c.codeType = p.getCodeType().name();
-    }
-    if (p.getCodeAllowedLength() != null) {
-      c.codeAllowedLength = p.getCodeAllowedLength().name();
-    }
-    if (p.getCodeSeries() != null) {
-      c.codeSeries = p.getCodeSeries().name();
-    }
-    c.checkUnique = p.isCheckUnique();
-    c.autonumbering = p.isAutonumbering();
-    if (p.getDefaultPresentation() != null) {
-      c.defaultPresentation = p.getDefaultPresentation().name();
-    }
+  }
+
+  private static String tryMarshalStandardAttributes(SchemaVersion version, Object value) {
     try {
-      c.standardAttributesXml = MdCfCatalogSubtreeXml.marshalStandardAttributesV20(p.getStandardAttributes());
+      return MdCfCatalogSubtreeXml.marshalStandardAttributes(version, value);
     } catch (JAXBException e) {
-      c.standardAttributesXml = "";
+      return "";
     }
+  }
+
+  private static String tryMarshalCharacteristics(SchemaVersion version, Object value) {
     try {
-      c.characteristicsXml = MdCfCatalogSubtreeXml.marshalCharacteristicsV20(p.getCharacteristics());
+      return MdCfCatalogSubtreeXml.marshalCharacteristics(version, value);
     } catch (JAXBException e) {
-      c.characteristicsXml = "";
+      return "";
     }
-    c.predefined = p.getPredefined();
-    if (p.getPredefinedDataUpdate() != null) {
-      c.predefinedDataUpdate = p.getPredefinedDataUpdate().name();
-    }
-    if (p.getEditType() != null) {
-      c.editType = p.getEditType().name();
-    }
-    c.quickChoice = p.isQuickChoice();
-    if (p.getChoiceMode() != null) {
-      c.choiceMode = p.getChoiceMode().name();
-    }
-    if (p.getInputByString() != null) {
-      c.inputByString.addAll(p.getInputByString().getField());
-    }
-    if (p.getSearchStringModeOnInputByString() != null) {
-      c.searchStringModeOnInputByString = p.getSearchStringModeOnInputByString().name();
-    }
-    if (p.getFullTextSearchOnInputByString() != null) {
-      c.fullTextSearchOnInputByString = p.getFullTextSearchOnInputByString().name();
-    }
-    if (p.getChoiceDataGetModeOnInputByString() != null) {
-      c.choiceDataGetModeOnInputByString = p.getChoiceDataGetModeOnInputByString().name();
-    }
-    c.defaultObjectForm = p.getDefaultObjectForm();
-    c.defaultFolderForm = p.getDefaultFolderForm();
-    c.defaultListForm = p.getDefaultListForm();
-    c.defaultChoiceForm = p.getDefaultChoiceForm();
-    c.defaultFolderChoiceForm = p.getDefaultFolderChoiceForm();
-    c.auxiliaryObjectForm = p.getAuxiliaryObjectForm();
-    c.auxiliaryFolderForm = p.getAuxiliaryFolderForm();
-    c.auxiliaryListForm = p.getAuxiliaryListForm();
-    c.auxiliaryChoiceForm = p.getAuxiliaryChoiceForm();
-    c.auxiliaryFolderChoiceForm = p.getAuxiliaryFolderChoiceForm();
-    c.objectModule = p.getObjectModule();
-    c.managerModule = p.getManagerModule();
-    c.includeHelpInContents = p.isIncludeHelpInContents();
-    c.help = p.getHelp();
-    if (p.getBasedOn() != null) {
-      c.basedOn.addAll(MdListTypeRefs.readItemTexts(p.getBasedOn().getItem()));
-    }
-    if (p.getDataLockFields() != null) {
-      c.dataLockFields.addAll(p.getDataLockFields().getField());
-    }
-    if (p.getDataLockControlMode() != null) {
-      c.dataLockControlMode = p.getDataLockControlMode().name();
-    }
-    if (p.getFullTextSearch() != null) {
-      c.fullTextSearch = p.getFullTextSearch().name();
-    }
-    c.objectPresentationRu = LocalStringSync.firstRuV20(p.getObjectPresentation());
-    c.extendedObjectPresentationRu = LocalStringSync.firstRuV20(p.getExtendedObjectPresentation());
-    c.listPresentationRu = LocalStringSync.firstRuV20(p.getListPresentation());
-    c.extendedListPresentationRu = LocalStringSync.firstRuV20(p.getExtendedListPresentation());
-    c.explanationRu = LocalStringSync.firstRuV20(p.getExplanation());
-    if (p.getCreateOnInput() != null) {
-      c.createOnInput = p.getCreateOnInput().name();
-    }
-    if (p.getChoiceHistoryOnInput() != null) {
-      c.choiceHistoryOnInput = p.getChoiceHistoryOnInput().name();
-    }
-    if (p.getDataHistory() != null) {
-      c.dataHistory = p.getDataHistory().name();
-    }
-    c.updateDataHistoryImmediatelyAfterWrite = p.isUpdateDataHistoryImmediatelyAfterWrite();
-    c.executeAfterWriteDataHistoryVersionProcessing = p.isExecuteAfterWriteDataHistoryVersionProcessing();
-    c.additionalIndexes = p.getAdditionalIndexes();
-    dto.catalog = c;
-  }
-
-  public static void applyV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.CatalogProperties p,
-    MdObjectPropertiesDto dto) {
-    MdCatalogPropertiesDto c = dto.catalog;
-    if (c == null) {
-      throw new IllegalArgumentException("catalog required");
-    }
-    if (!dto.internalName.equals(p.getName())) {
-      throw new IllegalArgumentException("internalName mismatch with XML");
-    }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV20(p.getSynonym(), syn);
-    p.setComment(dto.comment == null ? "" : dto.comment);
-    if (c.objectBelonging != null && !c.objectBelonging.isEmpty()) {
-      p.setObjectBelonging(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ObjectBelonging.valueOf(c.objectBelonging));
-    }
-    p.setExtendedConfigurationObject(nullIfBlankUuid(c.extendedConfigurationObject));
-    p.setHierarchical(c.hierarchical);
-    if (c.hierarchyType != null && !c.hierarchyType.isEmpty()) {
-      p.setHierarchyType(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.HierarchyType.valueOf(c.hierarchyType));
-    }
-    p.setLimitLevelCount(c.limitLevelCount);
-    p.setLevelCount(new BigDecimal(nzDecimal(c.levelCount)));
-    p.setFoldersOnTop(c.foldersOnTop);
-    p.setUseStandardCommands(c.useStandardCommands);
-    MdListTypeRefs.replaceItemsV20(p.getOwners(), c.owners);
-    if (c.subordinationUse != null && !c.subordinationUse.isEmpty()) {
-      p.setSubordinationUse(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.SubordinationUse.valueOf(c.subordinationUse));
-    }
-    p.setCodeLength(new BigDecimal(nzDecimal(c.codeLength)));
-    p.setDescriptionLength(new BigDecimal(nzDecimal(c.descriptionLength)));
-    if (c.codeType != null && !c.codeType.isEmpty()) {
-      p.setCodeType(io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.CatalogCodeType.valueOf(c.codeType));
-    }
-    if (c.codeAllowedLength != null && !c.codeAllowedLength.isEmpty()) {
-      p.setCodeAllowedLength(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.AllowedLength.valueOf(c.codeAllowedLength));
-    }
-    if (c.codeSeries != null && !c.codeSeries.isEmpty()) {
-      p.setCodeSeries(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.CatalogCodesSeries.valueOf(c.codeSeries));
-    }
-    p.setCheckUnique(c.checkUnique);
-    p.setAutonumbering(c.autonumbering);
-    if (c.defaultPresentation != null && !c.defaultPresentation.isEmpty()) {
-      p.setDefaultPresentation(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.CatalogMainPresentation.valueOf(
-          c.defaultPresentation));
-    }
-    if (c.standardAttributesXml != null && !c.standardAttributesXml.isBlank()) {
-      try {
-        p.setStandardAttributes(MdCfCatalogSubtreeXml.unmarshalStandardAttributesV20(c.standardAttributesXml.trim()));
-      } catch (JAXBException e) {
-        throw new IllegalArgumentException("standardAttributesXml: " + e.getMessage(), e);
-      }
-    }
-    if (c.characteristicsXml != null && !c.characteristicsXml.isBlank()) {
-      try {
-        p.setCharacteristics(MdCfCatalogSubtreeXml.unmarshalCharacteristicsV20(c.characteristicsXml.trim()));
-      } catch (JAXBException e) {
-        throw new IllegalArgumentException("characteristicsXml: " + e.getMessage(), e);
-      }
-    }
-    p.setPredefined(c.predefined);
-    if (c.predefinedDataUpdate != null && !c.predefinedDataUpdate.isEmpty()) {
-      p.setPredefinedDataUpdate(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.PredefinedDataUpdate.valueOf(
-          c.predefinedDataUpdate));
-    }
-    if (c.editType != null && !c.editType.isEmpty()) {
-      p.setEditType(io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.EditType.valueOf(c.editType));
-    }
-    p.setQuickChoice(c.quickChoice);
-    if (c.choiceMode != null && !c.choiceMode.isEmpty()) {
-      p.setChoiceMode(io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ChoiceMode.valueOf(c.choiceMode));
-    }
-    if (p.getInputByString() != null) {
-      p.getInputByString().getField().clear();
-      if (c.inputByString != null) {
-        p.getInputByString().getField().addAll(c.inputByString);
-      }
-    }
-    if (c.searchStringModeOnInputByString != null && !c.searchStringModeOnInputByString.isEmpty()) {
-      p.setSearchStringModeOnInputByString(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_2_managed_application_logform.SearchStringModeOnInputByString.valueOf(
-          c.searchStringModeOnInputByString));
-    }
-    if (c.fullTextSearchOnInputByString != null && !c.fullTextSearchOnInputByString.isEmpty()) {
-      p.setFullTextSearchOnInputByString(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_2_managed_application_logform.FullTextSearchOnInputByString.valueOf(
-          c.fullTextSearchOnInputByString));
-    }
-    if (c.choiceDataGetModeOnInputByString != null && !c.choiceDataGetModeOnInputByString.isEmpty()) {
-      p.setChoiceDataGetModeOnInputByString(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_2_managed_application_logform.ChoiceDataGetModeOnInputByString.valueOf(
-          c.choiceDataGetModeOnInputByString));
-    }
-    p.setDefaultObjectForm(c.defaultObjectForm);
-    p.setDefaultFolderForm(c.defaultFolderForm);
-    p.setDefaultListForm(c.defaultListForm);
-    p.setDefaultChoiceForm(c.defaultChoiceForm);
-    p.setDefaultFolderChoiceForm(c.defaultFolderChoiceForm);
-    p.setAuxiliaryObjectForm(c.auxiliaryObjectForm);
-    p.setAuxiliaryFolderForm(c.auxiliaryFolderForm);
-    p.setAuxiliaryListForm(c.auxiliaryListForm);
-    p.setAuxiliaryChoiceForm(c.auxiliaryChoiceForm);
-    p.setAuxiliaryFolderChoiceForm(c.auxiliaryFolderChoiceForm);
-    p.setObjectModule(c.objectModule);
-    p.setManagerModule(c.managerModule);
-    p.setIncludeHelpInContents(c.includeHelpInContents);
-    p.setHelp(c.help);
-    MdListTypeRefs.replaceItemsV20(p.getBasedOn(), c.basedOn);
-    if (p.getDataLockFields() != null) {
-      p.getDataLockFields().getField().clear();
-      if (c.dataLockFields != null) {
-        p.getDataLockFields().getField().addAll(c.dataLockFields);
-      }
-    }
-    if (c.dataLockControlMode != null && !c.dataLockControlMode.isEmpty()) {
-      p.setDataLockControlMode(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.DefaultDataLockControlMode.valueOf(
-          c.dataLockControlMode));
-    }
-    if (c.fullTextSearch != null && !c.fullTextSearch.isEmpty()) {
-      p.setFullTextSearch(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.FullTextSearchUsing.valueOf(c.fullTextSearch));
-    }
-    ensureLsV20(p);
-    LocalStringSync.setOrPutRuV20(p.getObjectPresentation(), c.objectPresentationRu == null ? "" : c.objectPresentationRu);
-    LocalStringSync.setOrPutRuV20(
-      p.getExtendedObjectPresentation(),
-      c.extendedObjectPresentationRu == null ? "" : c.extendedObjectPresentationRu);
-    LocalStringSync.setOrPutRuV20(p.getListPresentation(), c.listPresentationRu == null ? "" : c.listPresentationRu);
-    LocalStringSync.setOrPutRuV20(
-      p.getExtendedListPresentation(),
-      c.extendedListPresentationRu == null ? "" : c.extendedListPresentationRu);
-    LocalStringSync.setOrPutRuV20(p.getExplanation(), c.explanationRu == null ? "" : c.explanationRu);
-    if (c.createOnInput != null && !c.createOnInput.isEmpty()) {
-      p.setCreateOnInput(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.CreateOnInput.valueOf(c.createOnInput));
-    }
-    if (c.choiceHistoryOnInput != null && !c.choiceHistoryOnInput.isEmpty()) {
-      p.setChoiceHistoryOnInput(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_2_managed_application_logform.ChoiceHistoryOnInput.valueOf(
-          c.choiceHistoryOnInput));
-    }
-    if (c.dataHistory != null && !c.dataHistory.isEmpty()) {
-      p.setDataHistory(
-        io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.DataHistoryUse.valueOf(c.dataHistory));
-    }
-    p.setUpdateDataHistoryImmediatelyAfterWrite(c.updateDataHistoryImmediatelyAfterWrite);
-    p.setExecuteAfterWriteDataHistoryVersionProcessing(c.executeAfterWriteDataHistoryVersionProcessing);
-    p.setAdditionalIndexes(c.additionalIndexes);
-  }
-
-  private static void ensureLsV20(io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.CatalogProperties p) {
-    if (p.getObjectPresentation() == null) {
-      p.setObjectPresentation(new io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.LocalStringType());
-    }
-    if (p.getExtendedObjectPresentation() == null) {
-      p.setExtendedObjectPresentation(new io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.LocalStringType());
-    }
-    if (p.getListPresentation() == null) {
-      p.setListPresentation(new io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.LocalStringType());
-    }
-    if (p.getExtendedListPresentation() == null) {
-      p.setExtendedListPresentation(new io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.LocalStringType());
-    }
-    if (p.getExplanation() == null) {
-      p.setExplanation(new io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.LocalStringType());
-    }
-  }
-
-  private static String decimalToString(BigDecimal bd) {
-    return bd == null ? "0" : bd.toPlainString();
   }
 
   private static String nzDecimal(String s) {

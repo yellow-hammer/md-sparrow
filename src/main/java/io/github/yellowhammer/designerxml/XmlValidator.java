@@ -49,7 +49,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Валидация файла по корневой XSD и цепочке {@code import} через {@code catalog.xml} каталога версии.
+ * Валидация файла по корневой XSD и цепочке {@code import}. Карта {@code namespace → файл XSD}
+ * строится в памяти из каталога схем версии ({@code schemas/<версия>}) по фиксированному соглашению
+ * имён 1С — отдельный {@code catalog.xml} не нужен (в submodule его нет).
  * <p>
  * Перед валидацией применяется учёт особенностей выгрузки платформы: если корень —
  * {@code MetaDataObject} с {@code version}, а у дочернего {@code Configuration} нет
@@ -68,34 +70,38 @@ public final class XmlValidator {
 
   static final String NS_MD_CLASSES = "http://v8.1c.ru/8.3/MDClasses";
 
+  /**
+   * Пространства имён 1С → имя файла XSD в каталоге версии. Набор и имена одинаковы во всех версиях;
+   * корневая {@code MDClasses} в карту import'ов не входит. Совпадает со списком в build.gradle.kts.
+   */
+  private static final Map<String, String> NS_TO_XSD_FILE = Map.ofEntries(
+    Map.entry("http://v8.1c.ru/8.1/data/core", "v8.1c.ru-8.1-data-core.xsd"),
+    Map.entry("http://v8.1c.ru/8.1/data/enterprise", "v8.1c.ru-8.1-data-enterprise.xsd"),
+    Map.entry("http://v8.1c.ru/8.1/data/ui", "v8.1c.ru-8.1-data-ui.xsd"),
+    Map.entry("http://v8.1c.ru/8.2/managed-application/core", "v8.1c.ru-8.2-managed-application-core.xsd"),
+    Map.entry("http://v8.1c.ru/8.2/managed-application/cmi", "v8.1c.ru-8.2-managed-application-cmi.xsd"),
+    Map.entry("http://v8.1c.ru/8.2/managed-application/logform", "v8.1c.ru-8.2-managed-application-logform.xsd"),
+    Map.entry("http://v8.1c.ru/8.3/xcf/enums", "v8.1c.ru-8.3-xcf-enums.xsd"),
+    Map.entry("http://v8.1c.ru/8.3/xcf/readable", "v8.1c.ru-8.3-xcf-readable.xsd"),
+    Map.entry("http://v8.1c.ru/8.3/xcf/predef", "v8.1c.ru-8.3-xcf-predef.xsd"),
+    Map.entry("http://v8.1c.ru/8.2/data/spreadsheet", "v8.1c.ru-8.2-data-spreadsheet.xsd"),
+    Map.entry("http://v8.1c.ru/8.2/data/bsl", "v8.1c.ru-8.2-data-bsl.xsd"),
+    Map.entry("http://v8.1c.ru/8.2/managed-application/modules", "v8.1c.ru-8.2-managed-application-modules.xsd"),
+    Map.entry("http://v8.1c.ru/8.2/uobjects", "v8.1c.ru-8.2-uobjects.xsd"));
+
   private XmlValidator() {
   }
 
   /**
-   * Проверка файла по главной XSD и импорту через catalog по умолчанию в каталоге схем.
+   * Проверка файла по главной XSD; цепочка {@code import} разрешается по карте, построенной из каталога схем.
    *
    * @param xmlPath путь к {@code .xml}
    * @param version версия (подкаталог под {@code xsdCollectionRoot})
-   * @param xsdCollectionRoot корень коллекции XSD (обычно submodule {@code namespace-forest})
+   * @param xsdCollectionRoot корень коллекции XSD (обычно submodule {@code resources/namespace-forest})
    * @throws SAXException ошибка схемы или несоответствие документа
-   * @throws IOException ошибки чтения файлов или catalog
+   * @throws IOException ошибки чтения файлов схем
    */
-  public static void validate(Path xmlPath, SchemaVersion version, Path xsdCollectionRoot) throws SAXException, IOException {
-    validate(xmlPath, version, xsdCollectionRoot, null);
-  }
-
-  /**
-   * Проверка файла по главной XSD с явным {@code catalog.xml}.
-   *
-   * @param xmlPath путь к {@code .xml}
-   * @param version версия схем
-   * @param xsdCollectionRoot корень коллекции XSD
-   * @param catalogFile если {@code null}, используется {@code <xsd-каталог>/catalog.xml}; иначе OASIS catalog
-   *                    (в этом репозитории — {@code xjb/ns/&lt;версия&gt;/catalog.xml}, если схемы без catalog в submodule).
-   * @throws SAXException ошибка схемы или несоответствие документа
-   * @throws IOException ошибки чтения файлов или catalog
-   */
-  public static void validate(Path xmlPath, SchemaVersion version, Path xsdCollectionRoot, Path catalogFile)
+  public static void validate(Path xmlPath, SchemaVersion version, Path xsdCollectionRoot)
     throws SAXException, IOException {
     if (!Files.isRegularFile(xmlPath)) {
       throw new IllegalArgumentException(
@@ -104,16 +110,12 @@ public final class XmlValidator {
           + ". Укажите реальный путь к .xml (в README path/to.xml — только шаблон).");
     }
     Path xsdDir = xsdCollectionRoot.resolve(version.xsdDirectoryName()).normalize();
-    Path catalogPath = catalogFile != null ? catalogFile.normalize() : xsdDir.resolve("catalog.xml");
     Path mainXsd = xsdDir.resolve("v8.1c.ru-8.3-MDClasses.xsd");
     if (!Files.isRegularFile(mainXsd)) {
       throw new IllegalArgumentException("XSD not found: " + mainXsd);
     }
-    if (!Files.isRegularFile(catalogPath)) {
-      throw new IllegalArgumentException("catalog.xml not found: " + catalogPath);
-    }
-    Map<String, Path> uriToFile = loadCatalogUriMap(catalogPath, xsdDir);
-    LSResourceResolver lsResolver = new CatalogLsResourceResolver(xsdDir, uriToFile);
+    Map<String, Path> uriToFile = buildSchemaUriMap(xsdDir);
+    LSResourceResolver lsResolver = new SchemaImportResolver(xsdDir, uriToFile);
 
     SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
     factory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
@@ -301,43 +303,27 @@ public final class XmlValidator {
   }
 
   /**
-   * Читает OASIS catalog (элементы {@code uri}) в мапу namespace → абсолютный путь к .xsd.
+   * Строит мапу {@code namespace → абсолютный путь к .xsd} в каталоге версии по соглашению имён 1С.
+   * Включаются только реально существующие файлы (набор схем версии может быть уже).
    */
-  static Map<String, Path> loadCatalogUriMap(Path catalogFile, Path xsdDir) throws IOException {
+  static Map<String, Path> buildSchemaUriMap(Path xsdDir) {
     Map<String, Path> map = new HashMap<>();
-    try {
-      DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-      dbf.setNamespaceAware(true);
-      dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-      Document doc = dbf.newDocumentBuilder().parse(catalogFile.toFile());
-      NodeList nodes = doc.getElementsByTagNameNS("urn:oasis:names:tc:entity:xmlns:xml:catalog", "uri");
-      if (nodes.getLength() == 0) {
-        nodes = doc.getElementsByTagName("uri");
+    for (Map.Entry<String, String> e : NS_TO_XSD_FILE.entrySet()) {
+      Path xsd = xsdDir.resolve(e.getValue()).normalize();
+      if (Files.isRegularFile(xsd)) {
+        map.put(e.getKey(), xsd);
       }
-      for (int i = 0; i < nodes.getLength(); i++) {
-        if (!(nodes.item(i) instanceof Element el)) {
-          continue;
-        }
-        String name = el.getAttribute("name");
-        String uri = el.getAttribute("uri");
-        if (name.isEmpty() || uri.isEmpty()) {
-          continue;
-        }
-        map.put(name, xsdDir.resolve(uri).normalize());
-      }
-    } catch (Exception e) {
-      throw new IOException("Failed to parse catalog: " + catalogFile, e);
     }
     return map;
   }
 
-  private static final class CatalogLsResourceResolver implements LSResourceResolver {
+  private static final class SchemaImportResolver implements LSResourceResolver {
 
     private final Path xsdDir;
     private final Map<String, Path> uriToFile;
     private final DOMImplementationLS domLs;
 
-    CatalogLsResourceResolver(Path xsdDir, Map<String, Path> uriToFile) {
+    SchemaImportResolver(Path xsdDir, Map<String, Path> uriToFile) {
       this.xsdDir = xsdDir;
       this.uriToFile = uriToFile;
       try {

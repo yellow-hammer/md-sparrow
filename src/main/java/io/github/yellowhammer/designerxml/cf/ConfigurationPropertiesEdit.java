@@ -8,6 +8,7 @@ package io.github.yellowhammer.designerxml.cf;
 import io.github.yellowhammer.designerxml.DesignerXml;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.WriteOptions;
+import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
 
@@ -24,219 +25,114 @@ import java.util.Optional;
 
 import javax.xml.stream.XMLStreamException;
 
+/**
+ * Чтение/запись свойств конфигурации (DTO {@link ConfigurationPropertiesDto}) — версионно-нейтрально
+ * через {@link JaxbReflect}.
+ */
 public final class ConfigurationPropertiesEdit {
+
+  private static final String USE_PURPOSE_ENUM = ".v8_2_managed_application_core.ApplicationUsePurpose";
 
   private ConfigurationPropertiesEdit() {
   }
 
   public static ConfigurationPropertiesDto read(Path configurationXml, SchemaVersion schemaVersion)
     throws JAXBException, IOException {
-    return switch (schemaVersion) {
-      case V2_20 -> readV20(configurationXml);
-      case V2_21 -> readV21(configurationXml);
-    };
+    return fill(properties(DesignerXml.read(configurationXml, schemaVersion)));
   }
 
   public static void write(Path configurationXml, SchemaVersion schemaVersion, ConfigurationPropertiesDto dto)
     throws JAXBException, IOException {
-    switch (schemaVersion) {
-      case V2_20 -> writeV20(configurationXml, dto);
-      case V2_21 -> writeV21(configurationXml, dto);
-    }
-  }
-
-  private static ConfigurationPropertiesDto readV20(Path configurationXml) throws JAXBException, IOException {
-    Object root = DesignerXml.read(configurationXml, SchemaVersion.V2_20);
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject mdo)) {
-      throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
-    }
-    if (mdo == null || mdo.getConfiguration() == null || mdo.getConfiguration().getProperties() == null) {
-      throw new IllegalArgumentException("unsupported MetaDataObject for configuration-properties");
-    }
-    var p = mdo.getConfiguration().getProperties();
-    var out = new ConfigurationPropertiesDto();
-    out.name = nvl(p.getName());
-    out.synonymRu = LocalStringSync.firstRuV20(p.getSynonym());
-    out.comment = nvl(p.getComment());
-    out.defaultRunMode = p.getDefaultRunMode() == null ? "" : p.getDefaultRunMode().name();
-    out.usePurposes = enumListToNamesV20(p.getUsePurposes());
-    out.scriptVariant = p.getScriptVariant() == null ? "" : p.getScriptVariant().name();
-    out.defaultRoles = p.getDefaultRoles() == null ? new ArrayList<>() : MdListTypeRefs.readItemTexts(p.getDefaultRoles().getItem());
-    out.managedApplicationModule = nvl(p.getManagedApplicationModule());
-    out.sessionModule = nvl(p.getSessionModule());
-    out.externalConnectionModule = nvl(p.getExternalConnectionModule());
-    out.briefInformationRu = LocalStringSync.firstRuV20(p.getBriefInformation());
-    out.detailedInformationRu = LocalStringSync.firstRuV20(p.getDetailedInformation());
-    out.copyrightRu = LocalStringSync.firstRuV20(p.getCopyright());
-    out.vendorInformationAddressRu = LocalStringSync.firstRuV20(p.getVendorInformationAddress());
-    out.configurationInformationAddressRu = LocalStringSync.firstRuV20(p.getConfigurationInformationAddress());
-    out.vendor = nvl(p.getVendor());
-    out.version = nvl(p.getVersion());
-    out.updateCatalogAddress = nvl(p.getUpdateCatalogAddress());
-    out.dataLockControlMode = p.getDataLockControlMode() == null ? "" : p.getDataLockControlMode().name();
-    out.objectAutonumerationMode = p.getObjectAutonumerationMode() == null ? "" : p.getObjectAutonumerationMode().name();
-    out.modalityUseMode = p.getModalityUseMode() == null ? "" : p.getModalityUseMode().name();
-    out.synchronousPlatformExtensionAndAddInCallUseMode =
-      p.getSynchronousPlatformExtensionAndAddInCallUseMode() == null
-        ? ""
-        : p.getSynchronousPlatformExtensionAndAddInCallUseMode().name();
-    out.interfaceCompatibilityMode =
-      p.getInterfaceCompatibilityMode() == null ? "" : p.getInterfaceCompatibilityMode().name();
-    out.compatibilityMode = p.getCompatibilityMode() == null ? "" : p.getCompatibilityMode().name();
-    return out;
-  }
-
-  private static ConfigurationPropertiesDto readV21(Path configurationXml) throws JAXBException, IOException {
-    Object root = DesignerXml.read(configurationXml, SchemaVersion.V2_21);
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject mdo)) {
-      throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
-    }
-    if (mdo == null || mdo.getConfiguration() == null || mdo.getConfiguration().getProperties() == null) {
-      throw new IllegalArgumentException("unsupported MetaDataObject for configuration-properties");
-    }
-    var p = mdo.getConfiguration().getProperties();
-    var out = new ConfigurationPropertiesDto();
-    out.name = nvl(p.getName());
-    out.synonymRu = LocalStringSync.firstRuV21(p.getSynonym());
-    out.comment = nvl(p.getComment());
-    out.defaultRunMode = p.getDefaultRunMode() == null ? "" : p.getDefaultRunMode().name();
-    out.usePurposes = enumListToNamesV21(p.getUsePurposes());
-    out.scriptVariant = p.getScriptVariant() == null ? "" : p.getScriptVariant().name();
-    out.defaultRoles = p.getDefaultRoles() == null ? new ArrayList<>() : MdListTypeRefs.readItemTexts(p.getDefaultRoles().getItem());
-    out.managedApplicationModule = nvl(p.getManagedApplicationModule());
-    out.sessionModule = nvl(p.getSessionModule());
-    out.externalConnectionModule = nvl(p.getExternalConnectionModule());
-    out.briefInformationRu = LocalStringSync.firstRuV21(p.getBriefInformation());
-    out.detailedInformationRu = LocalStringSync.firstRuV21(p.getDetailedInformation());
-    out.copyrightRu = LocalStringSync.firstRuV21(p.getCopyright());
-    out.vendorInformationAddressRu = LocalStringSync.firstRuV21(p.getVendorInformationAddress());
-    out.configurationInformationAddressRu = LocalStringSync.firstRuV21(p.getConfigurationInformationAddress());
-    out.vendor = nvl(p.getVendor());
-    out.version = nvl(p.getVersion());
-    out.updateCatalogAddress = nvl(p.getUpdateCatalogAddress());
-    out.dataLockControlMode = p.getDataLockControlMode() == null ? "" : p.getDataLockControlMode().name();
-    out.objectAutonumerationMode = p.getObjectAutonumerationMode() == null ? "" : p.getObjectAutonumerationMode().name();
-    out.modalityUseMode = p.getModalityUseMode() == null ? "" : p.getModalityUseMode().name();
-    out.synchronousPlatformExtensionAndAddInCallUseMode =
-      p.getSynchronousPlatformExtensionAndAddInCallUseMode() == null
-        ? ""
-        : p.getSynchronousPlatformExtensionAndAddInCallUseMode().name();
-    out.interfaceCompatibilityMode =
-      p.getInterfaceCompatibilityMode() == null ? "" : p.getInterfaceCompatibilityMode().name();
-    out.compatibilityMode = p.getCompatibilityMode() == null ? "" : p.getCompatibilityMode().name();
-    return out;
-  }
-
-  private static void writeV20(Path configurationXml, ConfigurationPropertiesDto dto)
-    throws JAXBException, IOException {
-    ConfigurationPropertiesDto baseline = readV20(configurationXml);
+    ConfigurationPropertiesDto baseline = read(configurationXml, schemaVersion);
     ConfigurationPropertiesDto incoming = normalizeIncoming(dto, baseline);
     if (equalsDto(baseline, incoming)) {
       return;
     }
     String originalXml = Files.readString(configurationXml, StandardCharsets.UTF_8);
-    Object root = DesignerXml.read(configurationXml, SchemaVersion.V2_20);
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject mdo)) {
-      throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
+    Object root = DesignerXml.read(configurationXml, schemaVersion);
+    Object p = properties(root);
+    JaxbReflect.setOptional(p, "setName", nvl(incoming.name));
+    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getSynonym"), nvl(incoming.synonymRu));
+    JaxbReflect.setOptional(p, "setComment", nvl(incoming.comment));
+    JaxbReflect.setEnumOrKeep(p, "setDefaultRunMode", incoming.defaultRunMode);
+    applyUsePurposes(schemaVersion, p, incoming.usePurposes);
+    JaxbReflect.setEnumOrKeep(p, "setScriptVariant", incoming.scriptVariant);
+    Object roles = JaxbReflect.getOptional(p, "getDefaultRoles");
+    if (roles != null) {
+      MdListTypeRefs.replaceItems(roles, safeTrimmedList(incoming.defaultRoles));
     }
-    if (mdo == null || mdo.getConfiguration() == null || mdo.getConfiguration().getProperties() == null) {
-      throw new IllegalArgumentException("unsupported MetaDataObject for configuration-properties");
-    }
-    var p = mdo.getConfiguration().getProperties();
-    p.setName(nvl(incoming.name));
-    LocalStringSync.setOrPutRuV20(p.getSynonym(), nvl(incoming.synonymRu));
-    p.setComment(nvl(incoming.comment));
-    p.setDefaultRunMode(enumOrKeepV20DefaultRunMode(incoming.defaultRunMode, p.getDefaultRunMode()));
-    applyUsePurposesV20(p, incoming.usePurposes);
-    p.setScriptVariant(enumOrKeepV20ScriptVariant(incoming.scriptVariant, p.getScriptVariant()));
-    if (p.getDefaultRoles() != null) {
-      MdListTypeRefs.replaceItemsV20(p.getDefaultRoles(), safeTrimmedList(incoming.defaultRoles));
-    }
-    p.setManagedApplicationModule(nvl(incoming.managedApplicationModule));
-    p.setSessionModule(nvl(incoming.sessionModule));
-    p.setExternalConnectionModule(nvl(incoming.externalConnectionModule));
-    LocalStringSync.setOrPutRuV20(p.getBriefInformation(), nvl(incoming.briefInformationRu));
-    LocalStringSync.setOrPutRuV20(p.getDetailedInformation(), nvl(incoming.detailedInformationRu));
-    LocalStringSync.setOrPutRuV20(p.getCopyright(), nvl(incoming.copyrightRu));
-    LocalStringSync.setOrPutRuV20(p.getVendorInformationAddress(), nvl(incoming.vendorInformationAddressRu));
-    LocalStringSync.setOrPutRuV20(p.getConfigurationInformationAddress(), nvl(incoming.configurationInformationAddressRu));
-    p.setVendor(nvl(incoming.vendor));
-    p.setVersion(nvl(incoming.version));
-    p.setUpdateCatalogAddress(nvl(incoming.updateCatalogAddress));
-    p.setDataLockControlMode(enumOrKeepV20DataLock(incoming.dataLockControlMode, p.getDataLockControlMode()));
-    p.setObjectAutonumerationMode(enumOrKeepV20AutoNum(incoming.objectAutonumerationMode, p.getObjectAutonumerationMode()));
-    p.setModalityUseMode(enumOrKeepV20Modality(incoming.modalityUseMode, p.getModalityUseMode()));
-    p.setSynchronousPlatformExtensionAndAddInCallUseMode(
-      enumOrKeepV20SyncMode(incoming.synchronousPlatformExtensionAndAddInCallUseMode,
-        p.getSynchronousPlatformExtensionAndAddInCallUseMode())
-    );
-    p.setInterfaceCompatibilityMode(
-      enumOrKeepV20InterfaceCompatibility(incoming.interfaceCompatibilityMode, p.getInterfaceCompatibilityMode())
-    );
-    p.setCompatibilityMode(enumOrKeepV20Compatibility(incoming.compatibilityMode, p.getCompatibilityMode()));
-    byte[] patched = tryGranularWrite(originalXml, root, SchemaVersion.V2_20, baseline, incoming)
+    JaxbReflect.setOptional(p, "setManagedApplicationModule", nvl(incoming.managedApplicationModule));
+    JaxbReflect.setOptional(p, "setSessionModule", nvl(incoming.sessionModule));
+    JaxbReflect.setOptional(p, "setExternalConnectionModule", nvl(incoming.externalConnectionModule));
+    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getBriefInformation"), nvl(incoming.briefInformationRu));
+    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getDetailedInformation"), nvl(incoming.detailedInformationRu));
+    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getCopyright"), nvl(incoming.copyrightRu));
+    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getVendorInformationAddress"),
+      nvl(incoming.vendorInformationAddressRu));
+    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getConfigurationInformationAddress"),
+      nvl(incoming.configurationInformationAddressRu));
+    JaxbReflect.setOptional(p, "setVendor", nvl(incoming.vendor));
+    JaxbReflect.setOptional(p, "setVersion", nvl(incoming.version));
+    JaxbReflect.setOptional(p, "setUpdateCatalogAddress", nvl(incoming.updateCatalogAddress));
+    JaxbReflect.setEnumOrKeep(p, "setDataLockControlMode", incoming.dataLockControlMode);
+    JaxbReflect.setEnumOrKeep(p, "setObjectAutonumerationMode", incoming.objectAutonumerationMode);
+    JaxbReflect.setEnumOrKeep(p, "setModalityUseMode", incoming.modalityUseMode);
+    JaxbReflect.setEnumOrKeep(p, "setSynchronousPlatformExtensionAndAddInCallUseMode",
+      incoming.synchronousPlatformExtensionAndAddInCallUseMode);
+    JaxbReflect.setEnumOrKeep(p, "setInterfaceCompatibilityMode", incoming.interfaceCompatibilityMode);
+    JaxbReflect.setEnumOrKeep(p, "setCompatibilityMode", incoming.compatibilityMode);
+    byte[] patched = tryGranularWrite(originalXml, root, schemaVersion, baseline, incoming)
       .orElseThrow(() -> new IllegalStateException(
         "Не удалось применить изменения точечно. Полная пересборка XML через JAXB предотвращена."
       ));
     Files.write(configurationXml, patched);
   }
 
-  private static void writeV21(Path configurationXml, ConfigurationPropertiesDto dto)
-    throws JAXBException, IOException {
-    ConfigurationPropertiesDto baseline = readV21(configurationXml);
-    ConfigurationPropertiesDto incoming = normalizeIncoming(dto, baseline);
-    if (equalsDto(baseline, incoming)) {
-      return;
-    }
-    String originalXml = Files.readString(configurationXml, StandardCharsets.UTF_8);
-    Object root = DesignerXml.read(configurationXml, SchemaVersion.V2_21);
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject mdo)) {
+  /** {@code Configuration.Properties} любой версии; иначе — исключение. */
+  private static Object properties(Object root) {
+    if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
     }
-    if (mdo == null || mdo.getConfiguration() == null || mdo.getConfiguration().getProperties() == null) {
+    Object cfg = JaxbReflect.get(je.getValue(), "getConfiguration");
+    Object p = cfg == null ? null : JaxbReflect.get(cfg, "getProperties");
+    if (p == null) {
       throw new IllegalArgumentException("unsupported MetaDataObject for configuration-properties");
     }
-    var p = mdo.getConfiguration().getProperties();
-    p.setName(nvl(incoming.name));
-    LocalStringSync.setOrPutRuV21(p.getSynonym(), nvl(incoming.synonymRu));
-    p.setComment(nvl(incoming.comment));
-    p.setDefaultRunMode(enumOrKeepV21DefaultRunMode(incoming.defaultRunMode, p.getDefaultRunMode()));
-    applyUsePurposesV21(p, incoming.usePurposes);
-    p.setScriptVariant(enumOrKeepV21ScriptVariant(incoming.scriptVariant, p.getScriptVariant()));
-    if (p.getDefaultRoles() != null) {
-      MdListTypeRefs.replaceItemsV21(p.getDefaultRoles(), safeTrimmedList(incoming.defaultRoles));
-    }
-    p.setManagedApplicationModule(nvl(incoming.managedApplicationModule));
-    p.setSessionModule(nvl(incoming.sessionModule));
-    p.setExternalConnectionModule(nvl(incoming.externalConnectionModule));
-    LocalStringSync.setOrPutRuV21(p.getBriefInformation(), nvl(incoming.briefInformationRu));
-    LocalStringSync.setOrPutRuV21(p.getDetailedInformation(), nvl(incoming.detailedInformationRu));
-    LocalStringSync.setOrPutRuV21(p.getCopyright(), nvl(incoming.copyrightRu));
-    LocalStringSync.setOrPutRuV21(p.getVendorInformationAddress(), nvl(incoming.vendorInformationAddressRu));
-    LocalStringSync.setOrPutRuV21(p.getConfigurationInformationAddress(), nvl(incoming.configurationInformationAddressRu));
-    p.setVendor(nvl(incoming.vendor));
-    p.setVersion(nvl(incoming.version));
-    p.setUpdateCatalogAddress(nvl(incoming.updateCatalogAddress));
-    p.setDataLockControlMode(enumOrKeepV21DataLock(incoming.dataLockControlMode, p.getDataLockControlMode()));
-    p.setObjectAutonumerationMode(enumOrKeepV21AutoNum(incoming.objectAutonumerationMode, p.getObjectAutonumerationMode()));
-    p.setModalityUseMode(enumOrKeepV21Modality(incoming.modalityUseMode, p.getModalityUseMode()));
-    p.setSynchronousPlatformExtensionAndAddInCallUseMode(
-      enumOrKeepV21SyncMode(incoming.synchronousPlatformExtensionAndAddInCallUseMode,
-        p.getSynchronousPlatformExtensionAndAddInCallUseMode())
-    );
-    p.setInterfaceCompatibilityMode(
-      enumOrKeepV21InterfaceCompatibility(incoming.interfaceCompatibilityMode, p.getInterfaceCompatibilityMode())
-    );
-    p.setCompatibilityMode(enumOrKeepV21Compatibility(incoming.compatibilityMode, p.getCompatibilityMode()));
-    byte[] patched = tryGranularWrite(originalXml, root, SchemaVersion.V2_21, baseline, incoming)
-      .orElseThrow(() -> new IllegalStateException(
-        "Не удалось применить изменения точечно. Полная пересборка XML через JAXB предотвращена."
-      ));
-    Files.write(configurationXml, patched);
+    return p;
+  }
+
+  private static ConfigurationPropertiesDto fill(Object p) {
+    var out = new ConfigurationPropertiesDto();
+    out.name = nvl(JaxbReflect.getStringOptional(p, "getName"));
+    out.synonymRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getSynonym"));
+    out.comment = nvl(JaxbReflect.getStringOptional(p, "getComment"));
+    out.defaultRunMode = JaxbReflect.enumNameOptional(p, "getDefaultRunMode");
+    out.usePurposes = enumListToNames(JaxbReflect.getOptional(p, "getUsePurposes"));
+    out.scriptVariant = JaxbReflect.enumNameOptional(p, "getScriptVariant");
+    Object roles = JaxbReflect.getOptional(p, "getDefaultRoles");
+    out.defaultRoles = roles == null
+      ? new ArrayList<>()
+      : MdListTypeRefs.readItemTexts(JaxbReflect.list(roles, "getItem"));
+    out.managedApplicationModule = nvl(JaxbReflect.getStringOptional(p, "getManagedApplicationModule"));
+    out.sessionModule = nvl(JaxbReflect.getStringOptional(p, "getSessionModule"));
+    out.externalConnectionModule = nvl(JaxbReflect.getStringOptional(p, "getExternalConnectionModule"));
+    out.briefInformationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getBriefInformation"));
+    out.detailedInformationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getDetailedInformation"));
+    out.copyrightRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getCopyright"));
+    out.vendorInformationAddressRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getVendorInformationAddress"));
+    out.configurationInformationAddressRu =
+      LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getConfigurationInformationAddress"));
+    out.vendor = nvl(JaxbReflect.getStringOptional(p, "getVendor"));
+    out.version = nvl(JaxbReflect.getStringOptional(p, "getVersion"));
+    out.updateCatalogAddress = nvl(JaxbReflect.getStringOptional(p, "getUpdateCatalogAddress"));
+    out.dataLockControlMode = JaxbReflect.enumNameOptional(p, "getDataLockControlMode");
+    out.objectAutonumerationMode = JaxbReflect.enumNameOptional(p, "getObjectAutonumerationMode");
+    out.modalityUseMode = JaxbReflect.enumNameOptional(p, "getModalityUseMode");
+    out.synchronousPlatformExtensionAndAddInCallUseMode =
+      JaxbReflect.enumNameOptional(p, "getSynchronousPlatformExtensionAndAddInCallUseMode");
+    out.interfaceCompatibilityMode = JaxbReflect.enumNameOptional(p, "getInterfaceCompatibilityMode");
+    out.compatibilityMode = JaxbReflect.enumNameOptional(p, "getCompatibilityMode");
+    return out;
   }
 
   private static Optional<byte[]> tryGranularWrite(
@@ -295,91 +191,43 @@ public final class ConfigurationPropertiesEdit {
   }
 
   private static ConfigurationPropertiesDto readDto(byte[] xmlBytes, SchemaVersion version) throws JAXBException {
-    Object root = DesignerXml.unmarshal(version, new ByteArrayInputStream(xmlBytes));
-    return switch (version) {
-      case V2_20 -> readFromRootV20(root);
-      case V2_21 -> readFromRootV21(root);
-    };
+    return fill(properties(DesignerXml.unmarshal(version, new ByteArrayInputStream(xmlBytes))));
   }
 
-  private static ConfigurationPropertiesDto readFromRootV20(Object root) {
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject mdo)
-      || mdo.getConfiguration() == null
-      || mdo.getConfiguration().getProperties() == null) {
-      throw new IllegalArgumentException("unsupported MetaDataObject for configuration-properties");
+  private static List<String> enumListToNames(Object fixedArray) {
+    List<String> out = new ArrayList<>();
+    if (fixedArray == null) {
+      return out;
     }
-    var p = mdo.getConfiguration().getProperties();
-    var out = new ConfigurationPropertiesDto();
-    out.name = nvl(p.getName());
-    out.synonymRu = LocalStringSync.firstRuV20(p.getSynonym());
-    out.comment = nvl(p.getComment());
-    out.defaultRunMode = p.getDefaultRunMode() == null ? "" : p.getDefaultRunMode().name();
-    out.usePurposes = enumListToNamesV20(p.getUsePurposes());
-    out.scriptVariant = p.getScriptVariant() == null ? "" : p.getScriptVariant().name();
-    out.defaultRoles = p.getDefaultRoles() == null ? new ArrayList<>() : MdListTypeRefs.readItemTexts(p.getDefaultRoles().getItem());
-    out.managedApplicationModule = nvl(p.getManagedApplicationModule());
-    out.sessionModule = nvl(p.getSessionModule());
-    out.externalConnectionModule = nvl(p.getExternalConnectionModule());
-    out.briefInformationRu = LocalStringSync.firstRuV20(p.getBriefInformation());
-    out.detailedInformationRu = LocalStringSync.firstRuV20(p.getDetailedInformation());
-    out.copyrightRu = LocalStringSync.firstRuV20(p.getCopyright());
-    out.vendorInformationAddressRu = LocalStringSync.firstRuV20(p.getVendorInformationAddress());
-    out.configurationInformationAddressRu = LocalStringSync.firstRuV20(p.getConfigurationInformationAddress());
-    out.vendor = nvl(p.getVendor());
-    out.version = nvl(p.getVersion());
-    out.updateCatalogAddress = nvl(p.getUpdateCatalogAddress());
-    out.dataLockControlMode = p.getDataLockControlMode() == null ? "" : p.getDataLockControlMode().name();
-    out.objectAutonumerationMode = p.getObjectAutonumerationMode() == null ? "" : p.getObjectAutonumerationMode().name();
-    out.modalityUseMode = p.getModalityUseMode() == null ? "" : p.getModalityUseMode().name();
-    out.synchronousPlatformExtensionAndAddInCallUseMode =
-      p.getSynchronousPlatformExtensionAndAddInCallUseMode() == null
-        ? ""
-        : p.getSynchronousPlatformExtensionAndAddInCallUseMode().name();
-    out.interfaceCompatibilityMode =
-      p.getInterfaceCompatibilityMode() == null ? "" : p.getInterfaceCompatibilityMode().name();
-    out.compatibilityMode = p.getCompatibilityMode() == null ? "" : p.getCompatibilityMode().name();
+    for (Object v : JaxbReflect.<Object>list(fixedArray, "getValue")) {
+      if (v != null) {
+        out.add(v.toString());
+      }
+    }
     return out;
   }
 
-  private static ConfigurationPropertiesDto readFromRootV21(Object root) {
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject mdo)
-      || mdo.getConfiguration() == null
-      || mdo.getConfiguration().getProperties() == null) {
-      throw new IllegalArgumentException("unsupported MetaDataObject for configuration-properties");
+  private static void applyUsePurposes(SchemaVersion version, Object p, List<String> values) {
+    Object fixedArray = JaxbReflect.getOptional(p, "getUsePurposes");
+    if (fixedArray == null) {
+      return;
     }
-    var p = mdo.getConfiguration().getProperties();
-    var out = new ConfigurationPropertiesDto();
-    out.name = nvl(p.getName());
-    out.synonymRu = LocalStringSync.firstRuV21(p.getSynonym());
-    out.comment = nvl(p.getComment());
-    out.defaultRunMode = p.getDefaultRunMode() == null ? "" : p.getDefaultRunMode().name();
-    out.usePurposes = enumListToNamesV21(p.getUsePurposes());
-    out.scriptVariant = p.getScriptVariant() == null ? "" : p.getScriptVariant().name();
-    out.defaultRoles = p.getDefaultRoles() == null ? new ArrayList<>() : MdListTypeRefs.readItemTexts(p.getDefaultRoles().getItem());
-    out.managedApplicationModule = nvl(p.getManagedApplicationModule());
-    out.sessionModule = nvl(p.getSessionModule());
-    out.externalConnectionModule = nvl(p.getExternalConnectionModule());
-    out.briefInformationRu = LocalStringSync.firstRuV21(p.getBriefInformation());
-    out.detailedInformationRu = LocalStringSync.firstRuV21(p.getDetailedInformation());
-    out.copyrightRu = LocalStringSync.firstRuV21(p.getCopyright());
-    out.vendorInformationAddressRu = LocalStringSync.firstRuV21(p.getVendorInformationAddress());
-    out.configurationInformationAddressRu = LocalStringSync.firstRuV21(p.getConfigurationInformationAddress());
-    out.vendor = nvl(p.getVendor());
-    out.version = nvl(p.getVersion());
-    out.updateCatalogAddress = nvl(p.getUpdateCatalogAddress());
-    out.dataLockControlMode = p.getDataLockControlMode() == null ? "" : p.getDataLockControlMode().name();
-    out.objectAutonumerationMode = p.getObjectAutonumerationMode() == null ? "" : p.getObjectAutonumerationMode().name();
-    out.modalityUseMode = p.getModalityUseMode() == null ? "" : p.getModalityUseMode().name();
-    out.synchronousPlatformExtensionAndAddInCallUseMode =
-      p.getSynchronousPlatformExtensionAndAddInCallUseMode() == null
-        ? ""
-        : p.getSynchronousPlatformExtensionAndAddInCallUseMode().name();
-    out.interfaceCompatibilityMode =
-      p.getInterfaceCompatibilityMode() == null ? "" : p.getInterfaceCompatibilityMode().name();
-    out.compatibilityMode = p.getCompatibilityMode() == null ? "" : p.getCompatibilityMode().name();
-    return out;
+    List<Object> vals = JaxbReflect.list(fixedArray, "getValue");
+    vals.clear();
+    Class<?> enumClass;
+    try {
+      enumClass = Class.forName("io.github.yellowhammer.designerxml.jaxb." + version.name().toLowerCase()
+        + USE_PURPOSE_ENUM);
+    } catch (ClassNotFoundException e) {
+      throw new IllegalStateException("нет класса ApplicationUsePurpose для " + version, e);
+    }
+    for (String v : safeTrimmedList(values)) {
+      try {
+        vals.add(Enum.valueOf(enumClass.asSubclass(Enum.class), v));
+      } catch (IllegalArgumentException ignored) {
+        // неизвестное значение пропускаем, чтобы не ломать сохранение
+      }
+    }
   }
 
   private static ConfigurationPropertiesDto normalizeIncoming(
@@ -591,180 +439,6 @@ public final class ConfigurationPropertiesEdit {
       i++;
     }
     return xmlUtf8.substring(from, i);
-  }
-
-  private static List<String> enumListToNamesV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_1_data_core.FixedArray list) {
-    List<String> out = new ArrayList<>();
-    if (list == null || list.getValue() == null) {
-      return out;
-    }
-    for (Object v : list.getValue()) {
-      if (v != null) {
-        out.add(v.toString());
-      }
-    }
-    return out;
-  }
-
-  private static List<String> enumListToNamesV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_1_data_core.FixedArray list) {
-    List<String> out = new ArrayList<>();
-    if (list == null || list.getValue() == null) {
-      return out;
-    }
-    for (Object v : list.getValue()) {
-      if (v != null) {
-        out.add(v.toString());
-      }
-    }
-    return out;
-  }
-
-  private static void applyUsePurposesV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.ConfigurationProperties p,
-    List<String> values) {
-    if (p.getUsePurposes() == null || p.getUsePurposes().getValue() == null) {
-      return;
-    }
-    p.getUsePurposes().getValue().clear();
-    for (String v : safeTrimmedList(values)) {
-      try {
-        p.getUsePurposes().getValue().add(
-          io.github.yellowhammer.designerxml.jaxb.v2_20.v8_2_managed_application_core.ApplicationUsePurpose
-            .valueOf(v)
-        );
-      } catch (IllegalArgumentException ignored) {
-        // Игнорируем неизвестные значения, чтобы не ломать сохранение.
-      }
-    }
-  }
-
-  private static void applyUsePurposesV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.ConfigurationProperties p,
-    List<String> values) {
-    if (p.getUsePurposes() == null || p.getUsePurposes().getValue() == null) {
-      return;
-    }
-    p.getUsePurposes().getValue().clear();
-    for (String v : safeTrimmedList(values)) {
-      try {
-        p.getUsePurposes().getValue().add(
-          io.github.yellowhammer.designerxml.jaxb.v2_21.v8_2_managed_application_core.ApplicationUsePurpose
-            .valueOf(v)
-        );
-      } catch (IllegalArgumentException ignored) {
-        // Игнорируем неизвестные значения, чтобы не ломать сохранение.
-      }
-    }
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_20.v8_2_managed_application_core.ClientRunMode enumOrKeepV20DefaultRunMode(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_2_managed_application_core.ClientRunMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_20.v8_2_managed_application_core.ClientRunMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_21.v8_2_managed_application_core.ClientRunMode enumOrKeepV21DefaultRunMode(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_2_managed_application_core.ClientRunMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_21.v8_2_managed_application_core.ClientRunMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ScriptVariant enumOrKeepV20ScriptVariant(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ScriptVariant current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ScriptVariant.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ScriptVariant enumOrKeepV21ScriptVariant(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ScriptVariant current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ScriptVariant.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.DefaultDataLockControlMode enumOrKeepV20DataLock(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.DefaultDataLockControlMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.DefaultDataLockControlMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.DefaultDataLockControlMode enumOrKeepV21DataLock(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.DefaultDataLockControlMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.DefaultDataLockControlMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ObjectAutonumerationMode enumOrKeepV20AutoNum(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ObjectAutonumerationMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ObjectAutonumerationMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ObjectAutonumerationMode enumOrKeepV21AutoNum(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ObjectAutonumerationMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ObjectAutonumerationMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ModalityUseMode enumOrKeepV20Modality(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ModalityUseMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.ModalityUseMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ModalityUseMode enumOrKeepV21Modality(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ModalityUseMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.ModalityUseMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.SynchronousPlatformExtensionAndAddInCallUseMode enumOrKeepV20SyncMode(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.SynchronousPlatformExtensionAndAddInCallUseMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.SynchronousPlatformExtensionAndAddInCallUseMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.SynchronousPlatformExtensionAndAddInCallUseMode enumOrKeepV21SyncMode(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.SynchronousPlatformExtensionAndAddInCallUseMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.SynchronousPlatformExtensionAndAddInCallUseMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.InterfaceCompatibilityMode enumOrKeepV20InterfaceCompatibility(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.InterfaceCompatibilityMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.InterfaceCompatibilityMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.InterfaceCompatibilityMode enumOrKeepV21InterfaceCompatibility(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.InterfaceCompatibilityMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.InterfaceCompatibilityMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.CompatibilityMode enumOrKeepV20Compatibility(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.CompatibilityMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_enums.CompatibilityMode.class);
-  }
-
-  private static io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.CompatibilityMode enumOrKeepV21Compatibility(
-    String raw,
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.CompatibilityMode current) {
-    return enumOrKeep(raw, current, io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_enums.CompatibilityMode.class);
-  }
-
-  private static <T extends Enum<T>> T enumOrKeep(String raw, T current, Class<T> enumType) {
-    String value = nvl(raw).trim();
-    if (value.isEmpty()) {
-      return current;
-    }
-    try {
-      return Enum.valueOf(enumType, value);
-    } catch (IllegalArgumentException ignored) {
-      return current;
-    }
   }
 
   private static List<String> safeTrimmedList(List<String> input) {

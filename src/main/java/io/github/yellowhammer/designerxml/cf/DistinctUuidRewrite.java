@@ -28,11 +28,17 @@ import java.util.regex.Pattern;
 
 /**
  * Подмена UUID в XML: каждое уникальное значение в тексте получает свой новый UUID.
+ * Содержимое {@code <xr:ClassId>} сохраняется без изменений — это фиксированный идентификатор
+ * класса метаданных платформы (внешний отчёт/обработка, контейнеры конфигурации), а не
+ * объектно-зависимый UUID; его подмена сделала бы выгрузку нечитаемой платформой.
  */
 final class DistinctUuidRewrite {
 
   private static final Pattern UUID_TOKEN = Pattern.compile(
     "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+
+  /** Закрывающий «>» элемента ClassId (с любым префиксом NS) непосредственно перед значением. */
+  private static final String CLASS_ID_OPEN_END = "ClassId>";
 
   private DistinctUuidRewrite() {
   }
@@ -53,11 +59,16 @@ final class DistinctUuidRewrite {
     while (m.find()) {
       sb.append(xml, last, m.start());
       String oldU = m.group();
-      String newU = mapping.computeIfAbsent(oldU, uuidFactory);
-      sb.append(newU);
+      String value = isClassId(xml, m.start()) ? oldU : mapping.computeIfAbsent(oldU, uuidFactory);
+      sb.append(value);
       last = m.end();
     }
     sb.append(xml.substring(last));
     return sb.toString();
+  }
+
+  private static boolean isClassId(String xml, int valueStart) {
+    int s = valueStart - CLASS_ID_OPEN_END.length();
+    return s >= 0 && xml.regionMatches(s, CLASS_ID_OPEN_END, 0, CLASS_ID_OPEN_END.length());
   }
 }

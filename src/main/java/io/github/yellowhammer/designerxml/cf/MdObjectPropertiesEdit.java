@@ -10,6 +10,7 @@ package io.github.yellowhammer.designerxml.cf;
 
 import io.github.yellowhammer.designerxml.DesignerXml;
 import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
 
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
@@ -64,10 +65,7 @@ public final class MdObjectPropertiesEdit {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    return switch (version) {
-      case V2_20 -> readDtoV20(je);
-      case V2_21 -> readDtoV21(je);
-    };
+    return readFromRoot(je, version);
   }
 
   /**
@@ -78,10 +76,7 @@ public final class MdObjectPropertiesEdit {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    return switch (version) {
-      case V2_20 -> readDtoV20(je);
-      case V2_21 -> readDtoV21(je);
-    };
+    return readFromRoot(je, version);
   }
 
   public static void writeDto(Path objectXml, SchemaVersion version, MdObjectPropertiesDto dto)
@@ -123,10 +118,7 @@ public final class MdObjectPropertiesEdit {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    switch (version) {
-      case V2_20 -> applyDtoV20(je, dto);
-      case V2_21 -> applyDtoV21(je, dto);
-    }
+    applyDto(je, version, dto);
     MdObjectPropertiesDiff.ChangeMask mask = MdObjectPropertiesDiff.computeChangeMask(baseline, dto);
     Optional<byte[]> spliced = MdObjectPropertiesSplice.trySplice(xml, version, je, dto, mask);
     if (spliced.isPresent()) {
@@ -160,40 +152,23 @@ public final class MdObjectPropertiesEdit {
     }
   }
 
-  private static MdObjectPropertiesDto readDtoV20(JAXBElement<?> je) {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject) je.getValue();
-    if (mdo.getCatalog() != null) {
-      return readCatalogV20(mdo.getCatalog());
+  private static MdObjectPropertiesDto readFromRoot(JAXBElement<?> je, SchemaVersion version) {
+    Object mdo = je.getValue();
+    Object cat = JaxbReflect.get(mdo, "getCatalog");
+    if (cat != null) {
+      return readCatalogLike(cat, "catalog", true, version);
     }
-    if (mdo.getDocument() != null) {
-      return readDocumentV20(mdo.getDocument());
+    Object doc = JaxbReflect.get(mdo, "getDocument");
+    if (doc != null) {
+      return readCatalogLike(doc, "document", false, version);
     }
-    if (mdo.getSubsystem() != null) {
-      return readSubsystemV20(mdo.getSubsystem());
+    Object sub = JaxbReflect.get(mdo, "getSubsystem");
+    if (sub != null) {
+      return readSubsystem(sub);
     }
-    if (mdo.getExchangePlan() != null) {
-      return readExchangePlanV20(mdo.getExchangePlan());
-    }
-    MdObjectPropertiesDto simple = tryReadSimpleKind(mdo);
-    if (simple != null) {
-      return simple;
-    }
-    throw new IllegalArgumentException("unsupported MetaDataObject for cf-md-object");
-  }
-
-  private static MdObjectPropertiesDto readDtoV21(JAXBElement<?> je) {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject) je.getValue();
-    if (mdo.getCatalog() != null) {
-      return readCatalogV21(mdo.getCatalog());
-    }
-    if (mdo.getDocument() != null) {
-      return readDocumentV21(mdo.getDocument());
-    }
-    if (mdo.getSubsystem() != null) {
-      return readSubsystemV21(mdo.getSubsystem());
-    }
-    if (mdo.getExchangePlan() != null) {
-      return readExchangePlanV21(mdo.getExchangePlan());
+    Object ep = JaxbReflect.get(mdo, "getExchangePlan");
+    if (ep != null) {
+      return readCatalogLike(ep, "exchangePlan", false, version);
     }
     MdObjectPropertiesDto simple = tryReadSimpleKind(mdo);
     if (simple != null) {
@@ -202,500 +177,160 @@ public final class MdObjectPropertiesEdit {
     throw new IllegalArgumentException("unsupported MetaDataObject for cf-md-object");
   }
 
-  private static MdObjectPropertiesDto readCatalogV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.Catalog cat) {
-    MdObjectPropertiesDto dto = baseCatalogLikeV20(cat.getProperties());
-    dto.kind = "catalog";
-    MdCatalogPropertiesBridge.readV20(cat.getProperties(), dto);
-    var co = cat.getChildObjects();
+  private static MdObjectPropertiesDto readCatalogLike(
+    Object node, String kind, boolean catalog, SchemaVersion version) {
+    Object props = JaxbReflect.get(node, "getProperties");
+    MdObjectPropertiesDto dto = base(props, kind);
+    if (catalog) {
+      MdCatalogPropertiesBridge.read(version, props, dto);
+    }
+    Object co = JaxbReflect.get(node, "getChildObjects");
     if (co != null) {
-      for (var a : co.getAttribute()) {
-        dto.attributes.add(attrDtoV20(a));
+      for (Object a : JaxbReflect.<Object>list(co, "getAttribute")) {
+        dto.attributes.add(namedDto(a));
       }
-      for (var ts : co.getTabularSection()) {
-        dto.tabularSections.add(tsDtoV20(ts));
+      for (Object ts : JaxbReflect.<Object>list(co, "getTabularSection")) {
+        dto.tabularSections.add(namedDto(ts));
       }
     }
     return dto;
   }
 
-  private static MdObjectPropertiesDto readCatalogV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.Catalog cat) {
-    MdObjectPropertiesDto dto = baseCatalogLikeV21(cat.getProperties());
-    dto.kind = "catalog";
-    MdCatalogPropertiesBridge.readV21(cat.getProperties(), dto);
-    var co = cat.getChildObjects();
-    if (co != null) {
-      for (var a : co.getAttribute()) {
-        dto.attributes.add(attrDtoV21(a));
-      }
-      for (var ts : co.getTabularSection()) {
-        dto.tabularSections.add(tsDtoV21(ts));
-      }
-    }
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto readDocumentV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.Document doc) {
-    MdObjectPropertiesDto dto = baseCatalogLikeV20(doc.getProperties());
-    dto.kind = "document";
-    var co = doc.getChildObjects();
-    if (co != null) {
-      for (var a : co.getAttribute()) {
-        dto.attributes.add(attrDtoV20(a));
-      }
-      for (var ts : co.getTabularSection()) {
-        dto.tabularSections.add(tsDtoV20(ts));
-      }
-    }
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto readDocumentV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.Document doc) {
-    MdObjectPropertiesDto dto = baseCatalogLikeV21(doc.getProperties());
-    dto.kind = "document";
-    var co = doc.getChildObjects();
-    if (co != null) {
-      for (var a : co.getAttribute()) {
-        dto.attributes.add(attrDtoV21(a));
-      }
-      for (var ts : co.getTabularSection()) {
-        dto.tabularSections.add(tsDtoV21(ts));
-      }
-    }
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto readExchangePlanV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.ExchangePlan ep) {
-    MdObjectPropertiesDto dto = baseCatalogLikeV20(ep.getProperties());
-    dto.kind = "exchangePlan";
-    var co = ep.getChildObjects();
-    if (co != null) {
-      for (var a : co.getAttribute()) {
-        dto.attributes.add(attrDtoV20(a));
-      }
-      for (var ts : co.getTabularSection()) {
-        dto.tabularSections.add(tsDtoV20(ts));
-      }
-    }
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto readExchangePlanV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.ExchangePlan ep) {
-    MdObjectPropertiesDto dto = baseCatalogLikeV21(ep.getProperties());
-    dto.kind = "exchangePlan";
-    var co = ep.getChildObjects();
-    if (co != null) {
-      for (var a : co.getAttribute()) {
-        dto.attributes.add(attrDtoV21(a));
-      }
-      for (var ts : co.getTabularSection()) {
-        dto.tabularSections.add(tsDtoV21(ts));
-      }
-    }
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto baseCatalogLikeV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.CatalogProperties props) {
+  private static MdObjectPropertiesDto base(Object props, String kind) {
     MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
-    dto.internalName = props.getName();
-    dto.synonymRu = LocalStringSync.firstRuV20(props.getSynonym());
-    dto.comment = props.getComment() == null ? "" : props.getComment();
+    dto.kind = kind;
+    dto.internalName = JaxbReflect.getString(props, "getName");
+    dto.synonymRu = LocalStringSync.firstRu(JaxbReflect.get(props, "getSynonym"));
+    String comment = JaxbReflect.getString(props, "getComment");
+    dto.comment = comment == null ? "" : comment;
     return dto;
   }
 
-  private static MdObjectPropertiesDto baseCatalogLikeV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.DocumentProperties props) {
-    MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
-    dto.internalName = props.getName();
-    dto.synonymRu = LocalStringSync.firstRuV20(props.getSynonym());
-    dto.comment = props.getComment() == null ? "" : props.getComment();
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto baseCatalogLikeV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.ExchangePlanProperties props) {
-    MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
-    dto.internalName = props.getName();
-    dto.synonymRu = LocalStringSync.firstRuV20(props.getSynonym());
-    dto.comment = props.getComment() == null ? "" : props.getComment();
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto baseCatalogLikeV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.CatalogProperties props) {
-    MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
-    dto.internalName = props.getName();
-    dto.synonymRu = LocalStringSync.firstRuV21(props.getSynonym());
-    dto.comment = props.getComment() == null ? "" : props.getComment();
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto baseCatalogLikeV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.DocumentProperties props) {
-    MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
-    dto.internalName = props.getName();
-    dto.synonymRu = LocalStringSync.firstRuV21(props.getSynonym());
-    dto.comment = props.getComment() == null ? "" : props.getComment();
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto baseCatalogLikeV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.ExchangePlanProperties props) {
-    MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
-    dto.internalName = props.getName();
-    dto.synonymRu = LocalStringSync.firstRuV21(props.getSynonym());
-    dto.comment = props.getComment() == null ? "" : props.getComment();
-    return dto;
-  }
-
-  private static MdNamedPropertyDto attrDtoV20(io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.Attribute a) {
-    var p = a.getProperties();
+  private static MdNamedPropertyDto namedDto(Object attrOrSection) {
+    Object p = JaxbReflect.get(attrOrSection, "getProperties");
+    String comment = JaxbReflect.getString(p, "getComment");
     return new MdNamedPropertyDto(
-      p.getName(),
-      LocalStringSync.firstRuV20(p.getSynonym()),
-      p.getComment() == null ? "" : p.getComment());
+      JaxbReflect.getString(p, "getName"),
+      LocalStringSync.firstRu(JaxbReflect.get(p, "getSynonym")),
+      comment == null ? "" : comment);
   }
 
-  private static MdNamedPropertyDto attrDtoV21(io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.Attribute a) {
-    var p = a.getProperties();
-    return new MdNamedPropertyDto(
-      p.getName(),
-      LocalStringSync.firstRuV21(p.getSynonym()),
-      p.getComment() == null ? "" : p.getComment());
-  }
-
-  private static MdNamedPropertyDto tsDtoV20(io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.TabularSection ts) {
-    var p = ts.getProperties();
-    return new MdNamedPropertyDto(
-      p.getName(),
-      LocalStringSync.firstRuV20(p.getSynonym()),
-      p.getComment() == null ? "" : p.getComment());
-  }
-
-  private static MdNamedPropertyDto tsDtoV21(io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.TabularSection ts) {
-    var p = ts.getProperties();
-    return new MdNamedPropertyDto(
-      p.getName(),
-      LocalStringSync.firstRuV21(p.getSynonym()),
-      p.getComment() == null ? "" : p.getComment());
-  }
-
-  private static MdObjectPropertiesDto readSubsystemV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.Subsystem sub) {
-    MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
-    dto.kind = "subsystem";
-    var props = sub.getProperties();
-    dto.internalName = props.getName();
-    dto.synonymRu = LocalStringSync.firstRuV20(props.getSynonym());
-    dto.comment = props.getComment() == null ? "" : props.getComment();
-    if (props.getContent() != null) {
-      dto.contentRefs.addAll(MdListTypeRefs.readItemTexts(props.getContent().getItem()));
+  private static MdObjectPropertiesDto readSubsystem(Object sub) {
+    Object props = JaxbReflect.get(sub, "getProperties");
+    MdObjectPropertiesDto dto = base(props, "subsystem");
+    Object content = JaxbReflect.get(props, "getContent");
+    if (content != null) {
+      dto.contentRefs.addAll(MdListTypeRefs.readItemTexts(JaxbReflect.list(content, "getItem")));
     }
-    var ch = sub.getChildObjects();
+    Object ch = JaxbReflect.get(sub, "getChildObjects");
     if (ch != null) {
-      dto.nestedSubsystems.addAll(ch.getSubsystem());
-    }
-    return dto;
-  }
-
-  private static MdObjectPropertiesDto readSubsystemV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.Subsystem sub) {
-    MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
-    dto.kind = "subsystem";
-    var props = sub.getProperties();
-    dto.internalName = props.getName();
-    dto.synonymRu = LocalStringSync.firstRuV21(props.getSynonym());
-    dto.comment = props.getComment() == null ? "" : props.getComment();
-    if (props.getContent() != null) {
-      dto.contentRefs.addAll(MdListTypeRefs.readItemTexts(props.getContent().getItem()));
-    }
-    var ch = sub.getChildObjects();
-    if (ch != null) {
-      dto.nestedSubsystems.addAll(ch.getSubsystem());
+      dto.nestedSubsystems.addAll(JaxbReflect.<String>list(ch, "getSubsystem"));
     }
     return dto;
   }
 
   /** Для тестов: применить DTO к корню JAXB без записи файла. */
   static void applyDtoForTest(JAXBElement<?> je, SchemaVersion version, MdObjectPropertiesDto dto) {
-    switch (version) {
-      case V2_20 -> applyDtoV20(je, dto);
-      case V2_21 -> applyDtoV21(je, dto);
-    }
+    applyDto(je, version, dto);
   }
 
-  private static void applyDtoV20(JAXBElement<?> je, MdObjectPropertiesDto dto) {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject) je.getValue();
+  private static void applyDto(JAXBElement<?> je, SchemaVersion version, MdObjectPropertiesDto dto) {
+    Object mdo = je.getValue();
     if (tryApplySimpleKind(mdo, dto)) {
       return;
     }
     switch (dto.kind) {
       case "catalog" -> {
-        var cat = mdo.getCatalog();
-        if (cat == null) {
-          throw new IllegalArgumentException("MetaDataObject is not a Catalog");
-        }
+        Object cat = require(mdo, "getCatalog", "Catalog");
+        Object props = JaxbReflect.get(cat, "getProperties");
         if (dto.catalog != null) {
-          MdCatalogPropertiesBridge.applyV20(cat.getProperties(), dto);
+          MdCatalogPropertiesBridge.apply(version, props, dto);
         } else {
-          applyCatalogLikeV20(cat.getProperties(), dto);
+          applyCatalogLike(props, dto);
         }
-        applyAttrsV20(cat.getChildObjects(), dto);
+        applyAttrs(JaxbReflect.get(cat, "getChildObjects"), dto);
       }
       case "document" -> {
-        var doc = mdo.getDocument();
-        if (doc == null) {
-          throw new IllegalArgumentException("MetaDataObject is not a Document");
-        }
-        applyCatalogLikeV20(doc.getProperties(), dto);
-        applyAttrsV20(doc.getChildObjects(), dto);
+        Object doc = require(mdo, "getDocument", "Document");
+        applyCatalogLike(JaxbReflect.get(doc, "getProperties"), dto);
+        applyAttrs(JaxbReflect.get(doc, "getChildObjects"), dto);
       }
       case "exchangePlan" -> {
-        var ep = mdo.getExchangePlan();
-        if (ep == null) {
-          throw new IllegalArgumentException("MetaDataObject is not an ExchangePlan");
-        }
-        applyCatalogLikeV20(ep.getProperties(), dto);
-        applyAttrsV20(ep.getChildObjects(), dto);
+        Object ep = require(mdo, "getExchangePlan", "ExchangePlan");
+        applyCatalogLike(JaxbReflect.get(ep, "getProperties"), dto);
+        applyAttrs(JaxbReflect.get(ep, "getChildObjects"), dto);
       }
-      case "subsystem" -> {
-        var sub = mdo.getSubsystem();
-        if (sub == null) {
-          throw new IllegalArgumentException("MetaDataObject is not a Subsystem");
-        }
-        applySubsystemV20(sub, dto);
-      }
+      case "subsystem" -> applySubsystem(require(mdo, "getSubsystem", "Subsystem"), dto);
       default -> throw new IllegalArgumentException("unknown kind: " + dto.kind);
     }
   }
 
-  private static void applyDtoV21(JAXBElement<?> je, MdObjectPropertiesDto dto) {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject) je.getValue();
-    if (tryApplySimpleKind(mdo, dto)) {
-      return;
+  private static Object require(Object mdo, String getter, String label) {
+    Object node = JaxbReflect.get(mdo, getter);
+    if (node == null) {
+      throw new IllegalArgumentException("MetaDataObject is not a " + label);
     }
-    switch (dto.kind) {
-      case "catalog" -> {
-        var cat = mdo.getCatalog();
-        if (cat == null) {
-          throw new IllegalArgumentException("MetaDataObject is not a Catalog");
-        }
-        if (dto.catalog != null) {
-          MdCatalogPropertiesBridge.applyV21(cat.getProperties(), dto);
-        } else {
-          applyCatalogLikeV21(cat.getProperties(), dto);
-        }
-        applyAttrsV21(cat.getChildObjects(), dto);
-      }
-      case "document" -> {
-        var doc = mdo.getDocument();
-        if (doc == null) {
-          throw new IllegalArgumentException("MetaDataObject is not a Document");
-        }
-        applyCatalogLikeV21(doc.getProperties(), dto);
-        applyAttrsV21(doc.getChildObjects(), dto);
-      }
-      case "exchangePlan" -> {
-        var ep = mdo.getExchangePlan();
-        if (ep == null) {
-          throw new IllegalArgumentException("MetaDataObject is not an ExchangePlan");
-        }
-        applyCatalogLikeV21(ep.getProperties(), dto);
-        applyAttrsV21(ep.getChildObjects(), dto);
-      }
-      case "subsystem" -> {
-        var sub = mdo.getSubsystem();
-        if (sub == null) {
-          throw new IllegalArgumentException("MetaDataObject is not a Subsystem");
-        }
-        applySubsystemV21(sub, dto);
-      }
-      default -> throw new IllegalArgumentException("unknown kind: " + dto.kind);
-    }
+    return node;
   }
 
-  private static void applyCatalogLikeV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.CatalogProperties props,
-    MdObjectPropertiesDto dto) {
-    if (!dto.internalName.equals(props.getName())) {
+  private static void applyCatalogLike(Object props, MdObjectPropertiesDto dto) {
+    if (!dto.internalName.equals(JaxbReflect.getStringOptional(props, "getName"))) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
     String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV20(props.getSynonym(), syn);
-    LocalStringSync.replaceRuV20(props.getObjectPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExtendedObjectPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getListPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExtendedListPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExplanation(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
+    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(props, "getSynonym"), syn);
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getObjectPresentation"), syn);
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExtendedObjectPresentation"), syn);
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getListPresentation"), syn);
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExtendedListPresentation"), syn);
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExplanation"), syn);
+    JaxbReflect.setOptional(props, "setComment", dto.comment == null ? "" : dto.comment);
   }
 
-  private static void applyCatalogLikeV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.DocumentProperties props,
-    MdObjectPropertiesDto dto) {
-    if (!dto.internalName.equals(props.getName())) {
-      throw new IllegalArgumentException("internalName mismatch with XML");
-    }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV20(props.getSynonym(), syn);
-    LocalStringSync.replaceRuV20(props.getObjectPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExtendedObjectPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getListPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExtendedListPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExplanation(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
-  }
-
-  private static void applyCatalogLikeV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.ExchangePlanProperties props,
-    MdObjectPropertiesDto dto) {
-    if (!dto.internalName.equals(props.getName())) {
-      throw new IllegalArgumentException("internalName mismatch with XML");
-    }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV20(props.getSynonym(), syn);
-    LocalStringSync.replaceRuV20(props.getObjectPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExtendedObjectPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getListPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExtendedListPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExplanation(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
-  }
-
-  private static void applyCatalogLikeV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.CatalogProperties props,
-    MdObjectPropertiesDto dto) {
-    if (!dto.internalName.equals(props.getName())) {
-      throw new IllegalArgumentException("internalName mismatch with XML");
-    }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV21(props.getSynonym(), syn);
-    LocalStringSync.replaceRuV21(props.getObjectPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExtendedObjectPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getListPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExtendedListPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExplanation(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
-  }
-
-  private static void applyCatalogLikeV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.DocumentProperties props,
-    MdObjectPropertiesDto dto) {
-    if (!dto.internalName.equals(props.getName())) {
-      throw new IllegalArgumentException("internalName mismatch with XML");
-    }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV21(props.getSynonym(), syn);
-    LocalStringSync.replaceRuV21(props.getObjectPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExtendedObjectPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getListPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExtendedListPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExplanation(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
-  }
-
-  private static void applyCatalogLikeV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.ExchangePlanProperties props,
-    MdObjectPropertiesDto dto) {
-    if (!dto.internalName.equals(props.getName())) {
-      throw new IllegalArgumentException("internalName mismatch with XML");
-    }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV21(props.getSynonym(), syn);
-    LocalStringSync.replaceRuV21(props.getObjectPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExtendedObjectPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getListPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExtendedListPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExplanation(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
-  }
-
-  private static void applyAttrsV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.CatalogChildObjects co,
-    MdObjectPropertiesDto dto) {
+  private static void applyAttrs(Object co, MdObjectPropertiesDto dto) {
     if (co == null) {
       return;
     }
-    applyNamedListV20(co.getAttribute(), co.getTabularSection(), dto);
-  }
-
-  private static void applyAttrsV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.DocumentChildObjects co,
-    MdObjectPropertiesDto dto) {
-    if (co == null) {
-      return;
-    }
-    applyNamedListV20(co.getAttribute(), co.getTabularSection(), dto);
-  }
-
-  private static void applyAttrsV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.ExchangePlanChildObjects co,
-    MdObjectPropertiesDto dto) {
-    if (co == null) {
-      return;
-    }
-    applyNamedListV20(co.getAttribute(), co.getTabularSection(), dto);
-  }
-
-  private static void applyAttrsV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.CatalogChildObjects co,
-    MdObjectPropertiesDto dto) {
-    if (co == null) {
-      return;
-    }
-    applyNamedListV21(co.getAttribute(), co.getTabularSection(), dto);
-  }
-
-  private static void applyAttrsV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.DocumentChildObjects co,
-    MdObjectPropertiesDto dto) {
-    if (co == null) {
-      return;
-    }
-    applyNamedListV21(co.getAttribute(), co.getTabularSection(), dto);
-  }
-
-  private static void applyAttrsV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.ExchangePlanChildObjects co,
-    MdObjectPropertiesDto dto) {
-    if (co == null) {
-      return;
-    }
-    applyNamedListV21(co.getAttribute(), co.getTabularSection(), dto);
-  }
-
-  private static void applyNamedListV20(
-    List<io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.Attribute> attrs,
-    List<io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.TabularSection> sections,
-    MdObjectPropertiesDto dto) {
+    List<Object> attrs = JaxbReflect.list(co, "getAttribute");
+    List<Object> sections = JaxbReflect.list(co, "getTabularSection");
     validateNamed(dto.attributes, attrs, "attribute");
     validateNamed(dto.tabularSections, sections, "tabularSection");
     for (int i = 0; i < attrs.size(); i++) {
-      applyAttrDtoV20(attrs.get(i), dto.attributes.get(i));
+      applyNamedDto(attrs.get(i), dto.attributes.get(i), "attribute");
     }
     for (int i = 0; i < sections.size(); i++) {
-      applyTsDtoV20(sections.get(i), dto.tabularSections.get(i));
+      applyNamedDto(sections.get(i), dto.tabularSections.get(i), "tabular section");
     }
   }
 
-  private static void applyNamedListV21(
-    List<io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.Attribute> attrs,
-    List<io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.TabularSection> sections,
-    MdObjectPropertiesDto dto) {
-    validateNamed(dto.attributes, attrs, "attribute");
-    validateNamed(dto.tabularSections, sections, "tabularSection");
-    for (int i = 0; i < attrs.size(); i++) {
-      applyAttrDtoV21(attrs.get(i), dto.attributes.get(i));
+  private static void applyNamedDto(Object node, MdNamedPropertyDto d, String label) {
+    Object p = JaxbReflect.get(node, "getProperties");
+    if (d == null || d.name == null || !d.name.equals(JaxbReflect.getString(p, "getName"))) {
+      throw new IllegalArgumentException(label + " name mismatch");
     }
-    for (int i = 0; i < sections.size(); i++) {
-      applyTsDtoV21(sections.get(i), dto.tabularSections.get(i));
+    String syn = d.synonymRu == null ? "" : d.synonymRu;
+    LocalStringSync.setOrPutRu(JaxbReflect.get(p, "getSynonym"), syn);
+    JaxbReflect.set(p, "setComment", d.comment == null ? "" : d.comment);
+  }
+
+  private static void applySubsystem(Object sub, MdObjectPropertiesDto dto) {
+    Object props = JaxbReflect.get(sub, "getProperties");
+    if (!dto.internalName.equals(JaxbReflect.getString(props, "getName"))) {
+      throw new IllegalArgumentException("internalName mismatch with XML");
     }
+    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
+    LocalStringSync.setOrPutRu(JaxbReflect.get(props, "getSynonym"), syn);
+    JaxbReflect.set(props, "setComment", dto.comment == null ? "" : dto.comment);
+    Object ch = JaxbReflect.get(sub, "getChildObjects");
+    if (ch == null) {
+      return;
+    }
+    if (dto.nestedSubsystems == null) {
+      throw new IllegalArgumentException("nestedSubsystems required");
+    }
+    List<Object> nested = JaxbReflect.list(ch, "getSubsystem");
+    nested.clear();
+    nested.addAll(new ArrayList<>(dto.nestedSubsystems));
   }
 
   private static <T> void validateNamed(List<MdNamedPropertyDto> dtos, List<T> xml, String label) {
@@ -705,96 +340,6 @@ public final class MdObjectPropertiesEdit {
     if (dtos.size() != xml.size()) {
       throw new IllegalArgumentException("count mismatch for " + label + ": JSON " + dtos.size() + " vs XML " + xml.size());
     }
-  }
-
-  private static void applyAttrDtoV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.Attribute a,
-    MdNamedPropertyDto d) {
-    var p = a.getProperties();
-    if (d == null || d.name == null || !d.name.equals(p.getName())) {
-      throw new IllegalArgumentException("attribute name mismatch");
-    }
-    String syn = d.synonymRu == null ? "" : d.synonymRu;
-    LocalStringSync.setOrPutRuV20(p.getSynonym(), syn);
-    p.setComment(d.comment == null ? "" : d.comment);
-  }
-
-  private static void applyAttrDtoV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.Attribute a,
-    MdNamedPropertyDto d) {
-    var p = a.getProperties();
-    if (d == null || d.name == null || !d.name.equals(p.getName())) {
-      throw new IllegalArgumentException("attribute name mismatch");
-    }
-    String syn = d.synonymRu == null ? "" : d.synonymRu;
-    LocalStringSync.setOrPutRuV21(p.getSynonym(), syn);
-    p.setComment(d.comment == null ? "" : d.comment);
-  }
-
-  private static void applyTsDtoV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.TabularSection ts,
-    MdNamedPropertyDto d) {
-    var p = ts.getProperties();
-    if (d == null || d.name == null || !d.name.equals(p.getName())) {
-      throw new IllegalArgumentException("tabular section name mismatch");
-    }
-    String syn = d.synonymRu == null ? "" : d.synonymRu;
-    LocalStringSync.setOrPutRuV20(p.getSynonym(), syn);
-    p.setComment(d.comment == null ? "" : d.comment);
-  }
-
-  private static void applyTsDtoV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.TabularSection ts,
-    MdNamedPropertyDto d) {
-    var p = ts.getProperties();
-    if (d == null || d.name == null || !d.name.equals(p.getName())) {
-      throw new IllegalArgumentException("tabular section name mismatch");
-    }
-    String syn = d.synonymRu == null ? "" : d.synonymRu;
-    LocalStringSync.setOrPutRuV21(p.getSynonym(), syn);
-    p.setComment(d.comment == null ? "" : d.comment);
-  }
-
-  private static void applySubsystemV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.Subsystem sub,
-    MdObjectPropertiesDto dto) {
-    var props = sub.getProperties();
-    if (!dto.internalName.equals(props.getName())) {
-      throw new IllegalArgumentException("internalName mismatch with XML");
-    }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV20(props.getSynonym(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
-    var ch = sub.getChildObjects();
-    if (ch == null) {
-      return;
-    }
-    if (dto.nestedSubsystems == null) {
-      throw new IllegalArgumentException("nestedSubsystems required");
-    }
-    ch.getSubsystem().clear();
-    ch.getSubsystem().addAll(new ArrayList<>(dto.nestedSubsystems));
-  }
-
-  private static void applySubsystemV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.Subsystem sub,
-    MdObjectPropertiesDto dto) {
-    var props = sub.getProperties();
-    if (!dto.internalName.equals(props.getName())) {
-      throw new IllegalArgumentException("internalName mismatch with XML");
-    }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV21(props.getSynonym(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
-    var ch = sub.getChildObjects();
-    if (ch == null) {
-      return;
-    }
-    if (dto.nestedSubsystems == null) {
-      throw new IllegalArgumentException("nestedSubsystems required");
-    }
-    ch.getSubsystem().clear();
-    ch.getSubsystem().addAll(new ArrayList<>(dto.nestedSubsystems));
   }
 
   private static MdObjectPropertiesDto tryReadSimpleKind(Object metaDataObject) {

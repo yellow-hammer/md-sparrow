@@ -69,36 +69,47 @@ public final class MdObjectAdd {
   private static void writeRoleRights(Path cfRoot, String roleName, SchemaVersion version) throws IOException {
     Path rightsXml = CfLayout.roleExtRightsXml(cfRoot, roleName);
     Files.createDirectories(rightsXml.getParent());
-    Files.writeString(rightsXml, RoleRightsXmlWriter.generate(version, CfLayout.DEFAULT_CONFIGURATION_NAME), StandardCharsets.UTF_8);
+    Files.writeString(rightsXml, GoldenScaffold.generateRoleRights(roleName, version), StandardCharsets.UTF_8);
   }
 
+  /**
+   * Новый объект — параметризация эталона (golden) «голого» объекта нужной версии (см. {@link GoldenScaffold}).
+   * Работает для любого формата, у которого есть эталон. Для справочника применяется опция синонима.
+   */
   private static String generateObjectXml(
     MdObjectAddType type,
     String name,
     SchemaVersion version,
     String catalogSynonymRu,
     boolean catalogSynonymEmpty)
-    throws JAXBException, IOException {
-    return switch (type) {
-      case CATALOG -> CatalogXmlEmitter.emit(name, catalogSynonymRu, catalogSynonymEmpty, version);
-      case ENUM -> NewEnumXml.generate(name, version);
-      case CONSTANT -> NewConstantXml.generate(name, version);
-      case DOCUMENT -> NewDocumentXml.generate(name, version);
-      case REPORT -> NewReportXml.generate(name, version);
-      case DATA_PROCESSOR -> NewDataProcessorXml.generate(name, version);
-      case TASK -> NewTaskXml.generate(name, version);
-      case CHART_OF_ACCOUNTS -> NewChartOfAccountsXml.generate(name, version);
-      case CHART_OF_CHARACTERISTIC_TYPES -> NewChartOfCharacteristicTypesXml.generate(name, version);
-      case CHART_OF_CALCULATION_TYPES -> NewChartOfCalculationTypesXml.generate(name, version);
-      case COMMON_MODULE -> NewCommonModuleXml.generate(name, version);
-      case SUBSYSTEM -> NewSubsystemXml.generate(name, version);
-      case SESSION_PARAMETER -> NewSessionParameterXml.generate(name, version);
-      case EXCHANGE_PLAN -> NewExchangePlanXml.generate(name, version);
-      case COMMON_ATTRIBUTE -> NewCommonAttributeXml.generate(name, version);
-      case COMMON_PICTURE -> NewCommonPictureXml.generate(name, version);
-      case DOCUMENT_NUMERATOR -> NewDocumentNumeratorXml.generate(name, version);
-      case EXTERNAL_DATA_SOURCE -> NewExternalDataSourceXml.generate(name, version);
-      case ROLE -> NewRoleXml.generate(name, version);
-    };
+    throws IOException {
+    String xml = GoldenScaffold.generateObject(type, name, version);
+    if (type == MdObjectAddType.CATALOG) {
+      xml = applyCatalogSynonym(xml, name, catalogSynonymRu, catalogSynonymEmpty);
+    }
+    return xml;
+  }
+
+  /**
+   * Синоним справочника: {@code catalogSynonymEmpty} → пустой {@code <Synonym/>}; явный {@code catalogSynonymRu}
+   * → его текст; иначе оставляем как в эталоне (после параметризации это имя объекта).
+   */
+  private static String applyCatalogSynonym(
+    String xml, String name, String catalogSynonymRu, boolean catalogSynonymEmpty) {
+    java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?s)<Synonym>.*?</Synonym>").matcher(xml);
+    if (catalogSynonymEmpty) {
+      return m.find() ? xml.substring(0, m.start()) + "<Synonym/>" + xml.substring(m.end()) : xml;
+    }
+    String ru = catalogSynonymRu == null ? "" : catalogSynonymRu.trim();
+    if (ru.isEmpty() || ru.equals(name)) {
+      return xml;
+    }
+    if (!m.find()) {
+      return xml;
+    }
+    String block = m.group().replaceFirst(
+      "(<v8:content>).*?(</v8:content>)",
+      "$1" + java.util.regex.Matcher.quoteReplacement(ru) + "$2");
+    return xml.substring(0, m.start()) + block + xml.substring(m.end());
   }
 }

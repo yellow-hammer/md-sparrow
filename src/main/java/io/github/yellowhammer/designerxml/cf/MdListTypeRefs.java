@@ -8,6 +8,8 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
+
 import org.w3c.dom.Element;
 
 import java.util.ArrayList;
@@ -15,40 +17,28 @@ import java.util.List;
 
 /**
  * Текстовые ссылки из элементов {@code Item} в {@code MDListType} (например состав подсистемы).
+ * Версионно-нейтрально через {@link JaxbReflect}.
  */
 public final class MdListTypeRefs {
 
   private MdListTypeRefs() {
   }
 
-  public static void replaceItemsV20(
-    io.github.yellowhammer.designerxml.jaxb.v2_20.v8_3_xcf_readable.MDListType list,
-    List<String> texts) {
+  /**
+   * Заменяет содержимое {@code MDListType} переданными строками ({@code null}-список — очистка).
+   *
+   * @param list объект {@code MDListType} любой версии (или {@code null})
+   */
+  public static void replaceItems(Object list, List<String> texts) {
     if (list == null) {
       return;
     }
-    list.getItem().clear();
+    List<Object> items = JaxbReflect.list(list, "getItem");
+    items.clear();
     if (texts == null) {
       return;
     }
-    for (String t : texts) {
-      list.getItem().add(t);
-    }
-  }
-
-  public static void replaceItemsV21(
-    io.github.yellowhammer.designerxml.jaxb.v2_21.v8_3_xcf_readable.MDListType list,
-    List<String> texts) {
-    if (list == null) {
-      return;
-    }
-    list.getItem().clear();
-    if (texts == null) {
-      return;
-    }
-    for (String t : texts) {
-      list.getItem().add(t);
-    }
+    items.addAll(texts);
   }
 
   public static List<String> readItemTexts(List<Object> items) {

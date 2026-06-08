@@ -11,6 +11,7 @@ package io.github.yellowhammer.designerxml.cf;
 import io.github.yellowhammer.designerxml.DesignerXml;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.WriteOptions;
+import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
 
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
@@ -38,10 +39,7 @@ public final class CatalogFormEdit {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    return switch (version) {
-      case V2_20 -> readDtoV20(je);
-      case V2_21 -> readDtoV21(je);
-    };
+    return readDto(je);
   }
 
   /**
@@ -60,10 +58,7 @@ public final class CatalogFormEdit {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    switch (version) {
-      case V2_20 -> applyDtoV20(je, dto);
-      case V2_21 -> applyDtoV21(je, dto);
-    }
+    applyDto(je, dto);
     DesignerXml.write(catalogXml, root, version, WriteOptions.forMdObjectEdit(catalogXml));
   }
 
@@ -78,69 +73,35 @@ public final class CatalogFormEdit {
     }
   }
 
-  private static CatalogFormDto readDtoV20(JAXBElement<?> je) {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject) je.getValue();
-    var cat = mdo.getCatalog();
-    if (cat == null) {
-      throw new IllegalArgumentException("MetaDataObject is not a Catalog");
-    }
-    var props = cat.getProperties();
-    String name = props.getName();
-    String syn = LocalStringSync.firstRuV20(props.getSynonym());
-    String comment = props.getComment() == null ? "" : props.getComment();
-    return new CatalogFormDto(name, syn, comment);
+  private static CatalogFormDto readDto(JAXBElement<?> je) {
+    Object props = catalogProperties(je);
+    String name = JaxbReflect.getString(props, "getName");
+    String syn = LocalStringSync.firstRu(JaxbReflect.get(props, "getSynonym"));
+    String comment = JaxbReflect.getString(props, "getComment");
+    return new CatalogFormDto(name, syn, comment == null ? "" : comment);
   }
 
-  private static CatalogFormDto readDtoV21(JAXBElement<?> je) {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject) je.getValue();
-    var cat = mdo.getCatalog();
-    if (cat == null) {
-      throw new IllegalArgumentException("MetaDataObject is not a Catalog");
-    }
-    var props = cat.getProperties();
-    String name = props.getName();
-    String syn = LocalStringSync.firstRuV21(props.getSynonym());
-    String comment = props.getComment() == null ? "" : props.getComment();
-    return new CatalogFormDto(name, syn, comment);
-  }
-
-  private static void applyDtoV20(JAXBElement<?> je, CatalogFormDto dto) {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject) je.getValue();
-    var cat = mdo.getCatalog();
-    if (cat == null) {
-      throw new IllegalArgumentException("MetaDataObject is not a Catalog");
-    }
-    var props = cat.getProperties();
-    if (!dto.internalName.equals(props.getName())) {
+  private static void applyDto(JAXBElement<?> je, CatalogFormDto dto) {
+    Object props = catalogProperties(je);
+    if (!dto.internalName.equals(JaxbReflect.getString(props, "getName"))) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
     String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV20(props.getSynonym(), syn);
-    LocalStringSync.replaceRuV20(props.getObjectPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExtendedObjectPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getListPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExtendedListPresentation(), syn);
-    LocalStringSync.replaceRuV20(props.getExplanation(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
+    LocalStringSync.setOrPutRu(JaxbReflect.get(props, "getSynonym"), syn);
+    // Поля-представления версионно-вариативны (в старых форматах могут отсутствовать) → tolerant.
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getObjectPresentation"), syn);
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExtendedObjectPresentation"), syn);
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getListPresentation"), syn);
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExtendedListPresentation"), syn);
+    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExplanation"), syn);
+    JaxbReflect.set(props, "setComment", dto.comment == null ? "" : dto.comment);
   }
 
-  private static void applyDtoV21(JAXBElement<?> je, CatalogFormDto dto) {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject) je.getValue();
-    var cat = mdo.getCatalog();
+  private static Object catalogProperties(JAXBElement<?> je) {
+    Object cat = JaxbReflect.get(je.getValue(), "getCatalog");
     if (cat == null) {
       throw new IllegalArgumentException("MetaDataObject is not a Catalog");
     }
-    var props = cat.getProperties();
-    if (!dto.internalName.equals(props.getName())) {
-      throw new IllegalArgumentException("internalName mismatch with XML");
-    }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRuV21(props.getSynonym(), syn);
-    LocalStringSync.replaceRuV21(props.getObjectPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExtendedObjectPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getListPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExtendedListPresentation(), syn);
-    LocalStringSync.replaceRuV21(props.getExplanation(), syn);
-    props.setComment(dto.comment == null ? "" : dto.comment);
+    return JaxbReflect.get(cat, "getProperties");
   }
 }

@@ -8,6 +8,7 @@ package io.github.yellowhammer.designerxml.cf;
 import io.github.yellowhammer.designerxml.DesignerXml;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.WriteOptions;
+import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
 
@@ -34,10 +35,7 @@ public final class ExternalArtifactPropertiesEdit {
     if (!Files.isRegularFile(objectXml)) {
       throw new IllegalArgumentException("file not found: " + objectXml);
     }
-    return switch (version) {
-      case V2_20 -> readV20(objectXml);
-      case V2_21 -> readV21(objectXml);
-    };
+    return readFromRoot(DesignerXml.read(objectXml, version));
   }
 
   public static void write(Path objectXml, SchemaVersion version, ExternalArtifactPropertiesDto dto)
@@ -45,144 +43,43 @@ public final class ExternalArtifactPropertiesEdit {
     if (!Files.isRegularFile(objectXml)) {
       throw new IllegalArgumentException("file not found: " + objectXml);
     }
-    switch (version) {
-      case V2_20 -> writeV20(objectXml, dto);
-      case V2_21 -> writeV21(objectXml, dto);
-    }
-  }
-
-  private static ExternalArtifactPropertiesDto readV20(Path objectXml) throws IOException, JAXBException {
-    Object root = DesignerXml.read(objectXml, SchemaVersion.V2_20);
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject mdo)) {
+    ExternalArtifactPropertiesDto baseline = read(objectXml, version);
+    Object root = DesignerXml.read(objectXml, version);
+    if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
     }
-    ExternalArtifactPropertiesDto out = new ExternalArtifactPropertiesDto();
-    if (mdo.getExternalReport() != null && mdo.getExternalReport().getProperties() != null) {
-      var p = mdo.getExternalReport().getProperties();
-      out.kind = "REPORT";
-      out.name = nvl(p.getName());
-      out.synonymRu = LocalStringSync.firstRuV20(p.getSynonym());
-      out.comment = nvl(p.getComment());
-      return out;
-    }
-    if (mdo.getExternalDataProcessor() != null && mdo.getExternalDataProcessor().getProperties() != null) {
-      var p = mdo.getExternalDataProcessor().getProperties();
-      out.kind = "DATA_PROCESSOR";
-      out.name = nvl(p.getName());
-      out.synonymRu = LocalStringSync.firstRuV20(p.getSynonym());
-      out.comment = nvl(p.getComment());
-      return out;
-    }
-    throw new IllegalArgumentException("unsupported MetaDataObject for external-artifact-properties");
-  }
-
-  private static ExternalArtifactPropertiesDto readV21(Path objectXml) throws IOException, JAXBException {
-    Object root = DesignerXml.read(objectXml, SchemaVersion.V2_21);
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject mdo)) {
-      throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
-    }
-    ExternalArtifactPropertiesDto out = new ExternalArtifactPropertiesDto();
-    if (mdo.getExternalReport() != null && mdo.getExternalReport().getProperties() != null) {
-      var p = mdo.getExternalReport().getProperties();
-      out.kind = "REPORT";
-      out.name = nvl(p.getName());
-      out.synonymRu = LocalStringSync.firstRuV21(p.getSynonym());
-      out.comment = nvl(p.getComment());
-      return out;
-    }
-    if (mdo.getExternalDataProcessor() != null && mdo.getExternalDataProcessor().getProperties() != null) {
-      var p = mdo.getExternalDataProcessor().getProperties();
-      out.kind = "DATA_PROCESSOR";
-      out.name = nvl(p.getName());
-      out.synonymRu = LocalStringSync.firstRuV21(p.getSynonym());
-      out.comment = nvl(p.getComment());
-      return out;
-    }
-    throw new IllegalArgumentException("unsupported MetaDataObject for external-artifact-properties");
-  }
-
-  private static void writeV20(Path objectXml, ExternalArtifactPropertiesDto dto) throws IOException, JAXBException {
-    ExternalArtifactPropertiesDto baseline = readV20(objectXml);
-    Object root = DesignerXml.read(objectXml, SchemaVersion.V2_20);
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject mdo)) {
-      throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
-    }
-    String containerLocal;
     String originalXml = Files.readString(objectXml, StandardCharsets.UTF_8);
     ExternalArtifactPropertiesDto incoming = normalizeIncoming(dto, baseline);
     if (equalsDto(baseline, incoming)) {
       return;
     }
-    if (mdo.getExternalReport() != null && mdo.getExternalReport().getProperties() != null) {
-      var p = mdo.getExternalReport().getProperties();
-      p.setName(nvl(incoming.name));
-      LocalStringSync.setOrPutRuV20(p.getSynonym(), nvl(incoming.synonymRu));
-      p.setComment(nvl(incoming.comment));
-      containerLocal = "ExternalReport";
-    } else if (mdo.getExternalDataProcessor() != null && mdo.getExternalDataProcessor().getProperties() != null) {
-      var p = mdo.getExternalDataProcessor().getProperties();
-      p.setName(nvl(incoming.name));
-      LocalStringSync.setOrPutRuV20(p.getSynonym(), nvl(incoming.synonymRu));
-      p.setComment(nvl(incoming.comment));
-      containerLocal = "ExternalDataProcessor";
-    } else {
+    Object props = artifactProperties(je.getValue());
+    if (props == null) {
       throw new IllegalArgumentException("unsupported MetaDataObject for external-artifact-properties");
     }
-    byte[] patched = tryGranularPatch(
-      originalXml,
-      root,
-      SchemaVersion.V2_20,
-      containerLocal,
-      baseline,
-      incoming
-    ).orElseThrow(() -> new IllegalStateException(
-      "Не удалось применить изменения точечно. Полная пересборка XML через JAXB предотвращена."
-    ));
+    JaxbReflect.set(props, "setName", nvl(incoming.name));
+    LocalStringSync.setOrPutRu(JaxbReflect.get(props, "getSynonym"), nvl(incoming.synonymRu));
+    JaxbReflect.set(props, "setComment", nvl(incoming.comment));
+    Object report = JaxbReflect.get(je.getValue(), "getExternalReport");
+    String containerLocal = report != null && JaxbReflect.get(report, "getProperties") != null
+      ? "ExternalReport"
+      : "ExternalDataProcessor";
+    byte[] patched = tryGranularPatch(originalXml, root, version, containerLocal, baseline, incoming)
+      .orElseThrow(() -> new IllegalStateException(
+        "Не удалось применить изменения точечно. Полная пересборка XML через JAXB предотвращена."
+      ));
     Files.write(objectXml, patched);
   }
 
-  private static void writeV21(Path objectXml, ExternalArtifactPropertiesDto dto) throws IOException, JAXBException {
-    ExternalArtifactPropertiesDto baseline = readV21(objectXml);
-    Object root = DesignerXml.read(objectXml, SchemaVersion.V2_21);
-    if (!(root instanceof JAXBElement<?> je)
-      || !(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject mdo)) {
-      throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
+  /** {@code ExternalReport.Properties} или {@code ExternalDataProcessor.Properties}, иначе {@code null}. */
+  private static Object artifactProperties(Object metaDataObject) {
+    Object report = JaxbReflect.get(metaDataObject, "getExternalReport");
+    Object reportProps = report == null ? null : JaxbReflect.get(report, "getProperties");
+    if (reportProps != null) {
+      return reportProps;
     }
-    String containerLocal;
-    String originalXml = Files.readString(objectXml, StandardCharsets.UTF_8);
-    ExternalArtifactPropertiesDto incoming = normalizeIncoming(dto, baseline);
-    if (equalsDto(baseline, incoming)) {
-      return;
-    }
-    if (mdo.getExternalReport() != null && mdo.getExternalReport().getProperties() != null) {
-      var p = mdo.getExternalReport().getProperties();
-      p.setName(nvl(incoming.name));
-      LocalStringSync.setOrPutRuV21(p.getSynonym(), nvl(incoming.synonymRu));
-      p.setComment(nvl(incoming.comment));
-      containerLocal = "ExternalReport";
-    } else if (mdo.getExternalDataProcessor() != null && mdo.getExternalDataProcessor().getProperties() != null) {
-      var p = mdo.getExternalDataProcessor().getProperties();
-      p.setName(nvl(incoming.name));
-      LocalStringSync.setOrPutRuV21(p.getSynonym(), nvl(incoming.synonymRu));
-      p.setComment(nvl(incoming.comment));
-      containerLocal = "ExternalDataProcessor";
-    } else {
-      throw new IllegalArgumentException("unsupported MetaDataObject for external-artifact-properties");
-    }
-    byte[] patched = tryGranularPatch(
-      originalXml,
-      root,
-      SchemaVersion.V2_21,
-      containerLocal,
-      baseline,
-      incoming
-    ).orElseThrow(() -> new IllegalStateException(
-      "Не удалось применить изменения точечно. Полная пересборка XML через JAXB предотвращена."
-    ));
-    Files.write(objectXml, patched);
+    Object processor = JaxbReflect.get(metaDataObject, "getExternalDataProcessor");
+    return processor == null ? null : JaxbReflect.get(processor, "getProperties");
   }
 
   private static Optional<byte[]> tryGranularPatch(
@@ -242,62 +139,36 @@ public final class ExternalArtifactPropertiesEdit {
   }
 
   private static ExternalArtifactPropertiesDto readFromBytes(byte[] xmlBytes, SchemaVersion version) throws JAXBException {
-    Object root = DesignerXml.unmarshal(version, new ByteArrayInputStream(xmlBytes));
+    return readFromRoot(DesignerXml.unmarshal(version, new ByteArrayInputStream(xmlBytes)));
+  }
+
+  private static ExternalArtifactPropertiesDto readFromRoot(Object root) {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
     }
-    return switch (version) {
-      case V2_20 -> readFromRootV20(je);
-      case V2_21 -> readFromRootV21(je);
-    };
-  }
-
-  private static ExternalArtifactPropertiesDto readFromRootV20(JAXBElement<?> je) {
-    if (!(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject mdo)) {
-      throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
-    }
+    Object mdo = je.getValue();
     ExternalArtifactPropertiesDto out = new ExternalArtifactPropertiesDto();
-    if (mdo.getExternalReport() != null && mdo.getExternalReport().getProperties() != null) {
-      var p = mdo.getExternalReport().getProperties();
+    Object report = JaxbReflect.get(mdo, "getExternalReport");
+    Object reportProps = report == null ? null : JaxbReflect.get(report, "getProperties");
+    if (reportProps != null) {
       out.kind = "REPORT";
-      out.name = nvl(p.getName());
-      out.synonymRu = LocalStringSync.firstRuV20(p.getSynonym());
-      out.comment = nvl(p.getComment());
+      fill(out, reportProps);
       return out;
     }
-    if (mdo.getExternalDataProcessor() != null && mdo.getExternalDataProcessor().getProperties() != null) {
-      var p = mdo.getExternalDataProcessor().getProperties();
+    Object processor = JaxbReflect.get(mdo, "getExternalDataProcessor");
+    Object processorProps = processor == null ? null : JaxbReflect.get(processor, "getProperties");
+    if (processorProps != null) {
       out.kind = "DATA_PROCESSOR";
-      out.name = nvl(p.getName());
-      out.synonymRu = LocalStringSync.firstRuV20(p.getSynonym());
-      out.comment = nvl(p.getComment());
+      fill(out, processorProps);
       return out;
     }
     throw new IllegalArgumentException("unsupported MetaDataObject for external-artifact-properties");
   }
 
-  private static ExternalArtifactPropertiesDto readFromRootV21(JAXBElement<?> je) {
-    if (!(je.getValue() instanceof io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject mdo)) {
-      throw new IllegalArgumentException("expected JAXBElement<MetaDataObject>");
-    }
-    ExternalArtifactPropertiesDto out = new ExternalArtifactPropertiesDto();
-    if (mdo.getExternalReport() != null && mdo.getExternalReport().getProperties() != null) {
-      var p = mdo.getExternalReport().getProperties();
-      out.kind = "REPORT";
-      out.name = nvl(p.getName());
-      out.synonymRu = LocalStringSync.firstRuV21(p.getSynonym());
-      out.comment = nvl(p.getComment());
-      return out;
-    }
-    if (mdo.getExternalDataProcessor() != null && mdo.getExternalDataProcessor().getProperties() != null) {
-      var p = mdo.getExternalDataProcessor().getProperties();
-      out.kind = "DATA_PROCESSOR";
-      out.name = nvl(p.getName());
-      out.synonymRu = LocalStringSync.firstRuV21(p.getSynonym());
-      out.comment = nvl(p.getComment());
-      return out;
-    }
-    throw new IllegalArgumentException("unsupported MetaDataObject for external-artifact-properties");
+  private static void fill(ExternalArtifactPropertiesDto out, Object props) {
+    out.name = nvl(JaxbReflect.getString(props, "getName"));
+    out.synonymRu = LocalStringSync.firstRu(JaxbReflect.get(props, "getSynonym"));
+    out.comment = nvl(JaxbReflect.getString(props, "getComment"));
   }
 
   private static ExternalArtifactPropertiesDto normalizeIncoming(

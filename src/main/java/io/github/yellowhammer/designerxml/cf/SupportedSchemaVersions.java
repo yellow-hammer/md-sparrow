@@ -23,12 +23,16 @@ public final class SupportedSchemaVersions {
    */
   public static SchemaVersion requireSupported(String metaDataObjectVersion) throws IOException {
     String v = metaDataObjectVersion == null ? "" : metaDataObjectVersion.trim();
-    for (SchemaVersion sv : SchemaVersion.values()) {
-      if (sv.metadataObjectVersionAttribute().equals(v)) {
-        return sv;
+    return SchemaVersion.byVersionAttribute(v).orElseThrow(() -> {
+      StringBuilder supported = new StringBuilder();
+      for (SchemaVersion sv : SchemaVersion.values()) {
+        if (supported.length() > 0) {
+          supported.append(", ");
+        }
+        supported.append(sv.metadataObjectVersionAttribute());
       }
-    }
-    throw new IOException(
-      "Версия выгрузки " + v + " пока не поддерживается. Поддерживаются только 2.20 и 2.21.");
+      return new IOException(
+        "Версия выгрузки " + v + " пока не поддерживается. Поддерживаются: " + supported + ".");
+    });
   }
 }

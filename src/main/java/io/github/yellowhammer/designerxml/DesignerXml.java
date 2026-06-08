@@ -40,8 +40,8 @@ import java.nio.file.Path;
  * Чтение и запись корневого элемента {@code MetaDataObject} (и вложенной структуры) по XSD выбранной версии.
  * <p>
  * Для каждой {@link SchemaVersion} генерируются свои классы JAXB (разные пакеты). Результат {@link #read read} —
- * обычно {@link jakarta.xml.bind.JAXBElement} с {@code declaredType = MetaDataObject} соответствующего пакета
- * {@code ...jaxb.v2_20.mdclasses} или {@code ...jaxb.v2_21.mdclasses}; значение корня — {@code getValue()}.
+ * обычно {@link jakarta.xml.bind.JAXBElement} с {@code declaredType = MetaDataObject} пакета версии
+ * ({@code ...jaxb.v2_NN.mdclasses}); значение корня — {@code getValue()}.
  */
 public final class DesignerXml {
 
@@ -222,23 +222,10 @@ public final class DesignerXml {
    *
    * @param xmlPath путь к проверяемому {@code .xml}
    * @param version версия схем (подкаталог в {@code xsdRoot})
-   * @param xsdRoot корень репозитория {@code namespace-forest} (родитель {@code schemas/…})
+   * @param xsdRoot корень submodule {@code resources/namespace-forest} (родитель {@code schemas/…})
    * @throws Exception ошибки XSD/API валидации или I/O ({@link XmlValidator})
    */
   public static void validate(Path xmlPath, SchemaVersion version, Path xsdRoot) throws Exception {
     XmlValidator.validate(xmlPath, version, xsdRoot);
-  }
-
-  /**
-   * То же, с явным путём к {@code catalog.xml}, если в каталоге со схемами его нет.
-   *
-   * @param xmlPath путь к проверяемому {@code .xml}
-   * @param version версия схем
-   * @param xsdRoot корень {@code namespace-forest}
-   * @param catalogFile OASIS catalog или {@code null} для {@code schemas/…/catalog.xml}
-   * @throws Exception ошибки валидации или I/O
-   */
-  public static void validate(Path xmlPath, SchemaVersion version, Path xsdRoot, Path catalogFile) throws Exception {
-    XmlValidator.validate(xmlPath, version, xsdRoot, catalogFile);
   }
 }

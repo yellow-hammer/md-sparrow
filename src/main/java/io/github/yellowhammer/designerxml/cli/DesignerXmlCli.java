@@ -41,7 +41,6 @@ import io.github.yellowhammer.designerxml.cf.ConfigurationChildObjectLister;
 import io.github.yellowhammer.designerxml.cf.CfLayout;
 import io.github.yellowhammer.designerxml.cf.MdObjectAdd;
 import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
-import io.github.yellowhammer.designerxml.cf.NewConfigurationXml;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphDto;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeBuilder;
@@ -69,6 +68,7 @@ import java.util.concurrent.Callable;
   subcommands = {
     DesignerXmlCli.ValidateCmd.class,
     DesignerXmlCli.RoundTripCmd.class,
+    DesignerXmlCli.TranscodeCmd.class,
     DesignerXmlCli.CfListCatalogsCmd.class,
     DesignerXmlCli.CfListChildObjectsCmd.class,
     DesignerXmlCli.AddMdObjectCmd.class,
@@ -128,24 +128,21 @@ public final class DesignerXmlCli implements Callable<Integer> {
     System.exit(exit);
   }
 
-  @Command(name = "validate", description = "Проверить XML по XSD (корень namespace-forest + каталог schemas/…).")
+  @Command(name = "validate", description = "Проверить XML по XSD (корень resources/namespace-forest + каталог schemas/…).")
   static final class ValidateCmd implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к .xml")
     Path xml;
 
-    @Parameters(index = "1", description = "Корень репозитория namespace-forest (submodule)")
+    @Parameters(index = "1", description = "Корень submodule resources/namespace-forest")
     Path xsdRoot;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
-
-    @Option(names = "--catalog", description = "Путь к catalog.xml (если не лежит рядом с XSD в submodule)")
-    Path catalog;
 
     @Override
     public Integer call() throws Exception {
       try {
-        XmlValidator.validate(xml, version, xsdRoot, catalog);
+        XmlValidator.validate(xml, version, xsdRoot);
       } catch (IllegalArgumentException e) {
         System.err.println(e.getMessage());
         return 2;
@@ -175,6 +172,33 @@ public final class DesignerXmlCli implements Callable<Integer> {
     }
   }
 
+  @Command(name = "transcode", description = "Пересобрать XML объекта метаданных из одной версии формата в другую.")
+  static final class TranscodeCmd implements Callable<Integer> {
+    @Parameters(index = "0", description = "Входной .xml")
+    Path input;
+
+    @Parameters(index = "1", description = "Выходной .xml")
+    Path output;
+
+    @Option(names = "--from", required = true, description = "Исходная версия, например V2_20")
+    SchemaVersion from;
+
+    @Option(names = "--to", required = true, description = "Целевая версия, например V2_10")
+    SchemaVersion to;
+
+    @Override
+    public Integer call() throws Exception {
+      String xml = io.github.yellowhammer.designerxml.VersionTranscoder.transcode(input, from, to);
+      Path parent = output.getParent();
+      if (parent != null) {
+        java.nio.file.Files.createDirectories(parent);
+      }
+      java.nio.file.Files.writeString(output, xml, java.nio.charset.StandardCharsets.UTF_8);
+      System.out.println("Transcoded " + from + "->" + to + ": " + output.toAbsolutePath());
+      return 0;
+    }
+  }
+
   @Command(
     name = "cf-list-catalogs",
     description = "Вывести JSON-массив имён справочников из Configuration.xml (ChildObjects/Catalog)."
@@ -183,7 +207,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к Configuration.xml")
     Path configurationXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -211,7 +235,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Option(names = "--tag", required = true, description = "Тег XML: Catalog, Document, Enum, Constant, …")
     String tag;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -241,7 +265,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "1", description = "Имя объекта (идентификатор 1С)")
     String objectName;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Option(names = "--type", required = true, description = "CATALOG, ENUM, CONSTANT, DOCUMENT, REPORT, DATA_PROCESSOR, TASK, CHART_OF_ACCOUNTS, …")
@@ -283,7 +307,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к Catalogs/&lt;имя&gt;.xml")
     Path catalogXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -314,7 +338,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "1", description = "Путь к JSON (как у cf-catalog-form-get)")
     Path jsonFile;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -348,7 +372,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к MetaDataObject .xml")
     Path objectXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -376,7 +400,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к MetaDataObject .xml")
     Path objectXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -404,7 +428,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к Configuration.xml")
     Path configurationXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -435,7 +459,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "1", description = "Путь к JSON")
     Path jsonFile;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -469,7 +493,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Каталог целевой выгрузки src/cf")
     Path targetCfRoot;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Option(
@@ -494,7 +518,8 @@ public final class DesignerXmlCli implements Callable<Integer> {
           configurationName == null || configurationName.isEmpty()
             ? CfLayout.DEFAULT_CONFIGURATION_NAME
             : configurationName;
-        NewConfigurationXml.writeConfiguratorEmptyTree(targetCfRoot, name, synonymRu, vendor, appVersion, version);
+        io.github.yellowhammer.designerxml.cf.EmptyCfScaffold.writeEmptyTree(
+          targetCfRoot, name, synonymRu, vendor, appVersion, version);
       } catch (IllegalArgumentException e) {
         System.err.println(e.getMessage());
         return 2;

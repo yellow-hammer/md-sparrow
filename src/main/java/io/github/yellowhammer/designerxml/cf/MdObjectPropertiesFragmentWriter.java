@@ -11,19 +11,29 @@ package io.github.yellowhammer.designerxml.cf;
 import io.github.yellowhammer.designerxml.DesignerXml;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.WriteOptions;
+import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
 
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
 
 import javax.xml.namespace.QName;
 
+import java.util.Map;
+
 /**
  * Маршалинг только {@code Properties} или {@code ChildObjects} объекта метаданных (фрагмент XML).
+ * Версионно-нейтрально через {@link JaxbReflect} (структура одинакова во всех версиях).
  */
 public final class MdObjectPropertiesFragmentWriter {
 
   private static final QName Q_PROPERTIES = new QName(MdObjectXmlRegions.MD_CLASSES, "Properties");
   private static final QName Q_CHILD_OBJECTS = new QName(MdObjectXmlRegions.MD_CLASSES, "ChildObjects");
+
+  private static final Map<String, String> KIND_TO_GETTER = Map.of(
+    "catalog", "getCatalog",
+    "document", "getDocument",
+    "exchangePlan", "getExchangePlan",
+    "subsystem", "getSubsystem");
 
   private MdObjectPropertiesFragmentWriter() {
   }
@@ -34,167 +44,42 @@ public final class MdObjectPropertiesFragmentWriter {
 
   public static byte[] marshalPropertiesFragment(SchemaVersion version, JAXBElement<?> je, String kind)
     throws JAXBException {
-    WriteOptions opt = fragmentOptions();
-    return switch (version) {
-      case V2_20 -> marshalPropertiesV20(je, kind, opt);
-      case V2_21 -> marshalPropertiesV21(je, kind, opt);
-    };
+    Object node = objectNode(je, kind);
+    Object props = JaxbReflect.get(node, "getProperties");
+    if (props == null) {
+      throw new IllegalArgumentException(kind + ".Properties is null");
+    }
+    return DesignerXml.marshalFragment(version, fragmentElement(Q_PROPERTIES, props), fragmentOptions());
   }
 
   public static byte[] marshalChildObjectsFragment(SchemaVersion version, JAXBElement<?> je, String kind)
     throws JAXBException {
-    WriteOptions opt = fragmentOptions();
-    return switch (version) {
-      case V2_20 -> marshalChildObjectsV20(je, kind, opt);
-      case V2_21 -> marshalChildObjectsV21(je, kind, opt);
-    };
+    Object node = objectNode(je, kind);
+    Object child = JaxbReflect.get(node, "getChildObjects");
+    if (child == null) {
+      throw new IllegalArgumentException(capitalize(kind) + ".ChildObjects is null");
+    }
+    return DesignerXml.marshalFragment(version, fragmentElement(Q_CHILD_OBJECTS, child), fragmentOptions());
   }
 
-  private static byte[] marshalPropertiesV20(JAXBElement<?> je, String kind, WriteOptions opt) throws JAXBException {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject) je.getValue();
-    return switch (kind) {
-      case "catalog" -> {
-        var p = mdo.getCatalog().getProperties();
-        var el = new JAXBElement<>(Q_PROPERTIES,
-          io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.CatalogProperties.class, p);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_20, el, opt);
-      }
-      case "document" -> {
-        var p = mdo.getDocument().getProperties();
-        var el = new JAXBElement<>(Q_PROPERTIES,
-          io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.DocumentProperties.class, p);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_20, el, opt);
-      }
-      case "exchangePlan" -> {
-        var p = mdo.getExchangePlan().getProperties();
-        var el = new JAXBElement<>(Q_PROPERTIES,
-          io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.ExchangePlanProperties.class, p);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_20, el, opt);
-      }
-      case "subsystem" -> {
-        var p = mdo.getSubsystem().getProperties();
-        var el = new JAXBElement<>(Q_PROPERTIES,
-          io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.SubsystemProperties.class, p);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_20, el, opt);
-      }
-      default -> throw new IllegalArgumentException("unknown kind: " + kind);
-    };
+  private static Object objectNode(JAXBElement<?> je, String kind) {
+    String getter = KIND_TO_GETTER.get(kind);
+    if (getter == null) {
+      throw new IllegalArgumentException("unknown kind: " + kind);
+    }
+    Object node = JaxbReflect.get(je.getValue(), getter);
+    if (node == null) {
+      throw new IllegalArgumentException("MetaDataObject is not a " + kind);
+    }
+    return node;
   }
 
-  private static byte[] marshalPropertiesV21(JAXBElement<?> je, String kind, WriteOptions opt) throws JAXBException {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject) je.getValue();
-    return switch (kind) {
-      case "catalog" -> {
-        var p = mdo.getCatalog().getProperties();
-        var el = new JAXBElement<>(Q_PROPERTIES,
-          io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.CatalogProperties.class, p);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_21, el, opt);
-      }
-      case "document" -> {
-        var p = mdo.getDocument().getProperties();
-        var el = new JAXBElement<>(Q_PROPERTIES,
-          io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.DocumentProperties.class, p);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_21, el, opt);
-      }
-      case "exchangePlan" -> {
-        var p = mdo.getExchangePlan().getProperties();
-        var el = new JAXBElement<>(Q_PROPERTIES,
-          io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.ExchangePlanProperties.class, p);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_21, el, opt);
-      }
-      case "subsystem" -> {
-        var p = mdo.getSubsystem().getProperties();
-        var el = new JAXBElement<>(Q_PROPERTIES,
-          io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.SubsystemProperties.class, p);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_21, el, opt);
-      }
-      default -> throw new IllegalArgumentException("unknown kind: " + kind);
-    };
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static JAXBElement<?> fragmentElement(QName q, Object value) {
+    return new JAXBElement(q, value.getClass(), value);
   }
 
-  private static byte[] marshalChildObjectsV20(JAXBElement<?> je, String kind, WriteOptions opt) throws JAXBException {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.MetaDataObject) je.getValue();
-    return switch (kind) {
-      case "catalog" -> {
-        var co = mdo.getCatalog().getChildObjects();
-        if (co == null) {
-          throw new IllegalArgumentException("Catalog.ChildObjects is null");
-        }
-        var el = new JAXBElement<>(Q_CHILD_OBJECTS,
-          io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.CatalogChildObjects.class, co);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_20, el, opt);
-      }
-      case "document" -> {
-        var co = mdo.getDocument().getChildObjects();
-        if (co == null) {
-          throw new IllegalArgumentException("Document.ChildObjects is null");
-        }
-        var el = new JAXBElement<>(Q_CHILD_OBJECTS,
-          io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.DocumentChildObjects.class, co);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_20, el, opt);
-      }
-      case "exchangePlan" -> {
-        var co = mdo.getExchangePlan().getChildObjects();
-        if (co == null) {
-          throw new IllegalArgumentException("ExchangePlan.ChildObjects is null");
-        }
-        var el = new JAXBElement<>(Q_CHILD_OBJECTS,
-          io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.ExchangePlanChildObjects.class, co);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_20, el, opt);
-      }
-      case "subsystem" -> {
-        var co = mdo.getSubsystem().getChildObjects();
-        if (co == null) {
-          throw new IllegalArgumentException("Subsystem.ChildObjects is null");
-        }
-        var el = new JAXBElement<>(Q_CHILD_OBJECTS,
-          io.github.yellowhammer.designerxml.jaxb.v2_20.mdclasses.SubsystemChildObjects.class, co);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_20, el, opt);
-      }
-      default -> throw new IllegalArgumentException("unknown kind: " + kind);
-    };
-  }
-
-  private static byte[] marshalChildObjectsV21(JAXBElement<?> je, String kind, WriteOptions opt) throws JAXBException {
-    var mdo = (io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.MetaDataObject) je.getValue();
-    return switch (kind) {
-      case "catalog" -> {
-        var co = mdo.getCatalog().getChildObjects();
-        if (co == null) {
-          throw new IllegalArgumentException("Catalog.ChildObjects is null");
-        }
-        var el = new JAXBElement<>(Q_CHILD_OBJECTS,
-          io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.CatalogChildObjects.class, co);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_21, el, opt);
-      }
-      case "document" -> {
-        var co = mdo.getDocument().getChildObjects();
-        if (co == null) {
-          throw new IllegalArgumentException("Document.ChildObjects is null");
-        }
-        var el = new JAXBElement<>(Q_CHILD_OBJECTS,
-          io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.DocumentChildObjects.class, co);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_21, el, opt);
-      }
-      case "exchangePlan" -> {
-        var co = mdo.getExchangePlan().getChildObjects();
-        if (co == null) {
-          throw new IllegalArgumentException("ExchangePlan.ChildObjects is null");
-        }
-        var el = new JAXBElement<>(Q_CHILD_OBJECTS,
-          io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.ExchangePlanChildObjects.class, co);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_21, el, opt);
-      }
-      case "subsystem" -> {
-        var co = mdo.getSubsystem().getChildObjects();
-        if (co == null) {
-          throw new IllegalArgumentException("Subsystem.ChildObjects is null");
-        }
-        var el = new JAXBElement<>(Q_CHILD_OBJECTS,
-          io.github.yellowhammer.designerxml.jaxb.v2_21.mdclasses.SubsystemChildObjects.class, co);
-        yield DesignerXml.marshalFragment(SchemaVersion.V2_21, el, opt);
-      }
-      default -> throw new IllegalArgumentException("unknown kind: " + kind);
-    };
+  private static String capitalize(String s) {
+    return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
   }
 }
