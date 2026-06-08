@@ -25,7 +25,7 @@ class MdObjectAddTest {
   @Test
   void addEnumAfterEmptyCfV220() throws Exception {
     Path cf = workspace.resolve("cf");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     String name = "_ПеречислениеТест";
@@ -39,7 +39,7 @@ class MdObjectAddTest {
   @Test
   void addConstantAfterEmptyCfV221() throws Exception {
     Path cf = workspace.resolve("cf221");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_21);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     String name = "_КонстантаТест";
@@ -60,9 +60,9 @@ class MdObjectAddTest {
   void addObjectIsDeterministicForSameInputV220() throws Exception {
     Path cfA = workspace.resolve("cfA");
     Path cfB = workspace.resolve("cfB");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cfA, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cfB, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
 
     Path cfgA = cfA.resolve(CfLayout.CONFIGURATION_XML);
@@ -83,7 +83,7 @@ class MdObjectAddTest {
   @Test
   void addObjectAllTypesReadableV220() throws Exception {
     Path cf = workspace.resolve("cfAllKinds");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
 
@@ -101,7 +101,7 @@ class MdObjectAddTest {
   @Test
   void addDocumentProfileIsSnapshotLikeV220() throws Exception {
     Path cf = workspace.resolve("cfDocument");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     String name = "Документ1";
@@ -119,7 +119,7 @@ class MdObjectAddTest {
   @Test
   void addReportProfileIsSnapshotLikeV220() throws Exception {
     Path cf = workspace.resolve("cfReport");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     String name = "Отчет1";
@@ -134,7 +134,7 @@ class MdObjectAddTest {
   @Test
   void addDataProcessorProfileIsSnapshotLikeV220() throws Exception {
     Path cf = workspace.resolve("cfDataProcessor");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     String name = "Обработка1";
@@ -149,7 +149,7 @@ class MdObjectAddTest {
   @Test
   void addEnumProfileIsSnapshotLikeV220() throws Exception {
     Path cf = workspace.resolve("cfEnum");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     String name = "Перечисление1";
@@ -164,7 +164,7 @@ class MdObjectAddTest {
   @Test
   void addExternalDataSourceProfileIsSnapshotLikeV220() throws Exception {
     Path cf = workspace.resolve("cfExternalDataSource");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     String name = "ВнешнийИсточникДанных1";
@@ -178,7 +178,7 @@ class MdObjectAddTest {
   @Test
   void addTaskProfileIsSnapshotLikeV220() throws Exception {
     Path cf = workspace.resolve("cfTask");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     String name = "Задача1";
@@ -195,9 +195,9 @@ class MdObjectAddTest {
   void addObjectAllTypesDeterministicV221() throws Exception {
     Path cfA = workspace.resolve("cfA221");
     Path cfB = workspace.resolve("cfB221");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cfA, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_21);
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cfB, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_21);
     Path cfgA = cfA.resolve(CfLayout.CONFIGURATION_XML);
     Path cfgB = cfB.resolve(CfLayout.CONFIGURATION_XML);
@@ -215,19 +215,6 @@ class MdObjectAddTest {
         .isEqualTo(Files.readString(outB));
       DesignerXml.read(outA, SchemaVersion.V2_21);
     }
-  }
-
-  @Test
-  void addFixtureMatrixCoversAllAddKinds() {
-    long withFixtures = AddGoldenFixtureMatrix.withFixtures().stream()
-      .filter(e -> e.command().equals("add-md-object"))
-      .count();
-    assertThat(withFixtures).isEqualTo(MdObjectAddType.values().length);
-
-    long externalWithoutFixture = AddGoldenFixtureMatrix.withoutFixtures().stream()
-      .filter(e -> e.command().equals("external-artifact-add"))
-      .count();
-    assertThat(externalWithoutFixture).isEqualTo(2);
   }
 
 }

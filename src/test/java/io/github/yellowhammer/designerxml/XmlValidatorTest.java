@@ -40,7 +40,7 @@ class XmlValidatorTest {
     assertThat(xsdRoot).as("xsd.root").isNotBlank();
     Path p = Path.of(xsdRoot, "schemas", "2.20", "v8.1c.ru-8.3-MDClasses.xsd");
     assertThat(p)
-      .as("Ожидается XSD в submodule namespace-forest (git submodule update --init)")
+      .as("Ожидается XSD в submodule resources/namespace-forest (git submodule update --init)")
       .exists();
     return p;
   }

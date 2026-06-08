@@ -267,7 +267,7 @@ class MdObjectPropertiesEditTest {
   @Test
   void readWrite_allBoilerplateKinds_supportBasicSynonymAndComment() throws Exception {
     Path cfRoot = tempDir.resolve("cf");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cfRoot,
       CfLayout.DEFAULT_CONFIGURATION_NAME,
       "",

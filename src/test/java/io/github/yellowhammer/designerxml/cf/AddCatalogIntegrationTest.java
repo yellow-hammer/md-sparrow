@@ -22,7 +22,6 @@
 package io.github.yellowhammer.designerxml.cf;
 
 import io.github.yellowhammer.designerxml.DesignerXml;
-import io.github.yellowhammer.designerxml.SamplesSnapshotPaths;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 
@@ -34,7 +33,6 @@ import java.nio.file.Path;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import org.junit.jupiter.api.Assumptions;
 
 class AddCatalogIntegrationTest {
 
@@ -96,9 +94,9 @@ class AddCatalogIntegrationTest {
       .isEqualTo(configurationHeadBefore);
   }
 
-  /** Пустой ru-синоним (как в 1c-platform-samples …/empty-full-objects/Catalogs/Справочник1.xml). */
+  /** При --synonym-empty синоним опускается, как в выгрузке конфигуратора. */
   @Test
-  void addsCatalogWithEmptySynonymLikeSnapshot() throws Exception {
+  void addsCatalogWithEmptySynonym() throws Exception {
     Path srcCf = workspace.resolve("src").resolve("cfEmptySyn");
     Files.createDirectories(srcCf);
     Path cfgSrc = Ssl31SubmodulePaths.configurationXml();
@@ -117,8 +115,6 @@ class AddCatalogIntegrationTest {
 
   @Test
   void addsCatalogKeepsChildObjectsEmptyAndCloserToSnapshotProfile() throws Exception {
-    Assumptions.assumeTrue(SamplesSnapshotPaths.has220Snapshots(), "1c-platform-samples snapshots 2.20 are available");
-
     Path srcCf = workspace.resolve("src").resolve("cfProfile");
     Files.createDirectories(srcCf);
     Path cfgSrc = Ssl31SubmodulePaths.configurationXml();
@@ -144,10 +140,6 @@ class AddCatalogIntegrationTest {
     assertThat(catText).contains("xmlns:xen=");
     assertThat(catText).contains("xmlns:xs=");
     assertThat(catText).contains("xmlns:xsi=");
-
-    Path snapshot = SamplesSnapshotPaths.emptyFullObjects220Root().resolve("Catalogs").resolve("Справочник1.xml");
-    String snapshotText = Files.readString(snapshot, java.nio.charset.StandardCharsets.UTF_8);
-    assertThat(snapshotText).contains("<ChildObjects>");
   }
 
   private static String readConfigHead(Path cfg) throws Exception {

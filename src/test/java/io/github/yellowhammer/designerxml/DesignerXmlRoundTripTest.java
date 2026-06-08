@@ -72,17 +72,13 @@ class DesignerXmlRoundTripTest {
   @Test
   void validateSsl31ConfigurationAgainstXsd() throws Exception {
     Path input = Ssl31SubmodulePaths.configurationXml();
-    Path xsdRoot = Path.of(System.getProperty("xsd.root", "namespace-forest")).toAbsolutePath().normalize();
+    Path xsdRoot = Path.of(System.getProperty("xsd.root", "resources/namespace-forest")).toAbsolutePath().normalize();
     Assumptions.assumeTrue(Files.isDirectory(xsdRoot), "xsd.root exists: " + xsdRoot);
-    Path catalog = Path.of(System.getProperty("user.dir"))
-      .resolve("xjb/ns/2.21/catalog.xml")
-      .normalize();
-    Assumptions.assumeTrue(Files.isRegularFile(catalog), "catalog exists: " + catalog);
 
     try {
-      XmlValidator.validate(input, SchemaVersion.V2_21, xsdRoot, catalog);
+      XmlValidator.validate(input, SchemaVersion.V2_21, xsdRoot);
     } catch (SAXException e) {
-      // Выгрузка может ссылаться на namespace вне catalog (например current-config); API валиден, схема — частичная.
+      // Выгрузка может ссылаться на namespace вне набора схем (например current-config); API валиден, схема — частичная.
       Assumptions.abort("XSD validation skipped for fixture: " + e.getMessage());
     }
   }

@@ -16,7 +16,7 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Первый справочник после {@link NewConfigurationXml#writeConfiguratorEmptyTree} — без готового {@code Catalogs/*.xml}. */
+/** Первый справочник после {@link EmptyCfScaffold#writeEmptyTree} — без готового {@code Catalogs/*.xml}. */
 class AddCatalogFromEmptyCfTest {
 
   @TempDir
@@ -25,11 +25,11 @@ class AddCatalogFromEmptyCfTest {
   @Test
   void firstCatalogV220WithoutExistingCatalogsXml() throws Exception {
     Path cf = workspace.resolve("cf");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     assertThat(cf.resolve(CfLayout.CATALOGS_DIR)).doesNotExist();
-    assertThat(Files.readString(cfg)).contains("formatVersion=\"2.20\"");
+    assertThat(Files.readString(cfg)).contains("version=\"2.20\"");
 
     String name = "_ПервыйИзПустой";
     MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.CATALOG, "Первый", false);
@@ -44,10 +44,10 @@ class AddCatalogFromEmptyCfTest {
   @Test
   void firstCatalogV221WithoutExistingCatalogsXml() throws Exception {
     Path cf = workspace.resolve("cf221");
-    NewConfigurationXml.writeConfiguratorEmptyTree(
+    EmptyCfScaffold.writeEmptyTree(
       cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_21);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
-    assertThat(Files.readString(cfg)).contains("formatVersion=\"2.21\"");
+    assertThat(Files.readString(cfg)).contains("version=\"2.21\"");
 
     String name = "_Первый221";
     MdObjectAdd.add(cfg, name, SchemaVersion.V2_21, MdObjectAddType.CATALOG, "Первый", false);
