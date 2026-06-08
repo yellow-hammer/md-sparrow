@@ -1,10 +1,27 @@
-# Publishes md-sparrow-*-all.jar on Git tag push (e.g. v0.1.0).
+# Публикует md-sparrow-*-all.jar в GitHub Release.
+# Запускается при пуше тега (например v0.3.0) либо вручную (workflow_dispatch) с вводом версии.
 name: Release
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Версия релиза (например, v0.3.0)'
+        required: true
+        type: string
+      draft:
+        description: 'Создать draft (черновик) релиз — не публикуется публично, доступен для проверки.'
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Пометить релиз как предварительный (alpha/beta/rc).'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   release:
@@ -25,11 +42,54 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Определить версию (из тега или ввода)
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            VERSION=${VERSION#v}
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Версия: $VERSION"
+
+      - name: Обновить версию в build.gradle.kts (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git checkout main
+          sed -i -E "s/^version = \".*\"/version = \"${{ steps.ver.outputs.version }}\"/" build.gradle.kts
+          git add build.gradle.kts
+          if git diff --staged --quiet; then
+            echo "Версия в build.gradle.kts уже совпадает — коммит не нужен"
+          else
+            git commit -m "chore(release): version ${{ steps.ver.outputs.version }}"
+            git push origin main
+          fi
+
+      - name: Создать и отправить тег, если его нет (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG="v${{ steps.ver.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Тег $TAG уже существует — пропуск"
+          else
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+          fi
+
       - name: Build fat JAR
         run: ./gradlew shadowJar --no-daemon
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.ver.outputs.version }}
           files: build/libs/md-sparrow-*-all.jar
           generate_release_notes: true
+          draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' || false }}
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true' || false }}
