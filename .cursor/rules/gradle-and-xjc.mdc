@@ -1,6 +1,6 @@
 ---
-description: Gradle, XJC, xjb и generated sources в md-sparrow
-globs: "**/*.gradle.kts,**/gradle.properties,xjb/**"
+description: Gradle, XJC, bindings и generated sources в md-sparrow
+globs: "**/*.gradle.kts,**/gradle.properties"
 alwaysApply: false
 ---
 
@@ -8,13 +8,13 @@ alwaysApply: false
 
 ## Корень XSD
 
-- Свойство **`xsd.root`** (по умолчанию каталог submodule `namespace-forest`). Переопределение: `./gradlew … -Pxsd.root=/абсолютный/путь`.
-- XJC читает XSD из `namespace-forest/schemas/2.20` и `…/2.21` (см. `gradle.properties`: `xjc.xsdRelative.*`).
+- Свойство **`xsd.root`** (по умолчанию каталог submodule `resources/namespace-forest`). Переопределение: `./gradlew … -Pxsd.root=/абсолютный/путь`.
+- Версии форматов **автоматически** обнаруживаются по каталогам `resources/namespace-forest/schemas/*` (где есть `*-MDClasses.xsd`); идентичные наборы схем дедуплицируются в одну XJC-модель.
 
 ## Bindings
 
-- Каталог **`xjb/ns/<версия>/`**: `bindings.xjb`, `catalog.xml` (OASIS) — входы для XJC наряду со схемами.
-- Новая версия набора схем: синхронно обновить **`SchemaVersion`**, **`gradle.properties`**, соответствующий **`xjb/ns/…`**.
+- `bindings.xjb` и `catalog.xml` (OASIS) для XJC **генерируются в сборке** в `build/generated/xjb/<modelId>` (см. `bindingsXml()` / `catalogXml()` в `build.gradle.kts`). Вручную их хранить и править не нужно.
+- Карта import'ов для валидатора строится в памяти (`XmlValidator.buildSchemaUriMap`) — отдельный `catalog.xml` не требуется.
 
 ## Generated code
 
@@ -22,7 +22,8 @@ alwaysApply: false
 
 ## Задачи
 
-- `compileJava` зависит от `xjc2_20`, `xjc2_21`.
-- Тесты: `-Pxsd.root` пробрасывается через `systemProperty` в `tasks.test`.
+- На каждую различную модель регистрируется задача **`xjc_<modelId>`** (например `xjc_v2_20`); `compileJava` зависит от них всех.
+- Новая версия набора схем: добавить каталог `schemas/<версия>/` в submodule `resources/namespace-forest` и константу в **`SchemaVersion`** — bindings/catalog и XJC-задача появятся сами.
+- Тесты: `-Pxsd.root` и пути к фикстурам пробрасываются через `systemProperty` в `tasks.test`.
 
 **Эволюция:** `.cursor/rules/evolution-no-legacy.mdc`.

@@ -9,8 +9,8 @@ alwaysApply: false
 ## Инварианты
 
 - Для нового справочника использовать **`add-md-object --type CATALOG`** (в коде — `MdObjectAddType.CATALOG`), а не отдельную add-команду.
-- `Catalogs/<имя>.xml` формируется из программной JAXB-модели (`NewCatalogXml`/`CatalogXmlEmitter`), **без** чтения или копирования чужих `Catalogs/*.xml`.
-- После генерации каталога применяется детерминированная нормализация UUID/формата (`DistinctUuidRewrite`, golden post-process).
+- `Catalogs/<имя>.xml` формируется параметризацией golden-эталона версии (`GoldenScaffold`/`GoldenObjectTemplate`), **без** чтения или копирования чужих `Catalogs/*.xml`; см. [docs/scaffold-golden.md](../../docs/scaffold-golden.md).
+- Имя подставляется как целый токен, UUID ремапятся детерминированно (`DistinctUuidRewrite`), `<xr:ClassId>` сохраняется.
 - Раскладка путей: **`CfLayout`**, документация — **`docs/cf-layout.md`**.
 
 ## Имена

@@ -5,24 +5,24 @@ alwaysApply: true
 
 # Контекст проекта md-sparrow
 
-Java-библиотека чтения/записи **Designer XML** (`MetaDataObject`) по XSD из submodule **`namespace-forest`**. Тестовая **типовая** выгрузка (не пустая ИБ) — submodule **`fixtures/ssl31`**. Эталон **пустой** выгрузки конфигуратора — **[1c-platform-samples](https://github.com/yellow-hammer/1c-platform-samples) `src/cf`**; правила — **`.cursor/rules/empty-configuration-reference.mdc`**.
+Java-библиотека чтения/записи **Designer XML** (`MetaDataObject`) по XSD из submodule **`resources/namespace-forest`**. Тестовая **типовая** выгрузка (не пустая ИБ) — submodule **`fixtures/ssl31`**. Эталон **пустой** выгрузки конфигуратора — **[samples-1c-platform](https://github.com/yellow-hammer/samples-1c-platform) `src/cf`**; правила — **`.cursor/rules/empty-configuration-reference.mdc`**.
 
 ## Сборка и версии
 
 - **JDK 21** (`build.gradle.kts`: `JavaVersion.VERSION_21`).
-- **Gradle**: XJC-задачи `xjc2_20`, `xjc2_21` → сгенерированный код в `build/generated/sources/xjc-*`.
-- Версии схем: enum **`SchemaVersion`** (`V2_20` / `V2_21`) — синхронно с `gradle.properties`, `xjb/ns/<версия>/`.
+- **Gradle**: XJC-задачи `xjc_<modelId>` (например `xjc_v2_20`) → сгенерированный код в `build/generated/sources/xjc-*`; bindings/catalog генерируются в сборке.
+- Версии схем 2.10…2.21: enum **`SchemaVersion`**; набор обнаруживается автоматически по `resources/namespace-forest/schemas/*`.
 
 ## Точки входа кода
 
 - **`DesignerXml`** — `read` / `write` / `unmarshal` / `marshal` по выбранной `SchemaVersion`.
-- **`XmlValidator`** — валидация по XSD (корень `namespace-forest`).
-- **`DesignerXmlCli`** (picocli) — `validate`, `round-trip`, `add-md-object`, `cf-list-catalogs`, `cf-catalog-form-get`, `cf-catalog-form-set`, `init-empty-cf`, `project-metadata-tree`. Тексты `--help` и подсказок — кратко; детали состава выгрузки — в **`docs/cf-layout.md`**, не дублировать перечни в описаниях команд: **`.cursor/rules/cli-user-facing-text.mdc`**.
-- Пакет **`io.github.yellowhammer.designerxml.cf`** — операции над деревом выгрузки `src/cf`; см. **`docs/cf-layout.md`**. Форма справочника в VS Code — **`CatalogFormEdit`** + `CatalogFormDto` (только JAXB, без правок XML вне библиотеки). Новые справочники (`add-md-object --type CATALOG`) — **только `NewCatalogXml`**, без копирования с других `Catalogs/*.xml` и без XML-шаблонов: `.cursor/rules/cf-metadata-jaxb-only.mdc`.
+- **`XmlValidator`** — валидация по XSD (корень `resources/namespace-forest`).
+- **`DesignerXmlCli`** (picocli) — `validate`, `round-trip`, `transcode`, `add-md-object`, `external-artifact-*`, `cf-list-catalogs`, `cf-catalog-form-get/set`, `cf-configuration-properties-get/set`, `init-empty-cf`, `project-metadata-tree`, `cf-md-graph`. Тексты `--help` — кратко; детали состава выгрузки — в **`docs/cf-layout.md`**, не дублировать перечни в описаниях команд: **`.cursor/rules/cli-user-facing-text.mdc`**.
+- Пакет **`io.github.yellowhammer.designerxml.cf`** — операции над деревом выгрузки `src/cf`; см. **`docs/cf-layout.md`**. Форма справочника в VS Code — **`CatalogFormEdit`** + `CatalogFormDto` (только JAXB, без правок XML вне библиотеки). Новые объекты — параметризацией golden-эталонов (`GoldenScaffold`), без копирования соседних файлов: `.cursor/rules/cf-metadata-jaxb-only.mdc`, [docs/scaffold-golden.md](../../docs/scaffold-golden.md).
 
 ## Submodules
 
-- Не вносить **слу случайные правки** в `namespace-forest` или `fixtures/ssl31` без явной цели задачи.
+- Не вносить **случайные правки** в `resources/namespace-forest`, `fixtures/ssl31` или `fixtures/samples-1c-platform` без явной цели задачи.
 - Инициализация: `git submodule update --init --recursive`.
 
 ## Тесты

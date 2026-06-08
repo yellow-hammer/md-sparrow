@@ -17,17 +17,19 @@
 
 ## Схемы (`xsd.root`)
 
-По умолчанию корень XSD — `namespace-forest/` (submodule). Другой путь:
+По умолчанию корень XSD — `resources/namespace-forest/` (submodule). Другой путь:
 
 ```bash
 ./gradlew build -Pxsd.root=C:/path/to/namespace-forest
 ```
 
-Новая версия набора схем — синхронно обновить:
+Новая версия набора схем:
 
-- `src/main/java/io/github/yellowhammer/designerxml/SchemaVersion.java`
-- `gradle.properties`
-- `xjb/ns/<версия>/`
+- добавить каталог `schemas/<версия>/` в submodule `resources/namespace-forest` и обновить указатель submodule;
+- добавить константу в `src/main/java/io/github/yellowhammer/designerxml/SchemaVersion.java`.
+
+`bindings.xjb`/`catalog.xml` для XJC и карта import'ов валидатора строятся автоматически
+(см. `build.gradle.kts` и `XmlValidator`) — править их вручную не нужно.
 
 ## Интеграция в IDE (отдельная задача)
 

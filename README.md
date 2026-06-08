@@ -9,13 +9,13 @@ Java-библиотека для чтения/записи XML метаданн�
 ## Что важно перед стартом
 
 - Нужен JDK 21.
-- Нужны submodule: `namespace-forest/` (XSD) и `fixtures/ssl31/`. Команда: `git submodule update --init --recursive`.
+- Нужны submodule: `resources/namespace-forest/` (XSD), `fixtures/ssl31/` (типовая конфигурация для тестов чтения) и `fixtures/samples-1c-platform/` (эталоны для scaffold). Команда: `git submodule update --init --recursive`.
 
 ## API
 
 - **`io.github.yellowhammer.designerxml.DesignerXml`** — чтение/запись JAXB `MetaDataObject` по [`SchemaVersion`](src/main/java/io/github/yellowhammer/designerxml/SchemaVersion.java).
-- **`io.github.yellowhammer.designerxml.XmlValidator`** — валидация XML по XSD из submodule `namespace-forest`.
-- **`io.github.yellowhammer.designerxml.cf.MdObjectAdd`** — создание новых объектов метаданных в `src/cf` по XSD/JAXB (включая `--type CATALOG`, см. [docs/cf-layout.md](docs/cf-layout.md)).
+- **`io.github.yellowhammer.designerxml.XmlValidator`** — валидация XML по XSD из submodule `resources/namespace-forest`.
+- **`io.github.yellowhammer.designerxml.cf.MdObjectAdd`** — создание новых объектов метаданных в `src/cf` из golden-эталонов нужной версии (см. [docs/scaffold-golden.md](docs/scaffold-golden.md)).
 - **`io.github.yellowhammer.designerxml.cf.CatalogFormEdit`** — чтение/запись полей формы справочника (имя, синоним ru, комментарий) через JAXB.
 - **`io.github.yellowhammer.designerxml.cf.MdObjectChildMutations`** — CRUD мутации дочерних узлов объекта (реквизиты, ТЧ, реквизиты ТЧ).
 
@@ -23,12 +23,14 @@ Java-библиотека для чтения/записи XML метаданн�
 
 Основные команды CLI:
 
-- `validate` — проверка XML по XSD (`-v V2_20` / `V2_21`, путь к XSD root).
+- `validate` — проверка XML по XSD (`-v V2_10`…`V2_21`, путь к XSD root).
 - `round-trip` — проверка JAXB: прочитать и записать файл.
+- `transcode` — перекодировать XML метаданных между версиями формата (понижение/повышение).
 - `init-empty-cf` — инициализация пустой выгрузки в `src/cf`.
 - `project-metadata-tree` — JSON-дерево метаданных по корню проекта (узлы с синонимами и родительскими подсистемами).
 - `cf-md-graph` — граф метаданных проекта (узлы + типизированные связи) в JSON; используется расширением VS Code для ER-диаграмм.
-- `add-md-object` — создание объекта метаданных поддержанного типа (`--type`, включая `CATALOG`; для каталога доступны `--synonym-ru` / `--synonym-empty`).
+- `add-md-object` — создание объекта метаданных (`--type`: `CATALOG`, `DOCUMENT`, `ENUM`, … — 19 видов; для каталога доступны `--synonym-ru` / `--synonym-empty`).
+- `external-artifact-add` / `external-artifact-properties-get` / `…-set` / `…-rename` / `…-delete` / `…-duplicate` — отдельные внешние отчёты и обработки (`src/erf`, `src/epf`).
 - `cf-list-catalogs` — JSON-массив имён справочников из `ChildObjects`.
 - `cf-list-child-objects` — список имён дочерних объектов по `--tag`.
 - `cf-catalog-form-get` / `cf-catalog-form-set` — чтение/запись формы справочника.
@@ -40,9 +42,10 @@ Java-библиотека для чтения/записи XML метаданн�
 
 ## Для разработчиков
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) — как внести вклад (включая сборку, тесты и выпуск JAR).
+- [CONTRIBUTING.md](CONTRIBUTING.md) — как внести вклад (сборка, тесты, схемы, выпуск JAR).
+- [docs/cf-layout.md](docs/cf-layout.md) — раскладка `src/cf` и порядок `ChildObjects`.
+- [docs/scaffold-golden.md](docs/scaffold-golden.md) — архитектура scaffold по golden-эталонам.
 - **`.cursor/rules/`** — правила Cursor для агента (контекст JAXB, submodules, стиль).
-- [docs/release.md](docs/release.md) — как выпустить релиз.
 - `.github/workflows/release.yml` — при push тега `v*` в GitHub Releases выкладывается `md-sparrow-*-all.jar`.
 
 ## Лицензия
