@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Контекст проекта md-sparrow
 
-Java-библиотека чтения/записи **Designer XML** (`MetaDataObject`) по XSD из submodule **`resources/namespace-forest`**. Тестовая **типовая** выгрузка (не пустая ИБ) — submodule **`fixtures/ssl31`**. Эталон **пустой** выгрузки конфигуратора — **[samples-1c-platform](https://github.com/yellow-hammer/samples-1c-platform) `src/cf`**; правила — **`.cursor/rules/empty-configuration-reference.mdc`**.
+Java-библиотека чтения/записи **Designer XML** (`MetaDataObject`) по XSD из submodule **`resources/namespace-forest`**. Тестовая **типовая** выгрузка (не пустая ИБ) — submodule **`fixtures/ssl31`**. Эталоны для scaffold (голые объекты, пустая ИБ) — submodule **`fixtures/samples-1c-platform`** (`snapshots/<версия>/cf-bare-objects`); правила — **`.cursor/rules/empty-configuration-reference.mdc`**.
 
 ## Сборка и версии
 
@@ -27,7 +27,7 @@ Java-библиотека чтения/записи **Designer XML** (`MetaDataO
 
 ## Тесты
 
-- Системные свойства: **`xsd.root`**, **`fixtures.ssl31.root`** (задаются в `tasks.test` в `build.gradle.kts`).
+- Системные свойства: **`xsd.root`**, **`fixtures.ssl31.root`**, **`samples.root`** (задаются в `tasks.test` в `build.gradle.kts`).
 - Пути к данным submodule в тестах: например **`Ssl31SubmodulePaths`**, свойство `fixtures.ssl31.root`.
 
 ## Соглашения

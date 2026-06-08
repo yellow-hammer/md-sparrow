@@ -34,8 +34,10 @@ Java-библиотека для чтения/записи XML метаданн�
 - `cf-list-catalogs` — JSON-массив имён справочников из `ChildObjects`.
 - `cf-list-child-objects` — список имён дочерних объектов по `--tag`.
 - `cf-catalog-form-get` / `cf-catalog-form-set` — чтение/запись формы справочника.
-- `cf-md-object-get` — чтение DTO свойств объекта метаданных (имя, синоним, комментарий и т. д.).
+- `cf-md-object-get` / `cf-md-object-set` — чтение/запись DTO свойств объекта метаданных (имя, синоним, комментарий и т. д.).
 - `cf-md-object-structure-get` — чтение структуры объекта (секции, ТЧ, вложенные узлы).
+- `cf-md-object-rename` / `cf-md-object-delete` / `cf-md-object-duplicate` — переименование/удаление/копирование объекта метаданных.
+- `cf-md-attribute-*`, `cf-md-tabular-section-*`, `cf-md-tabular-attribute-*` — CRUD реквизитов и табличных частей (`add`/`rename`/`delete`/`duplicate`, см. `MdObjectChildMutations`).
 - `cf-configuration-properties-get` / `cf-configuration-properties-set` — чтение/запись свойств конфигурации (`Configuration.xml`).
 
 Интеграция добавления справочника: `io.github.yellowhammer.designerxml.cf.AddCatalogIntegrationTest` (`MdObjectAddType.CATALOG`; `Configuration.xml` + один `Catalogs/*.xml` из submodule `fixtures/ssl31`, временный `src/cf`).
@@ -46,7 +48,7 @@ Java-библиотека для чтения/записи XML метаданн�
 - [docs/cf-layout.md](docs/cf-layout.md) — раскладка `src/cf` и порядок `ChildObjects`.
 - [docs/scaffold-golden.md](docs/scaffold-golden.md) — архитектура scaffold по golden-эталонам.
 - **`.cursor/rules/`** — правила Cursor для агента (контекст JAXB, submodules, стиль).
-- `.github/workflows/release.yml` — при push тега `v*` в GitHub Releases выкладывается `md-sparrow-*-all.jar`.
+- `.github/workflows/release.yml` — выкладывает `md-sparrow-*-all.jar` в GitHub Releases при push тега `v*` или ручном запуске (workflow_dispatch с вводом версии).
 
 ## Лицензия
 
