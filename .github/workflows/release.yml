@@ -1,27 +1,31 @@
 # Публикует md-sparrow-*-all.jar в GitHub Release.
-# Запускается при пуше тега (например v0.3.0) либо вручную (workflow_dispatch) с вводом версии.
+# Запуск: пуш тега v* или вручную (workflow_dispatch) с вводом версии.
 name: Release
 
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Версия релиза (например, v0.3.0)'
+        description: 'Версия релиза (например, v0.1.0 или v0.1.0-rc.1)'
         required: true
         type: string
       draft:
-        description: 'Создать draft (черновик) релиз — не публикуется публично, доступен для проверки.'
+        description: 'Создать черновик релиза (не публикуется публично)'
         required: false
         type: boolean
         default: false
       prerelease:
-        description: 'Пометить релиз как предварительный (alpha/beta/rc).'
+        description: 'Пометить релиз как предварительный (alpha/beta/rc)'
         required: false
         type: boolean
         default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -30,17 +34,17 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout
+      - name: Получить код
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Set up JDK 21
+      - name: Установить JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
 
       - name: Определить версию (из тега или ввода)
         id: ver
@@ -82,14 +86,91 @@ jobs:
             git push origin "$TAG"
           fi
 
-      - name: Build fat JAR
+      - name: Установить Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Кэшировать cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-git-cliff-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-git-cliff-
+
+      - name: Установить git-cliff
+        run: |
+          if ! command -v git-cliff &> /dev/null; then
+            cargo install git-cliff --locked
+          fi
+          git-cliff --version
+
+      - name: Сгенерировать CHANGELOG
+        id: changelog
+        run: |
+          git-cliff --config cliff.toml --output CHANGELOG.md
+
+          if [ -f CHANGELOG.md ]; then
+            # Извлекаем только последний релиз (первый ## [version] до следующего ##)
+            CHANGELOG=$(awk '
+              /^## \[/ {
+                if (found) exit
+                found = 1
+              }
+              found { print }
+            ' CHANGELOG.md)
+
+            # Удаляем пустые строки в конце
+            CHANGELOG=$(echo "$CHANGELOG" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+
+            # Если changelog пустой или слишком короткий — fallback на историю коммитов
+            if [ -z "$CHANGELOG" ] || [ ${#CHANGELOG} -lt 20 ]; then
+              CHANGELOG="## Изменения\n\nСм. [историю коммитов](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.ref }})"
+            fi
+          else
+            CHANGELOG="## Изменения\n\nСм. [историю коммитов](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.ref }})"
+          fi
+
+          # Многострочный вывод в GitHub Actions
+          {
+            echo 'changelog<<EOF'
+            echo "$CHANGELOG"
+            echo EOF
+          } >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Закоммитить CHANGELOG
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git checkout main
+          if [ -f CHANGELOG.md ]; then
+            git add CHANGELOG.md
+            if git diff --staged --quiet; then
+              echo "CHANGELOG.md без изменений — коммит не нужен"
+            else
+              git commit -m "chore(deps): update changelog"
+              git push origin main
+            fi
+          fi
+        continue-on-error: true
+
+      - name: Собрать fat JAR
         run: ./gradlew shadowJar --no-daemon
 
-      - name: Upload to GitHub Release
+      - name: Создать GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
           files: build/libs/md-sparrow-*-all.jar
-          generate_release_notes: true
+          body: |
+            ## Версия ${{ steps.ver.outputs.version }}
+
+            ${{ steps.changelog.outputs.changelog }}
           draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' || false }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true' || false }}
