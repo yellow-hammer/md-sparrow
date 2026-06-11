@@ -46,6 +46,7 @@ Java-библиотека для чтения/записи XML метаданн�
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — как внести вклад (сборка, тесты, схемы, выпуск JAR).
 - [docs/cf-layout.md](docs/cf-layout.md) — раскладка `src/cf` и порядок `ChildObjects`.
+- [docs/cf-md-object.md](docs/cf-md-object.md) — контракт свойств объектов метаданных (CLI cf-md-object, DTO, матрица типов).
 - [docs/scaffold-golden.md](docs/scaffold-golden.md) — архитектура scaffold по golden-эталонам.
 - **`.cursor/rules/`** — правила Cursor для агента (контекст JAXB, submodules, стиль).
 - `.github/workflows/release.yml` — выкладывает `md-sparrow-*-all.jar` в GitHub Releases при push тега `v*` или ручном запуске (workflow_dispatch с вводом версии).
