@@ -99,6 +99,20 @@ class MdObjectAddTest {
   }
 
   @Test
+  void addWithNextAvailableNamePicksDocument1OnEmptyCfV220() throws Exception {
+    Path cf = workspace.resolve("cfAutoDocument");
+    EmptyCfScaffold.writeEmptyTree(
+      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
+    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
+    String name = MdObjectAdd.addWithNextAvailableName(
+      cfg, SchemaVersion.V2_20, MdObjectAddType.DOCUMENT, null, false);
+    assertThat(name).isEqualTo("Документ1");
+    Path out = CfLayout.objectXmlInSubdir(cf, "Documents", name);
+    assertThat(out).exists();
+    assertThat(Files.readString(cfg)).contains("<Document>" + name + "</Document>");
+  }
+
+  @Test
   void addDocumentProfileIsSnapshotLikeV220() throws Exception {
     Path cf = workspace.resolve("cfDocument");
     EmptyCfScaffold.writeEmptyTree(

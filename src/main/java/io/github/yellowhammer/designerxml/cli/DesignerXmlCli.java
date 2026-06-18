@@ -262,7 +262,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к Configuration.xml")
     Path configurationXml;
 
-    @Parameters(index = "1", description = "Имя объекта (идентификатор 1С)")
+    @Parameters(index = "1", arity = "0..1", description = "Имя объекта (идентификатор 1С); не указывать с --auto-name")
     String objectName;
 
     @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
@@ -270,6 +270,9 @@ public final class DesignerXmlCli implements Callable<Integer> {
 
     @Option(names = "--type", required = true, description = "CATALOG, ENUM, CONSTANT, DOCUMENT, REPORT, DATA_PROCESSOR, TASK, CHART_OF_ACCOUNTS, …")
     String type;
+
+    @Option(names = "--auto-name", description = "Подобрать имя вида ПрефиксN на стороне md-sparrow (без кириллицы в argv)")
+    boolean autoName;
 
     @Option(names = "--synonym-ru", description = "Синоним ru (только для --type CATALOG)")
     String catalogSynonymRu;
@@ -286,7 +289,20 @@ public final class DesignerXmlCli implements Callable<Integer> {
         if (k != MdObjectAddType.CATALOG && (catalogSynonymEmpty || catalogSynonymRu != null)) {
           throw new IllegalArgumentException("--synonym-ru/--synonym-empty поддерживаются только для --type CATALOG");
         }
-        MdObjectAdd.add(configurationXml, objectName, version, k, catalogSynonymRu, catalogSynonymEmpty);
+        if (autoName) {
+          if (objectName != null && !objectName.isBlank()) {
+            throw new IllegalArgumentException("укажите имя или --auto-name, не оба");
+          }
+          String name = MdObjectAdd.addWithNextAvailableName(
+            configurationXml, version, k, catalogSynonymRu, catalogSynonymEmpty);
+          System.out.println(name);
+        } else {
+          if (objectName == null || objectName.isBlank()) {
+            throw new IllegalArgumentException("имя объекта обязательно (или --auto-name)");
+          }
+          MdObjectAdd.add(configurationXml, objectName, version, k, catalogSynonymRu, catalogSynonymEmpty);
+          System.out.println("OK");
+        }
       } catch (IllegalArgumentException e) {
         System.err.println(e.getMessage());
         return 2;
@@ -294,7 +310,6 @@ public final class DesignerXmlCli implements Callable<Integer> {
         System.err.println(e.getMessage());
         return 2;
       }
-      System.out.println("OK");
       return 0;
     }
   }

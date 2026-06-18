@@ -33,12 +33,47 @@ public final class MdObjectAdd {
     boolean catalogSynonymEmpty)
     throws IOException, JAXBException {
     CatalogNameConstraints.check(objectName);
+    Path cfRoot = requireCfRoot(configurationXml);
+    String name = resolveNonConflictingName(configurationXml, version, type, cfRoot, objectName);
+    writeNewObject(configurationXml, cfRoot, name, version, type, catalogSynonymRu, catalogSynonymEmpty);
+  }
+
+  /**
+   * Создаёт объект с первым свободным именем вида {@code ПрефиксN} (см. {@link MdObjectAddType#namePrefix()}).
+   *
+   * @return фактическое имя созданного объекта
+   */
+  public static String addWithNextAvailableName(
+    Path configurationXml,
+    SchemaVersion version,
+    MdObjectAddType type,
+    String catalogSynonymRu,
+    boolean catalogSynonymEmpty)
+    throws IOException, JAXBException {
+    Path cfRoot = requireCfRoot(configurationXml);
+    String name = MdObjectAddNextName.nextFreeName(configurationXml, version, type, cfRoot);
+    CatalogNameConstraints.check(name);
+    writeNewObject(configurationXml, cfRoot, name, version, type, catalogSynonymRu, catalogSynonymEmpty);
+    return name;
+  }
+
+  private static Path requireCfRoot(Path configurationXml) {
     Path cfRoot = configurationXml.getParent();
     if (cfRoot == null || !Files.isRegularFile(configurationXml)) {
       throw new IllegalArgumentException("configuration XML must exist: " + configurationXml);
     }
+    return cfRoot;
+  }
 
-    String name = resolveNonConflictingName(configurationXml, version, type, cfRoot, objectName);
+  private static void writeNewObject(
+    Path configurationXml,
+    Path cfRoot,
+    String name,
+    SchemaVersion version,
+    MdObjectAddType type,
+    String catalogSynonymRu,
+    boolean catalogSynonymEmpty)
+    throws IOException, JAXBException {
     Path out = CfLayout.objectXmlInSubdir(cfRoot, type.cfSubdir(), name);
     if (Files.exists(out)) {
       throw new IllegalArgumentException("object file already exists: " + out);
