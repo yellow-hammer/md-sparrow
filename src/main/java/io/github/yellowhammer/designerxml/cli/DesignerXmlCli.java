@@ -100,6 +100,8 @@ import java.util.concurrent.Callable;
     MdObjectMutationCommands.CfMdObjectDeleteCmd.class,
     MdObjectMutationCommands.CfMdObjectRenameCmd.class,
     MdObjectMutationCommands.CfMdObjectDuplicateCmd.class,
+    ApplyMutationCmd.class,
+    ReadJsonCmd.class,
     DesignerXmlCli.InitEmptyCfCmd.class,
     DesignerXmlCli.ProjectMetadataTreeCmd.class,
     DesignerXmlCli.CfMdGraphCmd.class
