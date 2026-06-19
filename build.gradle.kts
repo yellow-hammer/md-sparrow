@@ -15,7 +15,7 @@ repositories {
 }
 
 group = "io.github.yellowhammer"
-version = "0.3.1"
+version = "0.3.2"
 
 // Корень XSD: каталог submodule `resources/namespace-forest/` (см. .gitmodules, gradle.properties `xsd.root`).
 val xsdRootPath = (findProperty("xsd.root") as String?) ?: "resources/namespace-forest"
