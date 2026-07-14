@@ -25,7 +25,7 @@ public final class MdCatalogPropertiesGranularSerial {
     List<MdObjectPropertiesLeafDiff.GranularPatchChange> out) {
     if (!Objects.equals(b.objectBelonging, i.objectBelonging)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "ObjectBelonging", textElement("ObjectBelonging", nz(i.objectBelonging))));
+        "ObjectBelonging", enumTextElement("ObjectBelonging", nz(i.objectBelonging))));
     }
     if (!Objects.equals(b.extendedConfigurationObject, i.extendedConfigurationObject)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -38,7 +38,7 @@ public final class MdCatalogPropertiesGranularSerial {
     }
     if (!Objects.equals(b.hierarchyType, i.hierarchyType)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "HierarchyType", textElement("HierarchyType", nz(i.hierarchyType))));
+        "HierarchyType", enumTextElement("HierarchyType", nz(i.hierarchyType))));
     }
     if (b.limitLevelCount != i.limitLevelCount) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -62,7 +62,7 @@ public final class MdCatalogPropertiesGranularSerial {
     }
     if (!Objects.equals(b.subordinationUse, i.subordinationUse)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "SubordinationUse", textElement("SubordinationUse", nz(i.subordinationUse))));
+        "SubordinationUse", enumTextElement("SubordinationUse", nz(i.subordinationUse))));
     }
     if (!Objects.equals(b.codeLength, i.codeLength)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -74,15 +74,15 @@ public final class MdCatalogPropertiesGranularSerial {
     }
     if (!Objects.equals(b.codeType, i.codeType)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "CodeType", textElement("CodeType", nz(i.codeType))));
+        "CodeType", enumTextElement("CodeType", nz(i.codeType))));
     }
     if (!Objects.equals(b.codeAllowedLength, i.codeAllowedLength)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "CodeAllowedLength", textElement("CodeAllowedLength", nz(i.codeAllowedLength))));
+        "CodeAllowedLength", enumTextElement("CodeAllowedLength", nz(i.codeAllowedLength))));
     }
     if (!Objects.equals(b.codeSeries, i.codeSeries)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "CodeSeries", textElement("CodeSeries", nz(i.codeSeries))));
+        "CodeSeries", enumTextElement("CodeSeries", nz(i.codeSeries))));
     }
     if (b.checkUnique != i.checkUnique) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -94,7 +94,7 @@ public final class MdCatalogPropertiesGranularSerial {
     }
     if (!Objects.equals(b.defaultPresentation, i.defaultPresentation)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "DefaultPresentation", textElement("DefaultPresentation", nz(i.defaultPresentation))));
+        "DefaultPresentation", enumTextElement("DefaultPresentation", nz(i.defaultPresentation))));
     }
     if (!MdObjectPropertiesDiff.looseXmlBlobEquals(b.standardAttributesXml, i.standardAttributesXml)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -110,11 +110,11 @@ public final class MdCatalogPropertiesGranularSerial {
     }
     if (!Objects.equals(b.predefinedDataUpdate, i.predefinedDataUpdate)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "PredefinedDataUpdate", textElement("PredefinedDataUpdate", nz(i.predefinedDataUpdate))));
+        "PredefinedDataUpdate", enumTextElement("PredefinedDataUpdate", nz(i.predefinedDataUpdate))));
     }
     if (!Objects.equals(b.editType, i.editType)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "EditType", textElement("EditType", nz(i.editType))));
+        "EditType", enumTextElement("EditType", nz(i.editType))));
     }
     if (b.quickChoice != i.quickChoice) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -122,7 +122,7 @@ public final class MdCatalogPropertiesGranularSerial {
     }
     if (!Objects.equals(b.choiceMode, i.choiceMode)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "ChoiceMode", textElement("ChoiceMode", nz(i.choiceMode))));
+        "ChoiceMode", enumTextElement("ChoiceMode", nz(i.choiceMode))));
     }
     if (!MdObjectPropertiesDiff.listStringEquals(b.inputByString, i.inputByString)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -131,17 +131,17 @@ public final class MdCatalogPropertiesGranularSerial {
     if (!Objects.equals(b.searchStringModeOnInputByString, i.searchStringModeOnInputByString)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
         "SearchStringModeOnInputByString",
-        textElement("SearchStringModeOnInputByString", nz(i.searchStringModeOnInputByString))));
+        enumTextElement("SearchStringModeOnInputByString", nz(i.searchStringModeOnInputByString))));
     }
     if (!Objects.equals(b.fullTextSearchOnInputByString, i.fullTextSearchOnInputByString)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
         "FullTextSearchOnInputByString",
-        textElement("FullTextSearchOnInputByString", nz(i.fullTextSearchOnInputByString))));
+        enumTextElement("FullTextSearchOnInputByString", nz(i.fullTextSearchOnInputByString))));
     }
     if (!Objects.equals(b.choiceDataGetModeOnInputByString, i.choiceDataGetModeOnInputByString)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
         "ChoiceDataGetModeOnInputByString",
-        textElement("ChoiceDataGetModeOnInputByString", nz(i.choiceDataGetModeOnInputByString))));
+        enumTextElement("ChoiceDataGetModeOnInputByString", nz(i.choiceDataGetModeOnInputByString))));
     }
     if (!Objects.equals(b.defaultObjectForm, i.defaultObjectForm)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -209,11 +209,11 @@ public final class MdCatalogPropertiesGranularSerial {
     }
     if (!Objects.equals(b.dataLockControlMode, i.dataLockControlMode)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "DataLockControlMode", textElement("DataLockControlMode", nz(i.dataLockControlMode))));
+        "DataLockControlMode", enumTextElement("DataLockControlMode", nz(i.dataLockControlMode))));
     }
     if (!Objects.equals(b.fullTextSearch, i.fullTextSearch)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "FullTextSearch", textElement("FullTextSearch", nz(i.fullTextSearch))));
+        "FullTextSearch", enumTextElement("FullTextSearch", nz(i.fullTextSearch))));
     }
     if (!Objects.equals(b.objectPresentationRu, i.objectPresentationRu)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -239,15 +239,15 @@ public final class MdCatalogPropertiesGranularSerial {
     }
     if (!Objects.equals(b.createOnInput, i.createOnInput)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "CreateOnInput", textElement("CreateOnInput", nz(i.createOnInput))));
+        "CreateOnInput", enumTextElement("CreateOnInput", nz(i.createOnInput))));
     }
     if (!Objects.equals(b.choiceHistoryOnInput, i.choiceHistoryOnInput)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "ChoiceHistoryOnInput", textElement("ChoiceHistoryOnInput", nz(i.choiceHistoryOnInput))));
+        "ChoiceHistoryOnInput", enumTextElement("ChoiceHistoryOnInput", nz(i.choiceHistoryOnInput))));
     }
     if (!Objects.equals(b.dataHistory, i.dataHistory)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "DataHistory", textElement("DataHistory", nz(i.dataHistory))));
+        "DataHistory", enumTextElement("DataHistory", nz(i.dataHistory))));
     }
     if (b.updateDataHistoryImmediatelyAfterWrite != i.updateDataHistoryImmediatelyAfterWrite) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -271,7 +271,35 @@ public final class MdCatalogPropertiesGranularSerial {
   }
 
   static String textElement(String localName, String text) {
+    if (text == null || text.isEmpty()) {
+      return "<" + localName + "/>";
+    }
     return "<" + localName + ">" + escapeXml(text) + "</" + localName + ">";
+  }
+
+  /**
+   * Элемент enum-свойства: DTO несёт имя Java-константы ({@code BOTH_WAYS}), XML ждёт значение схемы
+   * ({@code BothWays}). Ошибочная конвертация не опасна: гранулярный патч верифицируется обратным чтением.
+   */
+  static String enumTextElement(String localName, String constantName) {
+    return textElement(localName, enumConstantToXmlText(constantName));
+  }
+
+  private static String enumConstantToXmlText(String constantName) {
+    if (constantName == null || constantName.isEmpty() || !constantName.equals(constantName.toUpperCase())) {
+      return constantName == null ? "" : constantName;
+    }
+    StringBuilder out = new StringBuilder(constantName.length());
+    for (String part : constantName.split("_")) {
+      if (part.isEmpty()) {
+        continue;
+      }
+      out.append(Character.toUpperCase(part.charAt(0)));
+      if (part.length() > 1) {
+        out.append(part.substring(1).toLowerCase());
+      }
+    }
+    return out.toString();
   }
 
   static String boolElement(String localName, boolean v) {
@@ -353,7 +381,7 @@ public final class MdCatalogPropertiesGranularSerial {
         if (f == null || f.isBlank()) {
           continue;
         }
-        sb.append("<Field>").append(escapeXml(f.trim())).append("</Field>");
+        sb.append("<xr:Field>").append(escapeXml(f.trim())).append("</xr:Field>");
       }
     }
     sb.append("</InputByString>");
@@ -367,7 +395,7 @@ public final class MdCatalogPropertiesGranularSerial {
         if (f == null || f.isBlank()) {
           continue;
         }
-        sb.append("<Field>").append(escapeXml(f.trim())).append("</Field>");
+        sb.append("<xr:Field>").append(escapeXml(f.trim())).append("</xr:Field>");
       }
     }
     sb.append("</DataLockFields>");

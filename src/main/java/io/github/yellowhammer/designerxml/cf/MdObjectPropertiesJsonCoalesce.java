@@ -33,10 +33,10 @@ public final class MdObjectPropertiesJsonCoalesce {
     if (incoming.comment == null) {
       incoming.comment = baseline.comment;
     }
-    if (incoming.attributes == null) {
+    if (incoming.attributes == null || incoming.attributes.isEmpty()) {
       incoming.attributes = copyNamedList(baseline.attributes);
     }
-    if (incoming.tabularSections == null) {
+    if (incoming.tabularSections == null || incoming.tabularSections.isEmpty()) {
       incoming.tabularSections = copyNamedList(baseline.tabularSections);
     }
     if (incoming.nestedSubsystems == null) {

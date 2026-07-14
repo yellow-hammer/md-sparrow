@@ -199,6 +199,7 @@ public final class MdObjectPropertiesGranularPatch {
       return replacementElementXml;
     }
     String indent = currentLineIndent(xmlUtf8, reg.start());
+    String eol = fileEol(xmlUtf8);
     String compact = INTER_TAG_WS.matcher(replacementElementXml.trim()).replaceAll("><");
     if (!compact.contains("><")) {
       return replacementElementXml;
@@ -213,7 +214,7 @@ public final class MdObjectPropertiesGranularPatch {
         depth = Math.max(0, depth - 1);
       }
       if (i > 0) {
-        out.append('\n');
+        out.append(eol);
         out.append(indent);
         for (int j = 0; j < depth; j++) {
           out.append('\t');
@@ -260,18 +261,24 @@ public final class MdObjectPropertiesGranularPatch {
     int insertPos,
     String replacementElementXml) {
     String parentIndent = currentLineIndent(xmlUtf8, insertPos);
+    String eol = fileEol(xmlUtf8);
     String childIndent = parentIndent + "\t";
     String compact = INTER_TAG_WS.matcher(replacementElementXml.trim()).replaceAll("><");
     String expanded = compact.replace("><", ">\n<");
     String[] lines = expanded.split("\n");
     StringBuilder out = new StringBuilder(expanded.length() + childIndent.length() * lines.length + 2);
-    out.append('\n');
+    out.append(eol);
     for (int i = 0; i < lines.length; i++) {
       if (i > 0) {
-        out.append('\n');
+        out.append(eol);
       }
       out.append(childIndent).append(lines[i].trim());
     }
     return out.toString();
+  }
+
+  /** Перевод строки исходного файла: не смешиваем CRLF и LF при точечных заменах. */
+  private static String fileEol(String xmlUtf8) {
+    return xmlUtf8.contains("\r\n") ? "\r\n" : "\n";
   }
 }

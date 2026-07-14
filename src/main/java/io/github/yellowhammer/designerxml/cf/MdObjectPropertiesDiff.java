@@ -12,7 +12,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -211,7 +213,110 @@ public final class MdObjectPropertiesDiff {
     if (na.replaceAll("\\s+", " ").equals(nb.replaceAll("\\s+", " "))) {
       return true;
     }
-    return na.replaceAll("\\s", "").equals(nb.replaceAll("\\s", ""));
+    if (na.replaceAll("\\s", "").equals(nb.replaceAll("\\s", ""))) {
+      return true;
+    }
+    return semanticXmlEquals(na, nb);
+  }
+
+  /**
+   * Семантическое сравнение XML: JAXB между запусками JVM по-разному раскладывает пространства имён
+   * (какому URI достанется default, какие префиксы получат остальные), текст при этом описывает те же данные.
+   */
+  private static boolean semanticXmlEquals(String a, String b) {
+    try {
+      javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+      dbf.setNamespaceAware(true);
+      dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      org.w3c.dom.Document d1 =
+        dbf.newDocumentBuilder().parse(new org.xml.sax.InputSource(new java.io.StringReader(a)));
+      org.w3c.dom.Document d2 =
+        dbf.newDocumentBuilder().parse(new org.xml.sax.InputSource(new java.io.StringReader(b)));
+      return domElementsEqual(d1.getDocumentElement(), d2.getDocumentElement());
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  private static final String XMLNS_NS = "http://www.w3.org/2000/xmlns/";
+  private static final String XSI_NS = "http://www.w3.org/2001/XMLSchema-instance";
+
+  private static boolean domElementsEqual(org.w3c.dom.Element x, org.w3c.dom.Element y) {
+    if (!Objects.equals(x.getLocalName(), y.getLocalName())
+      || !Objects.equals(nz(x.getNamespaceURI()), nz(y.getNamespaceURI()))) {
+      return false;
+    }
+    if (!domAttributes(x).equals(domAttributes(y))) {
+      return false;
+    }
+    List<org.w3c.dom.Element> cx = domChildElements(x);
+    List<org.w3c.dom.Element> cy = domChildElements(y);
+    if (cx.size() != cy.size()) {
+      return false;
+    }
+    for (int i = 0; i < cx.size(); i++) {
+      if (!domElementsEqual(cx.get(i), cy.get(i))) {
+        return false;
+      }
+    }
+    return domText(x).equals(domText(y));
+  }
+
+  private static java.util.SortedMap<String, String> domAttributes(org.w3c.dom.Element el) {
+    java.util.TreeMap<String, String> out = new java.util.TreeMap<>();
+    org.w3c.dom.NamedNodeMap attrs = el.getAttributes();
+    for (int i = 0; i < attrs.getLength(); i++) {
+      org.w3c.dom.Attr attr = (org.w3c.dom.Attr) attrs.item(i);
+      if (XMLNS_NS.equals(attr.getNamespaceURI())) {
+        continue;
+      }
+      String key = nz(attr.getNamespaceURI()) + "|" + (attr.getLocalName() == null ? attr.getName() : attr.getLocalName());
+      String value = attr.getValue();
+      if (XSI_NS.equals(attr.getNamespaceURI()) && "type".equals(attr.getLocalName())) {
+        value = resolveQNameValue(el, value);
+      }
+      out.put(key, value);
+    }
+    return out;
+  }
+
+  /** {@code xsi:type="prefix:Name"} → {@code {uri}Name}: имя префикса не несёт семантики. */
+  private static String resolveQNameValue(org.w3c.dom.Element scope, String value) {
+    int colon = value.indexOf(':');
+    if (colon <= 0) {
+      return "{" + nz(scope.lookupNamespaceURI(null)) + "}" + value;
+    }
+    String prefix = value.substring(0, colon);
+    String uri = scope.lookupNamespaceURI(prefix);
+    return uri == null ? value : "{" + uri + "}" + value.substring(colon + 1);
+  }
+
+  private static List<org.w3c.dom.Element> domChildElements(org.w3c.dom.Element el) {
+    List<org.w3c.dom.Element> out = new ArrayList<>();
+    org.w3c.dom.NodeList children = el.getChildNodes();
+    for (int i = 0; i < children.getLength(); i++) {
+      if (children.item(i) instanceof org.w3c.dom.Element child) {
+        out.add(child);
+      }
+    }
+    return out;
+  }
+
+  private static String domText(org.w3c.dom.Element el) {
+    StringBuilder sb = new StringBuilder();
+    org.w3c.dom.NodeList children = el.getChildNodes();
+    for (int i = 0; i < children.getLength(); i++) {
+      org.w3c.dom.Node node = children.item(i);
+      if (node.getNodeType() == org.w3c.dom.Node.TEXT_NODE
+        || node.getNodeType() == org.w3c.dom.Node.CDATA_SECTION_NODE) {
+        sb.append(node.getNodeValue());
+      }
+    }
+    return sb.toString().trim();
+  }
+
+  private static String nz(String s) {
+    return s == null ? "" : s;
   }
 
   /**
