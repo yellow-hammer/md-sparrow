@@ -66,14 +66,12 @@ public final class MdObjectChildMutations {
    */
   public static void renameAttribute(Path objectXml, SchemaVersion version, String oldName, String newName)
     throws IOException, JAXBException {
-    mutateAndWrite(objectXml, version, (xml, containerLocal) -> renameNamedChild(
-      xml,
-      containerLocal,
-      "Attribute",
+    mutateAndWrite(objectXml, version, (xml, containerLocal) -> renameAttributeFieldRefs(
+      renameNamedChild(xml, containerLocal, "Attribute", oldName, newName, "Реквизит"),
       oldName,
-      newName,
-      "Реквизит"
+      newName
     ));
+    FormDataPathCleanup.afterChildRename(objectXml, oldName, newName);
   }
 
   /**
@@ -87,13 +85,11 @@ public final class MdObjectChildMutations {
    */
   public static void deleteAttribute(Path objectXml, SchemaVersion version, String name)
     throws IOException, JAXBException {
-    mutateAndWrite(objectXml, version, (xml, containerLocal) -> deleteNamedChild(
-      xml,
-      containerLocal,
-      "Attribute",
-      name,
-      "Реквизит"
+    mutateAndWrite(objectXml, version, (xml, containerLocal) -> removeAttributeFieldRefs(
+      deleteNamedChild(xml, containerLocal, "Attribute", name, "Реквизит"),
+      name
     ));
+    FormDataPathCleanup.afterChildDelete(objectXml, name);
   }
 
   /**
@@ -160,6 +156,7 @@ public final class MdObjectChildMutations {
       newName,
       "Табличная часть"
     ));
+    FormDataPathCleanup.afterChildRename(objectXml, oldName, newName);
   }
 
   /**
@@ -180,6 +177,7 @@ public final class MdObjectChildMutations {
       name,
       "Табличная часть"
     ));
+    FormDataPathCleanup.afterChildDelete(objectXml, name);
   }
 
   /**
@@ -289,6 +287,8 @@ public final class MdObjectChildMutations {
       String replaced = replaceName(nodeXml, oldName, newName);
       return xml.substring(0, target.start()) + replaced + xml.substring(target.end());
     });
+    FormDataPathCleanup.afterChildRename(
+      objectXml, tabularSectionName + "." + oldName, tabularSectionName + "." + newName);
   }
 
   /**
@@ -317,6 +317,7 @@ public final class MdObjectChildMutations {
       }
       return removeRegion(xml, target);
     });
+    FormDataPathCleanup.afterChildDelete(objectXml, tabularSectionName + "." + name);
   }
 
   /**
@@ -662,6 +663,26 @@ public final class MdObjectChildMutations {
     }
     out.append(xml, cursor, xml.length());
     return out.toString();
+  }
+
+  /** Убирает из свойств объекта ссылки на удалённый реквизит ({@code xr:Field ...Attribute.Имя}). */
+  private static String removeAttributeFieldRefs(String xml, String attrName) {
+    Pattern refPattern = Pattern.compile("<xr:Field>[^<]*\\.Attribute\\." + Pattern.quote(attrName) + "</xr:Field>");
+    Matcher m = refPattern.matcher(xml);
+    List<MdObjectXmlRegions.Region> regions = new ArrayList<>();
+    while (m.find()) {
+      regions.add(new MdObjectXmlRegions.Region(m.start(), m.end()));
+    }
+    String out = xml;
+    for (int i = regions.size() - 1; i >= 0; i--) {
+      out = removeRegion(out, regions.get(i));
+    }
+    return out;
+  }
+
+  /** Обновляет ссылки на переименованный реквизит в свойствах объекта. */
+  private static String renameAttributeFieldRefs(String xml, String oldName, String newName) {
+    return xml.replace(".Attribute." + oldName + "</xr:Field>", ".Attribute." + newName + "</xr:Field>");
   }
 
   /** Начало строки перед позицией: срезает хвостовые пробелы/табы, если до них перевод строки. */
