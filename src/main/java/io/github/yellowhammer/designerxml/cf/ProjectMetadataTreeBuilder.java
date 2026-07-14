@@ -29,11 +29,19 @@ public final class ProjectMetadataTreeBuilder {
   }
 
   /**
-   * @param projectRoot корень проекта (где лежат {@code src/cf}, при наличии — {@code src/cfe}, {@code src/epf}, {@code src/erf})
+   * @param projectRoot корень проекта со стандартной раскладкой ({@code src/cf}, {@code src/cfe}, {@code src/epf}, {@code src/erf})
    */
   public static ProjectMetadataTreeDto build(Path projectRoot) throws IOException {
+    return build(projectRoot, ProjectSourceDirs.DEFAULTS);
+  }
+
+  /**
+   * @param projectRoot корень проекта
+   * @param dirs каталоги исходников (настраиваемые; относительные — от корня проекта)
+   */
+  public static ProjectMetadataTreeDto build(Path projectRoot, ProjectSourceDirs dirs) throws IOException {
     Path normalized = projectRoot.toAbsolutePath().normalize();
-    Path mainCf = normalized.resolve("src").resolve("cf");
+    Path mainCf = dirs.cfPath(normalized);
     Path mainCfg = mainCf.resolve(CfLayout.CONFIGURATION_XML);
     if (!Files.isRegularFile(mainCfg)) {
       throw new IOException("Не найден файл основной выгрузки: " + mainCfg);
@@ -43,7 +51,7 @@ public final class ProjectMetadataTreeBuilder {
     String verFlag = MetaDataObjectHeadReader.toSchemaVersionFlag(ver);
     List<ProjectMetadataTreeDto.MetadataSourceDto> sources = new ArrayList<>();
     sources.add(buildMainSource(normalized, mainCf, mainCfg));
-    Path cfeRoot = normalized.resolve("src").resolve("cfe");
+    Path cfeRoot = dirs.cfePath(normalized);
     if (Files.isDirectory(cfeRoot)) {
       try (var stream = Files.list(cfeRoot)) {
         List<Path> extDirs = stream.filter(Files::isDirectory).sorted().collect(Collectors.toList());
@@ -55,8 +63,17 @@ public final class ProjectMetadataTreeBuilder {
         }
       }
     }
-    appendExternalArtifactSources(normalized, sources);
+    appendExternalArtifactSources(normalized, dirs, sources);
     return new ProjectMetadataTreeDto(normalized.toString(), ver, verFlag, sources);
+  }
+
+  /** Относительный путь от корня проекта; вне корня — абсолютный (для DTO). */
+  private static String relativeOrAbsolute(Path projectRoot, Path target) {
+    Path normalized = target.toAbsolutePath().normalize();
+    if (normalized.startsWith(projectRoot)) {
+      return projectRoot.relativize(normalized).toString().replace('\\', '/');
+    }
+    return normalized.toString().replace('\\', '/');
   }
 
   private static ProjectMetadataTreeDto.MetadataSourceDto buildMainSource(
@@ -168,20 +185,24 @@ public final class ProjectMetadataTreeBuilder {
 
   private static void appendExternalArtifactSources(
     Path projectRoot,
+    ProjectSourceDirs dirs,
     List<ProjectMetadataTreeDto.MetadataSourceDto> sources
   ) throws IOException {
-    List<ExternalArtifactLister.ExternalArtifactEntry> erf = ExternalArtifactLister.listErf(projectRoot);
+    List<ExternalArtifactLister.ExternalArtifactEntry> erf =
+      ExternalArtifactLister.listArtifacts(projectRoot, dirs.erfPath(projectRoot));
     if (!erf.isEmpty()) {
-      sources.add(buildExternalErfSource(erf));
+      sources.add(buildExternalErfSource(erf, relativeOrAbsolute(projectRoot, dirs.erfPath(projectRoot))));
     }
-    List<ExternalArtifactLister.ExternalArtifactEntry> epf = ExternalArtifactLister.listEpf(projectRoot);
+    List<ExternalArtifactLister.ExternalArtifactEntry> epf =
+      ExternalArtifactLister.listArtifacts(projectRoot, dirs.epfPath(projectRoot));
     if (!epf.isEmpty()) {
-      sources.add(buildExternalEpfSource(epf));
+      sources.add(buildExternalEpfSource(epf, relativeOrAbsolute(projectRoot, dirs.epfPath(projectRoot))));
     }
   }
 
   private static ProjectMetadataTreeDto.MetadataSourceDto buildExternalErfSource(
-    List<ExternalArtifactLister.ExternalArtifactEntry> entries
+    List<ExternalArtifactLister.ExternalArtifactEntry> entries,
+    String rootRelativePath
   ) {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
@@ -195,13 +216,14 @@ public final class ProjectMetadataTreeBuilder {
       "external-erf",
       "Внешние отчёты",
       "",
-      "src/erf",
+      rootRelativePath,
       groups
     );
   }
 
   private static ProjectMetadataTreeDto.MetadataSourceDto buildExternalEpfSource(
-    List<ExternalArtifactLister.ExternalArtifactEntry> entries
+    List<ExternalArtifactLister.ExternalArtifactEntry> entries,
+    String rootRelativePath
   ) {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
@@ -215,7 +237,7 @@ public final class ProjectMetadataTreeBuilder {
       "external-epf",
       "Внешние обработки",
       "",
-      "src/epf",
+      rootRelativePath,
       groups
     );
   }

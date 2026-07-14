@@ -47,6 +47,11 @@ final class CliParams {
   String artifactsRoot;
   String targetCfRoot;
   String projectRoot;
+  /** Каталоги исходников относительно projectRoot (null — стандартные src/cf, src/cfe, src/epf, src/erf). */
+  String cfDir;
+  String cfeDir;
+  String epfDir;
+  String erfDir;
   String tag;
   String name;
   String oldName;

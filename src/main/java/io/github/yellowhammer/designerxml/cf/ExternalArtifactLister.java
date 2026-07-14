@@ -26,19 +26,20 @@ public final class ExternalArtifactLister {
   }
 
   public static List<ExternalArtifactEntry> listErf(Path projectRoot) throws IOException {
-    return listSubdir(projectRoot, "src", "erf");
+    return listArtifacts(projectRoot, projectRoot.resolve("src").resolve("erf"));
   }
 
   public static List<ExternalArtifactEntry> listEpf(Path projectRoot) throws IOException {
-    return listSubdir(projectRoot, "src", "epf");
+    return listArtifacts(projectRoot, projectRoot.resolve("src").resolve("epf"));
   }
 
-  private static List<ExternalArtifactEntry> listSubdir(Path projectRoot, String first, String second)
+  /** Артефакты в произвольном каталоге; relativePath — от корня проекта (вне корня — абсолютный). */
+  public static List<ExternalArtifactEntry> listArtifacts(Path projectRoot, Path dir)
     throws IOException {
-    Path dir = projectRoot.resolve(first).resolve(second);
     if (!Files.isDirectory(dir)) {
       return List.of();
     }
+    Path rootNorm = projectRoot.toAbsolutePath().normalize();
     List<ExternalArtifactEntry> out = new ArrayList<>();
     try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir, Files::isDirectory)) {
       for (Path sub : ds) {
@@ -50,8 +51,11 @@ public final class ExternalArtifactLister {
         if (xml == null || !Files.isRegularFile(xml)) {
           continue;
         }
-        Path rel = projectRoot.relativize(xml);
-        out.add(new ExternalArtifactEntry(name, rel.toString().replace('\\', '/')));
+        Path xmlNorm = xml.toAbsolutePath().normalize();
+        String rel = xmlNorm.startsWith(rootNorm)
+          ? rootNorm.relativize(xmlNorm).toString().replace('\\', '/')
+          : xmlNorm.toString().replace('\\', '/');
+        out.add(new ExternalArtifactEntry(name, rel));
       }
     }
     out.sort(Comparator.comparing(ExternalArtifactEntry::name, String.CASE_INSENSITIVE_ORDER));

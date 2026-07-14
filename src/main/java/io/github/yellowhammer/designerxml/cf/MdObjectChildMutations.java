@@ -135,7 +135,7 @@ public final class MdObjectChildMutations {
       return insertIntoRootChildObjects(
         xml,
         containerLocal,
-        buildTabularSectionSnippet(newName, newName, "")
+        buildTabularSectionSnippet(containerLocal, rootObjectName(xml), newName, newName, "")
       );
     });
   }
@@ -381,6 +381,10 @@ public final class MdObjectChildMutations {
     } catch (XMLStreamException e) {
       throw new IOException("Не удалось разобрать XML для мутации: " + e.getMessage(), e);
     }
+    // Вставки собираются с LF: приводим весь результат к переводу строки исходного файла.
+    if (original.contains("\r\n")) {
+      updated = updated.replace("\r\n", "\n").replace("\n", "\r\n");
+    }
     MdObjectStructureRead.read(updated.getBytes(StandardCharsets.UTF_8), version);
     Files.writeString(objectXml, updated, StandardCharsets.UTF_8);
   }
@@ -404,7 +408,32 @@ public final class MdObjectChildMutations {
     }
     String nodeXml = xml.substring(target.start(), target.end());
     String replaced = replaceName(nodeXml, oldName, newName);
+    replaced = renameGeneratedTypeTail(replaced, oldName, newName);
     return xml.substring(0, target.start()) + replaced + xml.substring(target.end());
+  }
+
+  /**
+   * Обновляет хвост имени в {@code xr:GeneratedType name="...Тип.Объект.Старое"} блока
+   * (актуально для табличных частей; у реквизитов GeneratedType нет).
+   */
+  private static String renameGeneratedTypeTail(String nodeXml, String oldName, String newName) {
+    Pattern generated = Pattern.compile("(<xr:GeneratedType name=\"[^\"]*\\.)" + Pattern.quote(oldName) + "\"");
+    Matcher m = generated.matcher(nodeXml);
+    StringBuilder sb = new StringBuilder();
+    while (m.find()) {
+      m.appendReplacement(sb, Matcher.quoteReplacement(m.group(1) + escapeXml(newName) + "\""));
+    }
+    m.appendTail(sb);
+    return sb.toString();
+  }
+
+  /** Имя корневого объекта: первый тег Name в файле (Properties объекта). */
+  private static String rootObjectName(String xml) {
+    Matcher matcher = NAME_TAG.matcher(xml);
+    if (!matcher.find()) {
+      throw new IllegalArgumentException("Не найдено имя объекта.");
+    }
+    return unescapeXml(matcher.group(1));
   }
 
   private static String deleteNamedChild(
@@ -457,6 +486,7 @@ public final class MdObjectChildMutations {
   private static String duplicateRegion(String xml, MdObjectXmlRegions.Region source, String oldName, String newName) {
     String sourceXml = xml.substring(source.start(), source.end());
     String copy = replaceName(DistinctUuidRewrite.remap(sourceXml), oldName, newName);
+    copy = renameGeneratedTypeTail(copy, oldName, newName);
     String indent = currentLineIndent(xml, source.start());
     String normalizedCopy = normalizeBlockIndent(copy, indent);
     return xml.substring(0, source.end()) + "\n" + normalizedCopy + xml.substring(source.end());
@@ -475,7 +505,9 @@ public final class MdObjectChildMutations {
     String parentIndent = currentLineIndent(xml, insertAt);
     String childIndent = parentIndent + "\t";
     String normalized = normalizeBlockIndent(snippet, childIndent);
-    return xml.substring(0, insertAt) + "\n" + normalized + "\n" + parentIndent + xml.substring(insertAt);
+    int prefixEnd = lineStartBeforeIndent(xml, insertAt);
+    String lead = prefixEnd == insertAt ? "\n" : "";
+    return xml.substring(0, prefixEnd) + lead + normalized + "\n" + parentIndent + xml.substring(insertAt);
   }
 
   private static String insertIntoTabularSectionChildObjects(String tabularSectionXml, String snippet)
@@ -508,8 +540,10 @@ public final class MdObjectChildMutations {
       String parentIndent = currentLineIndent(tabularSectionXml, insertAt);
       String childIndent = parentIndent + "\t";
       String normalized = normalizeBlockIndent(snippet, childIndent);
-      return tabularSectionXml.substring(0, insertAt)
-        + "\n"
+      int prefixEnd = lineStartBeforeIndent(tabularSectionXml, insertAt);
+      String lead = prefixEnd == insertAt ? "\n" : "";
+      return tabularSectionXml.substring(0, prefixEnd)
+        + lead
         + normalized
         + "\n"
         + parentIndent
@@ -547,10 +581,115 @@ public final class MdObjectChildMutations {
     return nodeXml.substring(0, matcher.start(1)) + escaped + nodeXml.substring(matcher.end(1));
   }
 
+  /**
+   * Переставляет реквизиты корневого {@code ChildObjects} в заданном порядке.
+   * Перечисленные блоки меняются местами между собой; не перечисленные остаются на своих местах.
+   */
+  public static void reorderAttributes(Path objectXml, SchemaVersion version, List<String> order)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      reorderNamedRegions(xml, order, "Реквизит",
+        name -> MdObjectXmlRegions.findNamedChildObjectRegion(xml, containerLocal, "Attribute", name)));
+  }
+
+  /**
+   * Переставляет табличные части корневого {@code ChildObjects} в заданном порядке.
+   */
+  public static void reorderTabularSections(Path objectXml, SchemaVersion version, List<String> order)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      reorderNamedRegions(xml, order, "Табличная часть",
+        name -> MdObjectXmlRegions.findNamedChildObjectRegion(xml, containerLocal, "TabularSection", name)));
+  }
+
+  /**
+   * Переставляет реквизиты табличной части в заданном порядке.
+   */
+  public static void reorderTabularAttributes(
+    Path objectXml,
+    SchemaVersion version,
+    String tabularSectionName,
+    List<String> order
+  ) throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      reorderNamedRegions(xml, order, "Реквизит ТЧ",
+        name -> MdObjectXmlRegions.findNamedNestedChildObjectRegion(
+          xml, containerLocal, "TabularSection", tabularSectionName, "Attribute", name)));
+  }
+
+  private interface RegionByName {
+    MdObjectXmlRegions.Region find(String name) throws XMLStreamException;
+  }
+
+  private static String reorderNamedRegions(
+    String xml,
+    List<String> order,
+    String label,
+    RegionByName finder
+  ) throws XMLStreamException {
+    if (order == null || order.size() < 2) {
+      return xml;
+    }
+    List<MdObjectXmlRegions.Region> regions = new ArrayList<>();
+    List<String> blocks = new ArrayList<>();
+    for (String name : order) {
+      ensureNotBlank(name, "Пустое имя в порядке сортировки.");
+      MdObjectXmlRegions.Region region = finder.find(name);
+      if (!region.isValid()) {
+        throw new IllegalArgumentException(label + " не найден: " + name);
+      }
+      regions.add(region);
+      blocks.add(xml.substring(region.start(), region.end()));
+    }
+    List<Integer> byStart = new ArrayList<>();
+    for (int i = 0; i < regions.size(); i++) {
+      byStart.add(i);
+    }
+    byStart.sort((a, b) -> Integer.compare(regions.get(a).start(), regions.get(b).start()));
+    for (int i = 1; i < byStart.size(); i++) {
+      if (regions.get(byStart.get(i)).start() < regions.get(byStart.get(i - 1)).end()) {
+        throw new IllegalArgumentException("Пересечение блоков при сортировке (дубль имени?).");
+      }
+    }
+    StringBuilder out = new StringBuilder(xml.length());
+    int cursor = 0;
+    for (int k = 0; k < byStart.size(); k++) {
+      MdObjectXmlRegions.Region slot = regions.get(byStart.get(k));
+      out.append(xml, cursor, slot.start());
+      // k-я позиция по тексту получает k-й блок из желаемого порядка
+      out.append(blocks.get(k));
+      cursor = slot.end();
+    }
+    out.append(xml, cursor, xml.length());
+    return out.toString();
+  }
+
+  /** Начало строки перед позицией: срезает хвостовые пробелы/табы, если до них перевод строки. */
+  private static int lineStartBeforeIndent(String xml, int pos) {
+    int cut = pos;
+    while (cut > 0 && (xml.charAt(cut - 1) == '\t' || xml.charAt(cut - 1) == ' ')) {
+      cut--;
+    }
+    if (cut == 0 || xml.charAt(cut - 1) == '\n') {
+      return cut;
+    }
+    return pos;
+  }
+
   private static String removeRegion(String xml, MdObjectXmlRegions.Region region) {
     String left = xml.substring(0, region.start());
     String right = xml.substring(region.end());
-    if (left.endsWith("\n") && right.startsWith("\n")) {
+    // Блок занимал свои строки: убираем и отступ его первой строки, и перевод строки после него,
+    // иначе остаётся строка из одних табов.
+    int cut = left.length();
+    while (cut > 0 && (left.charAt(cut - 1) == '\t' || left.charAt(cut - 1) == ' ')) {
+      cut--;
+    }
+    boolean leftAtLineStart = cut == 0 || left.charAt(cut - 1) == '\n';
+    if (leftAtLineStart && (right.startsWith("\r\n") || right.startsWith("\n"))) {
+      left = left.substring(0, cut);
+      right = right.startsWith("\r\n") ? right.substring(2) : right.substring(1);
+    } else if (left.endsWith("\n") && right.startsWith("\n")) {
       right = right.substring(1);
     }
     return left + right;
@@ -573,8 +712,26 @@ public final class MdObjectChildMutations {
       + "</Attribute>";
   }
 
-  private static String buildTabularSectionSnippet(String name, String synonymRu, String comment) {
+  private static String buildTabularSectionSnippet(
+    String containerLocal,
+    String ownerName,
+    String name,
+    String synonymRu,
+    String comment
+  ) {
     return "<TabularSection uuid=\"" + UUID.randomUUID() + "\">\n"
+      + "\t<InternalInfo>\n"
+      + "\t\t<xr:GeneratedType name=\"" + containerLocal + "TabularSection." + escapeXml(ownerName) + "."
+      + escapeXml(name) + "\" category=\"TabularSection\">\n"
+      + "\t\t\t<xr:TypeId>" + UUID.randomUUID() + "</xr:TypeId>\n"
+      + "\t\t\t<xr:ValueId>" + UUID.randomUUID() + "</xr:ValueId>\n"
+      + "\t\t</xr:GeneratedType>\n"
+      + "\t\t<xr:GeneratedType name=\"" + containerLocal + "TabularSectionRow." + escapeXml(ownerName) + "."
+      + escapeXml(name) + "\" category=\"TabularSectionRow\">\n"
+      + "\t\t\t<xr:TypeId>" + UUID.randomUUID() + "</xr:TypeId>\n"
+      + "\t\t\t<xr:ValueId>" + UUID.randomUUID() + "</xr:ValueId>\n"
+      + "\t\t</xr:GeneratedType>\n"
+      + "\t</InternalInfo>\n"
       + "\t<Properties>\n"
       + "\t\t<Name>" + escapeXml(name) + "</Name>\n"
       + "\t\t<Synonym>\n"
