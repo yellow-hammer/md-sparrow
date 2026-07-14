@@ -46,6 +46,195 @@ class ApplyMutationCmdTest {
   }
 
   @Test
+  void objectSet_viaParamsFile_updatesCatalogScalarsGranularly() throws Exception {
+    // Паттерн панели свойств: прочитать полный DTO, изменить поля, записать целиком.
+    Path objectXml = copyToTemp(sampleCatalogXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    String newSynonym = "Демо: Банковские счета (изменено)";
+    dto.synonymRu = newSynonym;
+    dto.catalog.choiceMode = "QUICK_CHOICE";
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains(newSynonym);
+    assertThat(after).contains("<ChoiceMode>QuickChoice</ChoiceMode>");
+    // Гранулярность: незатронутые узлы не переписаны, владельцы сохранены.
+    assertThat(after).contains("Catalog._ДемоОрганизации");
+    assertThat(countLines(after)).isEqualTo(countLines(before));
+  }
+
+  @Test
+  void objectSet_ownerAndInputByStringLists_writeGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleCatalogXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    dto.catalog.owners = java.util.List.of("Catalog._ДемоОрганизации");
+    dto.catalog.inputByString = java.util.List.of("Catalog._ДемоБанковскиеСчета.StandardAttribute.Code");
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).doesNotContain("Catalog._ДемоКонтрагенты</xr:Item>");
+    assertThat(after).contains("<xr:Field>Catalog._ДемоБанковскиеСчета.StandardAttribute.Code</xr:Field>");
+    // Гранулярность: из списков ушло по одной строке, остальной файл не переформатирован.
+    assertThat(countLines(before) - countLines(after)).isEqualTo(2);
+  }
+
+  @Test
+  void objectSet_scalarOnlyPayload_keepsAttributesAndOwners() throws Exception {
+    // Частичный payload без списков: реквизиты и владельцы не должны потеряться.
+    Path objectXml = copyToTemp(sampleCatalogXml());
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(
+          "{"
+            + "\"kind\":\"catalog\","
+            + "\"internalName\":\"_ДемоБанковскиеСчета\","
+            + "\"synonymRu\":\"Демо: Банковские счета (частично)\""
+            + "}")
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("Демо: Банковские счета (частично)");
+    assertThat(after).contains("БИКБанка");
+    assertThat(after).contains("Catalog._ДемоОрганизации");
+  }
+
+  private static long countLines(String text) {
+    return text.lines().count();
+  }
+
+  @Test
+  void objectSet_blobPrefixesFromAnotherJvm_staysGranular() throws Exception {
+    // JAXB между запусками JVM назначает ns-префиксы в блобах по-разному: это не изменение данных.
+    Path objectXml = copyToTemp(sampleCatalogXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    dto.synonymRu = "Демо: Банковские счета (префиксы)";
+    dto.catalog.standardAttributesXml = dto.catalog.standardAttributesXml
+      .replace("ns9:", "nsTMP:").replace("xmlns:ns9=", "xmlns:nsTMP=");
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("Демо: Банковские счета (префиксы)");
+    assertThat(countLines(after)).isEqualTo(countLines(before));
+  }
+
+  @Test
+  void attributeReorder_swapsBlocksGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleCatalogXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-attribute-reorder\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json("[\"БИКБанка\",\"Валюта\"]")
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(countLines(after)).isEqualTo(countLines(before));
+    assertThat(after.indexOf("<Name>БИКБанка</Name>")).isLessThan(after.indexOf("<Name>Валюта</Name>"));
+  }
+
+  @Test
+  void objectSet_clearDefaultForm_writesEmptyElement() throws Exception {
+    Path objectXml = copyToTemp(sampleCatalogXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    dto.catalog.defaultObjectForm = "";
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("<DefaultObjectForm/>");
+    assertThat(after).doesNotContain("<DefaultObjectForm>Catalog.");
+    assertThat(countLines(after)).isEqualTo(countLines(before));
+  }
+
+  @Test
+  void tabularSectionAdd_writesInternalInfoAndRenameUpdatesIt() throws Exception {
+    Path objectXml = copyToTemp(sampleCatalogXml());
+    Path addParams = writeParams(
+      "{"
+        + "\"op\":\"cf-md-tabular-section-add\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"name\":\"НоваяТЧ\","
+        + "\"schemaVersion\":\"V2_20\""
+        + "}");
+    assertThat(new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", addParams.toString())).isZero();
+    String afterAdd = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(afterAdd).contains("name=\"CatalogTabularSection._ДемоБанковскиеСчета.НоваяТЧ\" category=\"TabularSection\"");
+    assertThat(afterAdd).contains("name=\"CatalogTabularSectionRow._ДемоБанковскиеСчета.НоваяТЧ\" category=\"TabularSectionRow\"");
+
+    Path renameParams = writeParams(
+      "{"
+        + "\"op\":\"cf-md-tabular-section-rename\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"oldName\":\"НоваяТЧ\","
+        + "\"newName\":\"Переименованная\","
+        + "\"schemaVersion\":\"V2_20\""
+        + "}");
+    assertThat(new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", renameParams.toString())).isZero();
+    String afterRename = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(afterRename).contains("name=\"CatalogTabularSection._ДемоБанковскиеСчета.Переименованная\"");
+    assertThat(afterRename).doesNotContain(".НоваяТЧ\"");
+    assertThat(afterRename).doesNotContain("<Name>НоваяТЧ</Name>");
+  }
+
+  @Test
   void unknownOp_returnsError() throws Exception {
     Path params = writeParams("{\"op\":\"no-such-op\"}");
     int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
@@ -109,5 +298,14 @@ class ApplyMutationCmdTest {
       .resolve("cf")
       .resolve("Documents")
       .resolve("_ДемоЗаказПокупателя.xml");
+  }
+
+  private static Path sampleCatalogXml() {
+    String fixturesRoot = System.getProperty("fixtures.ssl31.root");
+    return Path.of(fixturesRoot)
+      .resolve("src")
+      .resolve("cf")
+      .resolve("Catalogs")
+      .resolve("_ДемоБанковскиеСчета.xml");
   }
 }

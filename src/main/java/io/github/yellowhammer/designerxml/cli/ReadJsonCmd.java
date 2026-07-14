@@ -40,6 +40,7 @@ import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphDto;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
+import io.github.yellowhammer.designerxml.cf.ProjectSourceDirs;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -132,11 +133,15 @@ final class ReadJsonCmd implements Callable<Integer> {
         return ConfigurationCatalogLister.toJsonArray(names);
       }
       case "project-metadata-tree": {
-        ProjectMetadataTreeDto dto = ProjectMetadataTreeBuilder.build(p.reqPath(p.projectRoot, "projectRoot"));
+        ProjectMetadataTreeDto dto = ProjectMetadataTreeBuilder.build(
+          p.reqPath(p.projectRoot, "projectRoot"),
+          ProjectSourceDirs.fromNullable(p.cfDir, p.cfeDir, p.epfDir, p.erfDir));
         return gson.toJson(dto);
       }
       case "cf-md-graph": {
-        ProjectMetadataGraphDto dto = ProjectMetadataGraphBuilder.build(p.reqPath(p.projectRoot, "projectRoot"));
+        ProjectMetadataGraphDto dto = ProjectMetadataGraphBuilder.build(
+          p.reqPath(p.projectRoot, "projectRoot"),
+          ProjectSourceDirs.fromNullable(p.cfDir, p.cfeDir, p.epfDir, p.erfDir));
         return gson.toJson(dto);
       }
       default:

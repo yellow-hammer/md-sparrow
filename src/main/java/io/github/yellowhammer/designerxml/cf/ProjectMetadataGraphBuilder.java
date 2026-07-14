@@ -53,7 +53,15 @@ public final class ProjectMetadataGraphBuilder {
    * @param projectRoot корень проекта (где лежат {@code src/cf}, при наличии — {@code src/cfe}, {@code src/epf}, {@code src/erf})
    */
   public static ProjectMetadataGraphDto build(Path projectRoot) throws IOException {
-    ProjectMetadataTreeDto tree = ProjectMetadataTreeBuilder.build(projectRoot);
+    return build(projectRoot, ProjectSourceDirs.DEFAULTS);
+  }
+
+  /**
+   * @param projectRoot корень проекта
+   * @param dirs каталоги исходников (настраиваемые; относительные — от корня проекта)
+   */
+  public static ProjectMetadataGraphDto build(Path projectRoot, ProjectSourceDirs dirs) throws IOException {
+    ProjectMetadataTreeDto tree = ProjectMetadataTreeBuilder.build(projectRoot, dirs);
     Path normalized = Path.of(tree.projectRoot());
     Map<String, ProjectMetadataGraphDto.NodeDto> nodes = new LinkedHashMap<>();
     Map<String, List<String>> subsystemKeysByTarget = new LinkedHashMap<>();

@@ -35,6 +35,8 @@ import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectAdd;
 import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 import io.github.yellowhammer.designerxml.cf.MdObjectChildMutations;
+import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
+import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.NewExternalArtifactXml;
 import jakarta.xml.bind.JAXBException;
 import picocli.CommandLine.Command;
@@ -166,6 +168,19 @@ final class ApplyMutationCmd implements Callable<Integer> {
         MdObjectChildMutations.deleteTabularAttribute(
           p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.tabularSection, "tabularSection"), p.req(p.name, "name"));
         return "OK";
+      case "cf-md-attribute-reorder":
+        MdObjectChildMutations.reorderAttributes(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), parseNameList(p));
+        return "OK";
+      case "cf-md-tabular-section-reorder":
+        MdObjectChildMutations.reorderTabularSections(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), parseNameList(p));
+        return "OK";
+      case "cf-md-tabular-attribute-reorder":
+        MdObjectChildMutations.reorderTabularAttributes(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.tabularSection, "tabularSection"), parseNameList(p));
+        return "OK";
+
       case "cf-md-tabular-attribute-duplicate":
         MdObjectChildMutations.duplicateTabularAttribute(
           p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.tabularSection, "tabularSection"),
@@ -189,6 +204,11 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.version());
         return "OK";
 
+      case "cf-md-object-set": {
+        MdObjectPropertiesDto dto = parsePayload(p, MdObjectPropertiesDto.class);
+        MdObjectPropertiesEdit.writeDto(p.reqPath(p.objectXml, "objectXml"), p.version(), dto);
+        return "OK";
+      }
       case "external-artifact-properties-set": {
         ExternalArtifactPropertiesDto dto = parsePayload(p, ExternalArtifactPropertiesDto.class);
         ExternalArtifactPropertiesEdit.write(p.reqPath(p.objectXml, "objectXml"), p.version(), dto);
@@ -231,6 +251,12 @@ final class ApplyMutationCmd implements Callable<Integer> {
       default:
         throw new IllegalArgumentException("неизвестный op: " + p.op);
     }
+  }
+
+  /** Список имён из {@code payloadJson} (JSON-массив строк). */
+  private static java.util.List<String> parseNameList(CliParams p) {
+    String[] names = parsePayload(p, String[].class);
+    return java.util.Arrays.asList(names);
   }
 
   private static <T> T parsePayload(CliParams p, Class<T> type) {
