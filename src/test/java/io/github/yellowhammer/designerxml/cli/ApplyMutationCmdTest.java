@@ -235,6 +235,40 @@ class ApplyMutationCmdTest {
   }
 
   @Test
+  void objectSet_documentScalarsAndRegisterRecords_writeGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleDocumentXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(dto.document).as("документ должен читаться гранулярно").isNotNull();
+    dto.synonymRu = "Демо: Заказ покупателя 222";
+    dto.document.numberLength = "15";
+    dto.document.posting = "DENY";
+    dto.document.registerRecords = new java.util.ArrayList<>(dto.document.registerRecords);
+    if (!dto.document.registerRecords.isEmpty()) {
+      dto.document.registerRecords.remove(dto.document.registerRecords.size() - 1);
+    }
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("Демо: Заказ покупателя 222");
+    assertThat(after).contains("<NumberLength>15</NumberLength>");
+    assertThat(after).contains("<Posting>Deny</Posting>");
+    // Гранулярность: файл не переформатирован (могла уйти строка из RegisterRecords).
+    assertThat(countLines(before) - countLines(after)).isBetween(0L, 1L);
+  }
+
+  @Test
   void unknownOp_returnsError() throws Exception {
     Path params = writeParams("{\"op\":\"no-such-op\"}");
     int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());

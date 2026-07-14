@@ -184,6 +184,9 @@ public final class MdObjectPropertiesEdit {
     if (catalog) {
       MdCatalogPropertiesBridge.read(version, props, dto);
     }
+    if ("document".equals(kind)) {
+      MdDocumentPropertiesBridge.read(version, props, dto);
+    }
     Object co = JaxbReflect.get(node, "getChildObjects");
     if (co != null) {
       for (Object a : JaxbReflect.<Object>list(co, "getAttribute")) {
@@ -252,7 +255,12 @@ public final class MdObjectPropertiesEdit {
       }
       case "document" -> {
         Object doc = require(mdo, "getDocument", "Document");
-        applyCatalogLike(JaxbReflect.get(doc, "getProperties"), dto);
+        Object docProps = JaxbReflect.get(doc, "getProperties");
+        if (dto.document != null) {
+          MdDocumentPropertiesBridge.apply(version, docProps, dto);
+        } else {
+          applyCatalogLike(docProps, dto);
+        }
         applyAttrs(JaxbReflect.get(doc, "getChildObjects"), dto);
       }
       case "exchangePlan" -> {

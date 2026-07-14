@@ -81,7 +81,8 @@ public final class MdObjectPropertiesDiff {
     if (!listStringEquals(a.contentRefs, b.contentRefs)) {
       return false;
     }
-    return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs);
+    return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs)
+      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs);
   }
 
   /**
@@ -196,7 +197,72 @@ public final class MdObjectPropertiesDiff {
     if (!listStringEquals(a.contentRefs, b.contentRefs)) {
       return false;
     }
-    return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs);
+    return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs)
+      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs);
+  }
+
+  static boolean documentEquals(MdDocumentPropertiesDto a, MdDocumentPropertiesDto b, boolean lenientXmlBlobs) {
+    if (a == b) {
+      return true;
+    }
+    if (a == null || b == null) {
+      return false;
+    }
+    boolean stdEq = lenientXmlBlobs
+      ? looseXmlBlobEquals(a.standardAttributesXml, b.standardAttributesXml)
+      : Objects.equals(a.standardAttributesXml, b.standardAttributesXml);
+    boolean charEq = lenientXmlBlobs
+      ? looseXmlBlobEquals(a.characteristicsXml, b.characteristicsXml)
+      : Objects.equals(a.characteristicsXml, b.characteristicsXml);
+    return Objects.equals(a.objectBelonging, b.objectBelonging)
+      && Objects.equals(a.extendedConfigurationObject, b.extendedConfigurationObject)
+      && a.useStandardCommands == b.useStandardCommands
+      && Objects.equals(a.numerator, b.numerator)
+      && Objects.equals(a.numberType, b.numberType)
+      && Objects.equals(a.numberLength, b.numberLength)
+      && Objects.equals(a.numberAllowedLength, b.numberAllowedLength)
+      && Objects.equals(a.numberPeriodicity, b.numberPeriodicity)
+      && a.checkUnique == b.checkUnique
+      && a.autonumbering == b.autonumbering
+      && stdEq
+      && charEq
+      && listStringEquals(a.basedOn, b.basedOn)
+      && listStringEquals(a.inputByString, b.inputByString)
+      && Objects.equals(a.createOnInput, b.createOnInput)
+      && Objects.equals(a.searchStringModeOnInputByString, b.searchStringModeOnInputByString)
+      && Objects.equals(a.fullTextSearchOnInputByString, b.fullTextSearchOnInputByString)
+      && Objects.equals(a.choiceDataGetModeOnInputByString, b.choiceDataGetModeOnInputByString)
+      && Objects.equals(a.choiceHistoryOnInput, b.choiceHistoryOnInput)
+      && Objects.equals(a.defaultObjectForm, b.defaultObjectForm)
+      && Objects.equals(a.defaultListForm, b.defaultListForm)
+      && Objects.equals(a.defaultChoiceForm, b.defaultChoiceForm)
+      && Objects.equals(a.auxiliaryObjectForm, b.auxiliaryObjectForm)
+      && Objects.equals(a.auxiliaryListForm, b.auxiliaryListForm)
+      && Objects.equals(a.auxiliaryChoiceForm, b.auxiliaryChoiceForm)
+      && Objects.equals(a.objectModule, b.objectModule)
+      && Objects.equals(a.managerModule, b.managerModule)
+      && Objects.equals(a.posting, b.posting)
+      && Objects.equals(a.realTimePosting, b.realTimePosting)
+      && Objects.equals(a.registerRecordsDeletion, b.registerRecordsDeletion)
+      && Objects.equals(a.registerRecordsWritingOnPost, b.registerRecordsWritingOnPost)
+      && Objects.equals(a.sequenceFilling, b.sequenceFilling)
+      && listStringEquals(a.registerRecords, b.registerRecords)
+      && a.postInPrivilegedMode == b.postInPrivilegedMode
+      && a.unpostInPrivilegedMode == b.unpostInPrivilegedMode
+      && a.includeHelpInContents == b.includeHelpInContents
+      && Objects.equals(a.help, b.help)
+      && listStringEquals(a.dataLockFields, b.dataLockFields)
+      && Objects.equals(a.dataLockControlMode, b.dataLockControlMode)
+      && Objects.equals(a.fullTextSearch, b.fullTextSearch)
+      && Objects.equals(a.objectPresentationRu, b.objectPresentationRu)
+      && Objects.equals(a.extendedObjectPresentationRu, b.extendedObjectPresentationRu)
+      && Objects.equals(a.listPresentationRu, b.listPresentationRu)
+      && Objects.equals(a.extendedListPresentationRu, b.extendedListPresentationRu)
+      && Objects.equals(a.explanationRu, b.explanationRu)
+      && Objects.equals(a.dataHistory, b.dataHistory)
+      && a.updateDataHistoryImmediatelyAfterWrite == b.updateDataHistoryImmediatelyAfterWrite
+      && a.executeAfterWriteDataHistoryVersionProcessing == b.executeAfterWriteDataHistoryVersionProcessing
+      && Objects.equals(a.additionalIndexes, b.additionalIndexes);
   }
 
   static boolean looseXmlBlobEquals(String x, String y) {
@@ -329,7 +395,8 @@ public final class MdObjectPropertiesDiff {
     }
     return switch (kind) {
       case "catalog" -> catalogMask(baseline, incoming);
-      case "document", "exchangePlan" -> docLikeMask(baseline, incoming);
+      case "document" -> documentMask(baseline, incoming);
+      case "exchangePlan" -> docLikeMask(baseline, incoming);
       case "constant", "enum", "report", "dataProcessor", "task", "chartOfAccounts",
            "chartOfCharacteristicTypes", "chartOfCalculationTypes", "commonModule",
            "sessionParameter", "commonAttribute", "commonPicture", "documentNumerator",
@@ -347,6 +414,17 @@ public final class MdObjectPropertiesDiff {
       !Objects.equals(baseline.synonymRu, incoming.synonymRu)
         || !Objects.equals(baseline.comment, incoming.comment)
         || !catalogEquals(baseline.catalog, incoming.catalog, false);
+    return new ChangeMask(props, child);
+  }
+
+  private static ChangeMask documentMask(MdObjectPropertiesDto baseline, MdObjectPropertiesDto incoming) {
+    boolean child =
+      !namedListEquals(baseline.attributes, incoming.attributes)
+        || !namedListEquals(baseline.tabularSections, incoming.tabularSections);
+    boolean props =
+      !Objects.equals(baseline.synonymRu, incoming.synonymRu)
+        || !Objects.equals(baseline.comment, incoming.comment)
+        || !documentEquals(baseline.document, incoming.document, false);
     return new ChangeMask(props, child);
   }
 
