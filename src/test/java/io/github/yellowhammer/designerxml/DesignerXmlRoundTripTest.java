@@ -40,8 +40,9 @@ class DesignerXmlRoundTripTest {
   @TempDir
   Path tempDir;
 
+  /** Выгрузка ssl_3_1 сделана в формате 2.20: моделью следующей версии она тоже должна читаться. */
   @Test
-  void roundTripSsl31ConfigurationV2_21() throws Exception {
+  void roundTripSsl31ConfigurationByNewerModel() throws Exception {
     Path input = Ssl31SubmodulePaths.configurationXml();
     Path out = tempDir.resolve("out.xml");
 
@@ -55,8 +56,9 @@ class DesignerXmlRoundTripTest {
     assertThat(((JAXBElement<?>) again).getDeclaredType()).isEqualTo(((JAXBElement<?>) root).getDeclaredType());
   }
 
+  /** Родной формат выгрузки ssl_3_1. */
   @Test
-  void roundTripSsl31ConfigurationV2_20() throws Exception {
+  void roundTripSsl31ConfigurationInNativeFormat() throws Exception {
     Path input = Ssl31SubmodulePaths.configurationXml();
     Path out = tempDir.resolve("out-v2_20.xml");
 
