@@ -174,6 +174,8 @@ public final class MdObjectPropertiesGranularPatch {
       case "chartOfCharacteristicTypes" -> "ChartOfCharacteristicTypes";
       case "chartOfCalculationTypes" -> "ChartOfCalculationTypes";
       case "commonModule" -> "CommonModule";
+      case "informationRegister" -> "InformationRegister";
+      case "accumulationRegister" -> "AccumulationRegister";
       case "exchangePlan" -> "ExchangePlan";
       case "subsystem" -> "Subsystem";
       case "sessionParameter" -> "SessionParameter";

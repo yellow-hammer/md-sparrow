@@ -8,8 +8,9 @@ package io.github.yellowhammer.designerxml.cf;
 import io.github.yellowhammer.designerxml.DesignerXml;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,36 +18,48 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Добавление объектов в пустую выгрузку: файл появляется, регистрируется в {@code Configuration.xml},
+ * читается моделью своей версии и не зависит от запуска. Проверяем в каждом поддерживаемом формате.
+ *
+ * <p>Профиль объекта (набор элементов «как у конфигуратора») сверяется с эталоном той же версии,
+ * поэтому такие проверки тоже параметризованы.
+ */
 class MdObjectAddTest {
 
   @TempDir
   Path workspace;
 
-  @Test
-  void addEnumAfterEmptyCfV220() throws Exception {
-    Path cf = workspace.resolve("cf");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
-    String name = "_ПеречислениеТест";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.ENUM);
-    Path out = CfLayout.objectXmlInSubdir(cf, "Enums", name);
+  private Path emptyCfg(SchemaVersion version, String dirName) throws Exception {
+    Path cf = workspace.resolve(dirName + "-" + version.name());
+    EmptyCfScaffold.writeEmptyTree(cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, version);
+    return cf.resolve(CfLayout.CONFIGURATION_XML);
+  }
+
+  private static Path addAndRead(Path cfg, String subdir, String name, SchemaVersion version, MdObjectAddType type)
+    throws Exception {
+    MdObjectAdd.add(cfg, name, version, type);
+    Path out = CfLayout.objectXmlInSubdir(cfg.getParent(), subdir, name);
     assertThat(out).exists();
-    DesignerXml.read(out, SchemaVersion.V2_20);
+    DesignerXml.read(out, version);
+    return out;
+  }
+
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addEnumAfterEmptyCf(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cf");
+    String name = "_ПеречислениеТест";
+    addAndRead(cfg, "Enums", name, version, MdObjectAddType.ENUM);
     assertThat(Files.readString(cfg)).contains("<Enum>" + name + "</Enum>");
   }
 
-  @Test
-  void addConstantAfterEmptyCfV221() throws Exception {
-    Path cf = workspace.resolve("cf221");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_21);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addConstantAfterEmptyCf(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfConstant");
     String name = "_КонстантаТест";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_21, MdObjectAddType.CONSTANT);
-    Path out = CfLayout.objectXmlInSubdir(cf, "Constants", name);
-    assertThat(out).exists();
-    DesignerXml.read(out, SchemaVersion.V2_21);
+    Path out = addAndRead(cfg, "Constants", name, version, MdObjectAddType.CONSTANT);
     assertThat(Files.readString(cfg)).contains("<Constant>" + name + "</Constant>");
     String xml = Files.readString(out);
     assertThat(xml).contains("<xr:GeneratedType name=\"ConstantValueManager." + name + "\" category=\"ValueManager\">");
@@ -56,72 +69,41 @@ class MdObjectAddTest {
     assertThat(xml).contains("<QuickChoice>Auto</QuickChoice>");
   }
 
-  @Test
-  void addObjectIsDeterministicForSameInputV220() throws Exception {
-    Path cfA = workspace.resolve("cfA");
-    Path cfB = workspace.resolve("cfB");
-    EmptyCfScaffold.writeEmptyTree(
-      cfA, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    EmptyCfScaffold.writeEmptyTree(
-      cfB, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-
-    Path cfgA = cfA.resolve(CfLayout.CONFIGURATION_XML);
-    Path cfgB = cfB.resolve(CfLayout.CONFIGURATION_XML);
-    String name = "_ОтчетДетерминизм";
-
-    MdObjectAdd.add(cfgA, name, SchemaVersion.V2_20, MdObjectAddType.REPORT);
-    MdObjectAdd.add(cfgB, name, SchemaVersion.V2_20, MdObjectAddType.REPORT);
-
-    Path outA = CfLayout.objectXmlInSubdir(cfA, "Reports", name);
-    Path outB = CfLayout.objectXmlInSubdir(cfB, "Reports", name);
-    assertThat(outA).exists();
-    assertThat(outB).exists();
-    assertThat(Files.readString(outA)).isEqualTo(Files.readString(outB));
-    assertThat(Files.readString(cfgA)).isEqualTo(Files.readString(cfgB));
-  }
-
-  @Test
-  void addObjectAllTypesReadableV220() throws Exception {
-    Path cf = workspace.resolve("cfAllKinds");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
-
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addObjectAllTypesReadableAndDeterministic(SchemaVersion version) throws Exception {
+    Path cfgA = emptyCfg(version, "cfA");
+    Path cfgB = emptyCfg(version, "cfB");
     List<MdObjectAddType> types = List.of(MdObjectAddType.values());
     int idx = 1000;
     for (MdObjectAddType type : types) {
       String name = type.namePrefix() + idx++;
-      MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, type);
-      Path out = CfObjectPathResolver.objectXml(cf, type.configurationXmlTag(), name).orElseThrow();
-      assertThat(out).exists();
-      DesignerXml.read(out, SchemaVersion.V2_20);
+      MdObjectAdd.add(cfgA, name, version, type);
+      MdObjectAdd.add(cfgB, name, version, type);
+      Path outA = CfObjectPathResolver.objectXml(cfgA.getParent(), type.configurationXmlTag(), name).orElseThrow();
+      Path outB = CfObjectPathResolver.objectXml(cfgB.getParent(), type.configurationXmlTag(), name).orElseThrow();
+      assertThat(Files.readString(outA)).as("детерминированный вывод %s", type).isEqualTo(Files.readString(outB));
+      DesignerXml.read(outA, version);
     }
+    assertThat(Files.readString(cfgA)).isEqualTo(Files.readString(cfgB));
   }
 
-  @Test
-  void addWithNextAvailableNamePicksDocument1OnEmptyCfV220() throws Exception {
-    Path cf = workspace.resolve("cfAutoDocument");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
-    String name = MdObjectAdd.addWithNextAvailableName(
-      cfg, SchemaVersion.V2_20, MdObjectAddType.DOCUMENT, null, false);
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addWithNextAvailableNamePicksDocument1OnEmptyCf(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfAutoDocument");
+    String name = MdObjectAdd.addWithNextAvailableName(cfg, version, MdObjectAddType.DOCUMENT, null, false);
     assertThat(name).isEqualTo("Документ1");
-    Path out = CfLayout.objectXmlInSubdir(cf, "Documents", name);
-    assertThat(out).exists();
+    assertThat(CfLayout.objectXmlInSubdir(cfg.getParent(), "Documents", name)).exists();
     assertThat(Files.readString(cfg)).contains("<Document>" + name + "</Document>");
   }
 
-  @Test
-  void addDocumentProfileIsSnapshotLikeV220() throws Exception {
-    Path cf = workspace.resolve("cfDocument");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addDocumentProfileIsSnapshotLike(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfDocument");
     String name = "Документ1";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.DOCUMENT);
-    Path out = CfLayout.objectXmlInSubdir(cf, "Documents", name);
-    String xml = Files.readString(out);
+    String xml = Files.readString(addAndRead(cfg, "Documents", name, version, MdObjectAddType.DOCUMENT));
     assertThat(xml).contains("<InputByString>");
     assertThat(xml).contains("<xr:Field>Document." + name + ".StandardAttribute.Number</xr:Field>");
     assertThat(xml).contains("<Posting>Allow</Posting>");
@@ -130,105 +112,60 @@ class MdObjectAddTest {
     assertThat(xml).contains("<SequenceFilling>AutoFill</SequenceFilling>");
   }
 
-  @Test
-  void addReportProfileIsSnapshotLikeV220() throws Exception {
-    Path cf = workspace.resolve("cfReport");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
-    String name = "Отчет1";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.REPORT);
-    String xml = Files.readString(CfLayout.objectXmlInSubdir(cf, "Reports", name));
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addReportProfileIsSnapshotLike(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfReport");
+    String xml = Files.readString(addAndRead(cfg, "Reports", "Отчет1", version, MdObjectAddType.REPORT));
     assertThat(xml).contains("<DefaultForm/>");
     assertThat(xml).contains("<MainDataCompositionSchema/>");
     assertThat(xml).contains("<IncludeHelpInContents>false</IncludeHelpInContents>");
     assertThat(xml).contains("<ExtendedPresentation/>");
   }
 
-  @Test
-  void addDataProcessorProfileIsSnapshotLikeV220() throws Exception {
-    Path cf = workspace.resolve("cfDataProcessor");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
-    String name = "Обработка1";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.DATA_PROCESSOR);
-    String xml = Files.readString(CfLayout.objectXmlInSubdir(cf, "DataProcessors", name));
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addDataProcessorProfileIsSnapshotLike(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfDataProcessor");
+    String xml = Files.readString(addAndRead(cfg, "DataProcessors", "Обработка1", version, MdObjectAddType.DATA_PROCESSOR));
     assertThat(xml).contains("<DefaultForm/>");
     assertThat(xml).contains("<AuxiliaryForm/>");
     assertThat(xml).contains("<ExtendedPresentation/>");
     assertThat(xml).contains("<Explanation/>");
   }
 
-  @Test
-  void addEnumProfileIsSnapshotLikeV220() throws Exception {
-    Path cf = workspace.resolve("cfEnum");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
-    String name = "Перечисление1";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.ENUM);
-    String xml = Files.readString(CfLayout.objectXmlInSubdir(cf, "Enums", name));
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addEnumProfileIsSnapshotLike(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfEnumProfile");
+    String xml = Files.readString(addAndRead(cfg, "Enums", "Перечисление1", version, MdObjectAddType.ENUM));
     assertThat(xml).contains("<UseStandardCommands>false</UseStandardCommands>");
     assertThat(xml).contains("<QuickChoice>true</QuickChoice>");
     assertThat(xml).contains("<ChoiceMode>BothWays</ChoiceMode>");
     assertThat(xml).contains("<ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>");
   }
 
-  @Test
-  void addExternalDataSourceProfileIsSnapshotLikeV220() throws Exception {
-    Path cf = workspace.resolve("cfExternalDataSource");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addExternalDataSourceProfileIsSnapshotLike(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfExternalDataSource");
     String name = "ВнешнийИсточникДанных1";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.EXTERNAL_DATA_SOURCE);
-    String xml = Files.readString(CfLayout.objectXmlInSubdir(cf, "ExternalDataSources", name));
+    String xml = Files.readString(addAndRead(cfg, "ExternalDataSources", name, version, MdObjectAddType.EXTERNAL_DATA_SOURCE));
     assertThat(xml).contains("ExternalDataSourceTablesManager." + name);
     assertThat(xml).contains("ExternalDataSourceCubesManager." + name);
     assertThat(xml).contains("<DataLockControlMode>Automatic</DataLockControlMode>");
   }
 
-  @Test
-  void addTaskProfileIsSnapshotLikeV220() throws Exception {
-    Path cf = workspace.resolve("cfTask");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void addTaskProfileIsSnapshotLike(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfTask");
     String name = "Задача1";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.TASK);
-    String xml = Files.readString(CfLayout.objectXmlInSubdir(cf, "Tasks", name));
+    String xml = Files.readString(addAndRead(cfg, "Tasks", name, version, MdObjectAddType.TASK));
     assertThat(xml).contains("<TaskNumberAutoPrefix>DontUse</TaskNumberAutoPrefix>");
     assertThat(xml).contains("<DescriptionLength>25</DescriptionLength>");
     assertThat(xml).contains("<DefaultPresentation>AsDescription</DefaultPresentation>");
     assertThat(xml).contains("<xr:Field>Task." + name + ".StandardAttribute.Description</xr:Field>");
     assertThat(xml).contains("<FullTextSearch>Use</FullTextSearch>");
   }
-
-  @Test
-  void addObjectAllTypesDeterministicV221() throws Exception {
-    Path cfA = workspace.resolve("cfA221");
-    Path cfB = workspace.resolve("cfB221");
-    EmptyCfScaffold.writeEmptyTree(
-      cfA, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_21);
-    EmptyCfScaffold.writeEmptyTree(
-      cfB, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_21);
-    Path cfgA = cfA.resolve(CfLayout.CONFIGURATION_XML);
-    Path cfgB = cfB.resolve(CfLayout.CONFIGURATION_XML);
-
-    List<MdObjectAddType> types = List.of(MdObjectAddType.values());
-    int idx = 2000;
-    for (MdObjectAddType type : types) {
-      String name = type.namePrefix() + idx++;
-      MdObjectAdd.add(cfgA, name, SchemaVersion.V2_21, type);
-      MdObjectAdd.add(cfgB, name, SchemaVersion.V2_21, type);
-      Path outA = CfObjectPathResolver.objectXml(cfA, type.configurationXmlTag(), name).orElseThrow();
-      Path outB = CfObjectPathResolver.objectXml(cfB, type.configurationXmlTag(), name).orElseThrow();
-      assertThat(Files.readString(outA))
-        .as("детерминированный вывод %s", type)
-        .isEqualTo(Files.readString(outB));
-      DesignerXml.read(outA, SchemaVersion.V2_21);
-    }
-  }
-
 }

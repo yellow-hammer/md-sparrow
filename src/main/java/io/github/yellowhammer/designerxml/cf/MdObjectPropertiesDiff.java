@@ -75,6 +75,15 @@ public final class MdObjectPropertiesDiff {
     if (!namedListEquals(a.tabularSections, b.tabularSections)) {
       return false;
     }
+    if (!namedListEquals(a.enumValues, b.enumValues)) {
+      return false;
+    }
+    if (!namedListEquals(a.dimensions, b.dimensions) || !namedListEquals(a.resources, b.resources)) {
+      return false;
+    }
+    if (!namedListEquals(a.dimensions, b.dimensions) || !namedListEquals(a.resources, b.resources)) {
+      return false;
+    }
     if (!listStringEquals(a.nestedSubsystems, b.nestedSubsystems)) {
       return false;
     }
@@ -82,7 +91,8 @@ public final class MdObjectPropertiesDiff {
       return false;
     }
     return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs)
-      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs);
+      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs)
+      && simpleKindsEqual(a, b, lenientCatalogXmlBlobs);
   }
 
   /**
@@ -191,6 +201,9 @@ public final class MdObjectPropertiesDiff {
     if (!namedListEquals(a.tabularSections, b.tabularSections)) {
       return false;
     }
+    if (!namedListEquals(a.enumValues, b.enumValues)) {
+      return false;
+    }
     if (!listStringEquals(a.nestedSubsystems, b.nestedSubsystems)) {
       return false;
     }
@@ -198,7 +211,8 @@ public final class MdObjectPropertiesDiff {
       return false;
     }
     return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs)
-      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs);
+      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs)
+      && simpleKindsEqual(a, b, lenientCatalogXmlBlobs);
   }
 
   static boolean documentEquals(MdDocumentPropertiesDto a, MdDocumentPropertiesDto b, boolean lenientXmlBlobs) {
@@ -399,6 +413,7 @@ public final class MdObjectPropertiesDiff {
       case "exchangePlan" -> docLikeMask(baseline, incoming);
       case "constant", "enum", "report", "dataProcessor", "task", "chartOfAccounts",
            "chartOfCharacteristicTypes", "chartOfCalculationTypes", "commonModule",
+           "informationRegister", "accumulationRegister",
            "sessionParameter", "commonAttribute", "commonPicture", "documentNumerator",
            "externalDataSource", "role" -> docLikeMask(baseline, incoming);
       case "subsystem" -> subsystemMask(baseline, incoming);
@@ -431,11 +446,23 @@ public final class MdObjectPropertiesDiff {
   private static ChangeMask docLikeMask(MdObjectPropertiesDto baseline, MdObjectPropertiesDto incoming) {
     boolean child =
       !namedListEquals(baseline.attributes, incoming.attributes)
-        || !namedListEquals(baseline.tabularSections, incoming.tabularSections);
+        || !namedListEquals(baseline.tabularSections, incoming.tabularSections)
+        || !namedListEquals(baseline.enumValues, incoming.enumValues)
+        || !namedListEquals(baseline.dimensions, incoming.dimensions)
+        || !namedListEquals(baseline.resources, incoming.resources);
     boolean props =
       !Objects.equals(baseline.synonymRu, incoming.synonymRu)
-        || !Objects.equals(baseline.comment, incoming.comment);
+        || !Objects.equals(baseline.comment, incoming.comment)
+        || !simpleKindsEqual(baseline, incoming, false);
     return new ChangeMask(props, child);
+  }
+
+  /** Плоские DTO перечисления, константы, общего модуля и регистров. */
+  private static boolean simpleKindsEqual(MdObjectPropertiesDto a, MdObjectPropertiesDto b, boolean lenientXmlBlobs) {
+    return MdFlatDtoSupport.equalsFlat(a.enumeration, b.enumeration, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.constant, b.constant, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.commonModule, b.commonModule, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.register, b.register, lenientXmlBlobs);
   }
 
   private static ChangeMask subsystemMask(MdObjectPropertiesDto baseline, MdObjectPropertiesDto incoming) {
@@ -535,7 +562,8 @@ public final class MdObjectPropertiesDiff {
       MdNamedPropertyDto y = b.get(i);
       if (!Objects.equals(x.name, y.name)
         || !Objects.equals(x.synonymRu, y.synonymRu)
-        || !Objects.equals(x.comment, y.comment)) {
+        || !Objects.equals(x.comment, y.comment)
+        || !MdFlatDtoSupport.equalsFlat(x.type, y.type, false)) {
         return false;
       }
     }
