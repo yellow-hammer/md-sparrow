@@ -39,6 +39,15 @@ public final class MdObjectPropertiesJsonCoalesce {
     if (incoming.tabularSections == null || incoming.tabularSections.isEmpty()) {
       incoming.tabularSections = copyNamedList(baseline.tabularSections);
     }
+    if (incoming.enumValues == null || incoming.enumValues.isEmpty()) {
+      incoming.enumValues = copyNamedList(baseline.enumValues);
+    }
+    if (incoming.dimensions == null || incoming.dimensions.isEmpty()) {
+      incoming.dimensions = copyNamedList(baseline.dimensions);
+    }
+    if (incoming.resources == null || incoming.resources.isEmpty()) {
+      incoming.resources = copyNamedList(baseline.resources);
+    }
     if (incoming.nestedSubsystems == null) {
       incoming.nestedSubsystems = baseline.nestedSubsystems == null
         ? new ArrayList<>()
@@ -62,6 +71,55 @@ public final class MdObjectPropertiesJsonCoalesce {
       } else {
         coalesceDocument(incoming.document, baseline.document);
       }
+    }
+    if ("enum".equals(incoming.kind) && baseline.enumeration != null) {
+      incoming.enumeration = coalesceFlat(incoming.enumeration, baseline.enumeration);
+      canonicalizeEnumXmlBlobsFromBaselineIfLooseEqual(incoming.enumeration, baseline.enumeration);
+    }
+    if ("constant".equals(incoming.kind) && baseline.constant != null) {
+      incoming.constant = coalesceFlat(incoming.constant, baseline.constant);
+    }
+    if ("commonModule".equals(incoming.kind) && baseline.commonModule != null) {
+      incoming.commonModule = coalesceFlat(incoming.commonModule, baseline.commonModule);
+    }
+    if (isRegisterKind(incoming.kind) && baseline.register != null) {
+      incoming.register = coalesceFlat(incoming.register, baseline.register);
+      canonicalizeRegisterXmlBlobsFromBaselineIfLooseEqual(incoming.register, baseline.register);
+    }
+  }
+
+  static boolean isRegisterKind(String kind) {
+    return "informationRegister".equals(kind) || "accumulationRegister".equals(kind);
+  }
+
+  private static void canonicalizeRegisterXmlBlobsFromBaselineIfLooseEqual(
+    MdRegisterPropertiesDto d,
+    MdRegisterPropertiesDto b) {
+    if (MdObjectPropertiesDiff.looseXmlBlobEquals(d.standardAttributesXml, b.standardAttributesXml)) {
+      d.standardAttributesXml = b.standardAttributesXml;
+    }
+  }
+
+  private static <T> T coalesceFlat(T incoming, T baseline) {
+    if (incoming == null) {
+      return MdFlatDtoSupport.copy(baseline);
+    }
+    MdFlatDtoSupport.coalesce(incoming, baseline);
+    return incoming;
+  }
+
+  /**
+   * Блобы, отличающиеся только префиксами пространств имён, берём из базовой версии: иначе точечная
+   * запись сочла бы их изменёнными.
+   */
+  private static void canonicalizeEnumXmlBlobsFromBaselineIfLooseEqual(
+    MdEnumPropertiesDto d,
+    MdEnumPropertiesDto b) {
+    if (MdObjectPropertiesDiff.looseXmlBlobEquals(d.standardAttributesXml, b.standardAttributesXml)) {
+      d.standardAttributesXml = b.standardAttributesXml;
+    }
+    if (MdObjectPropertiesDiff.looseXmlBlobEquals(d.characteristicsXml, b.characteristicsXml)) {
+      d.characteristicsXml = b.characteristicsXml;
     }
   }
 

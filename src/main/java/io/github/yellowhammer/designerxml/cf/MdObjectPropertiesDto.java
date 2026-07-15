@@ -19,7 +19,7 @@ import java.util.List;
  * {@code chartOfCalculationTypes} | {@code commonModule} | {@code subsystem} | {@code sessionParameter} |
  * {@code exchangePlan} | {@code commonAttribute} | {@code commonPicture} | {@code documentNumerator} |
  * {@code externalDataSource} | {@code role} | {@code eventSubscription} | {@code scheduledJob} |
- * {@code commonCommand}.
+ * {@code commonCommand} | {@code informationRegister} | {@code accumulationRegister}.
  */
 public final class MdObjectPropertiesDto {
 
@@ -29,6 +29,12 @@ public final class MdObjectPropertiesDto {
   public String comment;
   public List<MdNamedPropertyDto> attributes;
   public List<MdNamedPropertyDto> tabularSections;
+  /** Значения перечисления (только для kind=enum). */
+  public List<MdNamedPropertyDto> enumValues;
+  /** Измерения регистра. */
+  public List<MdNamedPropertyDto> dimensions;
+  /** Ресурсы регистра. */
+  public List<MdNamedPropertyDto> resources;
   /** Подсистемы, вложенные в данную (только для kind=subsystem). */
   public List<String> nestedSubsystems;
   /**
@@ -39,10 +45,24 @@ public final class MdObjectPropertiesDto {
   public MdCatalogPropertiesDto catalog;
   /** Поля {@code DocumentProperties} для {@code kind=document}; иначе {@code null}. */
   public MdDocumentPropertiesDto document;
+  /** Поля {@code EnumProperties} для {@code kind=enum}; иначе {@code null}. */
+  public MdEnumPropertiesDto enumeration;
+  /** Поля {@code ConstantProperties} для {@code kind=constant}; иначе {@code null}. */
+  public MdConstantPropertiesDto constant;
+  /** Поля {@code CommonModuleProperties} для {@code kind=commonModule}; иначе {@code null}. */
+  public MdCommonModulePropertiesDto commonModule;
+  /**
+   * Поля регистра для {@code kind=informationRegister} и {@code kind=accumulationRegister};
+   * иначе {@code null}.
+   */
+  public MdRegisterPropertiesDto register;
 
   public MdObjectPropertiesDto() {
     this.attributes = new ArrayList<>();
     this.tabularSections = new ArrayList<>();
+    this.enumValues = new ArrayList<>();
+    this.dimensions = new ArrayList<>();
+    this.resources = new ArrayList<>();
     this.nestedSubsystems = new ArrayList<>();
     this.contentRefs = new ArrayList<>();
   }
