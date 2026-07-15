@@ -115,6 +115,191 @@ public final class MdObjectChildMutations {
   }
 
   /**
+   * Добавляет измерение регистра в корневой {@code ChildObjects}.
+   *
+   * @param objectXml путь к XML регистра
+   * @param version версия схемы Designer XML
+   * @param newName имя нового измерения
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void addDimension(Path objectXml, SchemaVersion version, String newName)
+    throws IOException, JAXBException {
+    addRegisterChild(objectXml, version, "Dimension", "Измерение", newName);
+  }
+
+  /**
+   * Переименовывает измерение регистра.
+   *
+   * @param objectXml путь к XML регистра
+   * @param version версия схемы Designer XML
+   * @param oldName текущее имя
+   * @param newName новое имя
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void renameDimension(Path objectXml, SchemaVersion version, String oldName, String newName)
+    throws IOException, JAXBException {
+    renameRegisterChild(objectXml, version, "Dimension", "Измерение", oldName, newName);
+  }
+
+  /**
+   * Удаляет измерение регистра.
+   *
+   * @param objectXml путь к XML регистра
+   * @param version версия схемы Designer XML
+   * @param name имя измерения
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void deleteDimension(Path objectXml, SchemaVersion version, String name)
+    throws IOException, JAXBException {
+    deleteRegisterChild(objectXml, version, "Dimension", "Измерение", name);
+  }
+
+  /**
+   * Создаёт копию измерения регистра.
+   *
+   * @param objectXml путь к XML регистра
+   * @param version версия схемы Designer XML
+   * @param sourceName имя исходного измерения
+   * @param newName имя копии
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void duplicateDimension(Path objectXml, SchemaVersion version, String sourceName, String newName)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      duplicateNamedChild(xml, containerLocal, "Dimension", sourceName, newName, "Измерение"));
+  }
+
+  /**
+   * Переставляет измерения регистра в заданном порядке.
+   */
+  public static void reorderDimensions(Path objectXml, SchemaVersion version, List<String> order)
+    throws IOException, JAXBException {
+    reorderRegisterChildren(objectXml, version, "Dimension", "Измерение", order);
+  }
+
+  /**
+   * Добавляет ресурс регистра в корневой {@code ChildObjects}.
+   *
+   * @param objectXml путь к XML регистра
+   * @param version версия схемы Designer XML
+   * @param newName имя нового ресурса
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void addResource(Path objectXml, SchemaVersion version, String newName)
+    throws IOException, JAXBException {
+    addRegisterChild(objectXml, version, "Resource", "Ресурс", newName);
+  }
+
+  /**
+   * Переименовывает ресурс регистра.
+   *
+   * @param objectXml путь к XML регистра
+   * @param version версия схемы Designer XML
+   * @param oldName текущее имя
+   * @param newName новое имя
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void renameResource(Path objectXml, SchemaVersion version, String oldName, String newName)
+    throws IOException, JAXBException {
+    renameRegisterChild(objectXml, version, "Resource", "Ресурс", oldName, newName);
+  }
+
+  /**
+   * Удаляет ресурс регистра.
+   *
+   * @param objectXml путь к XML регистра
+   * @param version версия схемы Designer XML
+   * @param name имя ресурса
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void deleteResource(Path objectXml, SchemaVersion version, String name)
+    throws IOException, JAXBException {
+    deleteRegisterChild(objectXml, version, "Resource", "Ресурс", name);
+  }
+
+  /**
+   * Создаёт копию ресурса регистра.
+   *
+   * @param objectXml путь к XML регистра
+   * @param version версия схемы Designer XML
+   * @param sourceName имя исходного ресурса
+   * @param newName имя копии
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void duplicateResource(Path objectXml, SchemaVersion version, String sourceName, String newName)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      duplicateNamedChild(xml, containerLocal, "Resource", sourceName, newName, "Ресурс"));
+  }
+
+  /**
+   * Переставляет ресурсы регистра в заданном порядке.
+   */
+  public static void reorderResources(Path objectXml, SchemaVersion version, List<String> order)
+    throws IOException, JAXBException {
+    reorderRegisterChildren(objectXml, version, "Resource", "Ресурс", order);
+  }
+
+  private static void addRegisterChild(
+    Path objectXml,
+    SchemaVersion version,
+    String childLocal,
+    String label,
+    String newName
+  ) throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ensureNotBlank(newName, "Введите имя: " + label.toLowerCase(java.util.Locale.ROOT) + ".");
+      ensureMissingNamedChild(xml, containerLocal, childLocal, newName, label + " уже существует: " + newName);
+      return insertIntoRootChildObjects(xml, containerLocal, buildNamedChildSnippet(childLocal, newName, newName, ""));
+    });
+  }
+
+  private static void renameRegisterChild(
+    Path objectXml,
+    SchemaVersion version,
+    String childLocal,
+    String label,
+    String oldName,
+    String newName
+  ) throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      renameNamedChild(xml, containerLocal, childLocal, oldName, newName, label));
+    FormDataPathCleanup.afterChildRename(objectXml, oldName, newName);
+  }
+
+  private static void deleteRegisterChild(
+    Path objectXml,
+    SchemaVersion version,
+    String childLocal,
+    String label,
+    String name
+  ) throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      deleteNamedChild(xml, containerLocal, childLocal, name, label));
+    FormDataPathCleanup.afterChildDelete(objectXml, name);
+  }
+
+  private static void reorderRegisterChildren(
+    Path objectXml,
+    SchemaVersion version,
+    String childLocal,
+    String label,
+    List<String> order
+  ) throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      reorderNamedRegions(xml, order, label,
+        name -> MdObjectXmlRegions.findNamedChildObjectRegion(xml, containerLocal, childLocal, name)));
+  }
+
+  /**
    * Добавляет значение перечисления в корневой {@code ChildObjects}.
    *
    * @param objectXml путь к XML перечисления
@@ -809,7 +994,12 @@ public final class MdObjectChildMutations {
   }
 
   private static String buildEnumValueSnippet(String name, String synonymRu, String comment) {
-    return "<EnumValue uuid=\"" + UUID.randomUUID() + "\">\n"
+    return buildNamedChildSnippet("EnumValue", name, synonymRu, comment);
+  }
+
+  /** Именованный дочерний объект с именем, синонимом и комментарием: значение, измерение, ресурс. */
+  private static String buildNamedChildSnippet(String childLocal, String name, String synonymRu, String comment) {
+    return "<" + childLocal + " uuid=\"" + UUID.randomUUID() + "\">\n"
       + "\t<Properties>\n"
       + "\t\t<Name>" + escapeXml(name) + "</Name>\n"
       + "\t\t<Synonym>\n"
@@ -822,7 +1012,7 @@ public final class MdObjectChildMutations {
       ? "\t\t<Comment/>\n"
       : "\t\t<Comment>" + escapeXml(comment) + "</Comment>\n")
       + "\t</Properties>\n"
-      + "</EnumValue>";
+      + "</" + childLocal + ">";
   }
 
   private static String buildTabularSectionSnippet(

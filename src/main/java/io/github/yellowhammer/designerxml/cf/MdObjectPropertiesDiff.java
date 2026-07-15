@@ -78,6 +78,12 @@ public final class MdObjectPropertiesDiff {
     if (!namedListEquals(a.enumValues, b.enumValues)) {
       return false;
     }
+    if (!namedListEquals(a.dimensions, b.dimensions) || !namedListEquals(a.resources, b.resources)) {
+      return false;
+    }
+    if (!namedListEquals(a.dimensions, b.dimensions) || !namedListEquals(a.resources, b.resources)) {
+      return false;
+    }
     if (!listStringEquals(a.nestedSubsystems, b.nestedSubsystems)) {
       return false;
     }
@@ -441,7 +447,9 @@ public final class MdObjectPropertiesDiff {
     boolean child =
       !namedListEquals(baseline.attributes, incoming.attributes)
         || !namedListEquals(baseline.tabularSections, incoming.tabularSections)
-        || !namedListEquals(baseline.enumValues, incoming.enumValues);
+        || !namedListEquals(baseline.enumValues, incoming.enumValues)
+        || !namedListEquals(baseline.dimensions, incoming.dimensions)
+        || !namedListEquals(baseline.resources, incoming.resources);
     boolean props =
       !Objects.equals(baseline.synonymRu, incoming.synonymRu)
         || !Objects.equals(baseline.comment, incoming.comment)

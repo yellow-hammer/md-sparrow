@@ -467,6 +467,75 @@ class ApplyMutationCmdTest {
   }
 
   @Test
+  void registerChildren_addRenameAndReorderDimensions() throws Exception {
+    Path objectXml = copyToTemp(sampleInformationRegisterXml());
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto before =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(before.dimensions).as("измерения должны читаться").isNotEmpty();
+    assertThat(before.resources).as("ресурсы должны читаться").isNotEmpty();
+    String firstDimension = before.dimensions.get(0).name;
+
+    run("cf-md-dimension-add", objectXml, "\"name\":\"НовоеИзмерение\"");
+    run("cf-md-resource-add", objectXml, "\"name\":\"НовыйРесурс\"");
+    run("cf-md-dimension-rename", objectXml, "\"oldName\":\"НовоеИзмерение\",\"newName\":\"Склад\"");
+    run("cf-md-dimension-reorder", objectXml,
+      "\"payloadJson\":" + json("[\"Склад\",\"" + firstDimension + "\"]"));
+
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto after =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(after.dimensions.stream().map(d -> d.name))
+      .as("порядок измерений задан списком")
+      .startsWith("Склад", firstDimension);
+    assertThat(after.resources.stream().map(r -> r.name)).contains("НовыйРесурс");
+
+    run("cf-md-dimension-delete", objectXml, "\"name\":\"Склад\"");
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto afterDelete =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(afterDelete.dimensions.stream().map(d -> d.name)).doesNotContain("Склад");
+  }
+
+  @Test
+  void objectSet_registerDimensionSynonym_writesGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleInformationRegisterXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    dto.dimensions.get(0).synonymRu = "Дата графика";
+    dto.resources.get(0).synonymRu = "Значение графика";
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("Дата графика").contains("Значение графика");
+    assertThat(countLines(after)).isEqualTo(countLines(before));
+  }
+
+  /** Запускает apply-mutation с полями операции; objectXml и schemaVersion добавляются сами. */
+  private static void run(String op, Path objectXml, String fieldsJson) throws Exception {
+    Path params = writeParams(
+      "{"
+        + "\"op\":" + json(op) + ","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + fieldsJson
+        + "}");
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+    assertThat(exit).as("операция %s", op).isZero();
+  }
+
+  @Test
   void unknownOp_returnsError() throws Exception {
     Path params = writeParams("{\"op\":\"no-such-op\"}");
     int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());

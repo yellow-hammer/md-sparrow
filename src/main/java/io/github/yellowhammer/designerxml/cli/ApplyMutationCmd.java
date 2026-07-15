@@ -140,6 +140,44 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.sourceName, "sourceName"), p.req(p.newName, "newName"));
         return "OK";
 
+      case "cf-md-dimension-add":
+        MdObjectChildMutations.addDimension(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-dimension-rename":
+        MdObjectChildMutations.renameDimension(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-dimension-delete":
+        MdObjectChildMutations.deleteDimension(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-dimension-duplicate":
+        MdObjectChildMutations.duplicateDimension(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.sourceName, "sourceName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-dimension-reorder":
+        MdObjectChildMutations.reorderDimensions(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), parseNameList(p));
+        return "OK";
+
+      case "cf-md-resource-add":
+        MdObjectChildMutations.addResource(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-resource-rename":
+        MdObjectChildMutations.renameResource(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-resource-delete":
+        MdObjectChildMutations.deleteResource(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-resource-duplicate":
+        MdObjectChildMutations.duplicateResource(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.sourceName, "sourceName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-resource-reorder":
+        MdObjectChildMutations.reorderResources(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), parseNameList(p));
+        return "OK";
+
       case "cf-md-enum-value-add":
         MdObjectChildMutations.addEnumValue(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
         return "OK";

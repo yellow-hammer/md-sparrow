@@ -66,7 +66,9 @@ public final class MdObjectPropertiesLeafDiff {
     }
     if (!namedListSameStructure(baseline.attributes, incoming.attributes)
       || !namedListSameStructure(baseline.tabularSections, incoming.tabularSections)
-      || !namedListSameStructure(baseline.enumValues, incoming.enumValues)) {
+      || !namedListSameStructure(baseline.enumValues, incoming.enumValues)
+      || !namedListSameStructure(baseline.dimensions, incoming.dimensions)
+      || !namedListSameStructure(baseline.resources, incoming.resources)) {
       return List.of();
     }
     if (!MdObjectPropertiesDiff.listStringEquals(baseline.nestedSubsystems, incoming.nestedSubsystems)) {
@@ -136,6 +138,8 @@ public final class MdObjectPropertiesLeafDiff {
     }
     List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
     MdSimplePropertiesGranularSerial.appendRegisterScalarChanges(baseline.register, incoming.register, out);
+    appendNamedChildSynonymComment("Dimension", baseline.dimensions, incoming.dimensions, out);
+    appendNamedChildSynonymComment("Resource", baseline.resources, incoming.resources, out);
     return out;
   }
 

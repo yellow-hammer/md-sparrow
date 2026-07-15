@@ -31,6 +31,10 @@ public final class MdObjectPropertiesDto {
   public List<MdNamedPropertyDto> tabularSections;
   /** Значения перечисления (только для kind=enum). */
   public List<MdNamedPropertyDto> enumValues;
+  /** Измерения регистра. */
+  public List<MdNamedPropertyDto> dimensions;
+  /** Ресурсы регистра. */
+  public List<MdNamedPropertyDto> resources;
   /** Подсистемы, вложенные в данную (только для kind=subsystem). */
   public List<String> nestedSubsystems;
   /**
@@ -57,6 +61,8 @@ public final class MdObjectPropertiesDto {
     this.attributes = new ArrayList<>();
     this.tabularSections = new ArrayList<>();
     this.enumValues = new ArrayList<>();
+    this.dimensions = new ArrayList<>();
+    this.resources = new ArrayList<>();
     this.nestedSubsystems = new ArrayList<>();
     this.contentRefs = new ArrayList<>();
   }

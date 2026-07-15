@@ -100,6 +100,12 @@ public final class MdObjectPropertiesEdit {
     if (dto.enumValues == null) {
       dto.enumValues = new ArrayList<>();
     }
+    if (dto.dimensions == null) {
+      dto.dimensions = new ArrayList<>();
+    }
+    if (dto.resources == null) {
+      dto.resources = new ArrayList<>();
+    }
     if (dto.nestedSubsystems == null) {
       dto.nestedSubsystems = new ArrayList<>();
     }
@@ -392,7 +398,10 @@ public final class MdObjectPropertiesEdit {
       }
       case "constant" -> MdConstantPropertiesBridge.read(props, dto);
       case "commonModule" -> MdCommonModulePropertiesBridge.read(props, dto);
-      case "informationRegister", "accumulationRegister" -> MdRegisterPropertiesBridge.read(version, props, dto);
+      case "informationRegister", "accumulationRegister" -> {
+        MdRegisterPropertiesBridge.read(version, props, dto);
+        readRegisterChildren(objectNode, dto);
+      }
       default -> {
       }
     }
@@ -416,6 +425,7 @@ public final class MdObjectPropertiesEdit {
     }
     if (("informationRegister".equals(dto.kind) || "accumulationRegister".equals(dto.kind)) && dto.register != null) {
       MdRegisterPropertiesBridge.apply(version, props, dto);
+      applyRegisterChildren(objectNode, dto);
       return;
     }
     String currentName = toStringOrEmpty(invokeNoArg(props, "getName"));
@@ -425,6 +435,39 @@ public final class MdObjectPropertiesEdit {
     String syn = dto.synonymRu == null ? "" : dto.synonymRu;
     writeLocalStringRu(props, syn);
     invokeSetterString(props, "setComment", dto.comment == null ? "" : dto.comment);
+  }
+
+  private static void readRegisterChildren(Object objectNode, MdObjectPropertiesDto dto) {
+    Object childObjects = invokeNoArgOrNull(objectNode, "getChildObjects");
+    if (childObjects == null) {
+      return;
+    }
+    for (Object dimension : JaxbReflect.<Object>list(childObjects, "getDimension")) {
+      dto.dimensions.add(namedDto(dimension));
+    }
+    for (Object resource : JaxbReflect.<Object>list(childObjects, "getResource")) {
+      dto.resources.add(namedDto(resource));
+    }
+    for (Object attribute : JaxbReflect.<Object>list(childObjects, "getAttribute")) {
+      dto.attributes.add(namedDto(attribute));
+    }
+  }
+
+  private static void applyRegisterChildren(Object objectNode, MdObjectPropertiesDto dto) {
+    Object childObjects = invokeNoArgOrNull(objectNode, "getChildObjects");
+    if (childObjects == null) {
+      return;
+    }
+    applyNamedList(JaxbReflect.list(childObjects, "getDimension"), dto.dimensions, "dimension");
+    applyNamedList(JaxbReflect.list(childObjects, "getResource"), dto.resources, "resource");
+    applyNamedList(JaxbReflect.list(childObjects, "getAttribute"), dto.attributes, "attribute");
+  }
+
+  private static void applyNamedList(List<Object> nodes, List<MdNamedPropertyDto> dtos, String label) {
+    validateNamed(dtos, nodes, label);
+    for (int i = 0; i < nodes.size(); i++) {
+      applyNamedDto(nodes.get(i), dtos.get(i), label);
+    }
   }
 
   private static void readEnumValues(Object objectNode, MdObjectPropertiesDto dto) {
