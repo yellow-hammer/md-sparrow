@@ -43,6 +43,8 @@ public final class MdObjectPropertiesEdit {
     new SimpleKindDef("chartOfCharacteristicTypes", "getChartOfCharacteristicTypes"),
     new SimpleKindDef("chartOfCalculationTypes", "getChartOfCalculationTypes"),
     new SimpleKindDef("commonModule", "getCommonModule"),
+    new SimpleKindDef("informationRegister", "getInformationRegister"),
+    new SimpleKindDef("accumulationRegister", "getAccumulationRegister"),
     new SimpleKindDef("sessionParameter", "getSessionParameter"),
     new SimpleKindDef("commonAttribute", "getCommonAttribute"),
     new SimpleKindDef("commonPicture", "getCommonPicture"),
@@ -94,6 +96,15 @@ public final class MdObjectPropertiesEdit {
     }
     if (dto.tabularSections == null) {
       dto.tabularSections = new ArrayList<>();
+    }
+    if (dto.enumValues == null) {
+      dto.enumValues = new ArrayList<>();
+    }
+    if (dto.dimensions == null) {
+      dto.dimensions = new ArrayList<>();
+    }
+    if (dto.resources == null) {
+      dto.resources = new ArrayList<>();
     }
     if (dto.nestedSubsystems == null) {
       dto.nestedSubsystems = new ArrayList<>();
@@ -170,7 +181,7 @@ public final class MdObjectPropertiesEdit {
     if (ep != null) {
       return readCatalogLike(ep, "exchangePlan", false, version);
     }
-    MdObjectPropertiesDto simple = tryReadSimpleKind(mdo);
+    MdObjectPropertiesDto simple = tryReadSimpleKind(mdo, version);
     if (simple != null) {
       return simple;
     }
@@ -212,10 +223,13 @@ public final class MdObjectPropertiesEdit {
   private static MdNamedPropertyDto namedDto(Object attrOrSection) {
     Object p = JaxbReflect.get(attrOrSection, "getProperties");
     String comment = JaxbReflect.getString(p, "getComment");
-    return new MdNamedPropertyDto(
+    MdNamedPropertyDto dto = new MdNamedPropertyDto(
       JaxbReflect.getString(p, "getName"),
       LocalStringSync.firstRu(JaxbReflect.get(p, "getSynonym")),
       comment == null ? "" : comment);
+    // У табличной части и значения перечисления типа нет — getType вернёт null.
+    dto.type = MdTypeDescriptionBridge.read(JaxbReflect.getOptional(p, "getType"));
+    return dto;
   }
 
   private static MdObjectPropertiesDto readSubsystem(Object sub) {
@@ -239,7 +253,7 @@ public final class MdObjectPropertiesEdit {
 
   private static void applyDto(JAXBElement<?> je, SchemaVersion version, MdObjectPropertiesDto dto) {
     Object mdo = je.getValue();
-    if (tryApplySimpleKind(mdo, dto)) {
+    if (tryApplySimpleKind(mdo, version, dto)) {
       return;
     }
     switch (dto.kind) {
@@ -316,6 +330,9 @@ public final class MdObjectPropertiesEdit {
     if (d == null || d.name == null || !d.name.equals(JaxbReflect.getString(p, "getName"))) {
       throw new IllegalArgumentException(label + " name mismatch");
     }
+    if (d.type != null) {
+      MdTypeDescriptionBridge.apply(JaxbReflect.ensureOptional(p, "getType", "setType"), d.type);
+    }
     String syn = d.synonymRu == null ? "" : d.synonymRu;
     LocalStringSync.setOrPutRu(JaxbReflect.get(p, "getSynonym"), syn);
     JaxbReflect.set(p, "setComment", d.comment == null ? "" : d.comment);
@@ -350,17 +367,17 @@ public final class MdObjectPropertiesEdit {
     }
   }
 
-  private static MdObjectPropertiesDto tryReadSimpleKind(Object metaDataObject) {
+  private static MdObjectPropertiesDto tryReadSimpleKind(Object metaDataObject, SchemaVersion version) {
     for (SimpleKindDef def : SIMPLE_KINDS) {
       Object child = invokeNoArgOrNull(metaDataObject, def.getterName);
       if (child != null) {
-        return readSimpleDto(def.kind, child);
+        return readSimpleDto(def.kind, child, version);
       }
     }
     return null;
   }
 
-  private static boolean tryApplySimpleKind(Object metaDataObject, MdObjectPropertiesDto dto) {
+  private static boolean tryApplySimpleKind(Object metaDataObject, SchemaVersion version, MdObjectPropertiesDto dto) {
     SimpleKindDef def = simpleKindByName(dto.kind);
     if (def == null) {
       return false;
@@ -369,22 +386,54 @@ public final class MdObjectPropertiesEdit {
     if (child == null) {
       throw new IllegalArgumentException("MetaDataObject is not a " + dto.kind);
     }
-    applySimpleDto(child, dto);
+    applySimpleDto(child, version, dto);
     return true;
   }
 
-  private static MdObjectPropertiesDto readSimpleDto(String kind, Object objectNode) {
+  private static MdObjectPropertiesDto readSimpleDto(String kind, Object objectNode, SchemaVersion version) {
     Object props = invokeNoArg(objectNode, "getProperties");
     MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
     dto.kind = kind;
     dto.internalName = toStringOrEmpty(invokeNoArg(props, "getName"));
     dto.synonymRu = readLocalStringRu(invokeNoArgOrNull(props, "getSynonym"));
     dto.comment = toStringOrEmpty(invokeNoArgOrNull(props, "getComment"));
+    switch (kind) {
+      case "enum" -> {
+        MdEnumPropertiesBridge.read(version, props, dto);
+        readEnumValues(objectNode, dto);
+      }
+      case "constant" -> MdConstantPropertiesBridge.read(props, dto);
+      case "commonModule" -> MdCommonModulePropertiesBridge.read(props, dto);
+      case "informationRegister", "accumulationRegister" -> {
+        MdRegisterPropertiesBridge.read(version, props, dto);
+        readRegisterChildren(objectNode, dto);
+      }
+      default -> {
+      }
+    }
     return dto;
   }
 
-  private static void applySimpleDto(Object objectNode, MdObjectPropertiesDto dto) {
+  private static void applySimpleDto(Object objectNode, SchemaVersion version, MdObjectPropertiesDto dto) {
     Object props = invokeNoArg(objectNode, "getProperties");
+    if ("enum".equals(dto.kind) && dto.enumeration != null) {
+      MdEnumPropertiesBridge.apply(version, props, dto);
+      applyEnumValues(objectNode, dto);
+      return;
+    }
+    if ("constant".equals(dto.kind) && dto.constant != null) {
+      MdConstantPropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("commonModule".equals(dto.kind) && dto.commonModule != null) {
+      MdCommonModulePropertiesBridge.apply(props, dto);
+      return;
+    }
+    if (("informationRegister".equals(dto.kind) || "accumulationRegister".equals(dto.kind)) && dto.register != null) {
+      MdRegisterPropertiesBridge.apply(version, props, dto);
+      applyRegisterChildren(objectNode, dto);
+      return;
+    }
     String currentName = toStringOrEmpty(invokeNoArg(props, "getName"));
     if (!dto.internalName.equals(currentName)) {
       throw new IllegalArgumentException("internalName mismatch with XML");
@@ -392,6 +441,61 @@ public final class MdObjectPropertiesEdit {
     String syn = dto.synonymRu == null ? "" : dto.synonymRu;
     writeLocalStringRu(props, syn);
     invokeSetterString(props, "setComment", dto.comment == null ? "" : dto.comment);
+  }
+
+  private static void readRegisterChildren(Object objectNode, MdObjectPropertiesDto dto) {
+    Object childObjects = invokeNoArgOrNull(objectNode, "getChildObjects");
+    if (childObjects == null) {
+      return;
+    }
+    for (Object dimension : JaxbReflect.<Object>list(childObjects, "getDimension")) {
+      dto.dimensions.add(namedDto(dimension));
+    }
+    for (Object resource : JaxbReflect.<Object>list(childObjects, "getResource")) {
+      dto.resources.add(namedDto(resource));
+    }
+    for (Object attribute : JaxbReflect.<Object>list(childObjects, "getAttribute")) {
+      dto.attributes.add(namedDto(attribute));
+    }
+  }
+
+  private static void applyRegisterChildren(Object objectNode, MdObjectPropertiesDto dto) {
+    Object childObjects = invokeNoArgOrNull(objectNode, "getChildObjects");
+    if (childObjects == null) {
+      return;
+    }
+    applyNamedList(JaxbReflect.list(childObjects, "getDimension"), dto.dimensions, "dimension");
+    applyNamedList(JaxbReflect.list(childObjects, "getResource"), dto.resources, "resource");
+    applyNamedList(JaxbReflect.list(childObjects, "getAttribute"), dto.attributes, "attribute");
+  }
+
+  private static void applyNamedList(List<Object> nodes, List<MdNamedPropertyDto> dtos, String label) {
+    validateNamed(dtos, nodes, label);
+    for (int i = 0; i < nodes.size(); i++) {
+      applyNamedDto(nodes.get(i), dtos.get(i), label);
+    }
+  }
+
+  private static void readEnumValues(Object objectNode, MdObjectPropertiesDto dto) {
+    Object childObjects = invokeNoArgOrNull(objectNode, "getChildObjects");
+    if (childObjects == null) {
+      return;
+    }
+    for (Object value : JaxbReflect.<Object>list(childObjects, "getEnumValue")) {
+      dto.enumValues.add(namedDto(value));
+    }
+  }
+
+  private static void applyEnumValues(Object objectNode, MdObjectPropertiesDto dto) {
+    Object childObjects = invokeNoArgOrNull(objectNode, "getChildObjects");
+    if (childObjects == null) {
+      return;
+    }
+    List<Object> values = JaxbReflect.list(childObjects, "getEnumValue");
+    validateNamed(dto.enumValues, values, "enumValue");
+    for (int i = 0; i < values.size(); i++) {
+      applyNamedDto(values.get(i), dto.enumValues.get(i), "enum value");
+    }
   }
 
   private static String readLocalStringRu(Object localString) {
