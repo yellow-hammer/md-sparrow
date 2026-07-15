@@ -575,6 +575,45 @@ class ApplyMutationCmdTest {
   }
 
   @Test
+  void objectSet_attributeType_writesGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleCatalogXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto attribute = dto.attributes.stream()
+      .filter(a -> a.type != null && a.type.types.contains("xs:string"))
+      .findFirst()
+      .orElseThrow(() -> new AssertionError("нужен строковый реквизит"));
+    assertThat(attribute.type.stringQualifiers).as("квалификаторы строки читаются").isNotNull();
+
+    attribute.type.stringQualifiers.length = "77";
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("<v8:Length>77</v8:Length>");
+    assertThat(countLines(after)).isEqualTo(countLines(before));
+
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto reread =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto rereadAttribute = reread.attributes.stream()
+      .filter(a -> a.name.equals(attribute.name))
+      .findFirst()
+      .orElseThrow();
+    assertThat(rereadAttribute.type.stringQualifiers.length).isEqualTo("77");
+  }
+
+  @Test
   void unknownOp_returnsError() throws Exception {
     Path params = writeParams("{\"op\":\"no-such-op\"}");
     int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());

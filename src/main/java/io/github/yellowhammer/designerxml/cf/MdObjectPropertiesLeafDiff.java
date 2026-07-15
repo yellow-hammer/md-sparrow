@@ -192,6 +192,13 @@ public final class MdObjectPropertiesLeafDiff {
           "Comment",
           MdCatalogPropertiesGranularSerial.commentElement(y.comment)));
       }
+      if (!MdFlatDtoSupport.equalsFlat(x.type, y.type, false)) {
+        out.add(GranularPatchChange.namedChild(
+          childContainerLocal,
+          y.name,
+          "Type",
+          MdTypeDescriptionSerial.typeElement("Type", y.type)));
+      }
     }
   }
 

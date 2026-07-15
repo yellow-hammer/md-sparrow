@@ -9,13 +9,18 @@
 package io.github.yellowhammer.designerxml.cf;
 
 /**
- * Реквизит или табличная часть: имя не меняется через DTO, только синоним ru и комментарий.
+ * Реквизит, табличная часть, значение перечисления, измерение или ресурс: имя не меняется через DTO,
+ * только синоним ru, комментарий и тип.
+ *
+ * <p>{@link #type} есть у того, у чего платформа его требует; у табличных частей и значений
+ * перечисления он {@code null}.
  */
 public final class MdNamedPropertyDto {
 
   public String name;
   public String synonymRu;
   public String comment;
+  public MdTypeDescriptionDto type;
 
   public MdNamedPropertyDto() {
   }

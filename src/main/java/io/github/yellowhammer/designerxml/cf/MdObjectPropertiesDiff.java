@@ -562,7 +562,8 @@ public final class MdObjectPropertiesDiff {
       MdNamedPropertyDto y = b.get(i);
       if (!Objects.equals(x.name, y.name)
         || !Objects.equals(x.synonymRu, y.synonymRu)
-        || !Objects.equals(x.comment, y.comment)) {
+        || !Objects.equals(x.comment, y.comment)
+        || !MdFlatDtoSupport.equalsFlat(x.type, y.type, false)) {
         return false;
       }
     }

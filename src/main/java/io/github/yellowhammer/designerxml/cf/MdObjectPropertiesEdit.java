@@ -223,10 +223,13 @@ public final class MdObjectPropertiesEdit {
   private static MdNamedPropertyDto namedDto(Object attrOrSection) {
     Object p = JaxbReflect.get(attrOrSection, "getProperties");
     String comment = JaxbReflect.getString(p, "getComment");
-    return new MdNamedPropertyDto(
+    MdNamedPropertyDto dto = new MdNamedPropertyDto(
       JaxbReflect.getString(p, "getName"),
       LocalStringSync.firstRu(JaxbReflect.get(p, "getSynonym")),
       comment == null ? "" : comment);
+    // У табличной части и значения перечисления типа нет — getType вернёт null.
+    dto.type = MdTypeDescriptionBridge.read(JaxbReflect.getOptional(p, "getType"));
+    return dto;
   }
 
   private static MdObjectPropertiesDto readSubsystem(Object sub) {
@@ -326,6 +329,9 @@ public final class MdObjectPropertiesEdit {
     Object p = JaxbReflect.get(node, "getProperties");
     if (d == null || d.name == null || !d.name.equals(JaxbReflect.getString(p, "getName"))) {
       throw new IllegalArgumentException(label + " name mismatch");
+    }
+    if (d.type != null) {
+      MdTypeDescriptionBridge.apply(JaxbReflect.ensureOptional(p, "getType", "setType"), d.type);
     }
     String syn = d.synonymRu == null ? "" : d.synonymRu;
     LocalStringSync.setOrPutRu(JaxbReflect.get(p, "getSynonym"), syn);
