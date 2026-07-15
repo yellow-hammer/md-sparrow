@@ -41,6 +41,7 @@ import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphDto;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
 import io.github.yellowhammer.designerxml.cf.ProjectSourceDirs;
+import io.github.yellowhammer.designerxml.cf.SubsystemTreeBuilder;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -131,6 +132,11 @@ final class ReadJsonCmd implements Callable<Integer> {
         var names = ConfigurationCatalogLister.listCatalogNames(
           p.reqPath(p.configurationXml, "configurationXml"), p.version());
         return ConfigurationCatalogLister.toJsonArray(names);
+      }
+      case "cf-md-subsystem-tree": {
+        var nodes = SubsystemTreeBuilder.build(
+          p.reqPath(p.configurationXml, "configurationXml"), p.version());
+        return gson.toJson(nodes);
       }
       case "project-metadata-tree": {
         ProjectMetadataTreeDto dto = ProjectMetadataTreeBuilder.build(

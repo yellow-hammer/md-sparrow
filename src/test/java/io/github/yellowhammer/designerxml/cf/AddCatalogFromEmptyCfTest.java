@@ -8,52 +8,40 @@ package io.github.yellowhammer.designerxml.cf;
 import io.github.yellowhammer.designerxml.DesignerXml;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Первый справочник после {@link EmptyCfScaffold#writeEmptyTree} — без готового {@code Catalogs/*.xml}. */
+/**
+ * Первый справочник после {@link EmptyCfScaffold#writeEmptyTree} — без готового {@code Catalogs/*.xml}.
+ * Проверяем в каждом поддерживаемом формате, а не в паре выбранных.
+ */
 class AddCatalogFromEmptyCfTest {
 
   @TempDir
   Path workspace;
 
-  @Test
-  void firstCatalogV220WithoutExistingCatalogsXml() throws Exception {
-    Path cf = workspace.resolve("cf");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_20);
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void firstCatalogWithoutExistingCatalogsXml(SchemaVersion version) throws Exception {
+    Path cf = workspace.resolve("cf-" + version.name());
+    EmptyCfScaffold.writeEmptyTree(cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, version);
     Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
     assertThat(cf.resolve(CfLayout.CATALOGS_DIR)).doesNotExist();
-    assertThat(Files.readString(cfg)).contains("version=\"2.20\"");
+    assertThat(Files.readString(cfg)).contains("version=\"" + version.metadataObjectVersionAttribute() + "\"");
 
     String name = "_ПервыйИзПустой";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_20, MdObjectAddType.CATALOG, "Первый", false);
+    MdObjectAdd.add(cfg, name, version, MdObjectAddType.CATALOG, "Первый", false);
 
     Path catXml = CfLayout.catalogObjectXml(cf, name);
     assertThat(catXml).exists();
-    DesignerXml.read(catXml, SchemaVersion.V2_20);
-    String text = Files.readString(catXml, java.nio.charset.StandardCharsets.UTF_8);
-    assertThat(text).contains("<Name>" + name + "</Name>");
-  }
-
-  @Test
-  void firstCatalogV221WithoutExistingCatalogsXml() throws Exception {
-    Path cf = workspace.resolve("cf221");
-    EmptyCfScaffold.writeEmptyTree(
-      cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, SchemaVersion.V2_21);
-    Path cfg = cf.resolve(CfLayout.CONFIGURATION_XML);
-    assertThat(Files.readString(cfg)).contains("version=\"2.21\"");
-
-    String name = "_Первый221";
-    MdObjectAdd.add(cfg, name, SchemaVersion.V2_21, MdObjectAddType.CATALOG, "Первый", false);
-
-    Path catXml = CfLayout.catalogObjectXml(cf, name);
-    assertThat(catXml).exists();
-    DesignerXml.read(catXml, SchemaVersion.V2_21);
+    DesignerXml.read(catXml, version);
+    assertThat(Files.readString(catXml, StandardCharsets.UTF_8)).contains("<Name>" + name + "</Name>");
   }
 }
