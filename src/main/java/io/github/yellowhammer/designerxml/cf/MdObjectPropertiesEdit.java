@@ -43,6 +43,8 @@ public final class MdObjectPropertiesEdit {
     new SimpleKindDef("chartOfCharacteristicTypes", "getChartOfCharacteristicTypes"),
     new SimpleKindDef("chartOfCalculationTypes", "getChartOfCalculationTypes"),
     new SimpleKindDef("commonModule", "getCommonModule"),
+    new SimpleKindDef("informationRegister", "getInformationRegister"),
+    new SimpleKindDef("accumulationRegister", "getAccumulationRegister"),
     new SimpleKindDef("sessionParameter", "getSessionParameter"),
     new SimpleKindDef("commonAttribute", "getCommonAttribute"),
     new SimpleKindDef("commonPicture", "getCommonPicture"),
@@ -390,6 +392,7 @@ public final class MdObjectPropertiesEdit {
       }
       case "constant" -> MdConstantPropertiesBridge.read(props, dto);
       case "commonModule" -> MdCommonModulePropertiesBridge.read(props, dto);
+      case "informationRegister", "accumulationRegister" -> MdRegisterPropertiesBridge.read(version, props, dto);
       default -> {
       }
     }
@@ -409,6 +412,10 @@ public final class MdObjectPropertiesEdit {
     }
     if ("commonModule".equals(dto.kind) && dto.commonModule != null) {
       MdCommonModulePropertiesBridge.apply(props, dto);
+      return;
+    }
+    if (("informationRegister".equals(dto.kind) || "accumulationRegister".equals(dto.kind)) && dto.register != null) {
+      MdRegisterPropertiesBridge.apply(version, props, dto);
       return;
     }
     String currentName = toStringOrEmpty(invokeNoArg(props, "getName"));

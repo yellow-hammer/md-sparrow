@@ -407,6 +407,7 @@ public final class MdObjectPropertiesDiff {
       case "exchangePlan" -> docLikeMask(baseline, incoming);
       case "constant", "enum", "report", "dataProcessor", "task", "chartOfAccounts",
            "chartOfCharacteristicTypes", "chartOfCalculationTypes", "commonModule",
+           "informationRegister", "accumulationRegister",
            "sessionParameter", "commonAttribute", "commonPicture", "documentNumerator",
            "externalDataSource", "role" -> docLikeMask(baseline, incoming);
       case "subsystem" -> subsystemMask(baseline, incoming);
@@ -448,11 +449,12 @@ public final class MdObjectPropertiesDiff {
     return new ChangeMask(props, child);
   }
 
-  /** Плоские DTO перечисления, константы и общего модуля. */
+  /** Плоские DTO перечисления, константы, общего модуля и регистров. */
   private static boolean simpleKindsEqual(MdObjectPropertiesDto a, MdObjectPropertiesDto b, boolean lenientXmlBlobs) {
     return MdFlatDtoSupport.equalsFlat(a.enumeration, b.enumeration, lenientXmlBlobs)
       && MdFlatDtoSupport.equalsFlat(a.constant, b.constant, lenientXmlBlobs)
-      && MdFlatDtoSupport.equalsFlat(a.commonModule, b.commonModule, lenientXmlBlobs);
+      && MdFlatDtoSupport.equalsFlat(a.commonModule, b.commonModule, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.register, b.register, lenientXmlBlobs);
   }
 
   private static ChangeMask subsystemMask(MdObjectPropertiesDto baseline, MdObjectPropertiesDto incoming) {

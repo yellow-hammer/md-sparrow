@@ -19,7 +19,7 @@ import java.util.List;
  * {@code chartOfCalculationTypes} | {@code commonModule} | {@code subsystem} | {@code sessionParameter} |
  * {@code exchangePlan} | {@code commonAttribute} | {@code commonPicture} | {@code documentNumerator} |
  * {@code externalDataSource} | {@code role} | {@code eventSubscription} | {@code scheduledJob} |
- * {@code commonCommand}.
+ * {@code commonCommand} | {@code informationRegister} | {@code accumulationRegister}.
  */
 public final class MdObjectPropertiesDto {
 
@@ -47,6 +47,11 @@ public final class MdObjectPropertiesDto {
   public MdConstantPropertiesDto constant;
   /** Поля {@code CommonModuleProperties} для {@code kind=commonModule}; иначе {@code null}. */
   public MdCommonModulePropertiesDto commonModule;
+  /**
+   * Поля регистра для {@code kind=informationRegister} и {@code kind=accumulationRegister};
+   * иначе {@code null}.
+   */
+  public MdRegisterPropertiesDto register;
 
   public MdObjectPropertiesDto() {
     this.attributes = new ArrayList<>();

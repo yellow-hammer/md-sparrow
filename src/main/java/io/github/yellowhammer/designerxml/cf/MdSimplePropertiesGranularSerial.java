@@ -11,7 +11,8 @@ package io.github.yellowhammer.designerxml.cf;
 import java.util.List;
 
 /**
- * Точечные замены прямых дочерних элементов {@code Properties} перечисления, константы и общего модуля.
+ * Точечные замены прямых дочерних элементов {@code Properties} перечисления, константы, общего
+ * модуля и регистров.
  */
 final class MdSimplePropertiesGranularSerial {
 
@@ -75,6 +76,46 @@ final class MdSimplePropertiesGranularSerial {
       b.updateDataHistoryImmediatelyAfterWrite, i.updateDataHistoryImmediatelyAfterWrite);
     c.bool("ExecuteAfterWriteDataHistoryVersionProcessing",
       b.executeAfterWriteDataHistoryVersionProcessing, i.executeAfterWriteDataHistoryVersionProcessing);
+  }
+
+  static void appendRegisterScalarChanges(
+    MdRegisterPropertiesDto b,
+    MdRegisterPropertiesDto i,
+    List<MdObjectPropertiesLeafDiff.GranularPatchChange> out) {
+    MdPropertiesGranularChanges c = new MdPropertiesGranularChanges(out);
+    c.enumText("ObjectBelonging", b.objectBelonging, i.objectBelonging);
+    c.bool("UseStandardCommands", b.useStandardCommands, i.useStandardCommands);
+    c.enumText("EditType", b.editType, i.editType);
+    c.text("DefaultRecordForm", b.defaultRecordForm, i.defaultRecordForm);
+    c.text("DefaultListForm", b.defaultListForm, i.defaultListForm);
+    c.text("AuxiliaryRecordForm", b.auxiliaryRecordForm, i.auxiliaryRecordForm);
+    c.text("AuxiliaryListForm", b.auxiliaryListForm, i.auxiliaryListForm);
+    c.xmlBlob("StandardAttributes", b.standardAttributesXml, i.standardAttributesXml);
+    c.enumText("InformationRegisterPeriodicity", b.informationRegisterPeriodicity, i.informationRegisterPeriodicity);
+    c.enumText("WriteMode", b.writeMode, i.writeMode);
+    c.bool("MainFilterOnPeriod", b.mainFilterOnPeriod, i.mainFilterOnPeriod);
+    c.enumText("RegisterType", b.registerType, i.registerType);
+    c.bool("IncludeHelpInContents", b.includeHelpInContents, i.includeHelpInContents);
+    c.text("Help", b.help, i.help);
+    c.text("RecordSetModule", b.recordSetModule, i.recordSetModule);
+    c.text("ManagerModule", b.managerModule, i.managerModule);
+    c.enumText("DataLockControlMode", b.dataLockControlMode, i.dataLockControlMode);
+    c.enumText("FullTextSearch", b.fullTextSearch, i.fullTextSearch);
+    c.bool("EnableTotalsSliceFirst", b.enableTotalsSliceFirst, i.enableTotalsSliceFirst);
+    c.bool("EnableTotalsSliceLast", b.enableTotalsSliceLast, i.enableTotalsSliceLast);
+    c.bool("EnableTotalsSplitting", b.enableTotalsSplitting, i.enableTotalsSplitting);
+    c.text("Aggregates", b.aggregates, i.aggregates);
+    c.localStringRu("RecordPresentation", b.recordPresentationRu, i.recordPresentationRu);
+    c.localStringRu("ExtendedRecordPresentation", b.extendedRecordPresentationRu, i.extendedRecordPresentationRu);
+    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
+    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.enumText("DataHistory", b.dataHistory, i.dataHistory);
+    c.bool("UpdateDataHistoryImmediatelyAfterWrite",
+      b.updateDataHistoryImmediatelyAfterWrite, i.updateDataHistoryImmediatelyAfterWrite);
+    c.bool("ExecuteAfterWriteDataHistoryVersionProcessing",
+      b.executeAfterWriteDataHistoryVersionProcessing, i.executeAfterWriteDataHistoryVersionProcessing);
+    c.text("AdditionalIndexes", b.additionalIndexes, i.additionalIndexes);
   }
 
   static void appendCommonModuleScalarChanges(

@@ -76,6 +76,22 @@ public final class MdObjectPropertiesJsonCoalesce {
     if ("commonModule".equals(incoming.kind) && baseline.commonModule != null) {
       incoming.commonModule = coalesceFlat(incoming.commonModule, baseline.commonModule);
     }
+    if (isRegisterKind(incoming.kind) && baseline.register != null) {
+      incoming.register = coalesceFlat(incoming.register, baseline.register);
+      canonicalizeRegisterXmlBlobsFromBaselineIfLooseEqual(incoming.register, baseline.register);
+    }
+  }
+
+  static boolean isRegisterKind(String kind) {
+    return "informationRegister".equals(kind) || "accumulationRegister".equals(kind);
+  }
+
+  private static void canonicalizeRegisterXmlBlobsFromBaselineIfLooseEqual(
+    MdRegisterPropertiesDto d,
+    MdRegisterPropertiesDto b) {
+    if (MdObjectPropertiesDiff.looseXmlBlobEquals(d.standardAttributesXml, b.standardAttributesXml)) {
+      d.standardAttributesXml = b.standardAttributesXml;
+    }
   }
 
   private static <T> T coalesceFlat(T incoming, T baseline) {

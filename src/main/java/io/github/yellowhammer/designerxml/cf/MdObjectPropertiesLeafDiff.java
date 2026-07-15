@@ -84,6 +84,7 @@ public final class MdObjectPropertiesLeafDiff {
       case "enum" -> enumPropertyChanges(baseline, incoming);
       case "constant" -> constantPropertyChanges(baseline, incoming);
       case "commonModule" -> commonModulePropertyChanges(baseline, incoming);
+      case "informationRegister", "accumulationRegister" -> registerPropertyChanges(baseline, incoming);
       case "report", "dataProcessor", "task", "chartOfAccounts",
            "chartOfCharacteristicTypes", "chartOfCalculationTypes",
            "sessionParameter", "commonAttribute", "commonPicture", "documentNumerator",
@@ -124,6 +125,17 @@ public final class MdObjectPropertiesLeafDiff {
     List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
     MdSimplePropertiesGranularSerial.appendCommonModuleScalarChanges(
       baseline.commonModule, incoming.commonModule, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> registerPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.register == null || incoming.register == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendRegisterScalarChanges(baseline.register, incoming.register, out);
     return out;
   }
 

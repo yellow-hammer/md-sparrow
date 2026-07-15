@@ -402,6 +402,71 @@ class ApplyMutationCmdTest {
   }
 
   @Test
+  void objectSet_informationRegisterScalars_writeGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleInformationRegisterXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(dto.kind).isEqualTo("informationRegister");
+    assertThat(dto.register).as("регистр сведений должен читаться гранулярно").isNotNull();
+    assertThat(dto.register.writeMode).isEqualTo("INDEPENDENT");
+    dto.synonymRu = "Демо: Графики работы 222";
+    dto.register.informationRegisterPeriodicity = "DAY";
+    dto.register.editType = "BOTH_WAYS";
+    dto.register.enableTotalsSliceLast = !dto.register.enableTotalsSliceLast;
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("Демо: Графики работы 222");
+    assertThat(after).contains("<InformationRegisterPeriodicity>Day</InformationRegisterPeriodicity>");
+    assertThat(after).contains("<EditType>BothWays</EditType>");
+    assertThat(countLines(after)).isEqualTo(countLines(before));
+  }
+
+  @Test
+  void objectSet_accumulationRegisterScalars_writeGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleAccumulationRegisterXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(dto.kind).isEqualTo("accumulationRegister");
+    assertThat(dto.register).as("регистр накопления должен читаться гранулярно").isNotNull();
+    assertThat(dto.register.registerType).isIn("BALANCE", "TURNOVERS");
+    // Поля регистра сведений у регистра накопления пусты: у вида объекта их просто нет.
+    assertThat(dto.register.informationRegisterPeriodicity).isNull();
+    dto.register.enableTotalsSplitting = !dto.register.enableTotalsSplitting;
+    dto.register.explanationRu = "Пояснение из теста";
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("<EnableTotalsSplitting>" + dto.register.enableTotalsSplitting
+      + "</EnableTotalsSplitting>");
+    assertThat(after).contains("Пояснение из теста");
+    // Гранулярность: пустое пояснение раскрылось в локализованную строку.
+    assertThat(countLines(after) - countLines(before)).isBetween(0L, 6L);
+  }
+
+  @Test
   void unknownOp_returnsError() throws Exception {
     Path params = writeParams("{\"op\":\"no-such-op\"}");
     int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
@@ -477,6 +542,14 @@ class ApplyMutationCmdTest {
 
   private static Path sampleCommonModuleXml() {
     return cfDir().resolve("CommonModules").resolve("_ДемоЗаметки.xml");
+  }
+
+  private static Path sampleInformationRegisterXml() {
+    return cfDir().resolve("InformationRegisters").resolve("_ДемоГрафикиРаботы.xml");
+  }
+
+  private static Path sampleAccumulationRegisterXml() {
+    return cfDir().resolve("AccumulationRegisters").resolve("_ДемоОборотыПоСчетамНаОплату.xml");
   }
 
   private static Path cfDir() {
