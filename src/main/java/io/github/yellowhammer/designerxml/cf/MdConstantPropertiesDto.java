@@ -12,13 +12,15 @@ package io.github.yellowhammer.designerxml.cf;
  * Поля {@code ConstantProperties} для {@code cf-md-object-get/set} ({@code kind=constant}).
  * Enum-значения — имена Java-констант ({@code DONT_CHECK}, {@code AUTO}).
  *
- * <p>Тип значения ({@code Type}), границы, параметры выбора и связь по типу здесь не представлены:
- * они правятся палитрой типов и при записи остаются нетронутыми.
+ * <p>Границы, параметры выбора и связь по типу здесь не представлены: при записи они остаются
+ * нетронутыми.
  */
 public final class MdConstantPropertiesDto {
 
   public String objectBelonging;
   public String extendedConfigurationObject;
+  /** Описание типа значения константы. */
+  public MdTypeDescriptionDto type;
   public boolean useStandardCommands;
   public String defaultForm;
   public String extendedPresentationRu;

@@ -46,6 +46,10 @@ final class MdSimplePropertiesGranularSerial {
     List<MdObjectPropertiesLeafDiff.GranularPatchChange> out) {
     MdPropertiesGranularChanges c = new MdPropertiesGranularChanges(out);
     c.enumText("ObjectBelonging", b.objectBelonging, i.objectBelonging);
+    if (!MdFlatDtoSupport.equalsFlat(b.type, i.type, false)) {
+      out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
+        "Type", MdTypeDescriptionSerial.typeElement("Type", i.type)));
+    }
     c.bool("UseStandardCommands", b.useStandardCommands, i.useStandardCommands);
     c.text("DefaultForm", b.defaultForm, i.defaultForm);
     c.localStringRu("ExtendedPresentation", b.extendedPresentationRu, i.extendedPresentationRu);

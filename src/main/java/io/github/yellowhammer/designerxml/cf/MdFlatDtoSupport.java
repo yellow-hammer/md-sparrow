@@ -15,9 +15,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Копирование, восполнение из базовой версии и сравнение плоских DTO свойств: публичные поля
- * {@code String}, {@code boolean} и {@code List<String>}. Поля с именем на {@code Xml} —
- * маршалированные поддеревья, сравниваются как XML.
+ * Копирование, восполнение из базовой версии и сравнение DTO свойств: публичные поля
+ * {@code String}, {@code boolean}, {@code List<String>} и вложенные DTO этого же пакета.
+ * Поля с именем на {@code Xml} — маршалированные поддеревья, сравниваются как XML.
  */
 final class MdFlatDtoSupport {
 
@@ -31,7 +31,7 @@ final class MdFlatDtoSupport {
     }
     T target = newInstance(source);
     for (Field field : fields(source.getClass())) {
-      write(field, target, read(field, source));
+      write(field, target, copyValue(field, read(field, source)));
     }
     return target;
   }
@@ -49,7 +49,7 @@ final class MdFlatDtoSupport {
         continue;
       }
       if (read(field, incoming) == null) {
-        write(field, incoming, read(field, baseline));
+        write(field, incoming, copyValue(field, read(field, baseline)));
       }
     }
   }
@@ -79,10 +79,18 @@ final class MdFlatDtoSupport {
     if (x instanceof List<?> || y instanceof List<?>) {
       return MdObjectPropertiesDiff.listStringEquals(stringList(x), stringList(y));
     }
+    if (isNestedDto(field.getType())) {
+      return equalsFlat(x, y, lenientXmlBlobs);
+    }
     if (lenientXmlBlobs && field.getName().endsWith("Xml")) {
       return MdObjectPropertiesDiff.looseXmlBlobEquals((String) x, (String) y);
     }
     return Objects.equals(x, y);
+  }
+
+  /** Вложенное DTO этого пакета: сравниваем и копируем по значению, а не по ссылке. */
+  private static boolean isNestedDto(Class<?> type) {
+    return type.getName().startsWith("io.github.yellowhammer.designerxml.cf.") && type.getName().endsWith("Dto");
   }
 
   @SuppressWarnings("unchecked")
@@ -100,6 +108,13 @@ final class MdFlatDtoSupport {
     } catch (IllegalAccessException e) {
       throw new IllegalStateException("cannot read " + field.getName(), e);
     }
+  }
+
+  private static Object copyValue(Field field, Object value) {
+    if (value != null && isNestedDto(field.getType())) {
+      return copy(value);
+    }
+    return value;
   }
 
   private static void write(Field field, Object target, Object value) {

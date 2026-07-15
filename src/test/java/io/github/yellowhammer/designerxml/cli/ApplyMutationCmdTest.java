@@ -331,6 +331,50 @@ class ApplyMutationCmdTest {
   }
 
   @Test
+  void objectSet_constantType_writesTypeWithQualifiersGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleConstantXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(dto.constant.type).as("тип значения должен читаться").isNotNull();
+    assertThat(dto.constant.type.types).containsExactly("xs:boolean");
+
+    // Булево -> строка длиной 25, как это делает конфигуратор.
+    dto.constant.type.types = new java.util.ArrayList<>(java.util.List.of("xs:string"));
+    io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto.MdStringQualifiersDto q =
+      new io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto.MdStringQualifiersDto();
+    q.length = "25";
+    q.allowedLength = "VARIABLE";
+    dto.constant.type.stringQualifiers = q;
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("<v8:Type xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">xs:string</v8:Type>");
+    assertThat(after).contains("<v8:Length>25</v8:Length>");
+    assertThat(after).contains("<v8:AllowedLength>Variable</v8:AllowedLength>");
+    assertThat(after).doesNotContain("xs:boolean");
+    // Гранулярность: тип раскрылся в квалификаторы, остальное не переформатировано.
+    assertThat(countLines(after) - countLines(before)).isBetween(0L, 5L);
+    // Тип читается обратно.
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto reread =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(reread.constant.type.types).containsExactly("xs:string");
+    assertThat(reread.constant.type.stringQualifiers.length).isEqualTo("25");
+    assertThat(reread.constant.type.stringQualifiers.allowedLength).isEqualTo("VARIABLE");
+  }
+
+  @Test
   void objectSet_commonModuleFlags_writeGranularly() throws Exception {
     Path objectXml = copyToTemp(sampleCommonModuleXml());
     String before = Files.readString(objectXml, StandardCharsets.UTF_8);

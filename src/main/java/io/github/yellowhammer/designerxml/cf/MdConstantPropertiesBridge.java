@@ -26,6 +26,7 @@ public final class MdConstantPropertiesBridge {
     MdConstantPropertiesDto d = new MdConstantPropertiesDto();
     d.objectBelonging = enumName(p, "getObjectBelonging");
     d.extendedConfigurationObject = nullIfBlank(JaxbReflect.getStringOptional(p, "getExtendedConfigurationObject"));
+    d.type = MdTypeDescriptionBridge.read(JaxbReflect.getOptional(p, "getType"));
     d.useStandardCommands = JaxbReflect.getBooleanOptional(p, "isUseStandardCommands");
     d.defaultForm = JaxbReflect.getStringOptional(p, "getDefaultForm");
     d.extendedPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedPresentation"));
@@ -62,6 +63,9 @@ public final class MdConstantPropertiesBridge {
     MdPropertiesBridgeSupport.applyCommon(p, dto);
     JaxbReflect.setEnumOrKeep(p, "setObjectBelonging", d.objectBelonging);
     JaxbReflect.setOptional(p, "setExtendedConfigurationObject", nullIfBlank(d.extendedConfigurationObject));
+    if (d.type != null) {
+      MdTypeDescriptionBridge.apply(JaxbReflect.ensureOptional(p, "getType", "setType"), d.type);
+    }
     JaxbReflect.setOptional(p, "setUseStandardCommands", d.useStandardCommands);
     JaxbReflect.setOptional(p, "setDefaultForm", d.defaultForm);
     ensureAndSetRu(p, "getExtendedPresentation", "setExtendedPresentation", d.extendedPresentationRu);

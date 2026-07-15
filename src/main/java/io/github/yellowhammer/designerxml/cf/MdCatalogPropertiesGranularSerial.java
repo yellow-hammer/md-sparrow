@@ -285,7 +285,7 @@ public final class MdCatalogPropertiesGranularSerial {
     return textElement(localName, enumConstantToXmlText(constantName));
   }
 
-  private static String enumConstantToXmlText(String constantName) {
+  static String enumConstantToXmlText(String constantName) {
     if (constantName == null || constantName.isEmpty() || !constantName.equals(constantName.toUpperCase())) {
       return constantName == null ? "" : constantName;
     }
