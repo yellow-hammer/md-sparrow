@@ -535,6 +535,45 @@ class ApplyMutationCmdTest {
     assertThat(exit).as("операция %s", op).isZero();
   }
 
+  /**
+   * Платформа требует тип у реквизита, измерения и ресурса: без него объект не загрузится.
+   * Схема этого не ловит — {@code Type} в XSD объявлен как {@code minOccurs="0"} (#6), поэтому
+   * проверяем наличие типа явно.
+   */
+  @Test
+  void addedChildren_haveDefaultType() throws Exception {
+    Path register = copyToTemp(sampleInformationRegisterXml());
+    run("cf-md-dimension-add", register, "\"name\":\"Склад\"");
+    run("cf-md-resource-add", register, "\"name\":\"Количество\"");
+    run("cf-md-attribute-add", register, "\"name\":\"Примечание\"");
+    String registerXml = Files.readString(register, StandardCharsets.UTF_8);
+    for (String childName : java.util.List.of("Склад", "Количество", "Примечание")) {
+      assertThat(typeBlockAfterName(registerXml, childName))
+        .as("тип у %s", childName)
+        .contains("xs:string")
+        .contains("<v8:Length>10</v8:Length>")
+        .contains("<v8:AllowedLength>Variable</v8:AllowedLength>");
+    }
+
+    Path catalog = copyToTemp(sampleCatalogXml());
+    run("cf-md-attribute-add", catalog, "\"name\":\"НовыйРеквизит\"");
+    assertThat(typeBlockAfterName(Files.readString(catalog, StandardCharsets.UTF_8), "НовыйРеквизит"))
+      .contains("xs:string");
+
+    Path enumXml = copyToTemp(sampleEnumXml());
+    run("cf-md-enum-value-add", enumXml, "\"name\":\"НовоеЗначение\"");
+    assertThat(typeBlockAfterName(Files.readString(enumXml, StandardCharsets.UTF_8), "НовоеЗначение"))
+      .as("у значения перечисления типа нет")
+      .doesNotContain("<Type>");
+  }
+
+  /** Кусок XML после элемента Name с заданным значением: там платформа и держит тип. */
+  private static String typeBlockAfterName(String xml, String name) {
+    int at = xml.indexOf("<Name>" + name + "</Name>");
+    assertThat(at).as("объект %s должен быть в XML", name).isGreaterThan(0);
+    return xml.substring(at, Math.min(xml.length(), at + 400));
+  }
+
   @Test
   void unknownOp_returnsError() throws Exception {
     Path params = writeParams("{\"op\":\"no-such-op\"}");

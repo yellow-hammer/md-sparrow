@@ -258,7 +258,8 @@ public final class MdObjectChildMutations {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
       ensureNotBlank(newName, "Введите имя: " + label.toLowerCase(java.util.Locale.ROOT) + ".");
       ensureMissingNamedChild(xml, containerLocal, childLocal, newName, label + " уже существует: " + newName);
-      return insertIntoRootChildObjects(xml, containerLocal, buildNamedChildSnippet(childLocal, newName, newName, ""));
+      return insertIntoRootChildObjects(
+        xml, containerLocal, buildNamedChildSnippet(childLocal, newName, newName, "", true));
     });
   }
 
@@ -977,28 +978,40 @@ public final class MdObjectChildMutations {
   }
 
   private static String buildAttributeSnippet(String name, String synonymRu, String comment) {
-    return "<Attribute uuid=\"" + UUID.randomUUID() + "\">\n"
-      + "\t<Properties>\n"
-      + "\t\t<Name>" + escapeXml(name) + "</Name>\n"
-      + "\t\t<Synonym>\n"
-      + "\t\t\t<v8:item>\n"
-      + "\t\t\t\t<v8:lang>ru</v8:lang>\n"
-      + "\t\t\t\t<v8:content>" + escapeXml(synonymRu) + "</v8:content>\n"
-      + "\t\t\t</v8:item>\n"
-      + "\t\t</Synonym>\n"
-      + (comment == null || comment.isBlank()
-      ? "\t\t<Comment/>\n"
-      : "\t\t<Comment>" + escapeXml(comment) + "</Comment>\n")
-      + "\t</Properties>\n"
-      + "</Attribute>";
+    return buildNamedChildSnippet("Attribute", name, synonymRu, comment, true);
+  }
+
+  /**
+   * Тип по умолчанию — строка переменной длины 10, как заводит конфигуратор.
+   * Платформа требует тип у реквизита, измерения и ресурса: без него объект не загрузится.
+   */
+  private static String defaultTypeBlock(String indent) {
+    return indent + "<Type>\n"
+      + indent + "\t<v8:Type xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">xs:string</v8:Type>\n"
+      + indent + "\t<v8:StringQualifiers>\n"
+      + indent + "\t\t<v8:Length>10</v8:Length>\n"
+      + indent + "\t\t<v8:AllowedLength>Variable</v8:AllowedLength>\n"
+      + indent + "\t</v8:StringQualifiers>\n"
+      + indent + "</Type>\n";
   }
 
   private static String buildEnumValueSnippet(String name, String synonymRu, String comment) {
-    return buildNamedChildSnippet("EnumValue", name, synonymRu, comment);
+    // У значения перечисления типа нет.
+    return buildNamedChildSnippet("EnumValue", name, synonymRu, comment, false);
   }
 
-  /** Именованный дочерний объект с именем, синонимом и комментарием: значение, измерение, ресурс. */
-  private static String buildNamedChildSnippet(String childLocal, String name, String synonymRu, String comment) {
+  /**
+   * Именованный дочерний объект: значение перечисления, реквизит, измерение, ресурс.
+   *
+   * @param withType добавить тип по умолчанию (у всего, кроме значения перечисления)
+   */
+  private static String buildNamedChildSnippet(
+    String childLocal,
+    String name,
+    String synonymRu,
+    String comment,
+    boolean withType
+  ) {
     return "<" + childLocal + " uuid=\"" + UUID.randomUUID() + "\">\n"
       + "\t<Properties>\n"
       + "\t\t<Name>" + escapeXml(name) + "</Name>\n"
@@ -1011,6 +1024,7 @@ public final class MdObjectChildMutations {
       + (comment == null || comment.isBlank()
       ? "\t\t<Comment/>\n"
       : "\t\t<Comment>" + escapeXml(comment) + "</Comment>\n")
+      + (withType ? defaultTypeBlock("\t\t") : "")
       + "\t</Properties>\n"
       + "</" + childLocal + ">";
   }
