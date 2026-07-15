@@ -78,7 +78,8 @@ public final class MdObjectPropertiesLeafDiff {
     return switch (kind) {
       case "subsystem" -> subsystemPropertyChanges(baseline, incoming);
       case "catalog" -> catalogPropertyChanges(baseline, incoming);
-      case "document", "exchangePlan" -> docLikePropertyChanges(baseline, incoming);
+      case "document" -> documentPropertyChanges(baseline, incoming);
+      case "exchangePlan" -> docLikePropertyChanges(baseline, incoming);
       case "constant", "enum", "report", "dataProcessor", "task", "chartOfAccounts",
            "chartOfCharacteristicTypes", "chartOfCalculationTypes", "commonModule",
            "sessionParameter", "commonAttribute", "commonPicture", "documentNumerator",
@@ -137,6 +138,31 @@ public final class MdObjectPropertiesLeafDiff {
           MdCatalogPropertiesGranularSerial.commentElement(y.comment)));
       }
     }
+  }
+
+  private static List<GranularPatchChange> documentPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (incoming.document == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = new ArrayList<>();
+    if (!Objects.equals(baseline.synonymRu, incoming.synonymRu)) {
+      out.add(GranularPatchChange.objectProperty(
+        "Synonym",
+        MdCatalogPropertiesGranularSerial.synonymElementRu(incoming.synonymRu)));
+    }
+    if (!Objects.equals(baseline.comment, incoming.comment)) {
+      out.add(GranularPatchChange.objectProperty(
+        "Comment",
+        MdCatalogPropertiesGranularSerial.commentElement(incoming.comment)));
+    }
+    if (baseline.document != null) {
+      MdDocumentPropertiesGranularSerial.appendDocumentScalarChanges(baseline.document, incoming.document, out);
+    }
+    appendNamedChildSynonymComment("Attribute", baseline.attributes, incoming.attributes, out);
+    appendNamedChildSynonymComment("TabularSection", baseline.tabularSections, incoming.tabularSections, out);
+    return out;
   }
 
   private static List<GranularPatchChange> docLikePropertyChanges(

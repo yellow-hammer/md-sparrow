@@ -37,6 +37,8 @@ public final class MdObjectPropertiesDto {
   public List<String> contentRefs;
   /** Поля {@code CatalogProperties} для {@code kind=catalog}; иначе {@code null}. */
   public MdCatalogPropertiesDto catalog;
+  /** Поля {@code DocumentProperties} для {@code kind=document}; иначе {@code null}. */
+  public MdDocumentPropertiesDto document;
 
   public MdObjectPropertiesDto() {
     this.attributes = new ArrayList<>();

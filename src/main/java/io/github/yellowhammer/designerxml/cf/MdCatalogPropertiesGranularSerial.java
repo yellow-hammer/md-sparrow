@@ -266,7 +266,7 @@ public final class MdCatalogPropertiesGranularSerial {
     }
   }
 
-  private static String nz(String s) {
+  static String nz(String s) {
     return s == null ? "" : s;
   }
 
@@ -370,11 +370,11 @@ public final class MdCatalogPropertiesGranularSerial {
     return mdListTypeRefsElement("Owners", owners);
   }
 
-  private static String basedOnElement(List<String> items) {
+  static String basedOnElement(List<String> items) {
     return mdListTypeRefsElement("BasedOn", items);
   }
 
-  private static String inputByStringElement(List<String> fields) {
+  static String inputByStringElement(List<String> fields) {
     StringBuilder sb = new StringBuilder("<InputByString>");
     if (fields != null) {
       for (String f : fields) {
@@ -388,7 +388,7 @@ public final class MdCatalogPropertiesGranularSerial {
     return sb.toString();
   }
 
-  private static String dataLockFieldsElement(List<String> fields) {
+  static String dataLockFieldsElement(List<String> fields) {
     StringBuilder sb = new StringBuilder("<DataLockFields>");
     if (fields != null) {
       for (String f : fields) {

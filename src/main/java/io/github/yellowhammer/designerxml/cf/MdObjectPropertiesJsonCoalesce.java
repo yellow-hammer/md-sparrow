@@ -56,6 +56,207 @@ public final class MdObjectPropertiesJsonCoalesce {
         coalesceCatalog(incoming.catalog, baseline.catalog);
       }
     }
+    if ("document".equals(incoming.kind) && baseline.document != null) {
+      if (incoming.document == null) {
+        incoming.document = copyDocumentFull(baseline.document);
+      } else {
+        coalesceDocument(incoming.document, baseline.document);
+      }
+    }
+  }
+
+  private static MdDocumentPropertiesDto copyDocumentFull(MdDocumentPropertiesDto s) {
+    MdDocumentPropertiesDto d = new MdDocumentPropertiesDto();
+    d.objectBelonging = s.objectBelonging;
+    d.extendedConfigurationObject = s.extendedConfigurationObject;
+    d.useStandardCommands = s.useStandardCommands;
+    d.numerator = s.numerator;
+    d.numberType = s.numberType;
+    d.numberLength = s.numberLength;
+    d.numberAllowedLength = s.numberAllowedLength;
+    d.numberPeriodicity = s.numberPeriodicity;
+    d.checkUnique = s.checkUnique;
+    d.autonumbering = s.autonumbering;
+    d.standardAttributesXml = s.standardAttributesXml;
+    d.characteristicsXml = s.characteristicsXml;
+    d.basedOn = s.basedOn == null ? new ArrayList<>() : new ArrayList<>(s.basedOn);
+    d.inputByString = s.inputByString == null ? new ArrayList<>() : new ArrayList<>(s.inputByString);
+    d.createOnInput = s.createOnInput;
+    d.searchStringModeOnInputByString = s.searchStringModeOnInputByString;
+    d.fullTextSearchOnInputByString = s.fullTextSearchOnInputByString;
+    d.choiceDataGetModeOnInputByString = s.choiceDataGetModeOnInputByString;
+    d.choiceHistoryOnInput = s.choiceHistoryOnInput;
+    d.defaultObjectForm = s.defaultObjectForm;
+    d.defaultListForm = s.defaultListForm;
+    d.defaultChoiceForm = s.defaultChoiceForm;
+    d.auxiliaryObjectForm = s.auxiliaryObjectForm;
+    d.auxiliaryListForm = s.auxiliaryListForm;
+    d.auxiliaryChoiceForm = s.auxiliaryChoiceForm;
+    d.objectModule = s.objectModule;
+    d.managerModule = s.managerModule;
+    d.posting = s.posting;
+    d.realTimePosting = s.realTimePosting;
+    d.registerRecordsDeletion = s.registerRecordsDeletion;
+    d.registerRecordsWritingOnPost = s.registerRecordsWritingOnPost;
+    d.sequenceFilling = s.sequenceFilling;
+    d.registerRecords = s.registerRecords == null ? new ArrayList<>() : new ArrayList<>(s.registerRecords);
+    d.postInPrivilegedMode = s.postInPrivilegedMode;
+    d.unpostInPrivilegedMode = s.unpostInPrivilegedMode;
+    d.includeHelpInContents = s.includeHelpInContents;
+    d.help = s.help;
+    d.dataLockFields = s.dataLockFields == null ? new ArrayList<>() : new ArrayList<>(s.dataLockFields);
+    d.dataLockControlMode = s.dataLockControlMode;
+    d.fullTextSearch = s.fullTextSearch;
+    d.objectPresentationRu = s.objectPresentationRu;
+    d.extendedObjectPresentationRu = s.extendedObjectPresentationRu;
+    d.listPresentationRu = s.listPresentationRu;
+    d.extendedListPresentationRu = s.extendedListPresentationRu;
+    d.explanationRu = s.explanationRu;
+    d.dataHistory = s.dataHistory;
+    d.updateDataHistoryImmediatelyAfterWrite = s.updateDataHistoryImmediatelyAfterWrite;
+    d.executeAfterWriteDataHistoryVersionProcessing = s.executeAfterWriteDataHistoryVersionProcessing;
+    d.additionalIndexes = s.additionalIndexes;
+    return d;
+  }
+
+  private static void coalesceDocument(MdDocumentPropertiesDto d, MdDocumentPropertiesDto b) {
+    if (d.objectBelonging == null) {
+      d.objectBelonging = b.objectBelonging;
+    }
+    if (d.extendedConfigurationObject == null) {
+      d.extendedConfigurationObject = b.extendedConfigurationObject;
+    }
+    if (d.numerator == null) {
+      d.numerator = b.numerator;
+    }
+    if (d.numberType == null) {
+      d.numberType = b.numberType;
+    }
+    if (d.numberLength == null) {
+      d.numberLength = b.numberLength;
+    }
+    if (d.numberAllowedLength == null) {
+      d.numberAllowedLength = b.numberAllowedLength;
+    }
+    if (d.numberPeriodicity == null) {
+      d.numberPeriodicity = b.numberPeriodicity;
+    }
+    if (d.standardAttributesXml == null) {
+      d.standardAttributesXml = b.standardAttributesXml;
+    }
+    if (d.characteristicsXml == null) {
+      d.characteristicsXml = b.characteristicsXml;
+    }
+    if (d.basedOn == null) {
+      d.basedOn = b.basedOn == null ? new ArrayList<>() : new ArrayList<>(b.basedOn);
+    }
+    if (d.inputByString == null) {
+      d.inputByString = b.inputByString == null ? new ArrayList<>() : new ArrayList<>(b.inputByString);
+    }
+    if (d.createOnInput == null) {
+      d.createOnInput = b.createOnInput;
+    }
+    if (d.searchStringModeOnInputByString == null) {
+      d.searchStringModeOnInputByString = b.searchStringModeOnInputByString;
+    }
+    if (d.fullTextSearchOnInputByString == null) {
+      d.fullTextSearchOnInputByString = b.fullTextSearchOnInputByString;
+    }
+    if (d.choiceDataGetModeOnInputByString == null) {
+      d.choiceDataGetModeOnInputByString = b.choiceDataGetModeOnInputByString;
+    }
+    if (d.choiceHistoryOnInput == null) {
+      d.choiceHistoryOnInput = b.choiceHistoryOnInput;
+    }
+    if (d.defaultObjectForm == null) {
+      d.defaultObjectForm = b.defaultObjectForm;
+    }
+    if (d.defaultListForm == null) {
+      d.defaultListForm = b.defaultListForm;
+    }
+    if (d.defaultChoiceForm == null) {
+      d.defaultChoiceForm = b.defaultChoiceForm;
+    }
+    if (d.auxiliaryObjectForm == null) {
+      d.auxiliaryObjectForm = b.auxiliaryObjectForm;
+    }
+    if (d.auxiliaryListForm == null) {
+      d.auxiliaryListForm = b.auxiliaryListForm;
+    }
+    if (d.auxiliaryChoiceForm == null) {
+      d.auxiliaryChoiceForm = b.auxiliaryChoiceForm;
+    }
+    if (d.objectModule == null) {
+      d.objectModule = b.objectModule;
+    }
+    if (d.managerModule == null) {
+      d.managerModule = b.managerModule;
+    }
+    if (d.posting == null) {
+      d.posting = b.posting;
+    }
+    if (d.realTimePosting == null) {
+      d.realTimePosting = b.realTimePosting;
+    }
+    if (d.registerRecordsDeletion == null) {
+      d.registerRecordsDeletion = b.registerRecordsDeletion;
+    }
+    if (d.registerRecordsWritingOnPost == null) {
+      d.registerRecordsWritingOnPost = b.registerRecordsWritingOnPost;
+    }
+    if (d.sequenceFilling == null) {
+      d.sequenceFilling = b.sequenceFilling;
+    }
+    if (d.registerRecords == null) {
+      d.registerRecords = b.registerRecords == null ? new ArrayList<>() : new ArrayList<>(b.registerRecords);
+    }
+    if (d.help == null) {
+      d.help = b.help;
+    }
+    if (d.dataLockFields == null) {
+      d.dataLockFields = b.dataLockFields == null ? new ArrayList<>() : new ArrayList<>(b.dataLockFields);
+    }
+    if (d.dataLockControlMode == null) {
+      d.dataLockControlMode = b.dataLockControlMode;
+    }
+    if (d.fullTextSearch == null) {
+      d.fullTextSearch = b.fullTextSearch;
+    }
+    if (d.objectPresentationRu == null) {
+      d.objectPresentationRu = b.objectPresentationRu;
+    }
+    if (d.extendedObjectPresentationRu == null) {
+      d.extendedObjectPresentationRu = b.extendedObjectPresentationRu;
+    }
+    if (d.listPresentationRu == null) {
+      d.listPresentationRu = b.listPresentationRu;
+    }
+    if (d.extendedListPresentationRu == null) {
+      d.extendedListPresentationRu = b.extendedListPresentationRu;
+    }
+    if (d.explanationRu == null) {
+      d.explanationRu = b.explanationRu;
+    }
+    if (d.dataHistory == null) {
+      d.dataHistory = b.dataHistory;
+    }
+    if (d.additionalIndexes == null) {
+      d.additionalIndexes = b.additionalIndexes;
+    }
+    canonicalizeDocumentXmlBlobsFromBaselineIfLooseEqual(d, b);
+  }
+
+  private static void canonicalizeDocumentXmlBlobsFromBaselineIfLooseEqual(
+    MdDocumentPropertiesDto d,
+    MdDocumentPropertiesDto b) {
+    if (d.standardAttributesXml != null && b.standardAttributesXml != null
+      && MdObjectPropertiesDiff.looseXmlBlobEquals(d.standardAttributesXml, b.standardAttributesXml)) {
+      d.standardAttributesXml = b.standardAttributesXml;
+    }
+    if (d.characteristicsXml != null && b.characteristicsXml != null
+      && MdObjectPropertiesDiff.looseXmlBlobEquals(d.characteristicsXml, b.characteristicsXml)) {
+      d.characteristicsXml = b.characteristicsXml;
+    }
   }
 
   private static MdCatalogPropertiesDto copyCatalogFull(MdCatalogPropertiesDto s) {

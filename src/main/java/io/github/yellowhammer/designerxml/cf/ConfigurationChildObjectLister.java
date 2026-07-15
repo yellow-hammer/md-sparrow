@@ -32,7 +32,8 @@ public final class ConfigurationChildObjectLister {
     "Catalog", "Document", "Enum", "Constant", "Report", "DataProcessor", "Task",
     "ChartOfAccounts", "ChartOfCharacteristicTypes", "ChartOfCalculationTypes", "CommonModule",
     "Subsystem", "SessionParameter", "ExchangePlan", "CommonAttribute", "CommonPicture",
-    "DocumentNumerator", "ExternalDataSource", "Role");
+    "DocumentNumerator", "ExternalDataSource", "Role",
+    "InformationRegister", "AccumulationRegister", "AccountingRegister", "CalculationRegister");
 
   /**
    * @param childTag например {@code Catalog}, {@code Document}, {@code Enum}, {@code Constant}
