@@ -269,6 +269,95 @@ class ApplyMutationCmdTest {
   }
 
   @Test
+  void objectSet_enumScalars_writeGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleEnumXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(dto.enumeration).as("перечисление должно читаться гранулярно").isNotNull();
+    dto.synonymRu = "Демо: Статусы заказов 222";
+    dto.enumeration.quickChoice = !dto.enumeration.quickChoice;
+    dto.enumeration.choiceMode = "QUICK_CHOICE";
+    dto.enumeration.explanationRu = "Пояснение из теста";
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("Демо: Статусы заказов 222");
+    assertThat(after).contains("<ChoiceMode>QuickChoice</ChoiceMode>");
+    assertThat(after).contains("Пояснение из теста");
+    // Гранулярность: пустое пояснение раскрылось в локализованную строку, остальное не переформатировано.
+    assertThat(countLines(after) - countLines(before)).isBetween(0L, 6L);
+  }
+
+  @Test
+  void objectSet_constantScalars_writeGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleConstantXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(dto.constant).as("константа должна читаться гранулярно").isNotNull();
+    dto.constant.passwordMode = !dto.constant.passwordMode;
+    dto.constant.fillChecking = "SHOW_ERROR";
+    dto.constant.toolTipRu = "Подсказка из теста";
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("<FillChecking>ShowError</FillChecking>");
+    assertThat(after).contains("Подсказка из теста");
+    // Тип значения не трогали — остаётся как был.
+    assertThat(after).contains("<Type>");
+    // Гранулярность: пустая подсказка раскрылась в локализованную строку, остальное не переформатировано.
+    assertThat(countLines(after) - countLines(before)).isBetween(0L, 6L);
+  }
+
+  @Test
+  void objectSet_commonModuleFlags_writeGranularly() throws Exception {
+    Path objectXml = copyToTemp(sampleCommonModuleXml());
+    String before = Files.readString(objectXml, StandardCharsets.UTF_8);
+    io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
+      io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
+        objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
+    assertThat(dto.commonModule).as("общий модуль должен читаться гранулярно").isNotNull();
+    dto.commonModule.serverCall = !dto.commonModule.serverCall;
+    dto.commonModule.privileged = !dto.commonModule.privileged;
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-set\","
+        + "\"objectXml\":" + json(objectXml.toString()) + ","
+        + "\"schemaVersion\":\"V2_20\","
+        + "\"payloadJson\":" + json(new com.google.gson.Gson().toJson(dto))
+        + "}");
+
+    int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
+
+    assertThat(exit).isZero();
+    String after = Files.readString(objectXml, StandardCharsets.UTF_8);
+    assertThat(after).contains("<Privileged>" + dto.commonModule.privileged + "</Privileged>");
+    assertThat(after).contains("<ServerCall>" + dto.commonModule.serverCall + "</ServerCall>");
+    assertThat(countLines(after)).isEqualTo(countLines(before));
+  }
+
+  @Test
   void unknownOp_returnsError() throws Exception {
     Path params = writeParams("{\"op\":\"no-such-op\"}");
     int exit = new CommandLine(new DesignerXmlCli()).execute("apply-mutation", "--params", params.toString());
@@ -332,6 +421,22 @@ class ApplyMutationCmdTest {
       .resolve("cf")
       .resolve("Documents")
       .resolve("_ДемоЗаказПокупателя.xml");
+  }
+
+  private static Path sampleEnumXml() {
+    return cfDir().resolve("Enums").resolve("_ДемоСтатусыЗаказовПокупателей.xml");
+  }
+
+  private static Path sampleConstantXml() {
+    return cfDir().resolve("Constants").resolve("_ДемоИспользоватьНесколькоОрганизаций.xml");
+  }
+
+  private static Path sampleCommonModuleXml() {
+    return cfDir().resolve("CommonModules").resolve("_ДемоЗаметки.xml");
+  }
+
+  private static Path cfDir() {
+    return Path.of(System.getProperty("fixtures.ssl31.root")).resolve("src").resolve("cf");
   }
 
   private static Path sampleCatalogXml() {

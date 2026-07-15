@@ -82,7 +82,8 @@ public final class MdObjectPropertiesDiff {
       return false;
     }
     return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs)
-      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs);
+      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs)
+      && simpleKindsEqual(a, b, lenientCatalogXmlBlobs);
   }
 
   /**
@@ -198,7 +199,8 @@ public final class MdObjectPropertiesDiff {
       return false;
     }
     return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs)
-      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs);
+      && documentEquals(a.document, b.document, lenientCatalogXmlBlobs)
+      && simpleKindsEqual(a, b, lenientCatalogXmlBlobs);
   }
 
   static boolean documentEquals(MdDocumentPropertiesDto a, MdDocumentPropertiesDto b, boolean lenientXmlBlobs) {
@@ -434,8 +436,16 @@ public final class MdObjectPropertiesDiff {
         || !namedListEquals(baseline.tabularSections, incoming.tabularSections);
     boolean props =
       !Objects.equals(baseline.synonymRu, incoming.synonymRu)
-        || !Objects.equals(baseline.comment, incoming.comment);
+        || !Objects.equals(baseline.comment, incoming.comment)
+        || !simpleKindsEqual(baseline, incoming, false);
     return new ChangeMask(props, child);
+  }
+
+  /** Плоские DTO перечисления, константы и общего модуля. */
+  private static boolean simpleKindsEqual(MdObjectPropertiesDto a, MdObjectPropertiesDto b, boolean lenientXmlBlobs) {
+    return MdFlatDtoSupport.equalsFlat(a.enumeration, b.enumeration, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.constant, b.constant, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.commonModule, b.commonModule, lenientXmlBlobs);
   }
 
   private static ChangeMask subsystemMask(MdObjectPropertiesDto baseline, MdObjectPropertiesDto incoming) {

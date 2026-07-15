@@ -39,6 +39,12 @@ public final class MdObjectPropertiesDto {
   public MdCatalogPropertiesDto catalog;
   /** Поля {@code DocumentProperties} для {@code kind=document}; иначе {@code null}. */
   public MdDocumentPropertiesDto document;
+  /** Поля {@code EnumProperties} для {@code kind=enum}; иначе {@code null}. */
+  public MdEnumPropertiesDto enumeration;
+  /** Поля {@code ConstantProperties} для {@code kind=constant}; иначе {@code null}. */
+  public MdConstantPropertiesDto constant;
+  /** Поля {@code CommonModuleProperties} для {@code kind=commonModule}; иначе {@code null}. */
+  public MdCommonModulePropertiesDto commonModule;
 
   public MdObjectPropertiesDto() {
     this.attributes = new ArrayList<>();

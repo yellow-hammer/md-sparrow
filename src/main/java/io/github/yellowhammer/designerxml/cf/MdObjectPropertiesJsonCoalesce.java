@@ -63,6 +63,39 @@ public final class MdObjectPropertiesJsonCoalesce {
         coalesceDocument(incoming.document, baseline.document);
       }
     }
+    if ("enum".equals(incoming.kind) && baseline.enumeration != null) {
+      incoming.enumeration = coalesceFlat(incoming.enumeration, baseline.enumeration);
+      canonicalizeEnumXmlBlobsFromBaselineIfLooseEqual(incoming.enumeration, baseline.enumeration);
+    }
+    if ("constant".equals(incoming.kind) && baseline.constant != null) {
+      incoming.constant = coalesceFlat(incoming.constant, baseline.constant);
+    }
+    if ("commonModule".equals(incoming.kind) && baseline.commonModule != null) {
+      incoming.commonModule = coalesceFlat(incoming.commonModule, baseline.commonModule);
+    }
+  }
+
+  private static <T> T coalesceFlat(T incoming, T baseline) {
+    if (incoming == null) {
+      return MdFlatDtoSupport.copy(baseline);
+    }
+    MdFlatDtoSupport.coalesce(incoming, baseline);
+    return incoming;
+  }
+
+  /**
+   * Блобы, отличающиеся только префиксами пространств имён, берём из базовой версии: иначе точечная
+   * запись сочла бы их изменёнными.
+   */
+  private static void canonicalizeEnumXmlBlobsFromBaselineIfLooseEqual(
+    MdEnumPropertiesDto d,
+    MdEnumPropertiesDto b) {
+    if (MdObjectPropertiesDiff.looseXmlBlobEquals(d.standardAttributesXml, b.standardAttributesXml)) {
+      d.standardAttributesXml = b.standardAttributesXml;
+    }
+    if (MdObjectPropertiesDiff.looseXmlBlobEquals(d.characteristicsXml, b.characteristicsXml)) {
+      d.characteristicsXml = b.characteristicsXml;
+    }
   }
 
   private static MdDocumentPropertiesDto copyDocumentFull(MdDocumentPropertiesDto s) {

@@ -170,7 +170,7 @@ public final class MdObjectPropertiesEdit {
     if (ep != null) {
       return readCatalogLike(ep, "exchangePlan", false, version);
     }
-    MdObjectPropertiesDto simple = tryReadSimpleKind(mdo);
+    MdObjectPropertiesDto simple = tryReadSimpleKind(mdo, version);
     if (simple != null) {
       return simple;
     }
@@ -239,7 +239,7 @@ public final class MdObjectPropertiesEdit {
 
   private static void applyDto(JAXBElement<?> je, SchemaVersion version, MdObjectPropertiesDto dto) {
     Object mdo = je.getValue();
-    if (tryApplySimpleKind(mdo, dto)) {
+    if (tryApplySimpleKind(mdo, version, dto)) {
       return;
     }
     switch (dto.kind) {
@@ -350,17 +350,17 @@ public final class MdObjectPropertiesEdit {
     }
   }
 
-  private static MdObjectPropertiesDto tryReadSimpleKind(Object metaDataObject) {
+  private static MdObjectPropertiesDto tryReadSimpleKind(Object metaDataObject, SchemaVersion version) {
     for (SimpleKindDef def : SIMPLE_KINDS) {
       Object child = invokeNoArgOrNull(metaDataObject, def.getterName);
       if (child != null) {
-        return readSimpleDto(def.kind, child);
+        return readSimpleDto(def.kind, child, version);
       }
     }
     return null;
   }
 
-  private static boolean tryApplySimpleKind(Object metaDataObject, MdObjectPropertiesDto dto) {
+  private static boolean tryApplySimpleKind(Object metaDataObject, SchemaVersion version, MdObjectPropertiesDto dto) {
     SimpleKindDef def = simpleKindByName(dto.kind);
     if (def == null) {
       return false;
@@ -369,22 +369,41 @@ public final class MdObjectPropertiesEdit {
     if (child == null) {
       throw new IllegalArgumentException("MetaDataObject is not a " + dto.kind);
     }
-    applySimpleDto(child, dto);
+    applySimpleDto(child, version, dto);
     return true;
   }
 
-  private static MdObjectPropertiesDto readSimpleDto(String kind, Object objectNode) {
+  private static MdObjectPropertiesDto readSimpleDto(String kind, Object objectNode, SchemaVersion version) {
     Object props = invokeNoArg(objectNode, "getProperties");
     MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
     dto.kind = kind;
     dto.internalName = toStringOrEmpty(invokeNoArg(props, "getName"));
     dto.synonymRu = readLocalStringRu(invokeNoArgOrNull(props, "getSynonym"));
     dto.comment = toStringOrEmpty(invokeNoArgOrNull(props, "getComment"));
+    switch (kind) {
+      case "enum" -> MdEnumPropertiesBridge.read(version, props, dto);
+      case "constant" -> MdConstantPropertiesBridge.read(props, dto);
+      case "commonModule" -> MdCommonModulePropertiesBridge.read(props, dto);
+      default -> {
+      }
+    }
     return dto;
   }
 
-  private static void applySimpleDto(Object objectNode, MdObjectPropertiesDto dto) {
+  private static void applySimpleDto(Object objectNode, SchemaVersion version, MdObjectPropertiesDto dto) {
     Object props = invokeNoArg(objectNode, "getProperties");
+    if ("enum".equals(dto.kind) && dto.enumeration != null) {
+      MdEnumPropertiesBridge.apply(version, props, dto);
+      return;
+    }
+    if ("constant".equals(dto.kind) && dto.constant != null) {
+      MdConstantPropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("commonModule".equals(dto.kind) && dto.commonModule != null) {
+      MdCommonModulePropertiesBridge.apply(props, dto);
+      return;
+    }
     String currentName = toStringOrEmpty(invokeNoArg(props, "getName"));
     if (!dto.internalName.equals(currentName)) {
       throw new IllegalArgumentException("internalName mismatch with XML");

@@ -80,12 +80,49 @@ public final class MdObjectPropertiesLeafDiff {
       case "catalog" -> catalogPropertyChanges(baseline, incoming);
       case "document" -> documentPropertyChanges(baseline, incoming);
       case "exchangePlan" -> docLikePropertyChanges(baseline, incoming);
-      case "constant", "enum", "report", "dataProcessor", "task", "chartOfAccounts",
-           "chartOfCharacteristicTypes", "chartOfCalculationTypes", "commonModule",
+      case "enum" -> enumPropertyChanges(baseline, incoming);
+      case "constant" -> constantPropertyChanges(baseline, incoming);
+      case "commonModule" -> commonModulePropertyChanges(baseline, incoming);
+      case "report", "dataProcessor", "task", "chartOfAccounts",
+           "chartOfCharacteristicTypes", "chartOfCalculationTypes",
            "sessionParameter", "commonAttribute", "commonPicture", "documentNumerator",
            "externalDataSource", "role" -> docLikePropertyChanges(baseline, incoming);
       default -> List.of();
     };
+  }
+
+  private static List<GranularPatchChange> enumPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.enumeration == null || incoming.enumeration == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendEnumScalarChanges(baseline.enumeration, incoming.enumeration, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> constantPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.constant == null || incoming.constant == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendConstantScalarChanges(baseline.constant, incoming.constant, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> commonModulePropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.commonModule == null || incoming.commonModule == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendCommonModuleScalarChanges(
+      baseline.commonModule, incoming.commonModule, out);
+    return out;
   }
 
   /** Тот же состав имён и порядок; допускаются отличия synonym/comment. */
