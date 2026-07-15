@@ -140,6 +140,25 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.sourceName, "sourceName"), p.req(p.newName, "newName"));
         return "OK";
 
+      case "cf-md-enum-value-add":
+        MdObjectChildMutations.addEnumValue(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-enum-value-rename":
+        MdObjectChildMutations.renameEnumValue(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-enum-value-delete":
+        MdObjectChildMutations.deleteEnumValue(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-enum-value-duplicate":
+        MdObjectChildMutations.duplicateEnumValue(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.sourceName, "sourceName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-enum-value-reorder":
+        MdObjectChildMutations.reorderEnumValues(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), parseNameList(p));
+        return "OK";
+
       case "cf-md-tabular-section-add":
         MdObjectChildMutations.addTabularSection(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
         return "OK";

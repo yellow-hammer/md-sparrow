@@ -65,7 +65,8 @@ public final class MdObjectPropertiesLeafDiff {
       return List.of();
     }
     if (!namedListSameStructure(baseline.attributes, incoming.attributes)
-      || !namedListSameStructure(baseline.tabularSections, incoming.tabularSections)) {
+      || !namedListSameStructure(baseline.tabularSections, incoming.tabularSections)
+      || !namedListSameStructure(baseline.enumValues, incoming.enumValues)) {
       return List.of();
     }
     if (!MdObjectPropertiesDiff.listStringEquals(baseline.nestedSubsystems, incoming.nestedSubsystems)) {
@@ -99,6 +100,7 @@ public final class MdObjectPropertiesLeafDiff {
     }
     List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
     MdSimplePropertiesGranularSerial.appendEnumScalarChanges(baseline.enumeration, incoming.enumeration, out);
+    appendNamedChildSynonymComment("EnumValue", baseline.enumValues, incoming.enumValues, out);
     return out;
   }
 

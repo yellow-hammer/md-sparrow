@@ -39,6 +39,9 @@ public final class MdObjectPropertiesJsonCoalesce {
     if (incoming.tabularSections == null || incoming.tabularSections.isEmpty()) {
       incoming.tabularSections = copyNamedList(baseline.tabularSections);
     }
+    if (incoming.enumValues == null || incoming.enumValues.isEmpty()) {
+      incoming.enumValues = copyNamedList(baseline.enumValues);
+    }
     if (incoming.nestedSubsystems == null) {
       incoming.nestedSubsystems = baseline.nestedSubsystems == null
         ? new ArrayList<>()

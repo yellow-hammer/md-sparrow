@@ -115,6 +115,71 @@ public final class MdObjectChildMutations {
   }
 
   /**
+   * Добавляет значение перечисления в корневой {@code ChildObjects}.
+   *
+   * @param objectXml путь к XML перечисления
+   * @param version версия схемы Designer XML
+   * @param newName имя нового значения
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void addEnumValue(Path objectXml, SchemaVersion version, String newName)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ensureNotBlank(newName, "Введите имя значения.");
+      ensureMissingNamedChild(xml, containerLocal, "EnumValue", newName, "Значение уже существует: " + newName);
+      return insertIntoRootChildObjects(xml, containerLocal, buildEnumValueSnippet(newName, newName, ""));
+    });
+  }
+
+  /**
+   * Переименовывает значение перечисления в корневом {@code ChildObjects}.
+   *
+   * @param objectXml путь к XML перечисления
+   * @param version версия схемы Designer XML
+   * @param oldName текущее имя значения
+   * @param newName новое имя значения
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void renameEnumValue(Path objectXml, SchemaVersion version, String oldName, String newName)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      renameNamedChild(xml, containerLocal, "EnumValue", oldName, newName, "Значение"));
+  }
+
+  /**
+   * Удаляет значение перечисления из корневого {@code ChildObjects}.
+   *
+   * @param objectXml путь к XML перечисления
+   * @param version версия схемы Designer XML
+   * @param name имя удаляемого значения
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void deleteEnumValue(Path objectXml, SchemaVersion version, String name)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      deleteNamedChild(xml, containerLocal, "EnumValue", name, "Значение"));
+  }
+
+  /**
+   * Создаёт копию значения перечисления в корневом {@code ChildObjects}.
+   *
+   * @param objectXml путь к XML перечисления
+   * @param version версия схемы Designer XML
+   * @param sourceName имя исходного значения
+   * @param newName имя копии
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void duplicateEnumValue(Path objectXml, SchemaVersion version, String sourceName, String newName)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      duplicateNamedChild(xml, containerLocal, "EnumValue", sourceName, newName, "Значение"));
+  }
+
+  /**
    * Добавляет табличную часть в корневой {@code ChildObjects}.
    *
    * @param objectXml путь к XML объекта метаданных
@@ -604,6 +669,16 @@ public final class MdObjectChildMutations {
   }
 
   /**
+   * Переставляет значения перечисления корневого {@code ChildObjects} в заданном порядке.
+   */
+  public static void reorderEnumValues(Path objectXml, SchemaVersion version, List<String> order)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      reorderNamedRegions(xml, order, "Значение",
+        name -> MdObjectXmlRegions.findNamedChildObjectRegion(xml, containerLocal, "EnumValue", name)));
+  }
+
+  /**
    * Переставляет реквизиты табличной части в заданном порядке.
    */
   public static void reorderTabularAttributes(
@@ -731,6 +806,23 @@ public final class MdObjectChildMutations {
       : "\t\t<Comment>" + escapeXml(comment) + "</Comment>\n")
       + "\t</Properties>\n"
       + "</Attribute>";
+  }
+
+  private static String buildEnumValueSnippet(String name, String synonymRu, String comment) {
+    return "<EnumValue uuid=\"" + UUID.randomUUID() + "\">\n"
+      + "\t<Properties>\n"
+      + "\t\t<Name>" + escapeXml(name) + "</Name>\n"
+      + "\t\t<Synonym>\n"
+      + "\t\t\t<v8:item>\n"
+      + "\t\t\t\t<v8:lang>ru</v8:lang>\n"
+      + "\t\t\t\t<v8:content>" + escapeXml(synonymRu) + "</v8:content>\n"
+      + "\t\t\t</v8:item>\n"
+      + "\t\t</Synonym>\n"
+      + (comment == null || comment.isBlank()
+      ? "\t\t<Comment/>\n"
+      : "\t\t<Comment>" + escapeXml(comment) + "</Comment>\n")
+      + "\t</Properties>\n"
+      + "</EnumValue>";
   }
 
   private static String buildTabularSectionSnippet(

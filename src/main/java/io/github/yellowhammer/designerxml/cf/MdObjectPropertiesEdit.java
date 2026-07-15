@@ -95,6 +95,9 @@ public final class MdObjectPropertiesEdit {
     if (dto.tabularSections == null) {
       dto.tabularSections = new ArrayList<>();
     }
+    if (dto.enumValues == null) {
+      dto.enumValues = new ArrayList<>();
+    }
     if (dto.nestedSubsystems == null) {
       dto.nestedSubsystems = new ArrayList<>();
     }
@@ -381,7 +384,10 @@ public final class MdObjectPropertiesEdit {
     dto.synonymRu = readLocalStringRu(invokeNoArgOrNull(props, "getSynonym"));
     dto.comment = toStringOrEmpty(invokeNoArgOrNull(props, "getComment"));
     switch (kind) {
-      case "enum" -> MdEnumPropertiesBridge.read(version, props, dto);
+      case "enum" -> {
+        MdEnumPropertiesBridge.read(version, props, dto);
+        readEnumValues(objectNode, dto);
+      }
       case "constant" -> MdConstantPropertiesBridge.read(props, dto);
       case "commonModule" -> MdCommonModulePropertiesBridge.read(props, dto);
       default -> {
@@ -394,6 +400,7 @@ public final class MdObjectPropertiesEdit {
     Object props = invokeNoArg(objectNode, "getProperties");
     if ("enum".equals(dto.kind) && dto.enumeration != null) {
       MdEnumPropertiesBridge.apply(version, props, dto);
+      applyEnumValues(objectNode, dto);
       return;
     }
     if ("constant".equals(dto.kind) && dto.constant != null) {
@@ -411,6 +418,28 @@ public final class MdObjectPropertiesEdit {
     String syn = dto.synonymRu == null ? "" : dto.synonymRu;
     writeLocalStringRu(props, syn);
     invokeSetterString(props, "setComment", dto.comment == null ? "" : dto.comment);
+  }
+
+  private static void readEnumValues(Object objectNode, MdObjectPropertiesDto dto) {
+    Object childObjects = invokeNoArgOrNull(objectNode, "getChildObjects");
+    if (childObjects == null) {
+      return;
+    }
+    for (Object value : JaxbReflect.<Object>list(childObjects, "getEnumValue")) {
+      dto.enumValues.add(namedDto(value));
+    }
+  }
+
+  private static void applyEnumValues(Object objectNode, MdObjectPropertiesDto dto) {
+    Object childObjects = invokeNoArgOrNull(objectNode, "getChildObjects");
+    if (childObjects == null) {
+      return;
+    }
+    List<Object> values = JaxbReflect.list(childObjects, "getEnumValue");
+    validateNamed(dto.enumValues, values, "enumValue");
+    for (int i = 0; i < values.size(); i++) {
+      applyNamedDto(values.get(i), dto.enumValues.get(i), "enum value");
+    }
   }
 
   private static String readLocalStringRu(Object localString) {

@@ -75,6 +75,9 @@ public final class MdObjectPropertiesDiff {
     if (!namedListEquals(a.tabularSections, b.tabularSections)) {
       return false;
     }
+    if (!namedListEquals(a.enumValues, b.enumValues)) {
+      return false;
+    }
     if (!listStringEquals(a.nestedSubsystems, b.nestedSubsystems)) {
       return false;
     }
@@ -190,6 +193,9 @@ public final class MdObjectPropertiesDiff {
       return false;
     }
     if (!namedListEquals(a.tabularSections, b.tabularSections)) {
+      return false;
+    }
+    if (!namedListEquals(a.enumValues, b.enumValues)) {
       return false;
     }
     if (!listStringEquals(a.nestedSubsystems, b.nestedSubsystems)) {
@@ -433,7 +439,8 @@ public final class MdObjectPropertiesDiff {
   private static ChangeMask docLikeMask(MdObjectPropertiesDto baseline, MdObjectPropertiesDto incoming) {
     boolean child =
       !namedListEquals(baseline.attributes, incoming.attributes)
-        || !namedListEquals(baseline.tabularSections, incoming.tabularSections);
+        || !namedListEquals(baseline.tabularSections, incoming.tabularSections)
+        || !namedListEquals(baseline.enumValues, incoming.enumValues);
     boolean props =
       !Objects.equals(baseline.synonymRu, incoming.synonymRu)
         || !Objects.equals(baseline.comment, incoming.comment)
