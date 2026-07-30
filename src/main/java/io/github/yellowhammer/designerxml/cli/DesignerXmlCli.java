@@ -104,6 +104,7 @@ import java.util.concurrent.Callable;
     ReadJsonCmd.class,
     DesignerXmlCli.InitEmptyCfCmd.class,
     DesignerXmlCli.InitEmptyCfeCmd.class,
+    DesignerXmlCli.CfValidateDumpCmd.class,
     DesignerXmlCli.ProjectMetadataTreeCmd.class,
     DesignerXmlCli.CfMdGraphCmd.class
   },
@@ -499,6 +500,22 @@ public final class DesignerXmlCli implements Callable<Integer> {
         return 2;
       }
       System.out.println("OK");
+      return 0;
+    }
+  }
+
+  @Command(
+    name = "validate-dump",
+    description = "Проверить целостность выгрузки: состав, ссылки, версии формата; результат — JSON находок в stdout."
+  )
+  static final class CfValidateDumpCmd implements Callable<Integer> {
+    @Parameters(index = "0", description = "Каталог выгрузки (src/cf или каталог расширения)")
+    Path cfRoot;
+
+    @Override
+    public Integer call() throws Exception {
+      var findings = io.github.yellowhammer.designerxml.cf.CfDumpValidation.validate(cfRoot);
+      System.out.println(new com.google.gson.GsonBuilder().disableHtmlEscaping().create().toJson(findings));
       return 0;
     }
   }

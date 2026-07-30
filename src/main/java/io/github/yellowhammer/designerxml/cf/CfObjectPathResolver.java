@@ -11,6 +11,7 @@ package io.github.yellowhammer.designerxml.cf;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -40,62 +41,77 @@ public final class CfObjectPathResolver {
     return Files.isRegularFile(p) ? Optional.of(p) : Optional.empty();
   }
 
+  /**
+   * Каталог выгрузки для типа объекта: {@code "Catalog"} - {@code "Catalogs"} и так далее.
+   *
+   * <p>Подсистемы в таблице тоже есть, но вложенные лежат внутри родителя: путь к ним
+   * ищет {@link #subsystemXml}, а по таблице находится только каталог верхнего уровня.
+   */
+  private static final Map<String, String> SUBDIR_BY_TYPE = Map.ofEntries(
+    Map.entry("Subsystem", "Subsystems"),
+    Map.entry("AccountingRegister", "AccountingRegisters"),
+    Map.entry("AccumulationRegister", "AccumulationRegisters"),
+    Map.entry("Bot", "Bots"),
+    Map.entry("BusinessProcess", "BusinessProcesses"),
+    Map.entry("CalculationRegister", "CalculationRegisters"),
+    Map.entry("Catalog", "Catalogs"),
+    Map.entry("ChartOfAccounts", "ChartsOfAccounts"),
+    Map.entry("ChartOfCalculationTypes", "ChartsOfCalculationTypes"),
+    Map.entry("ChartOfCharacteristicTypes", "ChartsOfCharacteristicTypes"),
+    Map.entry("CommandGroup", "CommandGroups"),
+    Map.entry("CommonAttribute", "CommonAttributes"),
+    Map.entry("CommonCommand", "CommonCommands"),
+    Map.entry("CommonForm", "CommonForms"),
+    Map.entry("CommonModule", "CommonModules"),
+    Map.entry("CommonPicture", "CommonPictures"),
+    Map.entry("CommonTemplate", "CommonTemplates"),
+    Map.entry("Constant", "Constants"),
+    Map.entry("DataProcessor", "DataProcessors"),
+    Map.entry("DefinedType", "DefinedTypes"),
+    Map.entry("Document", "Documents"),
+    Map.entry("DocumentJournal", "DocumentJournals"),
+    Map.entry("DocumentNumerator", "DocumentNumerators"),
+    Map.entry("Enum", "Enums"),
+    Map.entry("EventSubscription", "EventSubscriptions"),
+    Map.entry("ExchangePlan", "ExchangePlans"),
+    Map.entry("ExternalDataSource", "ExternalDataSources"),
+    Map.entry("FilterCriterion", "FilterCriteria"),
+    Map.entry("FunctionalOption", "FunctionalOptions"),
+    Map.entry("FunctionalOptionsParameter", "FunctionalOptionsParameters"),
+    Map.entry("HTTPService", "HTTPServices"),
+    Map.entry("InformationRegister", "InformationRegisters"),
+    Map.entry("IntegrationService", "IntegrationServices"),
+    Map.entry("Interface", "Interfaces"),
+    Map.entry("Language", "Languages"),
+    Map.entry("PaletteColor", "PaletteColors"),
+    Map.entry("Report", "Reports"),
+    Map.entry("Role", "Roles"),
+    Map.entry("ScheduledJob", "ScheduledJobs"),
+    Map.entry("Sequence", "Sequences"),
+    Map.entry("SessionParameter", "SessionParameters"),
+    Map.entry("SettingsStorage", "SettingsStorages"),
+    Map.entry("Style", "Styles"),
+    Map.entry("StyleItem", "StyleItems"),
+    Map.entry("Task", "Tasks"),
+    Map.entry("WSReference", "WSReferences"),
+    Map.entry("WebService", "WebServices"),
+    Map.entry("WebSocketClient", "WebSocketClients"),
+    Map.entry("XDTOPackage", "XDTOPackages"));
+
+  /** Соответствие типа объекта и каталога выгрузки; ключи - имена элементов {@code ChildObjects}. */
+  public static Map<String, String> subdirsByType() {
+    return SUBDIR_BY_TYPE;
+  }
+
   public static Optional<Path> objectXml(Path cfRoot, String objectType, String name) throws IOException {
     if (name == null || name.isEmpty()) {
       return Optional.empty();
     }
-    return switch (objectType) {
-      case "Catalog" -> catalogXml(cfRoot, name);
-      case "Constant" -> inSubdir(cfRoot, "Constants", name);
-      case "Enum" -> inSubdir(cfRoot, "Enums", name);
-      case "Document" -> documentXml(cfRoot, name);
-      case "DocumentJournal" -> inSubdir(cfRoot, "DocumentJournals", name);
-      case "Report" -> inSubdir(cfRoot, "Reports", name);
-      case "DataProcessor" -> inSubdir(cfRoot, "DataProcessors", name);
-      case "Task" -> inSubdir(cfRoot, "Tasks", name);
-      case "ChartOfAccounts" -> inSubdir(cfRoot, "ChartsOfAccounts", name);
-      case "ChartOfCharacteristicTypes" -> inSubdir(cfRoot, "ChartsOfCharacteristicTypes", name);
-      case "ChartOfCalculationTypes" -> inSubdir(cfRoot, "ChartsOfCalculationTypes", name);
-      case "InformationRegister" -> inSubdir(cfRoot, "InformationRegisters", name);
-      case "AccumulationRegister" -> inSubdir(cfRoot, "AccumulationRegisters", name);
-      case "AccountingRegister" -> inSubdir(cfRoot, "AccountingRegisters", name);
-      case "CalculationRegister" -> inSubdir(cfRoot, "CalculationRegisters", name);
-      case "BusinessProcess" -> inSubdir(cfRoot, "BusinessProcesses", name);
-      case "CommonModule" -> inSubdir(cfRoot, "CommonModules", name);
-      case "Subsystem" -> subsystemXml(cfRoot, name);
-      case "SessionParameter" -> inSubdir(cfRoot, "SessionParameters", name);
-      case "ExchangePlan" -> exchangePlanXml(cfRoot, name);
-      case "FilterCriterion" -> inSubdir(cfRoot, "FilterCriteria", name);
-      case "EventSubscription" -> inSubdir(cfRoot, "EventSubscriptions", name);
-      case "ScheduledJob" -> inSubdir(cfRoot, "ScheduledJobs", name);
-      case "FunctionalOption" -> inSubdir(cfRoot, "FunctionalOptions", name);
-      case "FunctionalOptionsParameter" -> inSubdir(cfRoot, "FunctionalOptionsParameters", name);
-      case "DefinedType" -> inSubdir(cfRoot, "DefinedTypes", name);
-      case "SettingsStorage" -> inSubdir(cfRoot, "SettingsStorages", name);
-      case "CommonCommand" -> inSubdir(cfRoot, "CommonCommands", name);
-      case "CommandGroup" -> inSubdir(cfRoot, "CommandGroups", name);
-      case "CommonForm" -> inSubdir(cfRoot, "CommonForms", name);
-      case "CommonTemplate" -> inSubdir(cfRoot, "CommonTemplates", name);
-      case "CommonAttribute" -> inSubdir(cfRoot, "CommonAttributes", name);
-      case "CommonPicture" -> inSubdir(cfRoot, "CommonPictures", name);
-      case "XDTOPackage" -> inSubdir(cfRoot, "XDTOPackages", name);
-      case "WebService" -> inSubdir(cfRoot, "WebServices", name);
-      case "HTTPService" -> inSubdir(cfRoot, "HTTPServices", name);
-      case "Interface" -> inSubdir(cfRoot, "Interfaces", name);
-      case "WSReference" -> inSubdir(cfRoot, "WSReferences", name);
-      case "WebSocketClient" -> inSubdir(cfRoot, "WebSocketClients", name);
-      case "IntegrationService" -> inSubdir(cfRoot, "IntegrationServices", name);
-      case "Bot" -> inSubdir(cfRoot, "Bots", name);
-      case "StyleItem" -> inSubdir(cfRoot, "StyleItems", name);
-      case "Style" -> inSubdir(cfRoot, "Styles", name);
-      case "Language" -> inSubdir(cfRoot, "Languages", name);
-      case "PaletteColor" -> inSubdir(cfRoot, "PaletteColors", name);
-      case "DocumentNumerator" -> inSubdir(cfRoot, "DocumentNumerators", name);
-      case "Sequence" -> inSubdir(cfRoot, "Sequences", name);
-      case "ExternalDataSource" -> inSubdir(cfRoot, "ExternalDataSources", name);
-      case "Role" -> inSubdir(cfRoot, "Roles", name);
-      default -> Optional.empty();
-    };
+    if ("Subsystem".equals(objectType)) {
+      return subsystemXml(cfRoot, name);
+    }
+    String subdir = SUBDIR_BY_TYPE.get(objectType);
+    return subdir == null ? Optional.empty() : inSubdir(cfRoot, subdir, name);
   }
 
   /**

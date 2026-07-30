@@ -25,6 +25,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.cf.CatalogFormDto;
+import io.github.yellowhammer.designerxml.cf.CfDumpValidation;
 import io.github.yellowhammer.designerxml.cf.CatalogFormEdit;
 import io.github.yellowhammer.designerxml.cf.ConfigurationCatalogLister;
 import io.github.yellowhammer.designerxml.cf.ConfigurationChildObjectLister;
@@ -127,6 +128,10 @@ final class ReadJsonCmd implements Callable<Integer> {
         var names = ConfigurationChildObjectLister.listNames(
           p.reqPath(p.configurationXml, "configurationXml"), p.version(), p.req(p.tag, "tag"));
         return ConfigurationCatalogLister.toJsonArray(names);
+      }
+      case "cf-validate-dump": {
+        var findings = CfDumpValidation.validate(p.reqPath(p.cfRoot, "cfRoot"));
+        return gson.toJson(findings);
       }
       case "cf-list-catalogs": {
         var names = ConfigurationCatalogLister.listCatalogNames(

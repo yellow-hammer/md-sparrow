@@ -63,6 +63,8 @@ final class CliParams {
 
   /** Режим совместимости интерфейса из основной конфигурации. */
   String interfaceCompatibilityMode;
+  /** Каталог проверяемой выгрузки: {@code src/cf} или каталог расширения. */
+  String cfRoot;
   String projectRoot;
   /** Каталоги исходников относительно projectRoot (null — стандартные src/cf, src/cfe, src/epf, src/erf). */
   String cfDir;
