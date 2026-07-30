@@ -33,6 +33,7 @@ import io.github.yellowhammer.designerxml.cf.ExternalArtifactMutations;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectAdd;
+import io.github.yellowhammer.designerxml.cf.MdObjectBatchAdd;
 import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 import io.github.yellowhammer.designerxml.cf.MdObjectChildMutations;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
@@ -303,6 +304,17 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.synonymRu,
           p.synonymEmpty);
         return "OK";
+      }
+
+      case "add-md-object-batch": {
+        var items = new com.google.gson.Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.List<MdObjectBatchAdd.Item>>() { }.getType());
+        var created = MdObjectBatchAdd.add(
+          p.reqPath(p.configurationXml, "configurationXml"),
+          (java.util.List<MdObjectBatchAdd.Item>) items,
+          p.version());
+        return String.join(", ", created);
       }
 
       default:
