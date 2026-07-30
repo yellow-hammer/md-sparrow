@@ -37,6 +37,7 @@ final class ConfigurationChildObjectMutator {
     }
     String updated = matcher.replaceFirst("");
     writeAtomically(configurationXml, updated);
+    syncConfigDumpInfo(configurationXml);
   }
 
   static void rename(Path configurationXml, String xmlTag, String oldName, String newName) throws IOException {
@@ -59,6 +60,15 @@ final class ConfigurationChildObjectMutator {
     String replacement = indent + "<" + xmlTag + ">" + escapeXmlText(newName) + "</" + xmlTag + ">" + lineEnd;
     String updated = matcher.replaceFirst(Matcher.quoteReplacement(replacement));
     writeAtomically(configurationXml, updated);
+    syncConfigDumpInfo(configurationXml);
+  }
+
+  /** Состав изменился - служебный файл версий объектов не должен от него отставать. */
+  private static void syncConfigDumpInfo(Path configurationXml) throws IOException {
+    Path cfRoot = configurationXml.getParent();
+    if (cfRoot != null) {
+      ConfigDumpInfoSync.sync(cfRoot);
+    }
   }
 
   private static boolean contains(String content, String xmlTag, String objectName) {
