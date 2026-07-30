@@ -1,0 +1,168 @@
+name: Вспомогательный — эталон пустого расширения (ibcmd)
+
+# Назначение: получить эталон выгрузки ПУСТОГО расширения конфигурации для одной или нескольких
+# версий платформы. Нужен так же, как эталоны конфигурации: значения по умолчанию в свойствах
+# расширения (ConfigurationExtensionPurpose, NamePrefix, режим совместимости) - артефакт платформы,
+# в XSD их нет. Эталон - источник правды для scaffold `init-empty-cfe`.
+#
+# Работает через ibcmd (без DESIGNER, значит без лицензии): создаёт файловую ИБ, добавляет в неё
+# расширение и выгружает его исходники. Результат - артефакт `golden/<формат>/cfe/...` на версию.
+#
+# Установка платформы повторяет вспомогательный workflow эталонов конфигурации.
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: 'Версии платформы через пробел, ПО ВОЗРАСТАНИЮ (например "8.3.27.1486")'
+        required: true
+        default: '8.3.27.1486'
+      extension_name:
+        description: 'Имя расширения'
+        required: false
+        default: 'ПустоеРасширение'
+      name_prefix:
+        description: 'Префикс имён объектов расширения'
+        required: false
+        default: 'пр_'
+
+concurrency:
+  group: diagnose-golden-cfe
+  cancel-in-progress: false
+
+jobs:
+  golden:
+    name: Эталон расширения
+    runs-on: ubuntu-22.04
+    timeout-minutes: 200
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установить OneScript
+        uses: otymko/setup-onescript@v1.5.1
+        with:
+          version: stable
+
+      - name: Установить yard
+        run: |
+          opm install opm
+          opm install yard
+          YARD_OS=$(find "$HOME/.local/share/ovm" -path '*/yard/src/yard.os' 2>/dev/null | head -1)
+          if [ -z "$YARD_OS" ]; then echo "ERROR: yard.os не найден"; exit 1; fi
+          echo "YARD_OS=$YARD_OS" >> "$GITHUB_ENV"
+
+      - name: Установить зависимости платформы 1С
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            fontconfig libgsf-1-114 libglib2.0-0 libodbc1 libwebkit2gtk-4.0-37 \
+            xvfb unzip curl
+          LE_BASE=http://archive.ubuntu.com/ubuntu/pool/universe/e/enchant/
+          LE_FILE=$(curl -s "$LE_BASE" | grep -oE 'libenchant1c2a_[^"]*_amd64\.deb' | head -1)
+          curl -sL "$LE_BASE$LE_FILE" -o /tmp/libenchant.deb
+          sudo apt-get install -y /tmp/libenchant.deb
+
+      - name: Собрать эталон расширения по версиям
+        env:
+          YARD_RELEASES_USER: ${{ secrets.ONEC_LOGIN }}
+          YARD_RELEASES_PWD: ${{ secrets.ONEC_PASSWORD }}
+          VERSIONS: ${{ inputs.versions }}
+          EXT_NAME: ${{ inputs.extension_name }}
+          NAME_PREFIX: ${{ inputs.name_prefix }}
+        run: |
+          set +e
+          REPO_DIR=$(pwd)
+          GOLDEN_DIR="$REPO_DIR/golden"
+          mkdir -p "$GOLDEN_DIR"
+
+          for PLATFORM_VERSION in $VERSIONS; do
+            echo "===================== $PLATFORM_VERSION ====================="
+            DISTR_DIR=$(mktemp -d); chmod 777 "$DISTR_DIR"
+            ESCAPED_VERSION=$(echo "$PLATFORM_VERSION" | sed 's/\./\\./g')
+            APP_MAJOR=$(echo "$PLATFORM_VERSION" | cut -d. -f1,2)
+            DISTR_FILTERS=(
+              "[CС]ервер.+\(64-bit\) для DEB-based Linux-систем$"
+              "Технологическая платформа.+\(64-bit\) для Linux$"
+            )
+            OK=0
+            for ATTEMPT in 1 2 3; do
+              for DF in "${DISTR_FILTERS[@]}"; do
+                timeout 900 oscript "$YARD_OS" releases get \
+                  --app-filter "Технологическая платформа $APP_MAJOR\$" \
+                  --version-filter "$ESCAPED_VERSION" \
+                  --distr-filter "$DF" \
+                  --path "$DISTR_DIR" --download-limit 1 --extract || true
+                if find "$DISTR_DIR" -type f \( -name 'setup-full*.run' -o -name '*.deb' \) | grep -q .; then OK=1; break; fi
+              done
+              [ "$OK" -eq 1 ] && break
+              echo "Попытка $ATTEMPT — дистрибутив не получен, пауза 20с…"; sleep 20
+            done
+            [ "$OK" -eq 1 ] || { echo "WARN: дистрибутив $PLATFORM_VERSION не скачан, пропуск"; rm -rf "$DISTR_DIR"; continue; }
+
+            sudo rm -rf /opt/1cv8 /opt/1C 2>/dev/null || true
+            RUN_INSTALLER=$(find "$DISTR_DIR" -name 'setup-full*.run' | head -1)
+            if [ -n "$RUN_INSTALLER" ]; then
+              chmod +x "$RUN_INSTALLER"
+              for COMPONENTS in server,client_full,v8_install_deps server,client_full; do
+                if timeout 900 xvfb-run -a sudo "$RUN_INSTALLER" --mode unattended \
+                  --enable-components "$COMPONENTS" > /tmp/install.log 2>&1; then break; fi
+              done
+            else
+              DEBS=$(find "$DISTR_DIR" -name '*.deb' | sort)
+              [ -n "$DEBS" ] || { echo "WARN: ни .run, ни .deb для $PLATFORM_VERSION, пропуск"; rm -rf "$DISTR_DIR"; continue; }
+              timeout 600 sudo dpkg -i $DEBS > /tmp/install.log 2>&1 \
+                || timeout 600 sudo apt-get install -f -y >> /tmp/install.log 2>&1
+            fi
+
+            IBCMD=$(find /opt/1cv8 /opt/1C -name 'ibcmd' -type f 2>/dev/null | sort -V | tail -1)
+            [ -n "$IBCMD" ] || { echo "WARN: ibcmd не найден после установки $PLATFORM_VERSION, пропуск"; rm -rf "$DISTR_DIR"; continue; }
+
+            DB_DIR=$(mktemp -d); DATA_DIR=$(mktemp -d); OUT_DIR=$(mktemp -d); CFE_DIR=$(mktemp -d)
+            chmod 777 "$OUT_DIR" "$CFE_DIR"
+            # ibcmd создаёт файловую ИБ; --data нужен для 8.3.20+ (на 8.3.19 отвергается)
+            DATA_ARG=""
+            if ! timeout 300 "$IBCMD" infobase create --db-path="$DB_DIR" >/tmp/create.log 2>&1; then
+              DATA_ARG="--data=$DATA_DIR"
+              timeout 300 "$IBCMD" infobase create $DATA_ARG --db-path="$DB_DIR" >/tmp/create.log 2>&1
+            fi
+
+            # Расширение создаётся в ИБ и сразу выгружается: пустое, только свойства по умолчанию
+            timeout 300 "$IBCMD" infobase config extension create $DATA_ARG --db-path="$DB_DIR" \
+              --name="$EXT_NAME" --name-prefix="$NAME_PREFIX" --purpose=add-on > /tmp/ext-create.log 2>&1
+            if [ $? -ne 0 ]; then
+              echo "WARN: extension create не прошёл для $PLATFORM_VERSION:"; tail -20 /tmp/ext-create.log
+              rm -rf "$DISTR_DIR" "$DB_DIR" "$DATA_DIR" "$OUT_DIR" "$CFE_DIR"; continue
+            fi
+
+            timeout 600 "$IBCMD" infobase config export $DATA_ARG --db-path="$DB_DIR" \
+              --extension="$EXT_NAME" "$CFE_DIR" > /tmp/ext-export.log 2>&1
+            if [ $? -ne 0 ] || [ ! -f "$CFE_DIR/Configuration.xml" ]; then
+              echo "ERROR: config export расширения не дал Configuration.xml для $PLATFORM_VERSION:"; tail -30 /tmp/ext-export.log
+              rm -rf "$DISTR_DIR" "$DB_DIR" "$DATA_DIR" "$OUT_DIR" "$CFE_DIR"; continue
+            fi
+
+            FORMAT=$(grep -oE 'version="2\.[0-9]+"' "$CFE_DIR/Configuration.xml" | head -1 | grep -oE '2\.[0-9]+')
+            FORMAT=${FORMAT:-unknown}
+            echo "Платформа $PLATFORM_VERSION → формат $FORMAT"
+            DEST="$GOLDEN_DIR/$FORMAT/cfe"
+            rm -rf "$DEST"; mkdir -p "$DEST"
+            cp -r "$CFE_DIR"/. "$DEST/"
+            rm -rf "$DISTR_DIR" "$DB_DIR" "$DATA_DIR" "$OUT_DIR" "$CFE_DIR"
+          done
+
+          echo "=== собранные форматы ==="
+          find "$GOLDEN_DIR" -maxdepth 1 -mindepth 1 -type d | sed "s#$GOLDEN_DIR/##" | sort
+          [ -n "$(ls -A "$GOLDEN_DIR" 2>/dev/null)" ] || { echo "ERROR: не собрано ни одного эталона"; exit 1; }
+          exit 0
+
+      - name: Загрузить эталон как артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-extension-${{ github.run_id }}
+          path: golden/
+          if-no-files-found: error
+          retention-days: 30
