@@ -28,6 +28,7 @@ Java-библиотека для чтения/записи XML метаданн�
 - `transcode` — перекодировать XML метаданных между версиями формата (понижение/повышение).
 - `init-empty-cf` — инициализация пустой выгрузки в `src/cf`.
 - `init-empty-cfe` — каркас пустого расширения конфигурации (`--from-configuration` берёт режимы совместимости из основной конфигурации).
+- `validate-dump` — проверка целостности выгрузки (состав, ссылки, версии формата) с JSON-списком находок.
 - `project-metadata-tree` — JSON-дерево метаданных по корню проекта (узлы с синонимами и родительскими подсистемами).
 - `cf-md-graph` — граф метаданных проекта (узлы + типизированные связи) в JSON; используется расширением VS Code для ER-диаграмм.
 - `add-md-object` — создание объекта метаданных (`--type`: `CATALOG`, `DOCUMENT`, `ENUM`, … — 19 видов; для каталога доступны `--synonym-ru` / `--synonym-empty`).
@@ -49,6 +50,7 @@ Java-библиотека для чтения/записи XML метаданн�
 - [docs/cf-layout.md](docs/cf-layout.md) — раскладка `src/cf` и порядок `ChildObjects`.
 - [docs/cf-md-object.md](docs/cf-md-object.md) — контракт свойств объектов метаданных (CLI cf-md-object, DTO, матрица типов).
 - [docs/scaffold-golden.md](docs/scaffold-golden.md) — архитектура scaffold по golden-эталонам.
+- [docs/validate-dump.md](docs/validate-dump.md) — проверка целостности выгрузки и виды находок.
 - **`.cursor/rules/`** — правила Cursor для агента (контекст JAXB, submodules, стиль).
 - `.github/workflows/release.yml` — выкладывает `md-sparrow-*-all.jar` в GitHub Releases при push тега `v*` или ручном запуске (workflow_dispatch с вводом версии).
 

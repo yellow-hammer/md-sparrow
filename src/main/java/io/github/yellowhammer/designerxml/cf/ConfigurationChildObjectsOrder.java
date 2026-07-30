@@ -74,12 +74,17 @@ final class ConfigurationChildObjectsOrder {
     "Bot",
     "WebSocketClient");
 
+  /** Порядок имён элементов в {@code ChildObjects}: индекс в списке - место в sequence схемы. */
+  public static List<String> tagOrder() {
+    return TAG_ORDER;
+  }
+
   /**
    * Имена элементов, стоящих в sequence <strong>строго до</strong> {@code xmlTag} (для первой вставки объекта
    * этого типа, когда ещё нет ни одной строки {@code <xmlTag>…</xmlTag>}).
    */
   static Set<String> tagsStrictlyBefore(String xmlTag) {
-    int idx = TAG_ORDER.indexOf(xmlTag);
+    int idx = tagOrder().indexOf(xmlTag);
     if (idx < 0) {
       throw new IllegalArgumentException("unknown ChildObjects tag: " + xmlTag);
     }
