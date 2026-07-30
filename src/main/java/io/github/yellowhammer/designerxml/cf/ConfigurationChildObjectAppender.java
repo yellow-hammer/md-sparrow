@@ -88,6 +88,8 @@ final class ConfigurationChildObjectAppender {
         /* */
       }
     }
+    // Состав изменился - служебный файл версий объектов не должен от него отставать.
+    ConfigDumpInfoSync.sync(parent);
   }
 
   private static Pattern linePatternForTag(String xmlTag) {
