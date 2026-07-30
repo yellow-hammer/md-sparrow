@@ -103,6 +103,7 @@ import java.util.concurrent.Callable;
     ApplyMutationCmd.class,
     ReadJsonCmd.class,
     DesignerXmlCli.InitEmptyCfCmd.class,
+    DesignerXmlCli.InitEmptyCfeCmd.class,
     DesignerXmlCli.ProjectMetadataTreeCmd.class,
     DesignerXmlCli.CfMdGraphCmd.class
   },
@@ -542,6 +543,80 @@ public final class DesignerXmlCli implements Callable<Integer> {
         return 2;
       }
       System.out.println("OK: " + targetCfRoot.toAbsolutePath());
+      return 0;
+    }
+  }
+
+  @Command(
+    name = "init-empty-cfe",
+    description = "Инициализировать каталог пустого расширения конфигурации."
+  )
+  static final class InitEmptyCfeCmd implements Callable<Integer> {
+    @Parameters(index = "0", description = "Каталог расширения src/cfe/<Имя>")
+    Path targetCfeRoot;
+
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_20")
+    SchemaVersion version;
+
+    @Option(names = "--name", required = true, description = "Имя расширения")
+    String extensionName;
+
+    @Option(names = "--name-prefix", description = "Префикс имён объектов расширения; по умолчанию пусто, как у платформы")
+    String namePrefix;
+
+    @Option(
+      names = "--purpose",
+      description = "Назначение: patch, customization, add-on; по умолчанию customization"
+    )
+    String purpose;
+
+    @Option(
+      names = "--compatibility-mode",
+      description = "Режим совместимости расширения, например Version8_3_24; берётся из основной конфигурации"
+    )
+    String compatibilityMode;
+
+    @Option(
+      names = "--interface-compatibility-mode",
+      description = "Режим совместимости интерфейса, например TaxiEnableVersion8_2"
+    )
+    String interfaceCompatibilityMode;
+
+    @Option(
+      names = "--from-configuration",
+      description = "Configuration.xml расширяемой конфигурации: режимы совместимости берутся из неё"
+    )
+    Path mainConfigurationXml;
+
+    @Option(names = "--synonym-ru", description = "Синоним ru; по умолчанию имя расширения")
+    String synonymRu;
+
+    @Override
+    public Integer call() throws Exception {
+      try {
+        io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold.Purpose purposeValue =
+          purpose == null || purpose.isBlank()
+            ? io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold.Purpose.CUSTOMIZATION
+            : io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold.Purpose.fromCliName(purpose);
+        if (mainConfigurationXml != null) {
+          io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
+            targetCfeRoot, extensionName, synonymRu, namePrefix, purposeValue, mainConfigurationXml, version);
+        } else {
+          io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold.writeEmptyTree(
+            targetCfeRoot,
+            extensionName,
+            synonymRu,
+            namePrefix,
+            purposeValue,
+            compatibilityMode,
+            interfaceCompatibilityMode,
+            version);
+        }
+      } catch (IllegalArgumentException e) {
+        System.err.println(e.getMessage());
+        return 2;
+      }
+      System.out.println("OK: " + targetCfeRoot.toAbsolutePath());
       return 0;
     }
   }

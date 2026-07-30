@@ -46,6 +46,23 @@ final class CliParams {
   String objectXml;
   String artifactsRoot;
   String targetCfRoot;
+
+  /** Каталог расширения для init-empty-cfe. */
+  String targetCfeRoot;
+  /** Configuration.xml расширяемой конфигурации: источник режимов совместимости. */
+  String mainConfigurationXml;
+
+  /** Префикс имён объектов расширения. */
+  String namePrefix;
+
+  /** Назначение расширения: patch, customization, add-on. */
+  String purpose;
+
+  /** Режим совместимости расширения из основной конфигурации. */
+  String compatibilityMode;
+
+  /** Режим совместимости интерфейса из основной конфигурации. */
+  String interfaceCompatibilityMode;
   String projectRoot;
   /** Каталоги исходников относительно projectRoot (null — стандартные src/cf, src/cfe, src/epf, src/erf). */
   String cfDir;

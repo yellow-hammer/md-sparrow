@@ -54,6 +54,9 @@ public final class GoldenScaffold {
   /** Имя конфигурации-прототипа в эталоне (семя samples-1c-platform/seed). */
   private static final String EMPTY_CONFIG_PROTO = "ЭталонСемя";
 
+  /** Имя расширения в эталоне: подменяется на имя создаваемого расширения. */
+  private static final String EMPTY_EXTENSION_PROTO = "ПустоеРасширение";
+
   /** InternalInfo внешнего объекта в «сыром» (транскодер) порядке: GeneratedType перед ContainedObject. */
   private static final Pattern INTERNAL_INFO_GENERATED_THEN_CONTAINED = Pattern.compile(
     "(?s)<InternalInfo>\\s*(<xr:GeneratedType\\b.*?</xr:GeneratedType>)\\s*"
@@ -134,6 +137,53 @@ public final class GoldenScaffold {
     String stripped = stripChildObjectsToLanguage(golden);
     String seed = "scaffoldEmptyCf|" + version.name() + "|" + targetName;
     return GoldenObjectTemplate.parametrize(stripped, EMPTY_CONFIG_PROTO, targetName, seed);
+  }
+
+  /** Есть ли в jar эталон пустого расширения в этой версии формата. */
+  public static boolean hasExtensionGolden(SchemaVersion version) {
+    return resourceUrl(extensionResource(version, "Configuration.xml")) != null;
+  }
+
+  /**
+   * {@code Configuration.xml} пустого расширения с именем {@code targetName} в формате
+   * {@code version}: эталон выгрузки расширения, параметризованный именем и ремапом UUID.
+   * Для init-empty-cfe.
+   *
+   * <p>Состав эталона такой, каким расширение создаёт платформа: одна роль по умолчанию,
+   * без языка.
+   */
+  public static String generateEmptyExtension(String targetName, SchemaVersion version) throws IOException {
+    String golden = readResource(extensionResource(version, "Configuration.xml"), version);
+    String seed = "scaffoldEmptyCfe|" + version.name() + "|" + targetName;
+    return GoldenObjectTemplate.parametrize(golden, EMPTY_EXTENSION_PROTO, targetName, seed);
+  }
+
+  /**
+   * Имя роли по умолчанию, которую платформа заводит в новом расширении, - из состава эталона.
+   *
+   * <p>Имя зависит от локали платформы, снявшей эталон ({@code ОсновнаяРоль} против
+   * {@code DefaultRole}), поэтому берётся из файла, а не задаётся здесь.
+   */
+  public static String extensionDefaultRoleName(SchemaVersion version) throws IOException {
+    String golden = readResource(extensionResource(version, "Configuration.xml"), version);
+    Matcher role = Pattern.compile("<Role>([^<]+)</Role>").matcher(golden);
+    if (!role.find()) {
+      throw new IOException(
+        "в эталоне расширения формата " + version.metadataObjectVersionAttribute() + " нет роли по умолчанию");
+    }
+    return role.group(1).trim();
+  }
+
+  /** {@code Roles/<роль по умолчанию>.xml} расширения формата {@code version} из эталона (ремап UUID). */
+  public static String generateExtensionDefaultRole(String extensionName, SchemaVersion version) throws IOException {
+    String roleName = extensionDefaultRoleName(version);
+    String golden = readResource(extensionResource(version, "Roles/" + roleName + ".xml"), version);
+    String seed = "scaffoldCfeRole|" + version.name() + "|" + extensionName;
+    return GoldenObjectTemplate.parametrize(golden, roleName, roleName, seed);
+  }
+
+  private static String extensionResource(SchemaVersion version, String relative) {
+    return "golden-cfe/" + version.metadataObjectVersionAttribute() + "/" + relative;
   }
 
   /** {@code Languages/Русский.xml} формата {@code version} из эталона (ремап UUID). Для init-empty-cf. */

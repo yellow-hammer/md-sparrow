@@ -124,19 +124,38 @@ jobs:
             DB_DIR=$(mktemp -d); DATA_DIR=$(mktemp -d); OUT_DIR=$(mktemp -d); CFE_DIR=$(mktemp -d)
             chmod 777 "$OUT_DIR" "$CFE_DIR"
             # ibcmd создаёт файловую ИБ; --data нужен для 8.3.20+ (на 8.3.19 отвергается)
+            # Локаль ru: от неё зависит вариант встроенного языка и имя роли по умолчанию
+            # (Russian/ОсновнаяРоль против English/DefaultRole). Эталон нужен русский.
+            export LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
             DATA_ARG=""
-            if ! timeout 300 "$IBCMD" infobase create --db-path="$DB_DIR" >/tmp/create.log 2>&1; then
+            if ! timeout 300 "$IBCMD" infobase create --locale=ru --db-path="$DB_DIR" >/tmp/create.log 2>&1; then
               DATA_ARG="--data=$DATA_DIR"
-              timeout 300 "$IBCMD" infobase create $DATA_ARG --db-path="$DB_DIR" >/tmp/create.log 2>&1
+              timeout 300 "$IBCMD" infobase create $DATA_ARG --locale=ru --db-path="$DB_DIR" >/tmp/create.log 2>&1
             fi
 
-            # Расширение создаётся в ИБ и сразу выгружается: пустое, только свойства по умолчанию
-            timeout 300 "$IBCMD" infobase config extension create $DATA_ARG --db-path="$DB_DIR" \
-              --name="$EXT_NAME" --name-prefix="$NAME_PREFIX" --purpose=add-on > /tmp/ext-create.log 2>&1
-            if [ $? -ne 0 ]; then
-              echo "WARN: extension create не прошёл для $PLATFORM_VERSION:"; tail -20 /tmp/ext-create.log
+            # Расширение создаётся в ИБ и сразу выгружается: пустое, только свойства по умолчанию.
+            # Синтаксис у разных версий разный, поэтому пробуем по очереди и берём первый рабочий.
+            EXT_CREATED=""
+            try_create() {
+              timeout 300 "$IBCMD" infobase config extension create $DATA_ARG --db-path="$DB_DIR" "$@"                 > /tmp/ext-create.log 2>&1 && EXT_CREATED="$*"
+            }
+            try_create --name="$EXT_NAME" --name-prefix="$NAME_PREFIX" --purpose=add-on
+            [ -n "$EXT_CREATED" ] || try_create --name="$EXT_NAME" --name-prefix="$NAME_PREFIX"
+            [ -n "$EXT_CREATED" ] || try_create --name="$EXT_NAME"
+            [ -n "$EXT_CREATED" ] || try_create --extension="$EXT_NAME"
+            [ -n "$EXT_CREATED" ] || try_create "$EXT_NAME"
+            if [ -z "$EXT_CREATED" ]; then
+              echo "WARN: extension create не прошёл ни в одном варианте для $PLATFORM_VERSION:"
+              tail -10 /tmp/ext-create.log
+              echo "--- что вообще умеет ibcmd этой версии:"
+              "$IBCMD" infobase --help 2>&1 | sed -n '1,60p' || true
+              echo "--- infobase config:"
+              "$IBCMD" infobase config --help 2>&1 | sed -n '1,60p' || true
+              echo "--- infobase config extension:"
+              "$IBCMD" infobase config extension --help 2>&1 | sed -n '1,60p' || true
               rm -rf "$DISTR_DIR" "$DB_DIR" "$DATA_DIR" "$OUT_DIR" "$CFE_DIR"; continue
             fi
+            echo "Расширение создано вариантом: $EXT_CREATED"
 
             timeout 600 "$IBCMD" infobase config export $DATA_ARG --db-path="$DB_DIR" \
               --extension="$EXT_NAME" "$CFE_DIR" > /tmp/ext-export.log 2>&1

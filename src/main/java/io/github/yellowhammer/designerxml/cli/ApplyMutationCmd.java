@@ -28,6 +28,7 @@ import io.github.yellowhammer.designerxml.cf.CfMdObjectMutations;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.EmptyCfScaffold;
+import io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactKind;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactMutations;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
@@ -280,6 +281,34 @@ final class ApplyMutationCmd implements Callable<Integer> {
         String cfgName = p.name == null || p.name.isEmpty() ? CfLayout.DEFAULT_CONFIGURATION_NAME : p.name;
         Path target = p.reqPath(p.targetCfRoot, "targetCfRoot");
         EmptyCfScaffold.writeEmptyTree(target, cfgName, p.synonymRu, null, null, p.version());
+        return "OK: " + target.toAbsolutePath();
+      }
+
+      case "init-empty-cfe": {
+        Path target = p.reqPath(p.targetCfeRoot, "targetCfeRoot");
+        EmptyCfeScaffold.Purpose purpose = p.purpose == null || p.purpose.isBlank()
+          ? EmptyCfeScaffold.Purpose.CUSTOMIZATION
+          : EmptyCfeScaffold.Purpose.fromCliName(p.purpose);
+        if (p.mainConfigurationXml != null && !p.mainConfigurationXml.isBlank()) {
+          EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
+            target,
+            p.req(p.name, "name"),
+            p.synonymRu,
+            p.namePrefix,
+            purpose,
+            Path.of(p.mainConfigurationXml),
+            p.version());
+          return "OK: " + target.toAbsolutePath();
+        }
+        EmptyCfeScaffold.writeEmptyTree(
+          target,
+          p.req(p.name, "name"),
+          p.synonymRu,
+          p.namePrefix,
+          purpose,
+          p.compatibilityMode,
+          p.interfaceCompatibilityMode,
+          p.version());
         return "OK: " + target.toAbsolutePath();
       }
 

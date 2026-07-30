@@ -195,6 +195,15 @@ tasks.named<Copy>("processResources") {
             relativePath = RelativePath(true, "golden", segs[0], *segs.drop(2).toTypedArray())
         }
     }
+    // Пустое расширение: golden-cfe/<формат>/…
+    from("fixtures/samples-1c-platform/snapshots") {
+        include("*/cfe-empty/**")
+        includeEmptyDirs = false
+        eachFile {
+            val segs = relativePath.segments
+            relativePath = RelativePath(true, "golden-cfe", segs[0], *segs.drop(2).toTypedArray())
+        }
+    }
     // Голые внешние объекты (отчёт/обработка): golden-ext/<формат>/<Имя>/<Имя>.xml
     from("fixtures/samples-1c-platform/snapshots") {
         include("*/external-files/empty/**")
