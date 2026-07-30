@@ -34,8 +34,8 @@ public final class MdObjectAdd {
     throws IOException, JAXBException {
     CatalogNameConstraints.check(objectName);
     Path cfRoot = requireCfRoot(configurationXml);
-    String name = resolveNonConflictingName(configurationXml, version, type, cfRoot, objectName);
-    writeNewObject(configurationXml, cfRoot, name, version, type, catalogSynonymRu, catalogSynonymEmpty);
+    requireNameFree(configurationXml, version, type, cfRoot, objectName);
+    writeNewObject(configurationXml, cfRoot, objectName, version, type, catalogSynonymRu, catalogSynonymEmpty);
   }
 
   /**
@@ -88,17 +88,26 @@ public final class MdObjectAdd {
     ConfigurationChildObjectAppender.append(configurationXml, type.configurationXmlTag(), name);
   }
 
-  private static String resolveNonConflictingName(
+  /**
+   * Заданное имя - обязательство: занять его нельзя, значит объект не создаётся.
+   *
+   * <p>Раньше занятое имя молча подменялось свободным вида {@code Справочник1}: вызывающий
+   * просил одно, получал другое и узнавал об этом только по факту. Подбор свободного имени
+   * остался у {@link #addWithNextAvailableName}, которая для того и есть.
+   */
+  private static void requireNameFree(
     Path configurationXml, SchemaVersion version, MdObjectAddType type, Path cfRoot, String objectName)
     throws IOException, JAXBException {
     Set<String> taken = MdObjectAddNextName.mergeTakenNames(configurationXml, version, type, cfRoot);
-    if (!taken.contains(objectName)) {
-      Path out = CfLayout.objectXmlInSubdir(cfRoot, type.cfSubdir(), objectName);
-      if (!Files.exists(out)) {
-        return objectName;
-      }
+    if (taken.contains(objectName)) {
+      throw new IllegalArgumentException(
+        type.configurationXmlTag() + " с именем " + objectName + " в выгрузке уже есть");
     }
-    return MdObjectAddNextName.nextFreeName(configurationXml, version, type, cfRoot);
+    Path out = CfLayout.objectXmlInSubdir(cfRoot, type.cfSubdir(), objectName);
+    if (Files.exists(out)) {
+      throw new IllegalArgumentException(
+        "путь объекта занят: " + cfRoot.relativize(out).toString().replace('\\', '/'));
+    }
   }
 
   private static void writeRoleRights(Path cfRoot, String roleName, SchemaVersion version) throws IOException {
