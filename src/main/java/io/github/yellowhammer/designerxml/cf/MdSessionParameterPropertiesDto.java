@@ -1,0 +1,20 @@
+/*
+ * This file is a part of md-sparrow.
+ *
+ * Copyright (c) 2026
+ * Ivan Karlo <i.karlo@outlook.com> and contributors
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later
+ */
+package io.github.yellowhammer.designerxml.cf;
+
+/**
+ * Поля {@code SessionParameterProperties} для {@code cf-md-object-get/set} ({@code kind=sessionParameter}).
+ * Тип значения параметра сеанса задаёт палитра типов.
+ */
+public final class MdSessionParameterPropertiesDto {
+
+  public String objectBelonging;
+  public String extendedConfigurationObject;
+  public MdTypeDescriptionDto type;
+}

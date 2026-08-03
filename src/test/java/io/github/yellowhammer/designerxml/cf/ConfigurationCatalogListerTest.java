@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ConfigurationCatalogListerTest {
 
@@ -31,6 +32,27 @@ class ConfigurationCatalogListerTest {
   @Test
   void toJsonArray_empty() {
     assertThat(ConfigurationCatalogLister.toJsonArray(List.of())).isEqualTo("[]");
+  }
+
+  @Test
+  void listNames_supportsAnyTagOfTheFormat() throws Exception {
+    Path cfg = Ssl31SubmodulePaths.configurationXml();
+    // теги берутся из модели формата, а не из зашитого списка: раньше состав вроде
+    // SettingsStorage отвергался как неизвестный
+    for (String tag : List.of("Catalog", "SettingsStorage", "DocumentJournal", "BusinessProcess", "WebService")) {
+      assertThat(ConfigurationChildObjectLister.listNames(cfg, SchemaVersion.V2_20, tag))
+        .as("состав по тегу %s", tag)
+        .isNotNull();
+    }
+  }
+
+  @Test
+  void listNames_unknownTag_reportsFormat() throws Exception {
+    Path cfg = Ssl31SubmodulePaths.configurationXml();
+    assertThatThrownBy(() -> ConfigurationChildObjectLister.listNames(cfg, SchemaVersion.V2_20, "ТегКоторогоНет"))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("2.20")
+      .hasMessageContaining("ТегКоторогоНет");
   }
 
   @Test

@@ -82,6 +82,59 @@ public final class MdObjectPropertiesJsonCoalesce {
     if ("commonModule".equals(incoming.kind) && baseline.commonModule != null) {
       incoming.commonModule = coalesceFlat(incoming.commonModule, baseline.commonModule);
     }
+    if (MdObjectPropertiesEdit.isReportKind(incoming.kind) && baseline.report != null) {
+      incoming.report = coalesceFlat(incoming.report, baseline.report);
+    }
+    if ("documentJournal".equals(incoming.kind) && baseline.documentJournal != null) {
+      incoming.documentJournal = coalesceFlat(incoming.documentJournal, baseline.documentJournal);
+    }
+    if ("exchangePlan".equals(incoming.kind) && baseline.exchangePlan != null) {
+      incoming.exchangePlan = coalesceFlat(incoming.exchangePlan, baseline.exchangePlan);
+    }
+    if ("chartOfCalculationTypes".equals(incoming.kind) && baseline.chartOfCalculationTypes != null) {
+      incoming.chartOfCalculationTypes =
+        coalesceFlat(incoming.chartOfCalculationTypes, baseline.chartOfCalculationTypes);
+    }
+    if ("sessionParameter".equals(incoming.kind) && baseline.sessionParameter != null) {
+      incoming.sessionParameter = coalesceFlat(incoming.sessionParameter, baseline.sessionParameter);
+    }
+    if ("documentNumerator".equals(incoming.kind) && baseline.documentNumerator != null) {
+      incoming.documentNumerator = coalesceFlat(incoming.documentNumerator, baseline.documentNumerator);
+    }
+    if ("eventSubscription".equals(incoming.kind) && baseline.eventSubscription != null) {
+      incoming.eventSubscription = coalesceFlat(incoming.eventSubscription, baseline.eventSubscription);
+    }
+    if ("scheduledJob".equals(incoming.kind) && baseline.scheduledJob != null) {
+      incoming.scheduledJob = coalesceFlat(incoming.scheduledJob, baseline.scheduledJob);
+    }
+    if ("commonCommand".equals(incoming.kind) && baseline.commonCommand != null) {
+      incoming.commonCommand = coalesceFlat(incoming.commonCommand, baseline.commonCommand);
+    }
+    if ("commonAttribute".equals(incoming.kind) && baseline.commonAttribute != null) {
+      incoming.commonAttribute = coalesceFlat(incoming.commonAttribute, baseline.commonAttribute);
+    }
+    if ("commonPicture".equals(incoming.kind) && baseline.commonPicture != null) {
+      incoming.commonPicture = coalesceFlat(incoming.commonPicture, baseline.commonPicture);
+    }
+    if ("role".equals(incoming.kind) && baseline.role != null) {
+      incoming.role = coalesceFlat(incoming.role, baseline.role);
+    }
+    if ("externalDataSource".equals(incoming.kind) && baseline.externalDataSource != null) {
+      incoming.externalDataSource = coalesceFlat(incoming.externalDataSource, baseline.externalDataSource);
+    }
+    if ("chartOfAccounts".equals(incoming.kind) && baseline.chartOfAccounts != null) {
+      incoming.chartOfAccounts = coalesceFlat(incoming.chartOfAccounts, baseline.chartOfAccounts);
+    }
+    if ("businessProcess".equals(incoming.kind) && baseline.businessProcess != null) {
+      incoming.businessProcess = coalesceFlat(incoming.businessProcess, baseline.businessProcess);
+    }
+    if ("task".equals(incoming.kind) && baseline.task != null) {
+      incoming.task = coalesceFlat(incoming.task, baseline.task);
+    }
+    if ("chartOfCharacteristicTypes".equals(incoming.kind) && baseline.chartOfCharacteristicTypes != null) {
+      incoming.chartOfCharacteristicTypes =
+        coalesceFlat(incoming.chartOfCharacteristicTypes, baseline.chartOfCharacteristicTypes);
+    }
     if (isRegisterKind(incoming.kind) && baseline.register != null) {
       incoming.register = coalesceFlat(incoming.register, baseline.register);
       canonicalizeRegisterXmlBlobsFromBaselineIfLooseEqual(incoming.register, baseline.register);

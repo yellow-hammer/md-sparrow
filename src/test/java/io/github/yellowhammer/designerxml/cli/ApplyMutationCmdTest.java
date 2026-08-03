@@ -652,6 +652,30 @@ class ApplyMutationCmdTest {
     assertThat(out.toString(StandardCharsets.UTF_8)).contains("\"document\"");
   }
 
+  @Test
+  void unsupportedFormatVersion_reportsSupportedRange() throws Exception {
+    // Старые выгрузки (2.4 и подобные) читать нечем: пользователю нужен внятный ответ, а не имя константы.
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-get\","
+        + "\"objectXml\":" + json(sampleCatalogXml().toString()) + ","
+        + "\"schemaVersion\":\"V2_4\""
+        + "}");
+
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    PrintStream prev = System.err;
+    int exit;
+    try {
+      System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
+      exit = new CommandLine(new DesignerXmlCli()).execute("read-json", "--params", params.toString());
+    } finally {
+      System.setErr(prev);
+    }
+
+    assertThat(exit).isEqualTo(2);
+    assertThat(err.toString(StandardCharsets.UTF_8)).contains("формат выгрузки 2.4 не поддержан", "2.10-2.21");
+  }
+
   private static String json(String raw) {
     return "\"" + raw.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
   }

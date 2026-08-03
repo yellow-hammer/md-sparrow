@@ -309,6 +309,59 @@ public final class MdObjectChildMutations {
    * @throws IOException если не удалось прочитать/записать XML
    * @throws JAXBException если итоговый XML невалиден для JAXB-модели
    */
+  /**
+   * Добавляет команду объекта в корневой {@code ChildObjects}.
+   *
+   * Модуль команды платформа заводит сама при первом открытии, поэтому здесь только узел команды.
+   *
+   * @param objectXml путь к XML объекта
+   * @param version версия схемы Designer XML
+   * @param newName имя команды
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void addCommand(Path objectXml, SchemaVersion version, String newName)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ensureNotBlank(newName, "Введите имя команды.");
+      ensureMissingNamedChild(xml, containerLocal, "Command", newName, "Команда уже существует: " + newName);
+      return insertIntoRootChildObjects(xml, containerLocal, buildCommandSnippet(newName));
+    });
+  }
+
+  /**
+   * Переименовывает команду объекта.
+   *
+   * @param objectXml путь к XML объекта
+   * @param version версия схемы Designer XML
+   * @param oldName текущее имя команды
+   * @param newName новое имя команды
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void renameCommand(Path objectXml, SchemaVersion version, String oldName, String newName)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      renameNamedChild(xml, containerLocal, "Command", oldName, newName, "Команда"));
+    CommandFiles.renameCommandDirectory(objectXml, oldName, newName);
+  }
+
+  /**
+   * Удаляет команду объекта вместе с каталогом её модуля.
+   *
+   * @param objectXml путь к XML объекта
+   * @param version версия схемы Designer XML
+   * @param name имя удаляемой команды
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void deleteCommand(Path objectXml, SchemaVersion version, String name)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      deleteNamedChild(xml, containerLocal, "Command", name, "Команда"));
+    CommandFiles.deleteCommandDirectory(objectXml, name);
+  }
+
   public static void addEnumValue(Path objectXml, SchemaVersion version, String newName)
     throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
@@ -845,6 +898,22 @@ public final class MdObjectChildMutations {
   }
 
   /**
+   * Переставляет команды корневого {@code ChildObjects} в заданном порядке.
+   *
+   * @param objectXml путь к XML объекта
+   * @param version версия схемы Designer XML
+   * @param order имена команд в нужном порядке
+   * @throws IOException если не удалось прочитать/записать XML
+   * @throws JAXBException если итоговый XML невалиден для JAXB-модели
+   */
+  public static void reorderCommands(Path objectXml, SchemaVersion version, List<String> order)
+    throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) ->
+      reorderNamedRegions(xml, order, "Команда",
+        name -> MdObjectXmlRegions.findNamedChildObjectRegion(xml, containerLocal, "Command", name)));
+  }
+
+  /**
    * Переставляет табличные части корневого {@code ChildObjects} в заданном порядке.
    */
   public static void reorderTabularSections(Path objectXml, SchemaVersion version, List<String> order)
@@ -993,6 +1062,31 @@ public final class MdObjectChildMutations {
       + indent + "\t\t<v8:AllowedLength>Variable</v8:AllowedLength>\n"
       + indent + "\t</v8:StringQualifiers>\n"
       + indent + "</Type>\n";
+  }
+
+  private static String buildCommandSnippet(String name) {
+    // Состав узла - как у команды, созданной конфигуратором: тип параметра пустой, поведение авто.
+    return "<Command uuid=\"" + UUID.randomUUID() + "\">\n"
+      + "\t<Properties>\n"
+      + "\t\t<Name>" + escapeXml(name) + "</Name>\n"
+      + "\t\t<Synonym>\n"
+      + "\t\t\t<v8:item>\n"
+      + "\t\t\t\t<v8:lang>ru</v8:lang>\n"
+      + "\t\t\t\t<v8:content>" + escapeXml(name) + "</v8:content>\n"
+      + "\t\t\t</v8:item>\n"
+      + "\t\t</Synonym>\n"
+      + "\t\t<Comment/>\n"
+      + "\t\t<Group>FormCommandBarImportant</Group>\n"
+      + "\t\t<CommandParameterType/>\n"
+      + "\t\t<ParameterUseMode>Single</ParameterUseMode>\n"
+      + "\t\t<ModifiesData>false</ModifiesData>\n"
+      + "\t\t<Representation>Auto</Representation>\n"
+      + "\t\t<ToolTip/>\n"
+      + "\t\t<Picture/>\n"
+      + "\t\t<Shortcut/>\n"
+      + "\t\t<OnMainServerUnavalableBehavior>Auto</OnMainServerUnavalableBehavior>\n"
+      + "\t</Properties>\n"
+      + "</Command>";
   }
 
   private static String buildEnumValueSnippet(String name, String synonymRu, String comment) {

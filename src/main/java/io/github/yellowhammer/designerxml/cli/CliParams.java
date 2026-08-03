@@ -113,7 +113,10 @@ final class CliParams {
     try {
       return SchemaVersion.valueOf(v);
     } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException("неизвестная версия схемы: " + v);
+      SchemaVersion[] all = SchemaVersion.values();
+      throw new IllegalArgumentException("формат выгрузки " + v.replaceFirst("^V", "").replace('_', '.')
+        + " не поддержан; поддержаны " + all[0].metadataObjectVersionAttribute()
+        + "-" + all[all.length - 1].metadataObjectVersionAttribute());
     }
   }
 }

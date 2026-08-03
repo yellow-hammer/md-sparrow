@@ -251,7 +251,11 @@ public final class JaxbReflect {
     try {
       value = Enum.valueOf(pt.asSubclass(Enum.class), v);
     } catch (IllegalArgumentException e) {
-      return;
+      // Молча оставить прежнее значение нельзя: правка пользователя потерялась бы, а запись
+      // потом упала бы сверкой с невнятным «причина не определена».
+      throw new IllegalArgumentException(
+        setter.replaceFirst("^set", "") + ": недопустимое значение " + v
+          + "; допустимы " + java.util.Arrays.toString(pt.getEnumConstants()), e);
     }
     try {
       m.invoke(target, value);

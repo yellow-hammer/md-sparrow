@@ -106,9 +106,21 @@ class JaxbReflectTest {
     assertThat(s.getMode()).isEqualTo(Mode.B);
     JaxbReflect.setEnumOrKeep(s, "setMode", "");
     assertThat(s.getMode()).isEqualTo(Mode.B);
-    JaxbReflect.setEnumOrKeep(s, "setMode", "UNKNOWN");
-    assertThat(s.getMode()).isEqualTo(Mode.B);
     JaxbReflect.setEnumOrKeep(s, "setMissingEnum", "B");
+  }
+
+  @Test
+  void setEnumOrKeepRejectsUnknownConstantWithAllowedValues() {
+    Sample s = new Sample();
+    JaxbReflect.setEnumOrKeep(s, "setMode", "B");
+
+    // прежнее значение молча не сохраняем: иначе правка теряется без объяснения
+    assertThatThrownBy(() -> JaxbReflect.setEnumOrKeep(s, "setMode", "UNKNOWN"))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("Mode")
+      .hasMessageContaining("UNKNOWN")
+      .hasMessageContaining("допустимы");
+    assertThat(s.getMode()).isEqualTo(Mode.B);
   }
 
   @Test

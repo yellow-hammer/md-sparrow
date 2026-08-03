@@ -88,9 +88,14 @@ public final class MdObjectPropertiesGranularPatch {
     } catch (XMLStreamException e) {
       return Optional.empty();
     }
-    reps.sort(Comparator.comparingInt(Replacement::start).reversed());
+    Optional<List<Replacement>> safe = withoutOverlaps(reps);
+    if (safe.isEmpty()) {
+      return Optional.empty();
+    }
+    List<Replacement> ordered = new ArrayList<>(safe.get());
+    ordered.sort(Comparator.comparingInt(Replacement::start).reversed());
     StringBuilder sb = new StringBuilder(xmlUtf8);
-    for (Replacement r : reps) {
+    for (Replacement r : ordered) {
       sb.replace(r.start, r.end, r.text);
     }
     byte[] bytes = sb.toString().getBytes(StandardCharsets.UTF_8);
@@ -167,9 +172,11 @@ public final class MdObjectPropertiesGranularPatch {
       case "constant" -> "Constant";
       case "enum" -> "Enum";
       case "document" -> "Document";
+      case "documentJournal" -> "DocumentJournal";
       case "report" -> "Report";
       case "dataProcessor" -> "DataProcessor";
       case "task" -> "Task";
+      case "businessProcess" -> "BusinessProcess";
       case "chartOfAccounts" -> "ChartOfAccounts";
       case "chartOfCharacteristicTypes" -> "ChartOfCharacteristicTypes";
       case "chartOfCalculationTypes" -> "ChartOfCalculationTypes";
@@ -182,6 +189,9 @@ public final class MdObjectPropertiesGranularPatch {
       case "commonAttribute" -> "CommonAttribute";
       case "commonPicture" -> "CommonPicture";
       case "documentNumerator" -> "DocumentNumerator";
+      case "eventSubscription" -> "EventSubscription";
+      case "scheduledJob" -> "ScheduledJob";
+      case "commonCommand" -> "CommonCommand";
       case "externalDataSource" -> "ExternalDataSource";
       case "role" -> "Role";
       default -> "";
@@ -189,6 +199,39 @@ public final class MdObjectPropertiesGranularPatch {
   }
 
   private record Replacement(int start, int end, String text) {
+  }
+
+  /**
+   * Отсеивает повторную правку того же участка и запрещает пересекающиеся правки.
+   *
+   * Одну и ту же область нельзя править дважды: смещения считаются по исходному тексту, и вторая
+   * правка резала бы уже изменённый XML. Повтор с тем же содержимым безвреден и просто отбрасывается,
+   * а несовместимое пересечение отменяет точечную запись - объект будет записан целиком.
+   *
+   * @param reps Правки в порядке появления.
+   * @return Правки без повторов либо пусто, если правки пересекаются по-разному.
+   */
+  private static Optional<List<Replacement>> withoutOverlaps(List<Replacement> reps) {
+    List<Replacement> out = new ArrayList<>();
+    for (Replacement candidate : reps) {
+      Replacement same = null;
+      for (Replacement kept : out) {
+        boolean intersects = candidate.start() < kept.end() && kept.start() < candidate.end();
+        if (!intersects) {
+          continue;
+        }
+        if (kept.start() == candidate.start() && kept.end() == candidate.end()
+          && kept.text().equals(candidate.text())) {
+          same = kept;
+          continue;
+        }
+        return Optional.empty();
+      }
+      if (same == null) {
+        out.add(candidate);
+      }
+    }
+    return Optional.of(out);
   }
 
   private static String formatReplacementPreservingIndent(

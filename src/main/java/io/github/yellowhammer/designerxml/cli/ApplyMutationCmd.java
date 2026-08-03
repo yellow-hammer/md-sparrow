@@ -129,6 +129,20 @@ final class ApplyMutationCmd implements Callable<Integer> {
       case "cf-md-attribute-add":
         MdObjectChildMutations.addAttribute(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
         return "OK";
+      case "cf-md-command-add":
+        MdObjectChildMutations.addCommand(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-command-rename":
+        MdObjectChildMutations.renameCommand(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-command-delete":
+        MdObjectChildMutations.deleteCommand(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-command-reorder":
+        MdObjectChildMutations.reorderCommands(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), parseNameList(p));
+        return "OK";
       case "cf-md-attribute-rename":
         MdObjectChildMutations.renameAttribute(
           p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));

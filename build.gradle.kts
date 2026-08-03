@@ -220,6 +220,8 @@ tasks.jar {
     manifest {
         attributes["Main-Class"] = application.mainClass.get()
         attributes["Implementation-Title"] = "md-sparrow"
+        // версию CLI берёт отсюда: иначе её пришлось бы дублировать в коде и она бы отставала
+        attributes["Implementation-Version"] = project.version
     }
 }
 
@@ -230,6 +232,7 @@ tasks.shadowJar {
     manifest {
         attributes["Main-Class"] = application.mainClass.get()
         attributes["Implementation-Title"] = "md-sparrow"
+        attributes["Implementation-Version"] = project.version
     }
 }
 

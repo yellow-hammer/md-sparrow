@@ -78,21 +78,165 @@ public final class MdObjectPropertiesLeafDiff {
     if (kind == null) {
       return List.of();
     }
+    List<GranularPatchChange> out = new ArrayList<>(kindPropertyChanges(kind, baseline, incoming));
+    // Синонимы и комментарии дочерних узлов собираем один раз на все виды: иначе одна правка
+    // попадала бы в список дважды и вторая резала бы уже изменённый XML по старым смещениям.
+    appendNamedChildSynonymComment("Attribute", baseline.attributes, incoming.attributes, out);
+    appendNamedChildSynonymComment("TabularSection", baseline.tabularSections, incoming.tabularSections, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> kindPropertyChanges(
+    String kind,
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
     return switch (kind) {
       case "subsystem" -> subsystemPropertyChanges(baseline, incoming);
       case "catalog" -> catalogPropertyChanges(baseline, incoming);
       case "document" -> documentPropertyChanges(baseline, incoming);
-      case "exchangePlan" -> docLikePropertyChanges(baseline, incoming);
+      case "exchangePlan" -> exchangePlanPropertyChanges(baseline, incoming);
       case "enum" -> enumPropertyChanges(baseline, incoming);
       case "constant" -> constantPropertyChanges(baseline, incoming);
       case "commonModule" -> commonModulePropertyChanges(baseline, incoming);
+      case "sessionParameter" -> simpleKindChanges(baseline, incoming,
+        (b, i, out) -> MdSimplePropertiesGranularSerial.appendSessionParameterScalarChanges(
+          b.sessionParameter, i.sessionParameter, out),
+        baseline.sessionParameter != null && incoming.sessionParameter != null);
+      case "documentNumerator" -> simpleKindChanges(baseline, incoming,
+        (b, i, out) -> MdSimplePropertiesGranularSerial.appendDocumentNumeratorScalarChanges(
+          b.documentNumerator, i.documentNumerator, out),
+        baseline.documentNumerator != null && incoming.documentNumerator != null);
+      case "eventSubscription" -> simpleKindChanges(baseline, incoming,
+        (b, i, out) -> MdSimplePropertiesGranularSerial.appendEventSubscriptionScalarChanges(
+          b.eventSubscription, i.eventSubscription, out),
+        baseline.eventSubscription != null && incoming.eventSubscription != null);
+      case "scheduledJob" -> simpleKindChanges(baseline, incoming,
+        (b, i, out) -> MdSimplePropertiesGranularSerial.appendScheduledJobScalarChanges(
+          b.scheduledJob, i.scheduledJob, out),
+        baseline.scheduledJob != null && incoming.scheduledJob != null);
+      case "commonCommand" -> simpleKindChanges(baseline, incoming,
+        (b, i, out) -> MdSimplePropertiesGranularSerial.appendCommonCommandScalarChanges(
+          b.commonCommand, i.commonCommand, out),
+        baseline.commonCommand != null && incoming.commonCommand != null);
       case "informationRegister", "accumulationRegister" -> registerPropertyChanges(baseline, incoming);
-      case "report", "dataProcessor", "task", "chartOfAccounts",
-           "chartOfCharacteristicTypes", "chartOfCalculationTypes",
-           "sessionParameter", "commonAttribute", "commonPicture", "documentNumerator",
-           "externalDataSource", "role" -> docLikePropertyChanges(baseline, incoming);
+      case "report", "dataProcessor" -> reportPropertyChanges(baseline, incoming);
+      case "documentJournal" -> documentJournalPropertyChanges(baseline, incoming);
+      case "chartOfCharacteristicTypes" -> chartOfCharacteristicTypesPropertyChanges(baseline, incoming);
+      case "task" -> taskPropertyChanges(baseline, incoming);
+      case "businessProcess" -> businessProcessPropertyChanges(baseline, incoming);
+      case "chartOfAccounts" -> chartOfAccountsPropertyChanges(baseline, incoming);
+      case "chartOfCalculationTypes" -> chartOfCalculationTypesPropertyChanges(baseline, incoming);
+      case "commonAttribute" -> simpleKindChanges(baseline, incoming,
+        (b, i, out) -> MdSimplePropertiesGranularSerial.appendCommonAttributeScalarChanges(
+          b.commonAttribute, i.commonAttribute, out),
+        baseline.commonAttribute != null && incoming.commonAttribute != null);
+      case "commonPicture" -> simpleKindChanges(baseline, incoming,
+        (b, i, out) -> MdSimplePropertiesGranularSerial.appendCommonPictureScalarChanges(
+          b.commonPicture, i.commonPicture, out),
+        baseline.commonPicture != null && incoming.commonPicture != null);
+      case "role" -> simpleKindChanges(baseline, incoming,
+        (b, i, out) -> MdSimplePropertiesGranularSerial.appendRoleScalarChanges(b.role, i.role, out),
+        baseline.role != null && incoming.role != null);
+      case "externalDataSource" -> simpleKindChanges(baseline, incoming,
+        (b, i, out) -> MdSimplePropertiesGranularSerial.appendExternalDataSourceScalarChanges(
+          b.externalDataSource, i.externalDataSource, out),
+        baseline.externalDataSource != null && incoming.externalDataSource != null);
       default -> List.of();
     };
+  }
+
+  private static List<GranularPatchChange> reportPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.report == null || incoming.report == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendReportScalarChanges(baseline.report, incoming.report, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> chartOfCalculationTypesPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.chartOfCalculationTypes == null || incoming.chartOfCalculationTypes == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendChartOfCalculationTypesScalarChanges(
+      baseline.chartOfCalculationTypes, incoming.chartOfCalculationTypes, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> chartOfAccountsPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.chartOfAccounts == null || incoming.chartOfAccounts == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendChartOfAccountsScalarChanges(
+      baseline.chartOfAccounts, incoming.chartOfAccounts, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> businessProcessPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.businessProcess == null || incoming.businessProcess == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendBusinessProcessScalarChanges(
+      baseline.businessProcess, incoming.businessProcess, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> taskPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.task == null || incoming.task == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendTaskScalarChanges(baseline.task, incoming.task, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> chartOfCharacteristicTypesPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.chartOfCharacteristicTypes == null || incoming.chartOfCharacteristicTypes == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendChartOfCharacteristicTypesScalarChanges(
+      baseline.chartOfCharacteristicTypes, incoming.chartOfCharacteristicTypes, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> exchangePlanPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.exchangePlan == null || incoming.exchangePlan == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendExchangePlanScalarChanges(
+      baseline.exchangePlan, incoming.exchangePlan, out);
+    return out;
+  }
+
+  private static List<GranularPatchChange> documentJournalPropertyChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    if (baseline.documentJournal == null || incoming.documentJournal == null) {
+      return docLikePropertyChanges(baseline, incoming);
+    }
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    MdSimplePropertiesGranularSerial.appendDocumentJournalScalarChanges(
+      baseline.documentJournal, incoming.documentJournal, out);
+    return out;
   }
 
   private static List<GranularPatchChange> enumPropertyChanges(
@@ -222,8 +366,26 @@ public final class MdObjectPropertiesLeafDiff {
     if (baseline.document != null) {
       MdDocumentPropertiesGranularSerial.appendDocumentScalarChanges(baseline.document, incoming.document, out);
     }
-    appendNamedChildSynonymComment("Attribute", baseline.attributes, incoming.attributes, out);
-    appendNamedChildSynonymComment("TabularSection", baseline.tabularSections, incoming.tabularSections, out);
+    return out;
+  }
+
+  /** Изменения вида с плоским блоком свойств: общая часть плюс скаляры блока. */
+  private interface KindScalarChanges {
+    void append(
+      MdObjectPropertiesDto baseline,
+      MdObjectPropertiesDto incoming,
+      List<GranularPatchChange> out);
+  }
+
+  private static List<GranularPatchChange> simpleKindChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming,
+    KindScalarChanges scalars,
+    boolean hasBlock) {
+    List<GranularPatchChange> out = docLikePropertyChanges(baseline, incoming);
+    if (hasBlock) {
+      scalars.append(baseline, incoming, out);
+    }
     return out;
   }
 
@@ -241,8 +403,6 @@ public final class MdObjectPropertiesLeafDiff {
         "Comment",
         MdCatalogPropertiesGranularSerial.commentElement(incoming.comment)));
     }
-    appendNamedChildSynonymComment("Attribute", baseline.attributes, incoming.attributes, out);
-    appendNamedChildSynonymComment("TabularSection", baseline.tabularSections, incoming.tabularSections, out);
     return out;
   }
 
@@ -290,8 +450,6 @@ public final class MdObjectPropertiesLeafDiff {
     if (b != null) {
       MdCatalogPropertiesGranularSerial.appendCatalogScalarChanges(b, i, out);
     }
-    appendNamedChildSynonymComment("Attribute", baseline.attributes, incoming.attributes, out);
-    appendNamedChildSynonymComment("TabularSection", baseline.tabularSections, incoming.tabularSections, out);
     return out;
   }
 }

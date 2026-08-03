@@ -375,21 +375,16 @@ public final class MdCatalogPropertiesGranularSerial {
   }
 
   static String inputByStringElement(List<String> fields) {
-    StringBuilder sb = new StringBuilder("<InputByString>");
-    if (fields != null) {
-      for (String f : fields) {
-        if (f == null || f.isBlank()) {
-          continue;
-        }
-        sb.append("<xr:Field>").append(escapeXml(f.trim())).append("</xr:Field>");
-      }
-    }
-    sb.append("</InputByString>");
-    return sb.toString();
+    return fieldListElement("InputByString", fields);
   }
 
   static String dataLockFieldsElement(List<String> fields) {
-    StringBuilder sb = new StringBuilder("<DataLockFields>");
+    return fieldListElement("DataLockFields", fields);
+  }
+
+  /** Список полей объекта: {@code <Имя><xr:Field>…</xr:Field></Имя>}. */
+  static String fieldListElement(String localName, List<String> fields) {
+    StringBuilder sb = new StringBuilder("<").append(localName).append(">");
     if (fields != null) {
       for (String f : fields) {
         if (f == null || f.isBlank()) {
@@ -398,7 +393,7 @@ public final class MdCatalogPropertiesGranularSerial {
         sb.append("<xr:Field>").append(escapeXml(f.trim())).append("</xr:Field>");
       }
     }
-    sb.append("</DataLockFields>");
+    sb.append("</").append(localName).append(">");
     return sb.toString();
   }
 

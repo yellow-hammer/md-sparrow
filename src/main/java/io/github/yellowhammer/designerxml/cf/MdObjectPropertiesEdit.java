@@ -53,7 +53,9 @@ public final class MdObjectPropertiesEdit {
     new SimpleKindDef("role", "getRole"),
     new SimpleKindDef("eventSubscription", "getEventSubscription"),
     new SimpleKindDef("scheduledJob", "getScheduledJob"),
-    new SimpleKindDef("commonCommand", "getCommonCommand")
+    new SimpleKindDef("commonCommand", "getCommonCommand"),
+    new SimpleKindDef("documentJournal", "getDocumentJournal"),
+    new SimpleKindDef("businessProcess", "getBusinessProcess")
   );
 
   private MdObjectPropertiesEdit() {
@@ -195,19 +197,28 @@ public final class MdObjectPropertiesEdit {
     if (catalog) {
       MdCatalogPropertiesBridge.read(version, props, dto);
     }
+    if ("exchangePlan".equals(kind)) {
+      MdExchangePlanPropertiesBridge.read(version, props, dto);
+    }
     if ("document".equals(kind)) {
       MdDocumentPropertiesBridge.read(version, props, dto);
     }
-    Object co = JaxbReflect.get(node, "getChildObjects");
-    if (co != null) {
-      for (Object a : JaxbReflect.<Object>list(co, "getAttribute")) {
-        dto.attributes.add(namedDto(a));
-      }
-      for (Object ts : JaxbReflect.<Object>list(co, "getTabularSection")) {
-        dto.tabularSections.add(namedDto(ts));
-      }
-    }
+    readCatalogLikeChildren(node, dto);
     return dto;
+  }
+
+  /** Реквизиты и табличные части объекта: состав одинаков у справочника, документа, ПВХ и других. */
+  private static void readCatalogLikeChildren(Object node, MdObjectPropertiesDto dto) {
+    Object co = invokeNoArgOrNull(node, "getChildObjects");
+    if (co == null) {
+      return;
+    }
+    for (Object a : JaxbReflect.<Object>list(co, "getAttribute")) {
+      dto.attributes.add(namedDto(a));
+    }
+    for (Object ts : JaxbReflect.<Object>list(co, "getTabularSection")) {
+      dto.tabularSections.add(namedDto(ts));
+    }
   }
 
   private static MdObjectPropertiesDto base(Object props, String kind) {
@@ -279,7 +290,12 @@ public final class MdObjectPropertiesEdit {
       }
       case "exchangePlan" -> {
         Object ep = require(mdo, "getExchangePlan", "ExchangePlan");
-        applyCatalogLike(JaxbReflect.get(ep, "getProperties"), dto);
+        Object epProps = JaxbReflect.get(ep, "getProperties");
+        if (dto.exchangePlan != null) {
+          MdExchangePlanPropertiesBridge.apply(version, epProps, dto);
+        } else {
+          applyCatalogLike(epProps, dto);
+        }
         applyAttrs(JaxbReflect.get(ep, "getChildObjects"), dto);
       }
       case "subsystem" -> applySubsystem(require(mdo, "getSubsystem", "Subsystem"), dto);
@@ -403,7 +419,38 @@ public final class MdObjectPropertiesEdit {
         readEnumValues(objectNode, dto);
       }
       case "constant" -> MdConstantPropertiesBridge.read(props, dto);
+      case "report", "dataProcessor" -> MdReportPropertiesBridge.read(props, dto);
+      case "documentJournal" -> MdDocumentJournalPropertiesBridge.read(version, props, dto);
+      case "chartOfCalculationTypes" -> {
+        MdChartOfCalculationTypesPropertiesBridge.read(version, props, dto);
+        readCatalogLikeChildren(objectNode, dto);
+      }
+      case "chartOfAccounts" -> {
+        MdChartOfAccountsPropertiesBridge.read(version, props, dto);
+        readCatalogLikeChildren(objectNode, dto);
+      }
+      case "businessProcess" -> {
+        MdBusinessProcessPropertiesBridge.read(version, props, dto);
+        readCatalogLikeChildren(objectNode, dto);
+      }
+      case "task" -> {
+        MdTaskPropertiesBridge.read(version, props, dto);
+        readCatalogLikeChildren(objectNode, dto);
+      }
+      case "chartOfCharacteristicTypes" -> {
+        MdChartOfCharacteristicTypesPropertiesBridge.read(version, props, dto);
+        readCatalogLikeChildren(objectNode, dto);
+      }
       case "commonModule" -> MdCommonModulePropertiesBridge.read(props, dto);
+      case "sessionParameter" -> MdSessionParameterPropertiesBridge.read(props, dto);
+      case "documentNumerator" -> MdDocumentNumeratorPropertiesBridge.read(props, dto);
+      case "eventSubscription" -> MdEventSubscriptionPropertiesBridge.read(props, dto);
+      case "scheduledJob" -> MdScheduledJobPropertiesBridge.read(props, dto);
+      case "commonCommand" -> MdCommonCommandPropertiesBridge.read(props, dto);
+      case "commonAttribute" -> MdCommonAttributePropertiesBridge.read(props, dto);
+      case "commonPicture" -> MdCommonPicturePropertiesBridge.read(props, dto);
+      case "role" -> MdRolePropertiesBridge.read(props, dto);
+      case "externalDataSource" -> MdExternalDataSourcePropertiesBridge.read(props, dto);
       case "informationRegister", "accumulationRegister" -> {
         MdRegisterPropertiesBridge.read(version, props, dto);
         readRegisterChildren(objectNode, dto);
@@ -423,6 +470,75 @@ public final class MdObjectPropertiesEdit {
     }
     if ("constant".equals(dto.kind) && dto.constant != null) {
       MdConstantPropertiesBridge.apply(props, dto);
+      return;
+    }
+    if (isReportKind(dto.kind) && dto.report != null) {
+      MdReportPropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("documentJournal".equals(dto.kind) && dto.documentJournal != null) {
+      MdDocumentJournalPropertiesBridge.apply(version, props, dto);
+      return;
+    }
+    if ("chartOfCalculationTypes".equals(dto.kind) && dto.chartOfCalculationTypes != null) {
+      MdChartOfCalculationTypesPropertiesBridge.apply(version, props, dto);
+      applyAttrs(JaxbReflect.get(objectNode, "getChildObjects"), dto);
+      return;
+    }
+    if ("chartOfAccounts".equals(dto.kind) && dto.chartOfAccounts != null) {
+      MdChartOfAccountsPropertiesBridge.apply(version, props, dto);
+      applyAttrs(JaxbReflect.get(objectNode, "getChildObjects"), dto);
+      return;
+    }
+    if ("businessProcess".equals(dto.kind) && dto.businessProcess != null) {
+      MdBusinessProcessPropertiesBridge.apply(version, props, dto);
+      applyAttrs(JaxbReflect.get(objectNode, "getChildObjects"), dto);
+      return;
+    }
+    if ("task".equals(dto.kind) && dto.task != null) {
+      MdTaskPropertiesBridge.apply(version, props, dto);
+      applyAttrs(JaxbReflect.get(objectNode, "getChildObjects"), dto);
+      return;
+    }
+    if ("chartOfCharacteristicTypes".equals(dto.kind) && dto.chartOfCharacteristicTypes != null) {
+      MdChartOfCharacteristicTypesPropertiesBridge.apply(version, props, dto);
+      applyAttrs(JaxbReflect.get(objectNode, "getChildObjects"), dto);
+      return;
+    }
+    if ("sessionParameter".equals(dto.kind) && dto.sessionParameter != null) {
+      MdSessionParameterPropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("documentNumerator".equals(dto.kind) && dto.documentNumerator != null) {
+      MdDocumentNumeratorPropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("eventSubscription".equals(dto.kind) && dto.eventSubscription != null) {
+      MdEventSubscriptionPropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("scheduledJob".equals(dto.kind) && dto.scheduledJob != null) {
+      MdScheduledJobPropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("commonCommand".equals(dto.kind) && dto.commonCommand != null) {
+      MdCommonCommandPropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("commonAttribute".equals(dto.kind) && dto.commonAttribute != null) {
+      MdCommonAttributePropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("commonPicture".equals(dto.kind) && dto.commonPicture != null) {
+      MdCommonPicturePropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("role".equals(dto.kind) && dto.role != null) {
+      MdRolePropertiesBridge.apply(props, dto);
+      return;
+    }
+    if ("externalDataSource".equals(dto.kind) && dto.externalDataSource != null) {
+      MdExternalDataSourcePropertiesBridge.apply(props, dto);
       return;
     }
     if ("commonModule".equals(dto.kind) && dto.commonModule != null) {
@@ -608,6 +724,11 @@ public final class MdObjectPropertiesEdit {
 
   private static String toStringOrEmpty(Object value) {
     return value == null ? "" : String.valueOf(value);
+  }
+
+  /** Отчёт и обработка описываются одним DTO: наборы свойств совпадают, кроме полей отчёта. */
+  static boolean isReportKind(String kind) {
+    return "report".equals(kind) || "dataProcessor".equals(kind);
   }
 
   private static SimpleKindDef simpleKindByName(String kind) {

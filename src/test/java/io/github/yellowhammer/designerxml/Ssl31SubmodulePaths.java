@@ -53,9 +53,63 @@ public final class Ssl31SubmodulePaths {
 
   /** Любой {@code Catalogs/*.xml} в submodule (для тестов, где нужен образец структуры). */
   public static Path anyCatalogObjectXml() throws IOException {
+    return anyObjectXml("Catalogs");
+  }
+
+  /** Любой {@code Reports/*.xml} в submodule. */
+  public static Path anyReportObjectXml() throws IOException {
+    return anyObjectXml("Reports");
+  }
+
+  /** Любой {@code DataProcessors/*.xml} в submodule. */
+  public static Path anyDataProcessorObjectXml() throws IOException {
+    return anyObjectXml("DataProcessors");
+  }
+
+  /** Любой {@code DocumentJournals/*.xml} в submodule. */
+  public static Path anyDocumentJournalObjectXml() throws IOException {
+    return anyObjectXml("DocumentJournals");
+  }
+
+  /** Любой {@code ExchangePlans/*.xml} в submodule. */
+  public static Path anyExchangePlanObjectXml() throws IOException {
+    return anyObjectXml("ExchangePlans");
+  }
+
+  /** Любой {@code ChartsOfCharacteristicTypes/*.xml} в submodule. */
+  public static Path anyChartOfCharacteristicTypesObjectXml() throws IOException {
+    return anyObjectXml("ChartsOfCharacteristicTypes");
+  }
+
+  /** Любой {@code Tasks/*.xml} в submodule. */
+  public static Path anyTaskObjectXml() throws IOException {
+    return anyObjectXml("Tasks");
+  }
+
+  /** Любой {@code BusinessProcesses/*.xml} в submodule. */
+  public static Path anyBusinessProcessObjectXml() throws IOException {
+    return anyObjectXml("BusinessProcesses");
+  }
+
+  /** Любой {@code ChartsOfAccounts/*.xml} в submodule. */
+  public static Path anyChartOfAccountsObjectXml() throws IOException {
+    return anyObjectXml("ChartsOfAccounts");
+  }
+
+  /** Любой {@code ChartsOfCalculationTypes/*.xml} в submodule. */
+  public static Path anyChartOfCalculationTypesObjectXml() throws IOException {
+    return anyObjectXml("ChartsOfCalculationTypes");
+  }
+
+  /** Любой {@code src/cf/<подкаталог>/*.xml} в submodule: для видов без своего помощника. */
+  public static Path anyObjectXmlInCfSubdir(String subdir) throws IOException {
+    return anyObjectXml(subdir);
+  }
+
+  private static Path anyObjectXml(String subdir) throws IOException {
     String root = System.getProperty("fixtures.ssl31.root");
     assertThat(root).isNotBlank();
-    Path dir = Path.of(root, "src", "cf", "Catalogs");
+    Path dir = Path.of(root, "src", "cf", subdir);
     assertThat(dir).exists();
     try (Stream<Path> s = Files.list(dir)) {
       Path found = s
@@ -64,7 +118,7 @@ public final class Ssl31SubmodulePaths {
         .sorted()
         .findFirst()
         .orElse(null);
-      assertThat(found).as("catalog xml under %s", dir).isNotNull();
+      assertThat(found).as("object xml under %s", dir).isNotNull();
       return found;
     }
   }

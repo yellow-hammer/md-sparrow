@@ -34,6 +34,7 @@ import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
+import io.github.yellowhammer.designerxml.cf.MdObjectPropertyEnums;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureRead;
 import io.github.yellowhammer.designerxml.cf.ConfigurationCatalogLister;
@@ -64,7 +65,7 @@ import java.util.concurrent.Callable;
 @Command(
   name = "md-sparrow",
   mixinStandardHelpOptions = true,
-  version = "md-sparrow 0.2",
+  versionProvider = DesignerXmlCli.ManifestVersion.class,
   subcommands = {
     DesignerXmlCli.ValidateCmd.class,
     DesignerXmlCli.RoundTripCmd.class,
@@ -83,6 +84,7 @@ import java.util.concurrent.Callable;
     ExternalArtifactCommands.ExternalArtifactDeleteCmd.class,
     ExternalArtifactCommands.ExternalArtifactDuplicateCmd.class,
     DesignerXmlCli.CfMdObjectGetCmd.class,
+    DesignerXmlCli.CfMdObjectEnumsCmd.class,
     DesignerXmlCli.CfMdObjectStructureGetCmd.class,
     MdObjectMutationCommands.CfMdObjectSetCmd.class,
     MdObjectMutationCommands.CfMdAttributeAddCmd.class,
@@ -114,6 +116,19 @@ public final class DesignerXmlCli implements Callable<Integer> {
 
   /** Создаёт корневую команду для picocli. */
   public DesignerXmlCli() {
+  }
+
+  /**
+   * Версия для {@code --version} из манифеста jar: в коде её держать незачем, она бы отставала
+   * от сборки. Вне jar (запуск из классов) версия неизвестна.
+   */
+  static final class ManifestVersion implements CommandLine.IVersionProvider {
+
+    @Override
+    public String[] getVersion() {
+      String version = DesignerXmlCli.class.getPackage().getImplementationVersion();
+      return new String[] {"md-sparrow " + (version == null ? "dev" : version)};
+    }
   }
 
   @Override
@@ -407,6 +422,22 @@ public final class DesignerXmlCli implements Callable<Integer> {
         System.err.println(e.getMessage());
         return 2;
       }
+      return 0;
+    }
+  }
+
+  @Command(
+    name = "cf-md-object-enums",
+    description = "Вывести JSON допустимых значений перечислимых свойств объектов метаданных."
+  )
+  static final class CfMdObjectEnumsCmd implements Callable<Integer> {
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    SchemaVersion version;
+
+    @Override
+    public Integer call() {
+      Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+      System.out.println(gson.toJson(MdObjectPropertyEnums.forVersion(version)));
       return 0;
     }
   }

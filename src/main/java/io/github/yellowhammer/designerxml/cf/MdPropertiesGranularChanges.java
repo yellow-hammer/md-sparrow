@@ -56,6 +56,12 @@ final class MdPropertiesGranularChanges {
     }
   }
 
+  void fields(String localName, List<String> baseline, List<String> incoming) {
+    if (!MdObjectPropertiesDiff.listStringEquals(baseline, incoming)) {
+      add(localName, MdCatalogPropertiesGranularSerial.fieldListElement(localName, incoming));
+    }
+  }
+
   /** Поддерево, которое расширение не разбирает: пишем как есть либо пустым элементом. */
   void xmlBlob(String localName, String baseline, String incoming) {
     if (MdObjectPropertiesDiff.looseXmlBlobEquals(baseline, incoming)) {
