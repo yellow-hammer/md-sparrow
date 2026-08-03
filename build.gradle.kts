@@ -22,7 +22,8 @@ val xsdRootPath = (findProperty("xsd.root") as String?) ?: "resources/namespace-
 val xsdRootDir = layout.projectDirectory.dir(xsdRootPath)
 val schemasDir = xsdRootDir.dir("schemas")
 
-// Пространства имён 1С → имя файла xsd и сегмент Java-пакета. Набор одинаков во всех версиях.
+// Пространства имён 1С → имя файла xsd и сегмент Java-пакета.
+// Состав каталога версии может отличаться: берём только те схемы, что там лежат.
 data class Ns(val uri: String, val file: String, val pkg: String)
 
 val schemaNamespaces = listOf(
@@ -40,9 +41,27 @@ val schemaNamespaces = listOf(
     Ns("http://v8.1c.ru/8.2/managed-application/modules", "v8.1c.ru-8.2-managed-application-modules.xsd", "v8_2_managed_application_modules"),
     Ns("http://v8.1c.ru/8.2/uobjects", "v8.1c.ru-8.2-uobjects.xsd", "v8_2_uobjects"),
     Ns("http://v8.1c.ru/8.3/MDClasses", "v8.1c.ru-8.3-MDClasses.xsd", "mdclasses"),
+    Ns("http://v8.1c.ru/8.3/xcf/logform", "v8.1c.ru-8.3-xcf-logform.xsd", "v8_3_xcf_logform"),
+    Ns("http://v8.1c.ru/8.2/managed-application/dynamic-list-data", "v8.1c.ru-8.2-managed-application-dynamic-list-data.xsd", "v8_2_managed_application_dynamic_list_data"),
+    Ns("http://v8.1c.ru/8.3/data/pdf", "v8.1c.ru-8.3-data-pdf.xsd", "v8_3_data_pdf"),
+    Ns("http://v8.1c.ru/8.1/data-composition-system/core", "v8.1c.ru-8.1-data-composition-system-core.xsd", "v8_1_dcs_core"),
+    Ns("http://v8.1c.ru/8.1/data-composition-system/common", "v8.1c.ru-8.1-data-composition-system-common.xsd", "v8_1_dcs_common"),
+    Ns("http://v8.1c.ru/8.1/data-composition-system/details", "v8.1c.ru-8.1-data-composition-system-details.xsd", "v8_1_dcs_details"),
+    Ns("http://v8.1c.ru/8.1/data-composition-system/schema", "v8.1c.ru-8.1-data-composition-system-schema.xsd", "v8_1_dcs_schema"),
+    Ns("http://v8.1c.ru/8.1/data-composition-system/settings", "v8.1c.ru-8.1-data-composition-system-settings.xsd", "v8_1_dcs_settings"),
+    Ns("http://v8.1c.ru/8.1/data-composition-system/area-template", "v8.1c.ru-8.1-data-composition-system-area-template.xsd", "v8_1_dcs_area_template"),
 )
 
 val mdClassesFile = "v8.1c.ru-8.3-MDClasses.xsd"
+val logFormFile = "v8.1c.ru-8.3-xcf-logform.xsd"
+
+// Корни генерации: MDClasses (объекты метаданных) и logform (содержимое управляемой формы).
+// Второго корня в старых каталогах ещё нет, поэтому берём только существующие.
+val rootSchemaFiles = listOf(mdClassesFile, logFormFile)
+
+fun namespacesIn(dir: File): List<Ns> = schemaNamespaces.filter { File(dir, it.file).isFile }
+
+fun rootsIn(dir: File): List<String> = rootSchemaFiles.filter { File(dir, it).isFile }
 
 // Версия формата -> сегмент пакета (2.17 -> v2_17).
 fun versionToModelId(version: String): String = "v" + version.replace('.', '_')
@@ -79,11 +98,11 @@ fun dedupModels(versions: List<String>): Map<String, String> {
     return versionToModel
 }
 
-fun bindingsXml(modelId: String): String {
+fun bindingsXml(modelId: String, namespaces: List<Ns>): String {
     val sb = StringBuilder()
     sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n")
     sb.append("<jaxb:bindings version=\"3.0\" xmlns:jaxb=\"https://jakarta.ee/xml/ns/jaxb\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">\n")
-    for (ns in schemaNamespaces) {
+    for (ns in namespaces) {
         sb.append("  <jaxb:bindings scd=\"x-schema::tns\" xmlns:tns=\"").append(ns.uri).append("\">\n")
         sb.append("    <jaxb:schemaBindings>\n")
         sb.append("      <jaxb:package name=\"io.github.yellowhammer.designerxml.jaxb.")
@@ -95,12 +114,12 @@ fun bindingsXml(modelId: String): String {
     return sb.toString()
 }
 
-fun catalogXml(absSchemaDir: File): String {
+fun catalogXml(absSchemaDir: File, namespaces: List<Ns>, roots: List<String>): String {
     val sb = StringBuilder()
     sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
     sb.append("<catalog xmlns=\"urn:oasis:names:tc:entity:xmlns:xml:catalog\">\n")
-    for (ns in schemaNamespaces) {
-        if (ns.file == mdClassesFile) continue
+    for (ns in namespaces) {
+        if (ns.file in roots) continue
         val uri = File(absSchemaDir, ns.file).toURI().toString()
         sb.append("  <uri name=\"").append(ns.uri).append("\" uri=\"").append(uri).append("\"/>\n")
     }
@@ -160,17 +179,19 @@ for ((modelId, versions) in modelToVersions) {
             out.mkdirs()
             val xjbDir = genXjbDir.get().asFile
             xjbDir.mkdirs()
+            val namespaces = namespacesIn(xsdDir.asFile)
+            val roots = rootsIn(xsdDir.asFile)
             val bindingsFile = File(xjbDir, "bindings.xjb")
             val catalogFile = File(xjbDir, "catalog.xml")
-            bindingsFile.writeText(bindingsXml(modelId))
-            catalogFile.writeText(catalogXml(xsdDir.asFile))
+            bindingsFile.writeText(bindingsXml(modelId, namespaces))
+            catalogFile.writeText(catalogXml(xsdDir.asFile, namespaces, roots))
             args(
                 "-extension",
                 "-catalog", catalogFile.absolutePath,
                 "-b", bindingsFile.absolutePath,
                 "-d", out.absolutePath,
-                mdClassesFile
             )
+            args(roots)
         }
     }
     sourceSets["main"].java.srcDir(output)
