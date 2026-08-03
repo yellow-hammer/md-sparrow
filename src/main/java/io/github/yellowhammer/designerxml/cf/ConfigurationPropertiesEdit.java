@@ -224,8 +224,12 @@ public final class ConfigurationPropertiesEdit {
     for (String v : safeTrimmedList(values)) {
       try {
         vals.add(Enum.valueOf(enumClass.asSubclass(Enum.class), v));
-      } catch (IllegalArgumentException ignored) {
-        // неизвестное значение пропускаем, чтобы не ломать сохранение
+      } catch (IllegalArgumentException e) {
+        // Пропустить значение молча нельзя: правка исчезла бы без следа, а на диск легла бы
+        // конфигурация с другим назначением использования.
+        throw new IllegalArgumentException(
+          "UsePurposes: недопустимое значение " + v
+            + "; допустимы " + java.util.Arrays.toString(enumClass.getEnumConstants()), e);
       }
     }
   }

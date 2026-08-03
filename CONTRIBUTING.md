@@ -9,8 +9,8 @@
 ```bash
 ./gradlew build
 ./gradlew test
-./gradlew shadowJar   # fat JAR → build/libs/md-sparrow-*-all.jar (VS Code / скрипты)
-./gradlew javadoc   # HTML → build/docs/javadoc/index.html (в VS Code: задача «javadoc»)
+./gradlew shadowJar   # fat JAR → build/libs/md-sparrow-*-all.jar
+./gradlew javadoc     # HTML → build/docs/javadoc/index.html
 ```
 
 Проверка лицензионных заголовков входит в `./gradlew check` (задача `license`).
@@ -31,6 +31,12 @@
 `bindings.xjb`/`catalog.xml` для XJC и карта import'ов валидатора строятся автоматически
 (см. `build.gradle.kts` и `XmlValidator`) — править их вручную не нужно.
 
-## Интеграция в IDE (отдельная задача)
+## Проверка своей сборки
 
-Имеет смысл вызывать библиотеку из расширения **1C: Platform Tools** ([vscode-1c-platform-tools](https://github.com/yellow-hammer/vscode-1c-platform-tools)): JDK 21, артефакт `./gradlew shadowJar` → `build/libs/md-sparrow-*-all.jar`, подпроцесс `java -jar …` с подкомандами CLI (`add-md-object --type CATALOG` и др.). Дублировать отдельное мини-расширение под это не обязательно — достаточно настроек путей и команды в существующем дереве инструментов.
+`./gradlew shadowJar` собирает fat JAR в `build/libs/`. Если поведение CLI расходится с исходниками, а тесты зелёные — пересоберите с `--rerun-tasks`: причина обычно в протухшем build cache.
+
+Программы, вызывающие библиотеку подпроцессом, обычно берут выпущенный JAR из GitHub Releases, поэтому для проверки своей сборки в такой программе нужно указать ей путь к локальному файлу и отключить автообновление, если оно есть.
+
+## Новые операции CLI
+
+Изменения и чтение вызывающие программы делают не отдельными подкомандами, а двумя каналами: `apply-mutation` и `read-json` с `--params` — путём к UTF-8 JSON. Причина в `CliParams`: на Windows лаунчер `java.exe` декодирует `argv` через ANSI-кодовую страницу ОС, и кириллические имена и пути превращаются в `?`. Поэтому новая операция заводится полем `op` в этом канале, а одиночная подкоманда остаётся для скриптов и ручного запуска.

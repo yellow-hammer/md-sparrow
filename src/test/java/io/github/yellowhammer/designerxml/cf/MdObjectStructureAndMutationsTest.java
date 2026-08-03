@@ -9,7 +9,9 @@
 package io.github.yellowhammer.designerxml.cf;
 
 import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class MdObjectStructureAndMutationsTest {
 
+  @TempDir
+  Path tempDir;
+
   @Test
   void readStructure_document_hasNestedContent() throws Exception {
     MdObjectStructureDto dto = MdObjectStructureRead.read(sampleDocumentXml(), SchemaVersion.V2_20);
@@ -30,6 +35,14 @@ class MdObjectStructureAndMutationsTest {
     assertThat(dto.tabularSections.getFirst().attributes).isNotEmpty();
     assertThat(dto.forms).isNotEmpty();
     assertThat(dto.templates).isNotEmpty();
+  }
+
+  @Test
+  void readStructure_document_listsStandardAttributes() throws Exception {
+    MdObjectStructureDto dto = MdObjectStructureRead.read(sampleDocumentXml(), SchemaVersion.V2_20);
+
+    // состав стандартных реквизитов задаёт платформа, а перечисляет их сам файл объекта
+    assertThat(dto.standardAttributes).contains("Number", "Date");
   }
 
   @Test
@@ -138,6 +151,36 @@ class MdObjectStructureAndMutationsTest {
     Path target = dir.resolve(source.getFileName().toString());
     Files.copy(source, target);
     return target;
+  }
+
+  @Test
+  void addRenameDeleteCommand_updatesChildObjectsAndModuleDirectory() throws Exception {
+    Path objectXml = copyCatalogWithSubtree();
+    Path commands = objectXml.resolveSibling(
+      objectXml.getFileName().toString().replace(".xml", "")).resolve("Commands");
+
+    MdObjectChildMutations.addCommand(objectXml, SchemaVersion.V2_20, "КомандаИзТеста");
+    assertThat(MdObjectStructureRead.read(objectXml, SchemaVersion.V2_20).commands).contains("КомандаИзТеста");
+
+    Files.createDirectories(commands.resolve("КомандаИзТеста").resolve("Ext"));
+    Files.writeString(commands.resolve("КомандаИзТеста").resolve("Ext").resolve("CommandModule.bsl"), "// модуль");
+
+    MdObjectChildMutations.renameCommand(objectXml, SchemaVersion.V2_20, "КомандаИзТеста", "КомандаПереименована");
+    assertThat(MdObjectStructureRead.read(objectXml, SchemaVersion.V2_20).commands).contains("КомандаПереименована");
+    assertThat(commands.resolve("КомандаПереименована").resolve("Ext").resolve("CommandModule.bsl")).exists();
+
+    MdObjectChildMutations.deleteCommand(objectXml, SchemaVersion.V2_20, "КомандаПереименована");
+    assertThat(MdObjectStructureRead.read(objectXml, SchemaVersion.V2_20).commands)
+      .doesNotContain("КомандаПереименована");
+    assertThat(commands.resolve("КомандаПереименована")).doesNotExist();
+  }
+
+  /** Копия справочника из выгрузки: имя файла должно совпадать с именем объекта. */
+  private Path copyCatalogWithSubtree() throws Exception {
+    Path src = Ssl31SubmodulePaths.anyCatalogObjectXml();
+    Path copy = tempDir.resolve(src.getFileName());
+    Files.copy(src, copy);
+    return copy;
   }
 
   private static Path anyObjectXmlInCfSubdir(String subdir) throws IOException {

@@ -19,7 +19,8 @@ import java.util.List;
  * {@code chartOfCalculationTypes} | {@code commonModule} | {@code subsystem} | {@code sessionParameter} |
  * {@code exchangePlan} | {@code commonAttribute} | {@code commonPicture} | {@code documentNumerator} |
  * {@code externalDataSource} | {@code role} | {@code eventSubscription} | {@code scheduledJob} |
- * {@code commonCommand} | {@code informationRegister} | {@code accumulationRegister}.
+ * {@code commonCommand} | {@code informationRegister} | {@code accumulationRegister} |
+ * {@code documentJournal} | {@code businessProcess}.
  */
 public final class MdObjectPropertiesDto {
 
@@ -56,6 +57,49 @@ public final class MdObjectPropertiesDto {
    * иначе {@code null}.
    */
   public MdRegisterPropertiesDto register;
+  /** Поля отчёта и обработки для {@code kind=report} и {@code kind=dataProcessor}; иначе {@code null}. */
+  public MdReportPropertiesDto report;
+  /** Поля журнала документов для {@code kind=documentJournal}; иначе {@code null}. */
+  public MdDocumentJournalPropertiesDto documentJournal;
+  /** Поля плана обмена для {@code kind=exchangePlan}; иначе {@code null}. */
+  public MdExchangePlanPropertiesDto exchangePlan;
+  /** Поля плана видов характеристик для {@code kind=chartOfCharacteristicTypes}; иначе {@code null}. */
+  public MdChartOfCharacteristicTypesPropertiesDto chartOfCharacteristicTypes;
+  /** Поля задачи для {@code kind=task}; иначе {@code null}. */
+  public MdTaskPropertiesDto task;
+  /** Поля бизнес-процесса для {@code kind=businessProcess}; иначе {@code null}. */
+  public MdBusinessProcessPropertiesDto businessProcess;
+  /** Поля плана счетов для {@code kind=chartOfAccounts}; иначе {@code null}. */
+  public MdChartOfAccountsPropertiesDto chartOfAccounts;
+  /** Поля плана видов расчёта для {@code kind=chartOfCalculationTypes}; иначе {@code null}. */
+  public MdChartOfCalculationTypesPropertiesDto chartOfCalculationTypes;
+
+  /** Свойства параметра сеанса (kind=sessionParameter). */
+  public MdSessionParameterPropertiesDto sessionParameter;
+
+  /** Свойства нумератора документов (kind=documentNumerator). */
+  public MdDocumentNumeratorPropertiesDto documentNumerator;
+
+  /** Свойства подписки на событие (kind=eventSubscription). */
+  public MdEventSubscriptionPropertiesDto eventSubscription;
+
+  /** Свойства регламентного задания (kind=scheduledJob). */
+  public MdScheduledJobPropertiesDto scheduledJob;
+
+  /** Свойства общей команды (kind=commonCommand). */
+  public MdCommonCommandPropertiesDto commonCommand;
+
+  /** Свойства общего реквизита (kind=commonAttribute). */
+  public MdCommonAttributePropertiesDto commonAttribute;
+
+  /** Свойства общей картинки (kind=commonPicture). */
+  public MdCommonPicturePropertiesDto commonPicture;
+
+  /** Свойства роли (kind=role). */
+  public MdRolePropertiesDto role;
+
+  /** Свойства внешнего источника данных (kind=externalDataSource). */
+  public MdExternalDataSourcePropertiesDto externalDataSource;
 
   public MdObjectPropertiesDto() {
     this.attributes = new ArrayList<>();

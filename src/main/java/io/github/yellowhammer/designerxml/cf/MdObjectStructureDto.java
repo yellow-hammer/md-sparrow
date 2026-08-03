@@ -28,6 +28,8 @@ public final class MdObjectStructureDto {
   public List<String> resources;
   public List<String> recalculations;
   public List<String> addressingAttributes;
+  /** Стандартные реквизиты объекта: платформа задаёт их сама, файл перечисляет с настройками. */
+  public List<String> standardAttributes;
   public List<String> operations;
   public List<String> urlTemplates;
   public List<String> channels;
@@ -49,6 +51,7 @@ public final class MdObjectStructureDto {
     this.resources = new ArrayList<>();
     this.recalculations = new ArrayList<>();
     this.addressingAttributes = new ArrayList<>();
+    this.standardAttributes = new ArrayList<>();
     this.operations = new ArrayList<>();
     this.urlTemplates = new ArrayList<>();
     this.channels = new ArrayList<>();

@@ -112,6 +112,16 @@ public final class MdObjectStructureRead {
     dto.kind = handle.kind;
     dto.internalName = safeString(invokeNoArgOrNull(props, "getName"));
 
+    Object standardAttributes = invokeNoArgOrNull(props, "getStandardAttributes");
+    if (standardAttributes != null) {
+      for (Object item : listOrEmpty(invokeNoArgOrNull(standardAttributes, "getStandardAttribute"))) {
+        String name = safeString(invokeNoArgOrNull(item, "getName"));
+        if (!name.isEmpty()) {
+          dto.standardAttributes.add(name);
+        }
+      }
+    }
+
     Object childObjects = invokeNoArgOrNull(handle.objectNode, "getChildObjects");
     if (childObjects == null) {
       return dto;

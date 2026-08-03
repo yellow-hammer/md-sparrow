@@ -411,10 +411,12 @@ public final class MdObjectPropertiesDiff {
       case "catalog" -> catalogMask(baseline, incoming);
       case "document" -> documentMask(baseline, incoming);
       case "exchangePlan" -> docLikeMask(baseline, incoming);
-      case "constant", "enum", "report", "dataProcessor", "task", "chartOfAccounts",
+      case "constant", "enum", "report", "dataProcessor", "documentJournal", "task", "businessProcess",
+           "chartOfAccounts",
            "chartOfCharacteristicTypes", "chartOfCalculationTypes", "commonModule",
            "informationRegister", "accumulationRegister",
            "sessionParameter", "commonAttribute", "commonPicture", "documentNumerator",
+           "eventSubscription", "scheduledJob", "commonCommand",
            "externalDataSource", "role" -> docLikeMask(baseline, incoming);
       case "subsystem" -> subsystemMask(baseline, incoming);
       default -> new ChangeMask(true, true);
@@ -462,7 +464,26 @@ public final class MdObjectPropertiesDiff {
     return MdFlatDtoSupport.equalsFlat(a.enumeration, b.enumeration, lenientXmlBlobs)
       && MdFlatDtoSupport.equalsFlat(a.constant, b.constant, lenientXmlBlobs)
       && MdFlatDtoSupport.equalsFlat(a.commonModule, b.commonModule, lenientXmlBlobs)
-      && MdFlatDtoSupport.equalsFlat(a.register, b.register, lenientXmlBlobs);
+      && MdFlatDtoSupport.equalsFlat(a.register, b.register, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.report, b.report, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.documentJournal, b.documentJournal, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.exchangePlan, b.exchangePlan, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(
+        a.chartOfCharacteristicTypes, b.chartOfCharacteristicTypes, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.task, b.task, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.businessProcess, b.businessProcess, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.chartOfAccounts, b.chartOfAccounts, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(
+        a.chartOfCalculationTypes, b.chartOfCalculationTypes, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.sessionParameter, b.sessionParameter, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.documentNumerator, b.documentNumerator, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.eventSubscription, b.eventSubscription, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.scheduledJob, b.scheduledJob, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.commonCommand, b.commonCommand, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.commonAttribute, b.commonAttribute, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.commonPicture, b.commonPicture, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.role, b.role, lenientXmlBlobs)
+      && MdFlatDtoSupport.equalsFlat(a.externalDataSource, b.externalDataSource, lenientXmlBlobs);
   }
 
   private static ChangeMask subsystemMask(MdObjectPropertiesDto baseline, MdObjectPropertiesDto incoming) {

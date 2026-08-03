@@ -35,6 +35,7 @@ import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
+import io.github.yellowhammer.designerxml.cf.MdObjectPropertyEnums;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureRead;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphBuilder;
@@ -107,6 +108,9 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "cf-md-object-get": {
         MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(p.reqPath(p.objectXml, "objectXml"), p.version());
         return gson.toJson(dto);
+      }
+      case "cf-md-object-enums": {
+        return gson.toJson(MdObjectPropertyEnums.forVersion(p.version()));
       }
       case "cf-md-object-structure-get": {
         MdObjectStructureDto dto = MdObjectStructureRead.read(p.reqPath(p.objectXml, "objectXml"), p.version());

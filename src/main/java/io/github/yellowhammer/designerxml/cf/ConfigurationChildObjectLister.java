@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Имена объектов из {@code Configuration/ChildObjects} по локальному имени тега (как в XSD).
@@ -28,22 +27,17 @@ public final class ConfigurationChildObjectLister {
   private ConfigurationChildObjectLister() {
   }
 
-  private static final Set<String> SUPPORTED_TAGS = Set.of(
-    "Catalog", "Document", "Enum", "Constant", "Report", "DataProcessor", "Task",
-    "ChartOfAccounts", "ChartOfCharacteristicTypes", "ChartOfCalculationTypes", "CommonModule",
-    "Subsystem", "SessionParameter", "ExchangePlan", "CommonAttribute", "CommonPicture",
-    "DocumentNumerator", "ExternalDataSource", "Role",
-    "InformationRegister", "AccumulationRegister", "AccountingRegister", "CalculationRegister");
-
   /**
-   * @param childTag например {@code Catalog}, {@code Document}, {@code Enum}, {@code Constant}
+   * Имена объектов конфигурации по тегу состава.
+   *
+   * <p>Список тегов не перечисляем: он берётся из самой модели формата, иначе новый вид
+   * пришлось бы дописывать здесь руками, а его отсутствие выглядело бы как ошибка вызова.
+   *
+   * @param childTag локальное имя тега, например {@code Catalog}, {@code SettingsStorage}
    */
   public static List<String> listNames(Path configurationXml, SchemaVersion version, String childTag)
     throws JAXBException, IOException {
     Objects.requireNonNull(childTag, "childTag");
-    if (!SUPPORTED_TAGS.contains(childTag)) {
-      throw new IllegalArgumentException("unsupported ChildObjects tag: " + childTag);
-    }
     Object mdo = JaxbReflect.value(DesignerXml.read(configurationXml, version));
     Object cfg = JaxbReflect.get(mdo, "getConfiguration");
     if (cfg == null) {
@@ -53,7 +47,19 @@ public final class ConfigurationChildObjectLister {
     if (child == null) {
       return new ArrayList<>();
     }
-    List<String> raw = new ArrayList<>(JaxbReflect.<String>list(child, "get" + childTag));
+    Object names = JaxbReflect.getOptional(child, "get" + childTag);
+    if (names == null) {
+      throw new IllegalArgumentException(
+        "в составе конфигурации формата " + version.metadataObjectVersionAttribute()
+          + " нет тега " + childTag);
+    }
+    if (!(names instanceof List<?> list)) {
+      throw new IllegalArgumentException(childTag + ": тег состава не является списком имён");
+    }
+    List<String> raw = new ArrayList<>();
+    for (Object name : list) {
+      raw.add(String.valueOf(name));
+    }
     return sortedCopy(raw);
   }
 

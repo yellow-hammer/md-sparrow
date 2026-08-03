@@ -1,6 +1,6 @@
 # Свойства объектов метаданных (cf-md-object)
 
-Контракт CLI-команд чтения и записи свойств объектов метаданных. Потребитель — расширение [vscode-1c-platform-tools](https://github.com/yellow-hammer/vscode-1c-platform-tools) (форма «Свойства объекта»); данные читаются и записываются только через JAXB, без правки XML на стороне клиента.
+Контракт CLI-команд чтения и записи свойств объектов метаданных. Данные читаются и записываются только через JAXB: вызывающая программа получает и отдаёт DTO, XML на её стороне не правится.
 
 ## Команды CLI
 
@@ -8,48 +8,65 @@
 |----------------------------------------------|----------------------|
 | `cf-md-object-get <путь.xml> -v V2_10…V2_21` | stdout: один JSON    |
 | `cf-md-object-set <путь.xml> <json> -v …`    | запись из файла JSON |
+| `cf-md-object-enums -v V2_10…V2_21`          | stdout: JSON допустимых значений перечислимых свойств |
 
 ### CRUD дочерних узлов объекта
 
 | Команда                                               | Назначение                |
 |-------------------------------------------------------|---------------------------|
 | `cf-md-attribute-add/rename/delete/duplicate`         | Реквизиты объекта         |
+| `cf-md-command-add/rename/delete`                     | Команды объекта           |
 | `cf-md-tabular-section-add/rename/delete/duplicate`   | Табличные части объекта   |
 | `cf-md-tabular-attribute-add/rename/delete/duplicate` | Реквизиты табличной части |
 
 Структура объекта (секции, ТЧ, вложенные узлы) — `cf-md-object-structure-get`.
 
+### Допустимые значения перечислимых свойств
+
+`cf-md-object-enums` отдаёт словарь `блок.свойство` → константы модели, например `{"chartOfCharacteristicTypes.codeSeries":["WHOLE_CHARACTERISTIC_KIND","WITHIN_SUBORDINATION"]}`. Набор снимается с модели запрошенной версии формата, поэтому вызывающей программе не нужна своя копия списка: при записи значение вне этого набора отклоняется с перечислением допустимых.
+
 ## Поля JSON (`MdObjectPropertiesDto`)
 
 Общие поля:
 
-- `kind`: `"catalog"` \| `"constant"` \| `"enum"` \| `"document"` \| `"report"` \| `"dataProcessor"` \| `"task"` \| `"chartOfAccounts"` \| `"chartOfCharacteristicTypes"` \| `"chartOfCalculationTypes"` \| `"commonModule"` \| `"subsystem"` \| `"sessionParameter"` \| `"exchangePlan"` \| `"commonAttribute"` \| `"commonPicture"` \| `"documentNumerator"` \| `"externalDataSource"` \| `"role"`
+- `kind`: `"catalog"` \| `"constant"` \| `"enum"` \| `"document"` \| `"report"` \| `"dataProcessor"` \| `"task"` \| `"chartOfAccounts"` \| `"chartOfCharacteristicTypes"` \| `"chartOfCalculationTypes"` \| `"commonModule"` \| `"subsystem"` \| `"sessionParameter"` \| `"exchangePlan"` \| `"commonAttribute"` \| `"commonPicture"` \| `"documentNumerator"` \| `"eventSubscription"` \| `"scheduledJob"` \| `"commonCommand"` \| `"externalDataSource"` \| `"role"` \| `"documentJournal"` \| `"businessProcess"`
 - `internalName`: имя объекта (как в XML; при сохранении должно совпадать с именем файла без `.xml`)
 - `synonymRu`, `comment`: строки; для `catalog` / `document` / `exchangePlan` синоним ru синхронизируется с представлениями так же, как в `cf-catalog-form-get/set`
 
 ## Матрица поддерживаемых типов
 
-| kind (DTO)                   | containerLocal (XML)         | Поддержка полей                                                                  |
-|------------------------------|------------------------------|----------------------------------------------------------------------------------|
-| `catalog`                    | `Catalog`                    | расширенная (`catalog`, `attributes`, `tabularSections`, `synonymRu`, `comment`) |
-| `document`                   | `Document`                   | расширенная (`attributes`, `tabularSections`, `synonymRu`, `comment`)            |
-| `subsystem`                  | `Subsystem`                  | расширенная (`nestedSubsystems`, `contentRefs` чтение, `synonymRu`, `comment`)   |
-| `exchangePlan`               | `ExchangePlan`               | расширенная (`attributes`, `tabularSections`, `synonymRu`, `comment`)            |
-| `constant`                   | `Constant`                   | базовая (`synonymRu`, `comment`)                                                 |
-| `enum`                       | `Enum`                       | базовая (`synonymRu`, `comment`)                                                 |
-| `report`                     | `Report`                     | базовая (`synonymRu`, `comment`)                                                 |
-| `dataProcessor`              | `DataProcessor`              | базовая (`synonymRu`, `comment`)                                                 |
-| `task`                       | `Task`                       | базовая (`synonymRu`, `comment`)                                                 |
-| `chartOfAccounts`            | `ChartOfAccounts`            | базовая (`synonymRu`, `comment`)                                                 |
-| `chartOfCharacteristicTypes` | `ChartOfCharacteristicTypes` | базовая (`synonymRu`, `comment`)                                                 |
-| `chartOfCalculationTypes`    | `ChartOfCalculationTypes`    | базовая (`synonymRu`, `comment`)                                                 |
-| `commonModule`               | `CommonModule`               | базовая (`synonymRu`, `comment`)                                                 |
-| `sessionParameter`           | `SessionParameter`           | базовая (`synonymRu`, `comment`)                                                 |
-| `commonAttribute`            | `CommonAttribute`            | базовая (`synonymRu`, `comment`)                                                 |
-| `commonPicture`              | `CommonPicture`              | базовая (`synonymRu`, `comment`)                                                 |
-| `documentNumerator`          | `DocumentNumerator`          | базовая (`synonymRu`, `comment`)                                                 |
-| `externalDataSource`         | `ExternalDataSource`         | базовая (`synonymRu`, `comment`)                                                 |
-| `role`                       | `Role`                       | базовая (`synonymRu`, `comment`)                                                 |
+| kind (DTO)                   | containerLocal (XML)         | Поддержка полей                                                                     |
+|------------------------------|------------------------------|-------------------------------------------------------------------------------------|
+| `catalog`                    | `Catalog`                    | полная (`catalog`, `attributes`, `tabularSections`)                                  |
+| `document`                   | `Document`                   | полная (`document`, `attributes`, `tabularSections`)                                 |
+| `enum`                       | `Enum`                       | полная (`enumeration`, `enumValues`)                                                 |
+| `constant`                   | `Constant`                   | полная (`constant`)                                                                  |
+| `commonModule`               | `CommonModule`               | полная (`commonModule`)                                                              |
+| `informationRegister`        | `InformationRegister`        | полная (`register`, `dimensions`, `resources`, `attributes`)                         |
+| `accumulationRegister`       | `AccumulationRegister`       | полная (`register`, `dimensions`, `resources`, `attributes`)                         |
+| `report`                     | `Report`                     | полная (`report`)                                                                    |
+| `dataProcessor`              | `DataProcessor`              | полная (`report`, поля отчёта пусты)                                                 |
+| `documentJournal`            | `DocumentJournal`            | полная (`documentJournal`, регистрируемые документы)                                 |
+| `chartOfCharacteristicTypes` | `ChartOfCharacteristicTypes` | полная (`chartOfCharacteristicTypes`, `attributes`, `tabularSections`)               |
+| `exchangePlan`               | `ExchangePlan`               | полная (`exchangePlan`, `attributes`, `tabularSections`; состав плана не трогаем)    |
+| `task`                       | `Task`                       | полная (`task`, `attributes`, `tabularSections`)                                     |
+| `businessProcess`            | `BusinessProcess`            | полная (`businessProcess`, `attributes`, `tabularSections`)                          |
+| `chartOfAccounts`            | `ChartOfAccounts`            | полная (`chartOfAccounts`, `attributes`, `tabularSections`)                          |
+| `chartOfCalculationTypes`    | `ChartOfCalculationTypes`    | полная (`chartOfCalculationTypes`, `attributes`, `tabularSections`)                  |
+| `subsystem`                  | `Subsystem`                  | расширенная (`nestedSubsystems`, `contentRefs` чтение)                               |
+
+| `sessionParameter`            | `SessionParameter`            | полная (`sessionParameter`: тип значения) |
+| `commonAttribute` | `CommonAttribute` | полная (`commonAttribute`: разделение данных, поле ввода) |
+| `commonPicture` | `CommonPicture` | полная (`commonPicture`: доступность картинки) |
+| `documentNumerator`           | `DocumentNumerator`           | полная (`documentNumerator`: нумерация) |
+| `eventSubscription`           | `EventSubscription`           | полная (`eventSubscription`: источник, событие, обработчик) |
+| `scheduledJob`                | `ScheduledJob`                | полная (`scheduledJob`: метод, ключ, расписание, перезапуски) |
+| `commonCommand`               | `CommonCommand`               | полная (`commonCommand`: группа, параметр, представление) |
+| `externalDataSource` | `ExternalDataSource` | полная (`externalDataSource`: режим блокировки) |
+| `role` | `Role` | полная (`role`: общие поля; состав прав - отдельный файл) |
+
+Базовая поддержка — `internalName`, `synonymRu`, `comment`; полная — плюс типизированный блок свойств вида,
+который читается и пишется целиком, гранулярно по изменённым элементам.
 
 Для `catalog`, `document`, `exchangePlan`:
 
@@ -67,5 +84,5 @@ Round-trip и регрессии — на выгрузках вроде submodul
 ## Ограничения текущего этапа
 
 - Для всех перечисленных `kind` поддержаны базовые поля `internalName/synonymRu/comment` с гранулярной записью.
-- Расширенные поля `catalog` и список `attributes/tabularSections` остаются полными только для типов, где это уже реализовано (`catalog`, `document`, `exchangePlan`).
+- Типизированный блок свойств есть у видов из строк «полная»; остальным доступны только базовые поля.
 - Для `subsystem` дополнительно поддержаны `nestedSubsystems` и чтение `contentRefs`.
