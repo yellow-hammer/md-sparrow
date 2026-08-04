@@ -34,7 +34,9 @@ import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.FormContentDto;
 import io.github.yellowhammer.designerxml.cf.FormContentRead;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyChangeDto;
 import io.github.yellowhammer.designerxml.cf.FormItemPropertyDictionary;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertyEnums;
@@ -91,6 +93,7 @@ import java.util.concurrent.Callable;
     DesignerXmlCli.CfMdObjectStructureGetCmd.class,
     DesignerXmlCli.CfFormContentGetCmd.class,
     DesignerXmlCli.CfFormItemPropertiesCmd.class,
+    DesignerXmlCli.CfFormItemPropertiesSetCmd.class,
     MdObjectMutationCommands.CfMdObjectSetCmd.class,
     MdObjectMutationCommands.CfMdAttributeAddCmd.class,
     MdObjectMutationCommands.CfMdAttributeRenameCmd.class,
@@ -509,6 +512,42 @@ public final class DesignerXmlCli implements Callable<Integer> {
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         System.out.println(gson.toJson(dto));
       } catch (IllegalArgumentException e) {
+        System.err.println(e.getMessage());
+        return 2;
+      } catch (IOException | JAXBException e) {
+        System.err.println(e.getMessage());
+        return 2;
+      }
+      return 0;
+    }
+  }
+
+  @Command(
+    name = "cf-form-item-properties-set",
+    description = "Записать свойства элементов управляемой формы точечно (Ext/Form.xml)."
+  )
+  static final class CfFormItemPropertiesSetCmd implements Callable<Integer> {
+    @Parameters(index = "0", description = "Путь к Ext/Form.xml")
+    Path formXml;
+
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    SchemaVersion version;
+
+    @Option(names = "--changes", required = true, description = "Путь к UTF-8 JSON: массив {itemId, property, value}")
+    Path changesJson;
+
+    @Override
+    public Integer call() throws Exception {
+      try {
+        String json = Files.readString(changesJson, StandardCharsets.UTF_8);
+        FormItemPropertyChangeDto[] changes = new Gson().fromJson(json, FormItemPropertyChangeDto[].class);
+        if (changes == null) {
+          System.err.println("пустой список изменений");
+          return 2;
+        }
+        FormItemPropertyEdit.apply(formXml, version, java.util.Arrays.asList(changes));
+        System.out.println("OK");
+      } catch (IllegalArgumentException | IllegalStateException e) {
         System.err.println(e.getMessage());
         return 2;
       } catch (IOException | JAXBException e) {

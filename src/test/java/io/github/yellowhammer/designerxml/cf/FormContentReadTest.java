@@ -111,6 +111,21 @@ class FormContentReadTest {
     }
   }
 
+  /** Форма пишется с теми же пространствами имён, что у конфигуратора: своё - по умолчанию, без ns14. */
+  @Test
+  void пишетПространстваИмёнКакПлатформа() throws Exception {
+    Object jaxb = DesignerXml.read(form("ФормаЭлемента"), SchemaVersion.V2_20);
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    DesignerXml.marshal(SchemaVersion.V2_20, jaxb, out, WriteOptions.defaults());
+
+    String xml = out.toString(java.nio.charset.StandardCharsets.UTF_8);
+    String root = xml.substring(xml.indexOf("<Form"), xml.indexOf('>', xml.indexOf("<Form")) + 1);
+    assertThat(root).contains("xmlns=\"http://v8.1c.ru/8.3/xcf/logform\"");
+    assertThat(root).contains("xmlns:v8=\"http://v8.1c.ru/8.1/data/core\"");
+    assertThat(root).contains("xmlns:dcsset=\"http://v8.1c.ru/8.1/data-composition-system/settings\"");
+    assertThat(root).contains("xmlns:lf=\"http://v8.1c.ru/8.2/managed-application/logform\"");
+  }
+
   /**
    * Модель JAXB покрывает форму целиком: после чтения и записи в файле нет пропавших узлов.
    * Значения по умолчанию платформа не пишет, а JAXB пишет, поэтому сверяем только пропажи.

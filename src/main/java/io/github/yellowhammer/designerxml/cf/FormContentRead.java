@@ -11,6 +11,7 @@ import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -38,6 +39,16 @@ public final class FormContentRead {
       throw new IllegalArgumentException("file not found: " + formXml);
     }
     return readForm(JaxbReflect.value(DesignerXml.read(formXml, version)));
+  }
+
+  /**
+   * Чтение содержимого из UTF-8 байтов (сверка после точечной записи).
+   *
+   * @param utf8Xml байты {@code Ext/Form.xml}
+   * @param version версия формата выгрузки
+   */
+  public static FormContentDto read(byte[] utf8Xml, SchemaVersion version) throws JAXBException {
+    return readForm(JaxbReflect.value(DesignerXml.unmarshal(version, new ByteArrayInputStream(utf8Xml))));
   }
 
   private static FormContentDto readForm(Object form) {
@@ -132,7 +143,7 @@ public final class FormContentRead {
     dto.title = titleText(item);
     dto.dataPath = JaxbReflect.getStringOptional(item, "getDataPath");
     dto.group = enumText(JaxbReflect.getOptional(item, "getGroup"));
-    dto.showTitle = enumText(JaxbReflect.getOptional(item, "getShowTitle"));
+    dto.showTitle = enumOrBoolText(item, "ShowTitle");
     dto.titleLocation = enumText(JaxbReflect.getOptional(item, "getTitleLocation"));
     dto.representation = enumText(JaxbReflect.getOptional(item, "getRepresentation"));
     dto.visible = booleanOrNull(JaxbReflect.getOptional(item, "isVisible"));
@@ -140,8 +151,8 @@ public final class FormContentRead {
     dto.readOnly = booleanOrNull(JaxbReflect.getOptional(item, "isReadOnly"));
     dto.width = decimalText(JaxbReflect.getOptional(item, "getWidth"));
     dto.height = decimalText(JaxbReflect.getOptional(item, "getHeight"));
-    dto.horizontalStretch = stretchText(item, "HorizontalStretch");
-    dto.verticalStretch = stretchText(item, "VerticalStretch");
+    dto.horizontalStretch = enumOrBoolText(item, "HorizontalStretch");
+    dto.verticalStretch = enumOrBoolText(item, "VerticalStretch");
     dto.events = readEvents(item);
     dto.properties = writtenProperties(item);
     dto.items = readItems(item);
@@ -199,9 +210,12 @@ public final class FormContentRead {
     if (value instanceof Boolean || value instanceof Enum<?> || value instanceof BigDecimal) {
       return enumText(value) == null ? null : (value instanceof BigDecimal d ? decimalText(d) : enumText(value));
     }
-    if ("LocalStringType".equals(value.getClass().getSimpleName())) {
-      String ru = LocalStringSync.firstRu(value);
-      return ru == null || ru.isEmpty() ? null : ru;
+    // Заголовок подсказки и надписи - наследник строки на языках, поэтому смотрим всю цепочку.
+    for (Class<?> c = value.getClass(); c != null; c = c.getSuperclass()) {
+      if ("LocalStringType".equals(c.getSimpleName())) {
+        String ru = LocalStringSync.firstRu(value);
+        return ru == null || ru.isEmpty() ? null : ru;
+      }
     }
     return null;
   }
@@ -222,8 +236,8 @@ public final class FormContentRead {
     return out;
   }
 
-  /** Растяжение у одних типов булево, у других - «да/нет/авто», отсюда два имени метода. */
-  private static String stretchText(Object item, String property) {
+  /** Свойство у одних видов элементов булево, у других - «да/нет/авто», отсюда два имени метода. */
+  private static String enumOrBoolText(Object item, String property) {
     Object value = JaxbReflect.getOptional(item, "get" + property);
     if (value == null) {
       value = JaxbReflect.getOptional(item, "is" + property);
