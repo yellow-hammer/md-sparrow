@@ -8,14 +8,21 @@ package io.github.yellowhammer.designerxml.cf;
 import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProjectMetadataTreeBuilderTest {
+
+  @TempDir
+  Path tempDir;
 
   @Test
   void ssl31ProjectHasMainAndExtensionsAndCatalogs() throws Exception {
@@ -100,5 +107,90 @@ class ProjectMetadataTreeBuilderTest {
     assertThat(documents.items())
       .extracting(MetadataTreeTagGroups.MetadataTreeItemPayload::name)
       .containsExactly("Док2", "Док1");
+  }
+
+  @Test
+  void extensionItemsContainObjectBelongingForAdoptedOnly() throws Exception {
+    Path projectRoot = tempDir.resolve("project");
+    Path mainRoot = projectRoot.resolve("src").resolve("cf");
+    Path extRoot = projectRoot.resolve("src").resolve("cfe").resolve("ExtA");
+    Files.createDirectories(mainRoot.resolve("Catalogs"));
+    Files.createDirectories(extRoot.resolve("Catalogs"));
+
+    write(
+      mainRoot.resolve("Configuration.xml"),
+      """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" version="2.20">
+      <Configuration uuid="00000000-0000-0000-0000-000000000001">
+      \t\t<Properties><Name>MainCfg</Name></Properties>
+      \t\t<ChildObjects></ChildObjects>
+      </Configuration>
+      </MetaDataObject>
+      """);
+
+    write(
+      extRoot.resolve("Configuration.xml"),
+      """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" version="2.20">
+      <Configuration uuid="00000000-0000-0000-0000-000000000002">
+      \t\t<Properties><Name>РасширениеА</Name></Properties>
+      \t\t<ChildObjects>
+      \t\t\t<Catalog>ЗаимствованныйКаталог</Catalog>
+      \t\t\t<Catalog>СобственныйКаталог</Catalog>
+      \t\t</ChildObjects>
+      </Configuration>
+      </MetaDataObject>
+      """);
+
+    write(
+      extRoot.resolve("Catalogs").resolve("ЗаимствованныйКаталог.xml"),
+      """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" version="2.20">
+      <Catalog uuid="00000000-0000-0000-0000-000000000003">
+      \t\t<Properties>
+      \t\t\t<Name>ЗаимствованныйКаталог</Name>
+      \t\t\t<ObjectBelonging>Adopted</ObjectBelonging>
+      \t\t</Properties>
+      </Catalog>
+      </MetaDataObject>
+      """);
+
+    write(
+      extRoot.resolve("Catalogs").resolve("СобственныйКаталог.xml"),
+      """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" version="2.20">
+      <Catalog uuid="00000000-0000-0000-0000-000000000004">
+      \t\t<Properties>
+      \t\t\t<Name>СобственныйКаталог</Name>
+      \t\t</Properties>
+      </Catalog>
+      </MetaDataObject>
+      """);
+
+    ProjectMetadataTreeDto dto = ProjectMetadataTreeBuilder.build(projectRoot);
+    ProjectMetadataTreeDto.MetadataSourceDto extension = dto.sources()
+      .stream()
+      .filter(s -> "extension".equals(s.kind()))
+      .findFirst()
+      .orElseThrow();
+    ProjectMetadataTreeDto.MetadataGroupDto catalogs = extension.groups()
+      .stream()
+      .filter(g -> "catalogs".equals(g.id()))
+      .findFirst()
+      .orElseThrow();
+
+    assertThat(catalogs.items()).extracting(ProjectMetadataTreeDto.MetadataItemDto::name)
+      .containsExactly("ЗаимствованныйКаталог", "СобственныйКаталог");
+    assertThat(catalogs.items()).extracting(ProjectMetadataTreeDto.MetadataItemDto::objectBelonging)
+      .containsExactly("ADOPTED", null);
+  }
+
+  private static void write(Path path, String content) throws IOException {
+    Files.createDirectories(path.getParent());
+    Files.writeString(path, content, StandardCharsets.UTF_8);
   }
 }
