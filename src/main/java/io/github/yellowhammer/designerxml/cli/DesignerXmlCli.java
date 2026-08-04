@@ -32,6 +32,8 @@ import io.github.yellowhammer.designerxml.cf.CatalogFormDto;
 import io.github.yellowhammer.designerxml.cf.CatalogFormEdit;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
+import io.github.yellowhammer.designerxml.cf.FormContentDto;
+import io.github.yellowhammer.designerxml.cf.FormContentRead;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertyEnums;
@@ -86,6 +88,7 @@ import java.util.concurrent.Callable;
     DesignerXmlCli.CfMdObjectGetCmd.class,
     DesignerXmlCli.CfMdObjectEnumsCmd.class,
     DesignerXmlCli.CfMdObjectStructureGetCmd.class,
+    DesignerXmlCli.CfFormContentGetCmd.class,
     MdObjectMutationCommands.CfMdObjectSetCmd.class,
     MdObjectMutationCommands.CfMdAttributeAddCmd.class,
     MdObjectMutationCommands.CfMdAttributeRenameCmd.class,
@@ -457,6 +460,34 @@ public final class DesignerXmlCli implements Callable<Integer> {
     public Integer call() throws Exception {
       try {
         MdObjectStructureDto dto = MdObjectStructureRead.read(objectXml, version);
+        Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+        System.out.println(gson.toJson(dto));
+      } catch (IllegalArgumentException e) {
+        System.err.println(e.getMessage());
+        return 2;
+      } catch (IOException | JAXBException e) {
+        System.err.println(e.getMessage());
+        return 2;
+      }
+      return 0;
+    }
+  }
+
+  @Command(
+    name = "cf-form-content-get",
+    description = "Вывести JSON содержимого управляемой формы (Ext/Form.xml)."
+  )
+  static final class CfFormContentGetCmd implements Callable<Integer> {
+    @Parameters(index = "0", description = "Путь к Ext/Form.xml")
+    Path formXml;
+
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    SchemaVersion version;
+
+    @Override
+    public Integer call() throws Exception {
+      try {
+        FormContentDto dto = FormContentRead.read(formXml, version);
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         System.out.println(gson.toJson(dto));
       } catch (IllegalArgumentException e) {

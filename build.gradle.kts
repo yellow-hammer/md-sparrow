@@ -114,6 +114,29 @@ fun bindingsXml(modelId: String, namespaces: List<Ns>): String {
     return sb.toString()
 }
 
+// Схема формы объявляет состав элементов как xs:choice, хотя платформа кладёт в ChildItems
+// элементы разных типов вперемешку и их порядок - это порядок на форме. Без этой привязки XJC
+// раскладывает элементы по спискам на каждый тип и порядок теряется.
+fun formBindingsXml(absSchemaDir: File): String {
+    val schemaUri = File(absSchemaDir, logFormFile).toURI().toString()
+    return """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <jaxb:bindings version="3.0" xmlns:jaxb="https://jakarta.ee/xml/ns/jaxb" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+          <jaxb:bindings schemaLocation="$schemaUri">
+            <jaxb:bindings node="//xs:complexType[@name='ChildItems']/xs:choice">
+              <jaxb:property name="items"/>
+            </jaxb:bindings>
+            <jaxb:bindings node="//xs:complexType[@name='FormAttributeColumns']/xs:choice">
+              <jaxb:property name="columns"/>
+            </jaxb:bindings>
+            <jaxb:bindings node="//xs:complexType[@name='Field']//xs:element[@name='DisplayImportance']">
+              <jaxb:property name="fieldDisplayImportance"/>
+            </jaxb:bindings>
+          </jaxb:bindings>
+        </jaxb:bindings>
+    """.trimIndent()
+}
+
 fun catalogXml(absSchemaDir: File, namespaces: List<Ns>, roots: List<String>): String {
     val sb = StringBuilder()
     sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -191,6 +214,11 @@ for ((modelId, versions) in modelToVersions) {
                 "-b", bindingsFile.absolutePath,
                 "-d", out.absolutePath,
             )
+            if (logFormFile in roots) {
+                val formBindingsFile = File(xjbDir, "form-bindings.xjb")
+                formBindingsFile.writeText(formBindingsXml(xsdDir.asFile))
+                args("-b", formBindingsFile.absolutePath)
+            }
             args(roots)
         }
     }

@@ -24,6 +24,7 @@ package io.github.yellowhammer.designerxml;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -98,21 +99,46 @@ public enum SchemaVersion {
     });
   }
 
+  /** Сегменты пакетов моделей; в каталоге версии часть схем может отсутствовать, тогда пакета нет. */
+  private static final List<String> MODEL_PACKAGES = List.of(
+    "mdclasses",
+    "v8_1_data_core",
+    "v8_1_data_enterprise",
+    "v8_1_data_ui",
+    "v8_2_managed_application_core",
+    "v8_2_managed_application_cmi",
+    "v8_2_managed_application_logform",
+    "v8_3_xcf_enums",
+    "v8_3_xcf_readable",
+    "v8_3_xcf_predef",
+    "v8_2_data_spreadsheet",
+    "v8_2_data_bsl",
+    "v8_2_managed_application_modules",
+    "v8_2_uobjects",
+    "v8_3_xcf_logform",
+    "v8_2_managed_application_dynamic_list_data",
+    "v8_3_data_pdf",
+    "v8_1_dcs_core",
+    "v8_1_dcs_common",
+    "v8_1_dcs_details",
+    "v8_1_dcs_schema",
+    "v8_1_dcs_settings",
+    "v8_1_dcs_area_template");
+
   private static String jaxbContextPath(String base) {
-    return String.join(":",
-      base + ".mdclasses",
-      base + ".v8_1_data_core",
-      base + ".v8_1_data_enterprise",
-      base + ".v8_1_data_ui",
-      base + ".v8_2_managed_application_core",
-      base + ".v8_2_managed_application_cmi",
-      base + ".v8_2_managed_application_logform",
-      base + ".v8_3_xcf_enums",
-      base + ".v8_3_xcf_readable",
-      base + ".v8_3_xcf_predef",
-      base + ".v8_2_data_spreadsheet",
-      base + ".v8_2_data_bsl",
-      base + ".v8_2_managed_application_modules",
-      base + ".v8_2_uobjects");
+    return MODEL_PACKAGES.stream()
+      .map(pkg -> base + "." + pkg)
+      .filter(SchemaVersion::generated)
+      .collect(java.util.stream.Collectors.joining(":"));
+  }
+
+  /** Пакет модели собран для этой версии (у старых форматов нет схем формы). */
+  private static boolean generated(String pkg) {
+    try {
+      Class.forName(pkg + ".ObjectFactory", false, Thread.currentThread().getContextClassLoader());
+      return true;
+    } catch (ClassNotFoundException e) {
+      return false;
+    }
   }
 }
