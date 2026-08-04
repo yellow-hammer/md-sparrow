@@ -34,6 +34,7 @@ import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.FormContentDto;
 import io.github.yellowhammer.designerxml.cf.FormContentRead;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyDictionary;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertyEnums;
@@ -89,6 +90,7 @@ import java.util.concurrent.Callable;
     DesignerXmlCli.CfMdObjectEnumsCmd.class,
     DesignerXmlCli.CfMdObjectStructureGetCmd.class,
     DesignerXmlCli.CfFormContentGetCmd.class,
+    DesignerXmlCli.CfFormItemPropertiesCmd.class,
     MdObjectMutationCommands.CfMdObjectSetCmd.class,
     MdObjectMutationCommands.CfMdAttributeAddCmd.class,
     MdObjectMutationCommands.CfMdAttributeRenameCmd.class,
@@ -469,6 +471,22 @@ public final class DesignerXmlCli implements Callable<Integer> {
         System.err.println(e.getMessage());
         return 2;
       }
+      return 0;
+    }
+  }
+
+  @Command(
+    name = "cf-form-item-properties",
+    description = "Вывести JSON состава свойств видов элементов формы."
+  )
+  static final class CfFormItemPropertiesCmd implements Callable<Integer> {
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    SchemaVersion version;
+
+    @Override
+    public Integer call() {
+      Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+      System.out.println(gson.toJson(FormItemPropertyDictionary.forVersion(version)));
       return 0;
     }
   }
