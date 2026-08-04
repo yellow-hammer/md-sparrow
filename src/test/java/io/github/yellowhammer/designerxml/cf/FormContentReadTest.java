@@ -51,7 +51,7 @@ class FormContentReadTest {
     FormItemDto header = byName(dto.items, "ГруппаШапка");
     assertThat(header.type).isEqualTo("UsualGroup");
     assertThat(header.title).isEqualTo("Шапка");
-    assertThat(header.group).isEqualTo("VERTICAL");
+    assertThat(header.group).isEqualTo("Vertical");
     // Расширенная подсказка - такой же элемент формы, как в дереве конфигуратора, и идёт перед вложенными.
     assertThat(header.items).extracting(i -> i.type + ":" + i.name).containsExactly(
       "ExtendedTooltip:ГруппаШапкаРасширеннаяПодсказка",

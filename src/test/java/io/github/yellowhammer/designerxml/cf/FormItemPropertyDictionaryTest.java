@@ -32,7 +32,7 @@ class FormItemPropertyDictionaryTest {
     assertThat(property(properties, "DataPath").kind).isEqualTo("string");
     assertThat(property(properties, "Visible").defaultValue).isEqualTo("true");
     assertThat(property(properties, "Title").kind).isEqualTo("localString");
-    assertThat(property(properties, "TitleLocation").values).contains("AUTO", "NONE");
+    assertThat(property(properties, "TitleLocation").values).contains("Auto", "None");
   }
 
   @Test

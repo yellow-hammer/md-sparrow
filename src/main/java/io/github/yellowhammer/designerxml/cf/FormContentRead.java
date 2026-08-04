@@ -143,8 +143,67 @@ public final class FormContentRead {
     dto.horizontalStretch = stretchText(item, "HorizontalStretch");
     dto.verticalStretch = stretchText(item, "VerticalStretch");
     dto.events = readEvents(item);
+    dto.properties = writtenProperties(item);
     dto.items = readItems(item);
     return dto;
+  }
+
+  /**
+   * Значения свойств, которые реально записаны в файле: имя узла XML -> текст.
+   *
+   * <p>Типизированных полей DTO хватает на отрисовку, а палитре нужен весь набор: свойства у видов
+   * элементов разные, поэтому обходим модель, а не перечисляем их руками.
+   */
+  private static java.util.Map<String, String> writtenProperties(Object item) {
+    java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+    for (Class<?> c = item.getClass(); c != null && !c.equals(Object.class); c = c.getSuperclass()) {
+      for (java.lang.reflect.Field field : c.getDeclaredFields()) {
+        jakarta.xml.bind.annotation.XmlElement element =
+          field.getAnnotation(jakarta.xml.bind.annotation.XmlElement.class);
+        jakarta.xml.bind.annotation.XmlAttribute attribute =
+          field.getAnnotation(jakarta.xml.bind.annotation.XmlAttribute.class);
+        if (element == null && attribute == null) {
+          continue;
+        }
+        String name = element != null ? element.name() : attribute.name();
+        if (out.containsKey(name)) {
+          continue;
+        }
+        Object value = fieldValue(field, item);
+        String text = scalarText(value);
+        if (text != null) {
+          out.put(name, text);
+        }
+      }
+    }
+    return out;
+  }
+
+  private static Object fieldValue(java.lang.reflect.Field field, Object item) {
+    try {
+      field.setAccessible(true);
+      return field.get(item);
+    } catch (ReflectiveOperationException | RuntimeException e) {
+      return null;
+    }
+  }
+
+  /** Текст скалярного значения; составные узлы палитре пока не нужны, поэтому их пропускаем. */
+  private static String scalarText(Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof String s) {
+      return s.isEmpty() ? null : s;
+    }
+    if (value instanceof Boolean || value instanceof Enum<?> || value instanceof BigDecimal) {
+      return enumText(value) == null ? null : (value instanceof BigDecimal d ? decimalText(d) : enumText(value));
+    }
+    if ("LocalStringType".equals(value.getClass().getSimpleName())) {
+      String ru = LocalStringSync.firstRu(value);
+      return ru == null || ru.isEmpty() ? null : ru;
+    }
+    return null;
   }
 
   private static List<FormEventDto> readEvents(Object owner) {
@@ -190,6 +249,6 @@ public final class FormContentRead {
     if (value == null) {
       return null;
     }
-    return value instanceof Enum<?> e ? e.name() : String.valueOf(value);
+    return value instanceof Enum<?> e ? FormEnumText.of(e) : String.valueOf(value);
   }
 }

@@ -55,6 +55,9 @@ public final class FormItemDto {
   /** Растяжение по вертикали. */
   public String verticalStretch;
 
+  /** Свойства, записанные в файле: имя узла XML -> значение. Незаписанные платформа берёт по умолчанию. */
+  public java.util.Map<String, String> properties = new java.util.LinkedHashMap<>();
+
   /** Обработчики событий элемента. */
   public List<FormEventDto> events = new ArrayList<>();
 
