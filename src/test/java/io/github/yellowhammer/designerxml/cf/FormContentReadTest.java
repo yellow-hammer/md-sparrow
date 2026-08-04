@@ -101,6 +101,16 @@ class FormContentReadTest {
     assertThat(dto.attributes).extracting(a -> a.name).containsExactly("Список");
   }
 
+  /** Модель формы собрана для каждого формата: иначе форма читается не везде, а выборочно. */
+  @Test
+  void модельФормыЕстьВоВсехВерсиях() throws Exception {
+    for (SchemaVersion version : SchemaVersion.values()) {
+      String formClass = "io.github.yellowhammer.designerxml.jaxb."
+        + version.name().toLowerCase() + ".v8_3_xcf_logform.Form";
+      assertThat(Class.forName(formClass)).describedAs(version.name()).isNotNull();
+    }
+  }
+
   /**
    * Модель JAXB покрывает форму целиком: после чтения и записи в файле нет пропавших узлов.
    * Значения по умолчанию платформа не пишет, а JAXB пишет, поэтому сверяем только пропажи.
