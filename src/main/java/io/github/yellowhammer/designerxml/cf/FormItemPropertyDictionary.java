@@ -37,6 +37,16 @@ public final class FormItemPropertyDictionary {
     "AutoCommandBar", "ContextMenu", "ExtendedTooltip",
     "SearchStringAddition", "SearchControlAddition", "ViewStatusAddition");
 
+  /**
+   * Умолчания, которые платформа применяет не так, как объявляет схема: {@code вид.свойство -> значение}.
+   *
+   * <p>Конфигуратор пишет в файл только изменённые свойства, поэтому записанное значение умолчанием
+   * быть не может. У обычной группы {@code Group} схема объявляет {@code Vertical}, но именно его
+   * конфигуратор и пишет, а {@code HorizontalIfPossible} не пишет никогда: горизонтальная группировка
+   * и есть умолчание. У страницы наоборот, там схема права.
+   */
+  private static final Map<String, String> PLATFORM_DEFAULTS = Map.of("UsualGroup.Group", "HorizontalIfPossible");
+
   /** Узлы состава, а не свойства: они видны в дереве элементов, в палитре им делать нечего. */
   private static final List<String> STRUCTURE_NODES = new ArrayList<>(ATTACHED_ITEMS);
 
