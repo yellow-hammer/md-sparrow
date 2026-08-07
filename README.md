@@ -36,6 +36,7 @@ java -jar build/libs/md-sparrow-0.4.1-all.jar --help
 - [CONTRIBUTING.md](CONTRIBUTING.md) — сборка, тесты, схемы, выпуск JAR.
 - [docs/cf-layout.md](docs/cf-layout.md) — раскладка `src/cf` и порядок `ChildObjects`.
 - [docs/cf-md-object.md](docs/cf-md-object.md) — контракт свойств объектов: DTO и матрица поддержки по видам.
+- [docs/form-content.md](docs/form-content.md) — содержимое управляемой формы в JSON.
 - [docs/scaffold-golden.md](docs/scaffold-golden.md) — создание объектов по эталонам.
 - [docs/validate-dump.md](docs/validate-dump.md) — проверка целостности выгрузки и виды находок.
 
