@@ -44,6 +44,8 @@ final class CliParams {
   String op;
   String configurationXml;
   String objectXml;
+  /** Файл содержимого формы: {@code Forms/<Имя>/Ext/Form.xml}. */
+  String formXml;
   String artifactsRoot;
   String targetCfRoot;
 

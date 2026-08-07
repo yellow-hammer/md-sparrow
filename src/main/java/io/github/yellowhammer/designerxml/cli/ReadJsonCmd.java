@@ -32,6 +32,9 @@ import io.github.yellowhammer.designerxml.cf.ConfigurationChildObjectLister;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
+import io.github.yellowhammer.designerxml.cf.FormContentDto;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyDictionary;
+import io.github.yellowhammer.designerxml.cf.FormContentRead;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
@@ -126,6 +129,13 @@ final class ReadJsonCmd implements Callable<Integer> {
       }
       case "cf-catalog-form-get": {
         CatalogFormDto dto = CatalogFormEdit.readDto(p.reqPath(p.objectXml, "objectXml"), p.version());
+        return gson.toJson(dto);
+      }
+      case "cf-form-item-properties": {
+        return gson.toJson(FormItemPropertyDictionary.forVersion(p.version()));
+      }
+      case "cf-form-content-get": {
+        FormContentDto dto = FormContentRead.read(p.reqPath(p.formXml, "formXml"), p.version());
         return gson.toJson(dto);
       }
       case "cf-list-child-objects": {
