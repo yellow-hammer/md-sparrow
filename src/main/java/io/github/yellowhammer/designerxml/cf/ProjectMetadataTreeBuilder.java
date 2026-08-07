@@ -117,7 +117,7 @@ public final class ProjectMetadataTreeBuilder {
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
       MetadataTreeTagGroups.buildGroups(entries);
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
-      mapGroups(projectRoot, extensionRoot, payloads);
+      mapGroups(projectRoot, extensionRoot, payloads, true);
     String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
     String rootRel = projectRoot.relativize(extensionRoot).toString().replace('\\', '/');
     return new ProjectMetadataTreeDto.MetadataSourceDto(
@@ -128,6 +128,14 @@ public final class ProjectMetadataTreeBuilder {
       rootRel,
       groups
     );
+  }
+
+  /** Принадлежность объекта; пусто у основной конфигурации и у объектов без своего файла. */
+  private static String belonging(Path projectRoot, String relativePath, boolean readBelonging) {
+    if (!readBelonging || relativePath == null || relativePath.isEmpty()) {
+      return null;
+    }
+    return ObjectBelongingReader.read(projectRoot.resolve(relativePath));
   }
 
   private static List<ChildObjectEntry> loadChildObjects(Path configurationXml) throws IOException {
@@ -147,6 +155,19 @@ public final class ProjectMetadataTreeBuilder {
     Path metadataRoot,
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads
   ) {
+    return mapGroups(projectRoot, metadataRoot, payloads, false);
+  }
+
+  /**
+   * @param readBelonging Читать принадлежность объектов: она бывает только у расширений, а чтение
+   *   файла на каждый объект основной конфигурации ничего бы не дало.
+   */
+  private static List<ProjectMetadataTreeDto.MetadataGroupDto> mapGroups(
+    Path projectRoot,
+    Path metadataRoot,
+    List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads,
+    boolean readBelonging
+  ) {
     List<ProjectMetadataTreeDto.MetadataGroupDto> out = new ArrayList<>();
     for (MetadataTreeTagGroups.MetadataTreeGroupPayload p : payloads) {
       List<ProjectMetadataTreeDto.MetadataSubgroupDto> subgroups = new ArrayList<>();
@@ -154,14 +175,16 @@ public final class ProjectMetadataTreeBuilder {
         List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
         for (MetadataTreeTagGroups.MetadataTreeItemPayload it : sp.items()) {
           String rel = relativePathForItem(projectRoot, metadataRoot, it.objectType(), it.name());
-          items.add(new ProjectMetadataTreeDto.MetadataItemDto(it.objectType(), it.name(), rel));
+          items.add(new ProjectMetadataTreeDto.MetadataItemDto(
+            it.objectType(), it.name(), rel, belonging(projectRoot, rel, readBelonging)));
         }
         subgroups.add(new ProjectMetadataTreeDto.MetadataSubgroupDto(sp.id(), sp.label(), sp.iconHint(), items));
       }
       List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
       for (MetadataTreeTagGroups.MetadataTreeItemPayload it : p.items()) {
         String rel = relativePathForItem(projectRoot, metadataRoot, it.objectType(), it.name());
-        items.add(new ProjectMetadataTreeDto.MetadataItemDto(it.objectType(), it.name(), rel));
+        items.add(new ProjectMetadataTreeDto.MetadataItemDto(
+          it.objectType(), it.name(), rel, belonging(projectRoot, rel, readBelonging)));
       }
       out.add(new ProjectMetadataTreeDto.MetadataGroupDto(p.id(), p.label(), p.iconHint(), items, subgroups));
     }
@@ -206,7 +229,7 @@ public final class ProjectMetadataTreeBuilder {
   ) {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
-      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalReport", e.name(), e.relativePath()));
+      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalReport", e.name(), e.relativePath(), null));
     }
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = List.of(
       new ProjectMetadataTreeDto.MetadataGroupDto("content", "", "report", items, List.of())
@@ -227,7 +250,7 @@ public final class ProjectMetadataTreeBuilder {
   ) {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
-      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalDataProcessor", e.name(), e.relativePath()));
+      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalDataProcessor", e.name(), e.relativePath(), null));
     }
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = List.of(
       new ProjectMetadataTreeDto.MetadataGroupDto("content", "", "run-below", items, List.of())
