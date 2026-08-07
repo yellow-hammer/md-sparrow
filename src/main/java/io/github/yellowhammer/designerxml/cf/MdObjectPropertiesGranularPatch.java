@@ -14,10 +14,8 @@ import jakarta.xml.bind.JAXBException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 import javax.xml.stream.XMLStreamException;
 
@@ -25,8 +23,6 @@ import javax.xml.stream.XMLStreamException;
  * Точечная замена прямых дочерних элементов {@code Properties} в исходной UTF-8 строке без пересборки всего блока.
  */
 public final class MdObjectPropertiesGranularPatch {
-
-  private static final Pattern INTER_TAG_WS = Pattern.compile(">\\s+<");
 
   private MdObjectPropertiesGranularPatch() {
   }
@@ -48,7 +44,7 @@ public final class MdObjectPropertiesGranularPatch {
     if (changes.isEmpty()) {
       return Optional.empty();
     }
-    List<Replacement> reps = new ArrayList<>();
+    List<XmlGranularPatch.Replacement> reps = new ArrayList<>();
     try {
       for (MdObjectPropertiesLeafDiff.GranularPatchChange ch : changes) {
         MdObjectXmlRegions.Region reg;
@@ -75,30 +71,26 @@ public final class MdObjectPropertiesGranularPatch {
           if (insertPos < 0) {
             return Optional.empty();
           }
-          String insertion = formatInsertionBeforePropertiesClose(
-            xmlUtf8,
-            insertPos,
-            ch.replacementElementXml());
-          reps.add(new Replacement(insertPos, insertPos, insertion));
+          String insertion = XmlGranularPatch.fileEol(xmlUtf8)
+            + XmlGranularPatch.formatInsertion(
+              xmlUtf8,
+              XmlGranularPatch.currentLineIndent(xmlUtf8, insertPos) + "\t",
+              ch.replacementElementXml());
+          reps.add(new XmlGranularPatch.Replacement(insertPos, insertPos, insertion));
           continue;
         }
-        String replacement = formatReplacementPreservingIndent(xmlUtf8, reg, ch.replacementElementXml());
-        reps.add(new Replacement(reg.start(), reg.end(), replacement));
+        String replacement = XmlGranularPatch.formatReplacementPreservingIndent(
+          xmlUtf8, reg.start(), ch.replacementElementXml());
+        reps.add(new XmlGranularPatch.Replacement(reg.start(), reg.end(), replacement));
       }
     } catch (XMLStreamException e) {
       return Optional.empty();
     }
-    Optional<List<Replacement>> safe = withoutOverlaps(reps);
+    Optional<List<XmlGranularPatch.Replacement>> safe = XmlGranularPatch.withoutOverlaps(reps);
     if (safe.isEmpty()) {
       return Optional.empty();
     }
-    List<Replacement> ordered = new ArrayList<>(safe.get());
-    ordered.sort(Comparator.comparingInt(Replacement::start).reversed());
-    StringBuilder sb = new StringBuilder(xmlUtf8);
-    for (Replacement r : ordered) {
-      sb.replace(r.start, r.end, r.text);
-    }
-    byte[] bytes = sb.toString().getBytes(StandardCharsets.UTF_8);
+    byte[] bytes = XmlGranularPatch.apply(xmlUtf8, safe.get()).getBytes(StandardCharsets.UTF_8);
     try {
       MdObjectPropertiesDto verified = MdObjectPropertiesEdit.readDto(bytes, version);
       if (MdObjectPropertiesDiff.equalsDto(verified, incoming, true)
@@ -198,132 +190,7 @@ public final class MdObjectPropertiesGranularPatch {
     };
   }
 
-  private record Replacement(int start, int end, String text) {
-  }
-
-  /**
-   * Отсеивает повторную правку того же участка и запрещает пересекающиеся правки.
-   *
-   * Одну и ту же область нельзя править дважды: смещения считаются по исходному тексту, и вторая
-   * правка резала бы уже изменённый XML. Повтор с тем же содержимым безвреден и просто отбрасывается,
-   * а несовместимое пересечение отменяет точечную запись - объект будет записан целиком.
-   *
-   * @param reps Правки в порядке появления.
-   * @return Правки без повторов либо пусто, если правки пересекаются по-разному.
-   */
-  private static Optional<List<Replacement>> withoutOverlaps(List<Replacement> reps) {
-    List<Replacement> out = new ArrayList<>();
-    for (Replacement candidate : reps) {
-      Replacement same = null;
-      for (Replacement kept : out) {
-        boolean intersects = candidate.start() < kept.end() && kept.start() < candidate.end();
-        if (!intersects) {
-          continue;
-        }
-        if (kept.start() == candidate.start() && kept.end() == candidate.end()
-          && kept.text().equals(candidate.text())) {
-          same = kept;
-          continue;
-        }
-        return Optional.empty();
-      }
-      if (same == null) {
-        out.add(candidate);
-      }
-    }
-    return Optional.of(out);
-  }
-
-  private static String formatReplacementPreservingIndent(
-    String xmlUtf8,
-    MdObjectXmlRegions.Region reg,
-    String replacementElementXml) {
-    if (replacementElementXml == null
-      || replacementElementXml.isEmpty()
-      || !replacementElementXml.contains("><")) {
-      return replacementElementXml;
-    }
-    String indent = currentLineIndent(xmlUtf8, reg.start());
-    String eol = fileEol(xmlUtf8);
-    String compact = INTER_TAG_WS.matcher(replacementElementXml.trim()).replaceAll("><");
-    if (!compact.contains("><")) {
-      return replacementElementXml;
-    }
-    String expanded = compact.replace("><", ">\n<");
-    String[] lines = expanded.split("\n");
-    StringBuilder out = new StringBuilder(expanded.length() + lines.length * 2);
-    int depth = 0;
-    for (int i = 0; i < lines.length; i++) {
-      String line = lines[i].trim();
-      if (line.startsWith("</")) {
-        depth = Math.max(0, depth - 1);
-      }
-      if (i > 0) {
-        out.append(eol);
-        out.append(indent);
-        for (int j = 0; j < depth; j++) {
-          out.append('\t');
-        }
-      }
-      out.append(line);
-      if (isOpeningTagWithoutInlineClose(line)) {
-        depth++;
-      }
-    }
-    return out.toString();
-  }
-
-  private static boolean isOpeningTagWithoutInlineClose(String line) {
-    return line.startsWith("<")
-      && !line.startsWith("</")
-      && !line.endsWith("/>")
-      && !line.contains("</");
-  }
-
-  private static String currentLineIndent(String xmlUtf8, int startOffset) {
-    int from = startOffset - 1;
-    while (from >= 0 && xmlUtf8.charAt(from) != '\n' && xmlUtf8.charAt(from) != '\r') {
-      from--;
-    }
-    from++;
-    int i = from;
-    while (i < xmlUtf8.length()) {
-      char c = xmlUtf8.charAt(i);
-      if (c != ' ' && c != '\t') {
-        break;
-      }
-      i++;
-    }
-    return xmlUtf8.substring(from, i);
-  }
-
   private static int propertiesClosingTagStart(String xmlUtf8, MdObjectXmlRegions.Region propertiesRegion) {
     return xmlUtf8.lastIndexOf("</", propertiesRegion.end() - 1);
-  }
-
-  private static String formatInsertionBeforePropertiesClose(
-    String xmlUtf8,
-    int insertPos,
-    String replacementElementXml) {
-    String parentIndent = currentLineIndent(xmlUtf8, insertPos);
-    String eol = fileEol(xmlUtf8);
-    String childIndent = parentIndent + "\t";
-    String compact = INTER_TAG_WS.matcher(replacementElementXml.trim()).replaceAll("><");
-    String expanded = compact.replace("><", ">\n<");
-    String[] lines = expanded.split("\n");
-    StringBuilder out = new StringBuilder(expanded.length() + childIndent.length() * lines.length + 2);
-    out.append(eol);
-    for (int i = 0; i < lines.length; i++) {
-      if (i > 0) {
-        out.append(eol);
-      }
-      out.append(childIndent).append(lines[i].trim());
-    }
-    return out.toString();
-  }
-
-  /** Перевод строки исходного файла: не смешиваем CRLF и LF при точечных заменах. */
-  private static String fileEol(String xmlUtf8) {
-    return xmlUtf8.contains("\r\n") ? "\r\n" : "\n";
   }
 }

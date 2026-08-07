@@ -22,9 +22,12 @@
 package io.github.yellowhammer.designerxml;
 
 import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlSchema;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -149,7 +152,7 @@ public final class DesignerXml {
    */
   public static void marshal(SchemaVersion version, Object jaxbRoot, OutputStream out, WriteOptions options)
     throws JAXBException {
-    Marshaller m = createMarshaller(version, options);
+    Marshaller m = createMarshaller(version, options, rootNamespace(jaxbRoot));
     m.marshal(jaxbRoot, out);
   }
 
@@ -164,7 +167,7 @@ public final class DesignerXml {
   public static byte[] marshalFragment(SchemaVersion version, Object jaxbFragmentRoot, WriteOptions options)
     throws JAXBException {
     ByteArrayOutputStream buf = new ByteArrayOutputStream();
-    Marshaller m = createMarshaller(version, options);
+    Marshaller m = createMarshaller(version, options, rootNamespace(jaxbFragmentRoot));
     m.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);
     m.marshal(jaxbFragmentRoot, buf);
     byte[] raw = buf.toByteArray();
@@ -189,19 +192,45 @@ public final class DesignerXml {
    */
   public static void marshal(SchemaVersion version, Object jaxbRoot, Writer writer, WriteOptions options)
     throws JAXBException {
-    Marshaller m = createMarshaller(version, options);
+    Marshaller m = createMarshaller(version, options, rootNamespace(jaxbRoot));
     m.marshal(jaxbRoot, writer);
   }
 
-  private static Marshaller createMarshaller(SchemaVersion version, WriteOptions options) throws JAXBException {
+  private static Marshaller createMarshaller(SchemaVersion version, WriteOptions options, String rootNamespace)
+    throws JAXBException {
     JAXBContext ctx = version.jaxbContext();
     Marshaller m = ctx.createMarshaller();
     m.setProperty(Marshaller.JAXB_ENCODING, JAXB_ENCODING);
     m.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, options.formatPretty());
     if (options.oneCNamespacePrefixes()) {
-      m.setProperty(GLASSFISH_NAMESPACE_PREFIX_MAPPER, new OneCDesignerXmlNamespacePrefixMapper());
+      m.setProperty(GLASSFISH_NAMESPACE_PREFIX_MAPPER, new OneCDesignerXmlNamespacePrefixMapper(rootNamespace));
     }
     return m;
+  }
+
+  /**
+   * Пространство имён корня: объект метаданных и форма пишутся без префикса каждый в своём, а в
+   * контексте JAXB объявлены оба.
+   */
+  private static String rootNamespace(Object jaxbRoot) {
+    Object value = jaxbRoot;
+    if (jaxbRoot instanceof JAXBElement<?> je) {
+      if (je.getName() != null && !je.getName().getNamespaceURI().isEmpty()) {
+        return je.getName().getNamespaceURI();
+      }
+      value = je.getValue();
+    }
+    if (value == null) {
+      return "";
+    }
+    XmlRootElement root = value.getClass().getAnnotation(XmlRootElement.class);
+    if (root != null && !"##default".equals(root.namespace())) {
+      return root.namespace();
+    }
+    XmlSchema schema = value.getClass().getPackage() == null
+      ? null
+      : value.getClass().getPackage().getAnnotation(XmlSchema.class);
+    return schema == null ? "" : schema.namespace();
   }
 
   private static byte[] normalizeLineEndings(byte[] bytes, WriteOptions options) {
