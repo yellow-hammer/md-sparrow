@@ -61,7 +61,12 @@ public record ProjectMetadataTreeDto(
     String objectType,
     String name,
     /** Путь к файлу объекта относительно корня проекта; для объектов без одного файла — пусто. */
-    String relativePath
+    String relativePath,
+    /**
+     * Принадлежность объекта расширения: {@code Adopted} у заимствованного из расширяемой
+     * конфигурации. У объектов основной конфигурации пусто: там все объекты собственные.
+     */
+    String objectBelonging
   ) {
   }
 }
