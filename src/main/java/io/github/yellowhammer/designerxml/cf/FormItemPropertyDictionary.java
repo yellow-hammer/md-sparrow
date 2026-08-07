@@ -209,7 +209,7 @@ public final class FormItemPropertyDictionary {
         dto.values.add(FormEnumText.of((Enum<?>) constant));
       }
     }
-    if (element != null && !" ".equals(element.defaultValue())) {
+    if (element != null && !"\u0000".equals(element.defaultValue())) {
       dto.defaultValue = element.defaultValue();
     }
     return dto;
