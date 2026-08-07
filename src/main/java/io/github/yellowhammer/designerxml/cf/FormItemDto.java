@@ -55,6 +55,9 @@ public final class FormItemDto {
   /** Растяжение по вертикали. */
   public String verticalStretch;
 
+  /** Представление значения списка выбора: текст рядом с переключателем и флажком. */
+  public String choicePresentation;
+
   /** Свойства, записанные в файле: имя узла XML -> значение. Незаписанные платформа берёт по умолчанию. */
   public java.util.Map<String, String> properties = new java.util.LinkedHashMap<>();
 

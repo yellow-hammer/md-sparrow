@@ -153,6 +153,7 @@ public final class FormContentRead {
     dto.height = decimalText(JaxbReflect.getOptional(item, "getHeight"));
     dto.horizontalStretch = enumOrBoolText(item, "HorizontalStretch");
     dto.verticalStretch = enumOrBoolText(item, "VerticalStretch");
+    dto.choicePresentation = choicePresentation(item);
     dto.events = readEvents(item);
     dto.properties = writtenProperties(item);
     dto.items = readItems(item);
@@ -234,6 +235,25 @@ public final class FormContentRead {
       out.add(dto);
     }
     return out;
+  }
+
+  /**
+   * Представление значения списка выбора: у переключателя и флажка платформа рисует рядом с ним
+   * именно его, а не заголовок элемента.
+   */
+  private static String choicePresentation(Object item) {
+    Object list = JaxbReflect.getOptional(item, "getChoiceList");
+    Object entry = list == null ? null : JaxbReflect.getOptional(list, "getItem");
+    if (entry == null) {
+      return null;
+    }
+    Object value = JaxbReflect.getOptional(entry, "getValue");
+    String ru = value == null ? null : LocalStringSync.firstRu(JaxbReflect.getOptional(value, "getPresentation"));
+    if (ru != null && !ru.isEmpty()) {
+      return ru;
+    }
+    String plain = JaxbReflect.getStringOptional(entry, "getPresentation");
+    return plain == null || plain.isEmpty() ? null : plain;
   }
 
   /** Свойство у одних видов элементов булево, у других - «да/нет/авто», отсюда два имени метода. */

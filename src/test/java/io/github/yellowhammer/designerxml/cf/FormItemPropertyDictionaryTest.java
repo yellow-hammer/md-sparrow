@@ -35,6 +35,18 @@ class FormItemPropertyDictionaryTest {
     assertThat(property(properties, "TitleLocation").values).contains("Auto", "None");
   }
 
+  /**
+   * Конфигуратор не пишет свойства со значением по умолчанию, поэтому записанное значение умолчанием
+   * быть не может: на формах ssl31 у обычной группы записан {@code Vertical}, а у страницы - наоборот.
+   */
+  @Test
+  void группировкаПоУмолчаниюУГруппыИСтраницыРазная() {
+    Map<String, List<FormItemPropertyDto>> dictionary = FormItemPropertyDictionary.forVersion(SchemaVersion.V2_20);
+
+    assertThat(property(dictionary.get("UsualGroup"), "Group").defaultValue).isEqualTo("HorizontalIfPossible");
+    assertThat(property(dictionary.get("Page"), "Group").defaultValue).isEqualTo("Vertical");
+  }
+
   @Test
   void составФормыСвойствомНеСчитается() {
     Map<String, List<FormItemPropertyDto>> dictionary = FormItemPropertyDictionary.forVersion(SchemaVersion.V2_20);

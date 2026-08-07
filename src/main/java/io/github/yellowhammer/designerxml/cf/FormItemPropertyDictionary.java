@@ -101,7 +101,14 @@ public final class FormItemPropertyDictionary {
     structure.addAll(STRUCTURE_NODES);
     Map<String, List<FormItemPropertyDto>> out = new TreeMap<>();
     for (Map.Entry<String, Class<?>> kind : kinds.entrySet()) {
-      out.put(kind.getKey(), properties(kind.getValue(), structure));
+      List<FormItemPropertyDto> properties = properties(kind.getValue(), structure);
+      for (FormItemPropertyDto property : properties) {
+        String platform = PLATFORM_DEFAULTS.get(kind.getKey() + "." + property.name);
+        if (platform != null) {
+          property.defaultValue = platform;
+        }
+      }
+      out.put(kind.getKey(), properties);
     }
     return out;
   }
