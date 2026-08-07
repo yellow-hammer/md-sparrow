@@ -30,6 +30,19 @@ public final class MdObjectStructureDto {
   public List<String> addressingAttributes;
   /** Стандартные реквизиты объекта: платформа задаёт их сама, файл перечисляет с настройками. */
   public List<String> standardAttributes;
+  /**
+   * Переопределённые синонимы стандартных реквизитов: имя -> синоним (ru).
+   *
+   * <p>Платформа показывает на форме синоним, а не имя, и у стандартного реквизита его переопределяют
+   * не реже, чем у обычного: {@code Code} у справочника валют - «Цифровой код».
+   */
+  public java.util.Map<String, String> standardAttributeSynonyms;
+  /**
+   * Синонимы команд объекта: имя -> синоним (ru).
+   *
+   * <p>Кнопку без заголовка платформа подписывает синонимом команды, на которую та ссылается.
+   */
+  public java.util.Map<String, String> commandSynonyms;
   public List<String> operations;
   public List<String> urlTemplates;
   public List<String> channels;
@@ -52,6 +65,8 @@ public final class MdObjectStructureDto {
     this.recalculations = new ArrayList<>();
     this.addressingAttributes = new ArrayList<>();
     this.standardAttributes = new ArrayList<>();
+    this.standardAttributeSynonyms = new java.util.LinkedHashMap<>();
+    this.commandSynonyms = new java.util.LinkedHashMap<>();
     this.operations = new ArrayList<>();
     this.urlTemplates = new ArrayList<>();
     this.channels = new ArrayList<>();
