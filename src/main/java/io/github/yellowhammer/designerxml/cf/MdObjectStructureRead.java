@@ -118,6 +118,10 @@ public final class MdObjectStructureRead {
         String name = safeString(invokeNoArgOrNull(item, "getName"));
         if (!name.isEmpty()) {
           dto.standardAttributes.add(name);
+          String synonym = LocalStringSync.firstRu(invokeNoArgOrNull(item, "getSynonym"));
+          if (synonym != null && !synonym.isEmpty()) {
+            dto.standardAttributeSynonyms.put(name, synonym);
+          }
         }
       }
     }
@@ -150,7 +154,16 @@ public final class MdObjectStructureRead {
     }
 
     dto.forms.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getForm"))));
-    dto.commands.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getCommand"))));
+    List<Object> commands = listOrEmpty(invokeNoArgOrNull(childObjects, "getCommand"));
+    dto.commands.addAll(readStringItems(commands));
+    for (Object command : commands) {
+      String name = extractItemName(command);
+      Object properties = invokeNoArgOrNull(command, "getProperties");
+      String synonym = properties == null ? "" : LocalStringSync.firstRu(invokeNoArgOrNull(properties, "getSynonym"));
+      if (!name.isBlank() && synonym != null && !synonym.isEmpty()) {
+        dto.commandSynonyms.put(name, synonym);
+      }
+    }
     dto.templates.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getTemplate"))));
     dto.values.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getEnumValue"))));
     dto.columns.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getColumn"))));

@@ -803,6 +803,18 @@ public final class MdObjectChildMutations {
     if (!childObjectsRegion.isValid()) {
       throw new IllegalArgumentException("В объекте нет узла ChildObjects.");
     }
+    // У объекта без вложенных платформа пишет пустой тег: чтобы дописать в него, его надо раскрыть.
+    int openTagEnd = xml.indexOf('>', childObjectsRegion.start());
+    if (openTagEnd > childObjectsRegion.start() && xml.charAt(openTagEnd - 1) == '/') {
+      String indent = currentLineIndent(xml, childObjectsRegion.start());
+      return xml.substring(0, childObjectsRegion.start())
+        + "<ChildObjects>\n"
+        + normalizeBlockIndent(snippet, indent + "\t")
+        + "\n"
+        + indent
+        + CLOSE_CHILD_OBJECTS
+        + xml.substring(childObjectsRegion.end());
+    }
     int insertAt = xml.lastIndexOf(CLOSE_CHILD_OBJECTS, childObjectsRegion.end());
     if (insertAt < childObjectsRegion.start()) {
       throw new IllegalArgumentException("Не найден закрывающий тег ChildObjects.");

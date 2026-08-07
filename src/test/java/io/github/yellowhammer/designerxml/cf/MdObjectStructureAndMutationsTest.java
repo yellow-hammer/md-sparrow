@@ -91,6 +91,24 @@ class MdObjectStructureAndMutationsTest {
     assertLowNoise(before, after);
   }
 
+  /**
+   * У объекта без вложенных платформа пишет пустой тег {@code <ChildObjects/>}: заимствованный
+   * объект расширения обычно именно такой, и первый реквизит должен добавляться в него же.
+   */
+  @Test
+  void addAttribute_expandsEmptyChildObjects() throws Exception {
+    Path copy = copyToTemp(sampleDocumentXml());
+    String collapsed = Files.readString(copy, StandardCharsets.UTF_8)
+      .replaceFirst("(?s)<ChildObjects>.*</ChildObjects>", "<ChildObjects/>");
+    Files.writeString(copy, collapsed, StandardCharsets.UTF_8);
+
+    MdObjectChildMutations.addAttribute(copy, SchemaVersion.V2_20, "ПервыйРеквизит");
+
+    MdObjectStructureDto dto = MdObjectStructureRead.read(copy, SchemaVersion.V2_20);
+    assertThat(dto.attributes).extracting(a -> a.name).containsExactly("ПервыйРеквизит");
+    assertThat(Files.readString(copy, StandardCharsets.UTF_8)).doesNotContain("<ChildObjects/>");
+  }
+
   @Test
   void addTabularAttribute_isGranular() throws Exception {
     Path copy = copyToTemp(sampleDocumentXml());

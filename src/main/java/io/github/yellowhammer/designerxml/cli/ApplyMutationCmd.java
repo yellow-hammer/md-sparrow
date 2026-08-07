@@ -33,6 +33,8 @@ import io.github.yellowhammer.designerxml.cf.ExternalArtifactKind;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactMutations;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyChangeDto;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectAdd;
 import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 import io.github.yellowhammer.designerxml.cf.MdObjectChildMutations;
@@ -86,7 +88,8 @@ final class ApplyMutationCmd implements Callable<Integer> {
     try {
       System.out.println(dispatch(p));
       return 0;
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException | IllegalStateException e) {
+      // Отказ записи - это сообщение вызывающей программе, а не сбой: стек ей не нужен.
       System.err.println(e.getMessage());
       return 2;
     } catch (IOException | JAXBException e) {
@@ -284,6 +287,11 @@ final class ApplyMutationCmd implements Callable<Integer> {
       case "external-artifact-properties-set": {
         ExternalArtifactPropertiesDto dto = parsePayload(p, ExternalArtifactPropertiesDto.class);
         ExternalArtifactPropertiesEdit.write(p.reqPath(p.objectXml, "objectXml"), p.version(), dto);
+        return "OK";
+      }
+      case "cf-form-item-properties-set": {
+        FormItemPropertyChangeDto[] changes = parsePayload(p, FormItemPropertyChangeDto[].class);
+        FormItemPropertyEdit.apply(p.reqPath(p.formXml, "formXml"), p.version(), java.util.Arrays.asList(changes));
         return "OK";
       }
       case "cf-configuration-properties-set": {
