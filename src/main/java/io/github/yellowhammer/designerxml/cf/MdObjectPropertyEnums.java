@@ -39,6 +39,7 @@ public final class MdObjectPropertyEnums {
    */
   public static Map<String, List<String>> forVersion(SchemaVersion version) {
     Map<String, List<String>> out = new LinkedHashMap<>();
+    collect(out, "configuration", propertiesClass(version, "Configuration"));
     for (Field block : MdObjectPropertiesDto.class.getFields()) {
       String typeName = block.getType().getSimpleName();
       if (!typeName.startsWith("Md") || !typeName.endsWith("PropertiesDto")) {
