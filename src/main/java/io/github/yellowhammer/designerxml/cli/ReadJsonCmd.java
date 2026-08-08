@@ -24,6 +24,7 @@ package io.github.yellowhammer.designerxml.cli;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import io.github.yellowhammer.designerxml.cf.EnumValueLabels;
 import io.github.yellowhammer.designerxml.cf.CatalogFormDto;
 import io.github.yellowhammer.designerxml.cf.CfDumpValidation;
 import io.github.yellowhammer.designerxml.cf.CatalogFormEdit;
@@ -50,6 +51,7 @@ import io.github.yellowhammer.designerxml.cf.SubsystemTreeBuilder;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
+import java.util.Map;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
@@ -111,6 +113,12 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "cf-md-object-get": {
         MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(p.reqPath(p.objectXml, "objectXml"), p.version());
         return gson.toJson(dto);
+      }
+      case "cf-enum-labels": {
+        return gson.toJson(Map.of(
+          "values", EnumValueLabels.all(),
+          "byProperty", EnumValueLabels.byProperty()
+        ));
       }
       case "cf-md-object-enums": {
         return gson.toJson(MdObjectPropertyEnums.forVersion(p.version()));

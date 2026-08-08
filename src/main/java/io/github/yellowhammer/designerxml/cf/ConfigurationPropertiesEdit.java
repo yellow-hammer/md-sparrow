@@ -38,7 +38,7 @@ public final class ConfigurationPropertiesEdit {
 
   public static ConfigurationPropertiesDto read(Path configurationXml, SchemaVersion schemaVersion)
     throws JAXBException, IOException {
-    return fill(properties(DesignerXml.read(configurationXml, schemaVersion)));
+    return fill(properties(DesignerXml.read(configurationXml, schemaVersion)), configurationXml);
   }
 
   public static void write(Path configurationXml, SchemaVersion schemaVersion, ConfigurationPropertiesDto dto)
@@ -80,12 +80,23 @@ public final class ConfigurationPropertiesEdit {
     JaxbReflect.setEnumOrKeep(p, "setSynchronousPlatformExtensionAndAddInCallUseMode",
       incoming.synchronousPlatformExtensionAndAddInCallUseMode);
     JaxbReflect.setEnumOrKeep(p, "setInterfaceCompatibilityMode", incoming.interfaceCompatibilityMode);
-    JaxbReflect.setEnumOrKeep(p, "setCompatibilityMode", incoming.compatibilityMode);
+    // Режимы совместимости бывают вне перечисления модели. Неизменённое значение в модель не
+    // переносим: точечная запись его не трогает, и в файле оно остаётся как было.
+    setEnumIfChanged(p, "setCompatibilityMode", baseline.compatibilityMode, incoming.compatibilityMode);
+    setEnumIfChanged(p, "setConfigurationExtensionCompatibilityMode",
+      baseline.configurationExtensionCompatibilityMode, incoming.configurationExtensionCompatibilityMode);
     byte[] patched = tryGranularWrite(originalXml, root, schemaVersion, baseline, incoming)
       .orElseThrow(() -> new IllegalStateException(
         "Не удалось применить изменения точечно. Полная пересборка XML через JAXB предотвращена."
       ));
     Files.write(configurationXml, patched);
+  }
+
+  /** Переносит значение в модель, только если оно изменилось: неизвестное ей значение она отвергнет. */
+  private static void setEnumIfChanged(Object p, String setter, String baseline, String incoming) {
+    if (!nvl(baseline).equals(nvl(incoming))) {
+      JaxbReflect.setEnumOrKeep(p, setter, incoming);
+    }
   }
 
   /** {@code Configuration.Properties} любой версии; иначе — исключение. */
@@ -101,7 +112,20 @@ public final class ConfigurationPropertiesEdit {
     return p;
   }
 
-  private static ConfigurationPropertiesDto fill(Object p) {
+  private static ConfigurationPropertiesDto fill(Object p, Path configurationXml) {
+    return fill(p, (value, element) -> UnknownEnumValues.orFromXml(value, configurationXml, element));
+  }
+
+  private static ConfigurationPropertiesDto fill(Object p, byte[] xml) {
+    return fill(p, (value, element) -> UnknownEnumValues.orFromXml(value, xml, element));
+  }
+
+  /** Значение перечислимого свойства: от модели либо дочитанное из выгрузки. */
+  private interface EnumValue {
+    String of(String fromModel, String element);
+  }
+
+  private static ConfigurationPropertiesDto fill(Object p, EnumValue enumValue) {
     var out = new ConfigurationPropertiesDto();
     out.name = nvl(JaxbReflect.getStringOptional(p, "getName"));
     out.synonymRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getSynonym"));
@@ -131,7 +155,11 @@ public final class ConfigurationPropertiesEdit {
     out.synchronousPlatformExtensionAndAddInCallUseMode =
       JaxbReflect.enumNameOptional(p, "getSynchronousPlatformExtensionAndAddInCallUseMode");
     out.interfaceCompatibilityMode = JaxbReflect.enumNameOptional(p, "getInterfaceCompatibilityMode");
-    out.compatibilityMode = JaxbReflect.enumNameOptional(p, "getCompatibilityMode");
+    out.compatibilityMode =
+      enumValue.of(JaxbReflect.enumNameOptional(p, "getCompatibilityMode"), "CompatibilityMode");
+    out.configurationExtensionCompatibilityMode = enumValue.of(
+      JaxbReflect.enumNameOptional(p, "getConfigurationExtensionCompatibilityMode"),
+      "ConfigurationExtensionCompatibilityMode");
     return out;
   }
 
@@ -191,7 +219,7 @@ public final class ConfigurationPropertiesEdit {
   }
 
   private static ConfigurationPropertiesDto readDto(byte[] xmlBytes, SchemaVersion version) throws JAXBException {
-    return fill(properties(DesignerXml.unmarshal(version, new ByteArrayInputStream(xmlBytes))));
+    return fill(properties(DesignerXml.unmarshal(version, new ByteArrayInputStream(xmlBytes))), xmlBytes);
   }
 
   private static List<String> enumListToNames(Object fixedArray) {

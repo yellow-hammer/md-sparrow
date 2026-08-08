@@ -42,6 +42,8 @@ public final class ConfigurationPropertiesDto {
   public String synchronousPlatformExtensionAndAddInCallUseMode;
   public String interfaceCompatibilityMode;
   public String compatibilityMode;
+  /** Режим совместимости расширения; у конфигурации свойство тоже есть. */
+  public String configurationExtensionCompatibilityMode;
 
   public ConfigurationPropertiesDto() {
     this.usePurposes = new ArrayList<>();
