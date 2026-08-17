@@ -19,8 +19,17 @@ public final class FormStandardCommandsDto {
   /** Подписи: имя команды без приставки -&gt; подпись, которую ставит платформа. */
   public Map<String, String> labels;
 
+  /** То же для стандартных команд таблицы: у них своя приставка и свои подписи. */
+  public Map<String, String> tableLabels;
+
   /** Команды, которые стоят у правого края панели, в том порядке, в каком идут там. */
   public List<String> atRight;
+
+  /** Чем платформа наполняет панель: вид главного реквизита формы -&gt; кнопки по порядку. */
+  public Map<String, List<FormStandardCommandDto>> autoCommandBar;
+
+  /** Чем платформа наполняет панель таблицы: вид данных таблицы -&gt; кнопки по порядку. */
+  public Map<String, List<FormStandardCommandDto>> tableCommandBar;
 
   /** Версия платформы, с которой снят словарь. */
   public String platformVersion;
