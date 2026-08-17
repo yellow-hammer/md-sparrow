@@ -3,6 +3,29 @@ import org.gradle.api.tasks.javadoc.Javadoc
 import java.io.File
 import java.security.MessageDigest
 
+buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        constraints {
+            classpath("org.springframework:spring-core:7.0.8")
+            classpath("org.codehaus.plexus:plexus-utils:4.0.3")
+            classpath("org.apache.logging.log4j:log4j-core:2.26.1")
+            classpath("org.apache.logging.log4j:log4j-api:2.26.1")
+        }
+    }
+    configurations.named("classpath") {
+        resolutionStrategy.force(
+            "org.springframework:spring-core:7.0.8",
+            "org.codehaus.plexus:plexus-utils:4.0.3",
+            "org.apache.logging.log4j:log4j-core:2.26.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+        )
+    }
+}
+
 plugins {
     `java-library`
     application
