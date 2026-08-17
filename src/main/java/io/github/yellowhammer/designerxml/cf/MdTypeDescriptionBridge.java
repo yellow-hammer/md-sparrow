@@ -56,6 +56,9 @@ public final class MdTypeDescriptionBridge {
     for (QName type : JaxbReflect.<QName>list(typeDescription, "getType")) {
       dto.types.add(typeText(type));
     }
+    for (QName typeSet : JaxbReflect.<QName>list(typeDescription, "getTypeSet")) {
+      dto.typeSets.add(typeText(typeSet));
+    }
     Object sq = JaxbReflect.getOptional(typeDescription, "getStringQualifiers");
     if (sq != null) {
       MdTypeDescriptionDto.MdStringQualifiersDto q = new MdTypeDescriptionDto.MdStringQualifiersDto();

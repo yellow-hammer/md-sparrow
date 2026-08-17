@@ -45,6 +45,80 @@ class MdObjectStructureAndMutationsTest {
     assertThat(dto.standardAttributes).contains("Number", "Date");
   }
 
+  /**
+   * Стандартные реквизиты табличной части нужны подписям на форме: колонка по
+   * {@code Объект.<ТЧ>.LineNumber} подписана не именем элемента.
+   */
+  @Test
+  void readStructure_tabularSection_listsStandardAttributes() throws Exception {
+    MdObjectStructureDto dto = MdObjectStructureRead.read(sampleDocumentXml(), SchemaVersion.V2_20);
+
+    assertThat(dto.tabularSections).anyMatch(ts -> ts.standardAttributes.contains("LineNumber"));
+  }
+
+  /**
+   * Синоним стандартного реквизита в файле пуст, а часть табличных частей узла с ними не имеет
+   * вовсе; подпись на форме платформа ставит и там, и там.
+   */
+  @Test
+  void readStructure_tabularSection_fillsPlatformSynonymOfLineNumber() throws Exception {
+    MdObjectStructureDto dto = MdObjectStructureRead.read(sampleDocumentXml(), SchemaVersion.V2_20);
+
+    assertThat(dto.tabularSections)
+      .isNotEmpty()
+      .allSatisfy(ts -> assertThat(ts.standardAttributeSynonyms).containsEntry("LineNumber", "N"));
+  }
+
+  /** Переопределённый синоним сильнее платформенного. */
+  @Test
+  void readStructure_tabularSection_prefersWrittenSynonym() throws Exception {
+    Path copy = copyToTemp(sampleDocumentXml());
+    String written = Files.readString(copy, StandardCharsets.UTF_8)
+      .replaceFirst(
+        "(?s)(<xr:StandardAttribute name=\"LineNumber\">.*?)<xr:Synonym/>",
+        "$1<xr:Synonym><v8:item><v8:lang>ru</v8:lang><v8:content>Строка</v8:content></v8:item></xr:Synonym>");
+    Files.writeString(copy, written, StandardCharsets.UTF_8);
+
+    MdObjectStructureDto dto = MdObjectStructureRead.read(copy, SchemaVersion.V2_20);
+
+    assertThat(dto.tabularSections)
+      .filteredOn(ts -> ts.standardAttributeSynonyms.containsKey("LineNumber"))
+      .extracting(ts -> ts.standardAttributeSynonyms.get("LineNumber"))
+      .contains("Строка");
+  }
+
+  /**
+   * Тип реквизита нужен форме: поле по пути к данным объекта платформа рисует по нему, а из
+   * структуры до сих пор приходили только имя и синоним.
+   */
+  @Test
+  void readStructure_document_hasAttributeTypes() throws Exception {
+    MdObjectStructureDto dto = MdObjectStructureRead.read(sampleDocumentXml(), SchemaVersion.V2_20);
+
+    assertThat(dto.attributes)
+      .filteredOn(a -> "Партнер".equals(a.name))
+      .singleElement()
+      .satisfies(a -> assertThat(a.type.types).containsExactly("cfg:CatalogRef._ДемоПартнеры"));
+    assertThat(dto.tabularSections)
+      .flatExtracting(ts -> ts.attributes)
+      .filteredOn(a -> "Счет".equals(a.name))
+      .allSatisfy(a -> assertThat(a.type.types).isNotEmpty());
+  }
+
+  /** Определяемый тип записан набором типов, а не типом: без него реквизит остался бы без типа. */
+  @Test
+  void readStructure_document_readsTypeSetOfAttribute() throws Exception {
+    MdObjectStructureDto dto = MdObjectStructureRead.read(sampleDocumentXml(), SchemaVersion.V2_20);
+
+    assertThat(dto.attributes)
+      .filteredOn(a -> "СуммаДокумента".equals(a.name))
+      .singleElement()
+      .satisfies(a -> {
+        assertThat(a.type.types).isEmpty();
+        assertThat(a.type.typeSets).containsExactly("cfg:DefinedType.ДенежнаяСуммаНеотрицательная");
+      });
+  }
+
   @Test
   void readStructure_enum_hasValues() throws Exception {
     MdObjectStructureDto dto = MdObjectStructureRead.read(anyObjectXmlInCfSubdir("Enums"), SchemaVersion.V2_20);
@@ -60,6 +134,17 @@ class MdObjectStructureAndMutationsTest {
     assertThat(dto.kind).isEqualTo("informationRegister");
     assertThat(dto.dimensions).isNotEmpty();
     assertThat(dto.resources).isNotEmpty();
+  }
+
+  /** Колонки динамического списка идут по именам измерений и ресурсов, а подписываются синонимами. */
+  @Test
+  void readStructure_informationRegister_hasChildSynonyms() throws Exception {
+    MdObjectStructureDto dto = MdObjectStructureRead.read(
+      anyObjectXmlInCfSubdir("InformationRegisters"),
+      SchemaVersion.V2_20);
+
+    assertThat(dto.childSynonyms).isNotEmpty();
+    assertThat(dto.childSynonyms.keySet()).containsAnyElementsOf(dto.dimensions);
   }
 
   @Test

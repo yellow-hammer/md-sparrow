@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Чтение структуры объекта метаданных (реквизиты, ТЧ, формы, команды, макеты).
@@ -112,19 +113,7 @@ public final class MdObjectStructureRead {
     dto.kind = handle.kind;
     dto.internalName = safeString(invokeNoArgOrNull(props, "getName"));
 
-    Object standardAttributes = invokeNoArgOrNull(props, "getStandardAttributes");
-    if (standardAttributes != null) {
-      for (Object item : listOrEmpty(invokeNoArgOrNull(standardAttributes, "getStandardAttribute"))) {
-        String name = safeString(invokeNoArgOrNull(item, "getName"));
-        if (!name.isEmpty()) {
-          dto.standardAttributes.add(name);
-          String synonym = LocalStringSync.firstRu(invokeNoArgOrNull(item, "getSynonym"));
-          if (synonym != null && !synonym.isEmpty()) {
-            dto.standardAttributeSynonyms.put(name, synonym);
-          }
-        }
-      }
-    }
+    readStandardAttributes(props, dto.standardAttributes, dto.standardAttributeSynonyms);
 
     Object childObjects = invokeNoArgOrNull(handle.objectNode, "getChildObjects");
     if (childObjects == null) {
@@ -143,6 +132,8 @@ public final class MdObjectStructureRead {
       tsDto.name = safeString(invokeNoArgOrNull(tsProps, "getName"));
       tsDto.synonymRu = readLocalStringRu(invokeNoArgOrNull(tsProps, "getSynonym"));
       tsDto.comment = safeString(invokeNoArgOrNull(tsProps, "getComment"));
+      tsDto.standardAttributeSynonyms.putAll(StandardAttributeLabels.ofTabularSection());
+      readStandardAttributes(tsProps, tsDto.standardAttributes, tsDto.standardAttributeSynonyms);
       Object tsChildObjects = invokeNoArgOrNull(ts, "getChildObjects");
       if (tsChildObjects != null) {
         List<Object> tsAttributes = listOrEmpty(invokeNoArgOrNull(tsChildObjects, "getAttribute"));
@@ -166,15 +157,16 @@ public final class MdObjectStructureRead {
     }
     dto.templates.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getTemplate"))));
     dto.values.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getEnumValue"))));
-    dto.columns.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getColumn"))));
-    dto.accountingFlags.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getAccountingFlag"))));
-    dto.extDimensionAccountingFlags.addAll(readStringItems(
-      listOrEmpty(invokeNoArgOrNull(childObjects, "getExtDimensionAccountingFlag"))));
-    dto.dimensions.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getDimension"))));
-    dto.resources.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getResource"))));
+    dto.columns.addAll(readNamedItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getColumn")), dto.childSynonyms));
+    dto.accountingFlags.addAll(readNamedItems(
+      listOrEmpty(invokeNoArgOrNull(childObjects, "getAccountingFlag")), dto.childSynonyms));
+    dto.extDimensionAccountingFlags.addAll(readNamedItems(
+      listOrEmpty(invokeNoArgOrNull(childObjects, "getExtDimensionAccountingFlag")), dto.childSynonyms));
+    dto.dimensions.addAll(readNamedItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getDimension")), dto.childSynonyms));
+    dto.resources.addAll(readNamedItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getResource")), dto.childSynonyms));
     dto.recalculations.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getRecalculation"))));
-    dto.addressingAttributes.addAll(readStringItems(
-      listOrEmpty(invokeNoArgOrNull(childObjects, "getAddressingAttribute"))));
+    dto.addressingAttributes.addAll(readNamedItems(
+      listOrEmpty(invokeNoArgOrNull(childObjects, "getAddressingAttribute")), dto.childSynonyms));
     dto.operations.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getOperation"))));
     dto.urlTemplates.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getURLTemplate"))));
     dto.channels.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getChannel"))));
@@ -184,12 +176,42 @@ public final class MdObjectStructureRead {
     return dto;
   }
 
+  /**
+   * Стандартные реквизиты узла: состав задаёт платформа, а перечисляет их сам файл.
+   *
+   * <p>Синоним лежит в файле только переопределённым, поэтому пустой ничего не затирает: подпись
+   * платформы кладётся в {@code synonyms} до чтения.
+   *
+   * @param props    узел {@code Properties} объекта или табличной части
+   * @param names    сюда складываются имена
+   * @param synonyms сюда складываются синонимы: имя -> синоним
+   */
+  private static void readStandardAttributes(Object props, List<String> names, Map<String, String> synonyms) {
+    Object standardAttributes = invokeNoArgOrNull(props, "getStandardAttributes");
+    if (standardAttributes == null) {
+      return;
+    }
+    for (Object item : listOrEmpty(invokeNoArgOrNull(standardAttributes, "getStandardAttribute"))) {
+      String name = safeString(invokeNoArgOrNull(item, "getName"));
+      if (name.isEmpty()) {
+        continue;
+      }
+      names.add(name);
+      String synonym = LocalStringSync.firstRu(invokeNoArgOrNull(item, "getSynonym"));
+      if (synonym != null && !synonym.isEmpty()) {
+        synonyms.put(name, synonym);
+      }
+    }
+  }
+
   private static MdObjectStructureDto.MdNodeDto readNamedNode(Object node) {
     Object props = invokeNoArg(node, "getProperties");
-    return new MdObjectStructureDto.MdNodeDto(
+    MdObjectStructureDto.MdNodeDto dto = new MdObjectStructureDto.MdNodeDto(
       safeString(invokeNoArgOrNull(props, "getName")),
       readLocalStringRu(invokeNoArgOrNull(props, "getSynonym")),
       safeString(invokeNoArgOrNull(props, "getComment")));
+    dto.type = MdTypeDescriptionBridge.read(invokeNoArgOrNull(props, "getType"));
+    return dto;
   }
 
   static KindHandle resolveKind(Object metaDataObject) {
@@ -214,6 +236,30 @@ public final class MdObjectStructureRead {
       }
     }
     return "";
+  }
+
+  /**
+   * Имена дочерних узлов с синонимами: сам список остаётся именами, синонимы уходят отдельной картой.
+   *
+   * @param raw      узлы состава
+   * @param synonyms сюда складываются синонимы: имя -> синоним
+   * @return имена узлов
+   */
+  private static List<String> readNamedItems(List<Object> raw, Map<String, String> synonyms) {
+    List<String> out = new ArrayList<>();
+    for (Object item : raw) {
+      String name = extractItemName(item);
+      if (name.isBlank()) {
+        continue;
+      }
+      out.add(name);
+      Object properties = invokeNoArgOrNull(item, "getProperties");
+      String synonym = properties == null ? "" : LocalStringSync.firstRu(invokeNoArgOrNull(properties, "getSynonym"));
+      if (synonym != null && !synonym.isEmpty()) {
+        synonyms.put(name, synonym);
+      }
+    }
+    return out;
   }
 
   private static List<String> readStringItems(List<Object> raw) {

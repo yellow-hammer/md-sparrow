@@ -93,6 +93,11 @@ public final class FormContentRead {
     dto.title = titleText(attribute);
     dto.type = MdTypeDescriptionBridge.read(JaxbReflect.getOptional(attribute, "getType"));
     dto.main = JaxbReflect.getBooleanOptional(attribute, "isMainAttribute");
+    Object settings = JaxbReflect.getOptional(attribute, "getSettings");
+    if (settings != null) {
+      Object mainTable = JaxbReflect.getOptional(settings, "getMainTable");
+      dto.mainTable = mainTable == null ? null : String.valueOf(mainTable);
+    }
     Object columns = JaxbReflect.getOptional(attribute, "getColumns");
     if (columns != null) {
       // Помимо колонок в этом списке лежит блок дополнительных колонок - у него нет имени.

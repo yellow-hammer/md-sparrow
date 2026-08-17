@@ -82,6 +82,25 @@ class FormContentReadTest {
     });
   }
 
+  /** Колонки динамического списка идут по полям основной таблицы, а не по реквизитам формы. */
+  @Test
+  void читаетОсновнуюТаблицуДинамическогоСписка() throws Exception {
+    FormContentDto dto = FormContentRead.read(form("ФормаСписка"), SchemaVersion.V2_20);
+
+    assertThat(dto.attributes)
+      .filteredOn(a -> "Список".equals(a.name))
+      .singleElement()
+      .satisfies(a -> assertThat(a.mainTable).isEqualTo("Catalog.Валюты"));
+  }
+
+  /** У обычного реквизита основной таблицы нет: её заводит только динамический список. */
+  @Test
+  void обычныйРеквизитОстаётсяБезОсновнойТаблицы() throws Exception {
+    FormContentDto dto = FormContentRead.read(form("ФормаЭлемента"), SchemaVersion.V2_20);
+
+    assertThat(dto.attributes).allSatisfy(a -> assertThat(a.mainTable).isNull());
+  }
+
   @Test
   void читаетТаблицуИКоманднуюПанель() throws Exception {
     FormContentDto dto = FormContentRead.read(form("ФормаСписка"), SchemaVersion.V2_20);

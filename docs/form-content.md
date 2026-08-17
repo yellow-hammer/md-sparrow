@@ -27,7 +27,7 @@
 ## Что в JSON
 
 - `items` — дерево элементов в порядке файла. У элемента: `type` (имя элемента в XML), `name`, `id`, `title`, `dataPath`, `group`, `showTitle`, `titleLocation`, `representation`, `visible`, `enabled`, `readOnly`, `width`, `height`, `horizontalStretch`, `verticalStretch`, `events`, `items`.
-- `attributes` — реквизиты формы с типом и колонками у реквизита-таблицы.
+- `attributes` — реквизиты формы с типом и колонками у реквизита-таблицы; у динамического списка заполнена `mainTable`.
 - `commands`, `parameters` — команды и параметры формы.
 - `events` — обработчики событий формы: имя события и процедура модуля.
 
