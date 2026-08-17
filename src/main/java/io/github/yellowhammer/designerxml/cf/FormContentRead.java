@@ -38,7 +38,7 @@ public final class FormContentRead {
     if (!Files.isRegularFile(formXml)) {
       throw new IllegalArgumentException("file not found: " + formXml);
     }
-    return readForm(JaxbReflect.value(DesignerXml.read(formXml, version)));
+    return read(Files.readAllBytes(formXml), version);
   }
 
   /**
@@ -48,12 +48,15 @@ public final class FormContentRead {
    * @param version версия формата выгрузки
    */
   public static FormContentDto read(byte[] utf8Xml, SchemaVersion version) throws JAXBException {
-    return readForm(JaxbReflect.value(DesignerXml.unmarshal(version, new ByteArrayInputStream(utf8Xml))));
+    FormContentDto dto = readForm(JaxbReflect.value(DesignerXml.unmarshal(version, new ByteArrayInputStream(utf8Xml))));
+    dto.excludedCommands = FormCommandSetReader.excludedCommands(utf8Xml);
+    return dto;
   }
 
   private static FormContentDto readForm(Object form) {
     FormContentDto dto = new FormContentDto();
     dto.title = titleText(form);
+    dto.properties = writtenProperties(form);
     dto.events = readEvents(form);
     dto.items = readItems(form);
 
