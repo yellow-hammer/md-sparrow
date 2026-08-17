@@ -47,6 +47,7 @@ import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphDto;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
 import io.github.yellowhammer.designerxml.cf.ProjectSourceDirs;
+import io.github.yellowhammer.designerxml.cf.StandardCommandLabels;
 import io.github.yellowhammer.designerxml.cf.SubsystemTreeBuilder;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -141,6 +142,9 @@ final class ReadJsonCmd implements Callable<Integer> {
       }
       case "cf-form-item-properties": {
         return gson.toJson(FormItemPropertyDictionary.forVersion(p.version()));
+      }
+      case "cf-form-standard-commands": {
+        return gson.toJson(StandardCommandLabels.dto());
       }
       case "cf-form-content-get": {
         FormContentDto dto = FormContentRead.read(p.reqPath(p.formXml, "formXml"), p.version());

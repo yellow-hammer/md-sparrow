@@ -1,0 +1,17 @@
+{
+  "platformVersion": "8.5.1.1343",
+  "form": {
+    "PostAndClose": "Провести и закрыть",
+    "Post": "Провести",
+    "UndoPosting": "Отменить проведение",
+    "SetDeletionMark": "Пометить на удаление / Снять пометку",
+    "ShowInList": "Показать в списке",
+    "Close": "Закрыть",
+    "CustomizeForm": "Изменить форму...",
+    "Help": "Справка"
+  },
+  "atRight": [
+    "CustomizeForm",
+    "Help"
+  ]
+}
