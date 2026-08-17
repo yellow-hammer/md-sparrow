@@ -113,6 +113,7 @@ public final class MdObjectStructureRead {
     dto.kind = handle.kind;
     dto.internalName = safeString(invokeNoArgOrNull(props, "getName"));
 
+    dto.standardAttributeSynonyms.putAll(StandardAttributeLabels.ofObject(dto.kind));
     readStandardAttributes(props, dto.standardAttributes, dto.standardAttributeSynonyms);
 
     Object childObjects = invokeNoArgOrNull(handle.objectNode, "getChildObjects");

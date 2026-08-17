@@ -1,0 +1,177 @@
+{
+  "objects": {
+    "AccountingRegister": {
+      "Account": "Счет",
+      "Active": "Активность",
+      "ExtDimension1": "Субконто1",
+      "ExtDimension2": "Субконто2",
+      "ExtDimension3": "Субконто3",
+      "ExtDimensionType1": "Вид субконто1",
+      "ExtDimensionType2": "Вид субконто2",
+      "ExtDimensionType3": "Вид субконто3",
+      "LineNumber": "N",
+      "Period": "Период",
+      "RecordType": "Вид движения",
+      "Recorder": "Регистратор"
+    },
+    "AccumulationRegister": {
+      "Active": "Активность",
+      "LineNumber": "N",
+      "Period": "Период",
+      "RecordType": "Вид движения",
+      "Recorder": "Регистратор"
+    },
+    "BusinessProcess": {
+      "Completed": "Завершен",
+      "Date": "Дата",
+      "DeletionMark": "Пометка удаления",
+      "HeadTask": "Ведущая задача",
+      "Number": "Номер",
+      "Ref": "Ссылка",
+      "Started": "Стартован"
+    },
+    "CalculationRegister": {
+      "ActionPeriod": "Период действия",
+      "Active": "Активность",
+      "BegOfActionPeriod": "Дата начала периода действия",
+      "BegOfBasePeriod": "Дата начала базового периода",
+      "CalculationType": "Вид расчета",
+      "EndOfActionPeriod": "Дата окончания периода действия",
+      "EndOfBasePeriod": "Дата окончания базового периода",
+      "LineNumber": "N",
+      "Recorder": "Регистратор",
+      "RegistrationPeriod": "Период регистрации",
+      "ReversingEntry": "Сторно"
+    },
+    "Catalog": {
+      "Code": "Код",
+      "DeletionMark": "Пометка удаления",
+      "Description": "Наименование",
+      "IsFolder": "Это группа",
+      "Owner": "Владелец",
+      "Parent": "Родитель",
+      "Predefined": "Предопределенный",
+      "PredefinedDataName": "Имя предопределенных данных",
+      "Ref": "Ссылка"
+    },
+    "ChartOfAccounts": {
+      "Code": "Код",
+      "DeletionMark": "Пометка удаления",
+      "Description": "Наименование",
+      "OffBalance": "Забалансовый",
+      "Order": "Порядок",
+      "Parent": "Родитель",
+      "Predefined": "Предопределенный",
+      "PredefinedDataName": "Имя предопределенных данных",
+      "Ref": "Ссылка",
+      "Type": "Вид"
+    },
+    "ChartOfCalculationTypes": {
+      "ActionPeriodIsBasic": "Базовый период как период действия",
+      "Code": "Код",
+      "DeletionMark": "Пометка удаления",
+      "Description": "Наименование",
+      "Predefined": "Предопределенный",
+      "PredefinedDataName": "Имя предопределенных данных",
+      "Ref": "Ссылка"
+    },
+    "ChartOfCharacteristicTypes": {
+      "Code": "Код",
+      "DeletionMark": "Пометка удаления",
+      "Description": "Наименование",
+      "IsFolder": "Это группа",
+      "Parent": "Родитель",
+      "Predefined": "Предопределенный",
+      "PredefinedDataName": "Имя предопределенных данных",
+      "Ref": "Ссылка",
+      "ValueType": "Тип значения"
+    },
+    "Document": {
+      "Date": "Дата",
+      "DeletionMark": "Пометка удаления",
+      "Number": "Номер",
+      "Posted": "Проведен",
+      "Ref": "Ссылка"
+    },
+    "DocumentJournal": {
+      "Date": "Дата",
+      "DeletionMark": "Пометка удаления",
+      "Number": "Номер",
+      "Posted": "Проведен",
+      "Ref": "Ссылка",
+      "Type": "Вид документа"
+    },
+    "Enum": {
+      "Order": "Порядок",
+      "Ref": "Ссылка"
+    },
+    "ExchangePlan": {
+      "Code": "Код",
+      "DeletionMark": "Пометка удаления",
+      "Description": "Наименование",
+      "ReceivedNo": "Номер принятого сообщения",
+      "Ref": "Ссылка",
+      "SentNo": "Номер отправленного сообщения",
+      "ThisNode": "Этот узел"
+    },
+    "InformationRegister": {
+      "Active": "Активность",
+      "LineNumber": "N",
+      "Period": "Период",
+      "Recorder": "Регистратор"
+    },
+    "Task": {
+      "BusinessProcess": "Бизнес-процесс",
+      "Date": "Дата",
+      "DeletionMark": "Пометка удаления",
+      "Description": "Наименование",
+      "Executed": "Выполнена",
+      "Number": "Номер",
+      "Ref": "Ссылка",
+      "RoutePoint": "Точка маршрута"
+    }
+  },
+  "platformVersion": "8.5.1.1343",
+  "standardTabularSections": {
+    "ChartOfAccounts": {
+      "ExtDimensionTypes": {
+        "label": "Виды субконто",
+        "standardAttributes": {
+          "ExtDimensionType": "Вид субконто",
+          "LineNumber": "Номер строки",
+          "Predefined": "Предопределенный",
+          "TurnoversOnly": "Только обороты"
+        }
+      }
+    },
+    "ChartOfCalculationTypes": {
+      "BaseCalculationTypes": {
+        "label": "Базовые виды расчета",
+        "standardAttributes": {
+          "CalculationType": "Вид расчета",
+          "LineNumber": "Номер строки",
+          "Predefined": "Предопределенный"
+        }
+      },
+      "DisplacingCalculationTypes": {
+        "label": "Вытесняющие виды расчета",
+        "standardAttributes": {
+          "CalculationType": "Вид расчета",
+          "LineNumber": "Номер строки",
+          "Predefined": "Предопределенный"
+        }
+      },
+      "LeadingCalculationTypes": {
+        "label": "Ведущие виды расчета",
+        "standardAttributes": {
+          "CalculationType": "Вид расчета",
+          "LineNumber": "Номер строки",
+          "Predefined": "Предопределенный"
+        }
+      }
+    }
+  },
+  "tabularSections": {
+    "LineNumber": ""
+  }
+}
