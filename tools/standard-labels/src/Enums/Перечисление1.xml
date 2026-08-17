@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <Enum uuid="8db493e2-9dc3-3fc0-a699-3c49483c35d0">
+        <InternalInfo>
+            <xr:GeneratedType category="Ref" name="EnumRef.Перечисление1">
+                <xr:TypeId>6ae076f9-576a-3670-9e7f-44f6e5614bbe</xr:TypeId>
+                <xr:ValueId>2264b5e4-26c6-308c-81a7-5a8eb092ddb7</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Manager" name="EnumManager.Перечисление1">
+                <xr:TypeId>3620d56d-e032-3633-a47f-be1a341efe18</xr:TypeId>
+                <xr:ValueId>58de5cc1-436a-3bb9-978b-4e94db54e269</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="List" name="EnumList.Перечисление1">
+                <xr:TypeId>d6c88d4c-c0a6-39cc-bec4-0ce3359043ed</xr:TypeId>
+                <xr:ValueId>d316f3eb-2bfa-361d-a890-f346cae9b0c7</xr:ValueId>
+            </xr:GeneratedType>
+        </InternalInfo>
+        <Properties>
+            <Name>Перечисление1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <UseStandardCommands>false</UseStandardCommands>
+            <Characteristics/>
+            <QuickChoice>true</QuickChoice>
+            <ChoiceMode>BothWays</ChoiceMode>
+            <DefaultListForm></DefaultListForm>
+            <DefaultChoiceForm></DefaultChoiceForm>
+            <AuxiliaryListForm></AuxiliaryListForm>
+            <AuxiliaryChoiceForm></AuxiliaryChoiceForm>
+            <ListPresentation/>
+            <ExtendedListPresentation/>
+            <Explanation/>
+            <ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>
+        </Properties>
+        <ChildObjects/>
+    </Enum>
+</MetaDataObject>

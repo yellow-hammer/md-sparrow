@@ -7,3 +7,4 @@
 *.class
 .DS_Store
 local.properties
+/tools/standard-labels/probe.json

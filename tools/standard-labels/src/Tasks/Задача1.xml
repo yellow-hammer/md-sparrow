@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <Task uuid="13ae3f5b-5cb8-3959-99b6-f7a06520d40f">
+        <InternalInfo>
+            <xr:GeneratedType category="Object" name="TaskObject.Задача1">
+                <xr:TypeId>ab8314d4-a141-3405-ab5a-150157b15860</xr:TypeId>
+                <xr:ValueId>23797eaa-2bfd-3caa-8b22-adb9659391ff</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Ref" name="TaskRef.Задача1">
+                <xr:TypeId>7f63d7bc-1ef2-311e-b707-cfff9983ff3d</xr:TypeId>
+                <xr:ValueId>3ea63b1e-f5ed-3cc6-b6b3-853489a90a4a</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Selection" name="TaskSelection.Задача1">
+                <xr:TypeId>e341f17e-55d5-3813-a053-c8c29cc23a9a</xr:TypeId>
+                <xr:ValueId>06848589-d087-3f12-bb37-27259993994a</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="List" name="TaskList.Задача1">
+                <xr:TypeId>30b681ab-e7fa-3efa-aae8-40644f30823f</xr:TypeId>
+                <xr:ValueId>531618bb-5bb2-33c8-bb5e-1fecdde192cd</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Manager" name="TaskManager.Задача1">
+                <xr:TypeId>37209ed7-ff50-3164-be40-80838ace7942</xr:TypeId>
+                <xr:ValueId>fa2a94de-0f5b-3b26-bc9f-a5febe07feb0</xr:ValueId>
+            </xr:GeneratedType>
+        </InternalInfo>
+        <Properties>
+            <Name>Задача1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <UseStandardCommands>true</UseStandardCommands>
+            <NumberType>String</NumberType>
+            <NumberLength>9</NumberLength>
+            <NumberAllowedLength>Variable</NumberAllowedLength>
+            <CheckUnique>true</CheckUnique>
+            <Autonumbering>true</Autonumbering>
+            <TaskNumberAutoPrefix>DontUse</TaskNumberAutoPrefix>
+            <DescriptionLength>25</DescriptionLength>
+            <Addressing></Addressing>
+            <MainAddressingAttribute></MainAddressingAttribute>
+            <CurrentPerformer></CurrentPerformer>
+            <BasedOn/>
+            <Characteristics/>
+            <DefaultPresentation>AsDescription</DefaultPresentation>
+            <EditType>InDialog</EditType>
+            <InputByString>
+                <xr:Field>Task.Задача1.StandardAttribute.Description</xr:Field>
+                <xr:Field>Task.Задача1.StandardAttribute.Number</xr:Field>
+            </InputByString>
+            <SearchStringModeOnInputByString>Begin</SearchStringModeOnInputByString>
+            <FullTextSearchOnInputByString>DontUse</FullTextSearchOnInputByString>
+            <ChoiceDataGetModeOnInputByString>Directly</ChoiceDataGetModeOnInputByString>
+            <CreateOnInput>DontUse</CreateOnInput>
+            <DefaultObjectForm></DefaultObjectForm>
+            <DefaultListForm></DefaultListForm>
+            <DefaultChoiceForm></DefaultChoiceForm>
+            <AuxiliaryObjectForm></AuxiliaryObjectForm>
+            <AuxiliaryListForm></AuxiliaryListForm>
+            <AuxiliaryChoiceForm></AuxiliaryChoiceForm>
+            <ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>
+            <IncludeHelpInContents>false</IncludeHelpInContents>
+            <DataLockFields/>
+            <DataLockControlMode>Managed</DataLockControlMode>
+            <FullTextSearch>Use</FullTextSearch>
+            <ObjectPresentation/>
+            <ExtendedObjectPresentation/>
+            <ListPresentation/>
+            <ExtendedListPresentation/>
+            <Explanation/>
+            <DataHistory>DontUse</DataHistory>
+            <UpdateDataHistoryImmediatelyAfterWrite>false</UpdateDataHistoryImmediatelyAfterWrite>
+            <ExecuteAfterWriteDataHistoryVersionProcessing>false</ExecuteAfterWriteDataHistoryVersionProcessing>
+        </Properties>
+        <ChildObjects/>
+    </Task>
+</MetaDataObject>

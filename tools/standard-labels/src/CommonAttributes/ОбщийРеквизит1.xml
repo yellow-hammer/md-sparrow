@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <CommonAttribute uuid="a4c55723-28cc-398a-8d99-a99ac4e6eaba">
+        <Properties>
+            <Name>ОбщийРеквизит1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <Type>
+                <v8:Type xmlns:xs="http://www.w3.org/2001/XMLSchema">xs:string</v8:Type>
+                <v8:StringQualifiers>
+                    <v8:Length>10</v8:Length>
+                    <v8:AllowedLength>Variable</v8:AllowedLength>
+                </v8:StringQualifiers>
+            </Type>
+            <PasswordMode>false</PasswordMode>
+            <Format/>
+            <EditFormat/>
+            <ToolTip/>
+            <MarkNegatives>false</MarkNegatives>
+            <Mask></Mask>
+            <MultiLine>false</MultiLine>
+            <ExtendedEdit>false</ExtendedEdit>
+            <MinValue xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+            <MaxValue xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+            <FillFromFillingValue>false</FillFromFillingValue>
+            <FillValue xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema" xsi:type="xs:string"></FillValue>
+            <FillChecking>DontCheck</FillChecking>
+            <ChoiceFoldersAndItems>Items</ChoiceFoldersAndItems>
+            <ChoiceParameterLinks/>
+            <ChoiceParameters/>
+            <QuickChoice>Auto</QuickChoice>
+            <CreateOnInput>Auto</CreateOnInput>
+            <ChoiceForm></ChoiceForm>
+            <LinkByType/>
+            <ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>
+            <Content/>
+            <AutoUse>DontUse</AutoUse>
+            <DataSeparation>DontUse</DataSeparation>
+            <SeparatedDataUse>Independently</SeparatedDataUse>
+            <DataSeparationValue></DataSeparationValue>
+            <DataSeparationUse></DataSeparationUse>
+            <ConditionalSeparation></ConditionalSeparation>
+            <UsersSeparation>DontUse</UsersSeparation>
+            <AuthenticationSeparation>DontUse</AuthenticationSeparation>
+            <ConfigurationExtensionsSeparation>DontUse</ConfigurationExtensionsSeparation>
+            <Indexing>DontIndex</Indexing>
+            <FullTextSearch>Use</FullTextSearch>
+            <DataHistory>Use</DataHistory>
+        </Properties>
+    </CommonAttribute>
+</MetaDataObject>

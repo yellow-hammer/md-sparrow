@@ -25,4 +25,12 @@ public final class FormAttributeDto {
 
   /** Колонки реквизита-таблицы. */
   public List<FormAttributeDto> columns = new ArrayList<>();
+
+  /**
+   * Основная таблица динамического списка: {@code InformationRegister.ЗамерыОбластиСтатистики}.
+   *
+   * <p>Поля списка идут по её реквизитам, измерениям и ресурсам, а подписывает их платформа
+   * синонимами оттуда же.
+   */
+  public String mainTable;
 }

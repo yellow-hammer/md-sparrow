@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.10">
+	<CalculationRegister uuid="d6234f61-2537-49ce-7121-ea14eecb9044">
+		<InternalInfo>
+			<xr:GeneratedType name="CalculationRegisterRecord.РегистрРасчета1" category="Record">
+				<xr:TypeId>ebf10f3f-9944-25e3-c801-439d4b05d02a</xr:TypeId>
+				<xr:ValueId>6cbfc721-d3d1-4571-e1a3-6bf263f17e60</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="CalculationRegisterManager.РегистрРасчета1" category="Manager">
+				<xr:TypeId>a221d3c9-52c4-305f-3256-df4de1c0101f</xr:TypeId>
+				<xr:ValueId>73500517-2117-f9ac-9a65-4327756289ce</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="CalculationRegisterSelection.РегистрРасчета1" category="Selection">
+				<xr:TypeId>59f57ff3-fcc3-0480-85be-301ab8582f65</xr:TypeId>
+				<xr:ValueId>0a609e48-33f4-f97f-a805-9673941d3736</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="CalculationRegisterList.РегистрРасчета1" category="List">
+				<xr:TypeId>afc3ffc5-f9bd-1f64-9002-3dd91890454a</xr:TypeId>
+				<xr:ValueId>16aba5a7-4a2d-6a32-1323-c76bebe1bb6e</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="CalculationRegisterRecordSet.РегистрРасчета1" category="RecordSet">
+				<xr:TypeId>31b355ce-aeca-745f-aec7-0c6582f56a3b</xr:TypeId>
+				<xr:ValueId>2ff5de46-810d-1aae-983e-bb3e747ff081</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="CalculationRegisterRecordKey.РегистрРасчета1" category="RecordKey">
+				<xr:TypeId>d40f08d9-4b1a-667e-fc9d-78c4c652ea3d</xr:TypeId>
+				<xr:ValueId>bd5d218c-760f-cd07-af94-9358e7c44583</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="RecalculationsManager.РегистрРасчета1" category="Recalcs">
+				<xr:TypeId>c16a5aae-8dc2-15f3-4d17-16d457c94dc3</xr:TypeId>
+				<xr:ValueId>7b2c268d-2125-022c-f036-e0e404c29c95</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>РегистрРасчета1</Name>
+			<Synonym/>
+			<Comment/>
+			<UseStandardCommands>true</UseStandardCommands>
+			<Periodicity>Month</Periodicity>
+			<ActionPeriod>true</ActionPeriod>
+			<BasePeriod>true</BasePeriod>
+			<Schedule>InformationRegister.РегистрСведений3</Schedule>
+			<ScheduleValue>InformationRegister.РегистрСведений3.Resource.Значение</ScheduleValue>
+			<ScheduleDate>InformationRegister.РегистрСведений3.Dimension.Дата</ScheduleDate>
+			<ChartOfCalculationTypes>ChartOfCalculationTypes.ПланВидовРасчета1</ChartOfCalculationTypes>
+			<IncludeHelpInContents>false</IncludeHelpInContents>
+			<DataLockControlMode>Managed</DataLockControlMode>
+			<FullTextSearch>DontUse</FullTextSearch>
+			<ListPresentation/>
+			<ExtendedListPresentation/>
+			<Explanation/>
+		</Properties>
+		<ChildObjects>
+			<Dimension uuid="c9be0082-b428-2044-1a5e-b51586ab9a0b">
+				<Properties>
+					<Name>Измерение1</Name>
+					<Synonym/>
+					<Comment/>
+					<Type>
+						<v8:Type>xs:string</v8:Type>
+						<v8:StringQualifiers>
+							<v8:Length>10</v8:Length>
+							<v8:AllowedLength>Variable</v8:AllowedLength>
+						</v8:StringQualifiers>
+					</Type>
+				</Properties>
+			</Dimension>
+			<Resource uuid="a766d913-d5bf-4672-e47c-bafddc6b00d2">
+				<Properties>
+					<Name>Ресурс1</Name>
+					<Synonym/>
+					<Comment/>
+					<Type>
+						<v8:Type>xs:decimal</v8:Type>
+						<v8:NumberQualifiers>
+							<v8:Digits>10</v8:Digits>
+							<v8:FractionDigits>2</v8:FractionDigits>
+							<v8:AllowedSign>Any</v8:AllowedSign>
+						</v8:NumberQualifiers>
+					</Type>
+				</Properties>
+			</Resource>
+		</ChildObjects>
+	</CalculationRegister>
+</MetaDataObject>

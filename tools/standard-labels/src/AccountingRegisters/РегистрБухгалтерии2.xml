@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.10">
+	<AccountingRegister uuid="66d3b092-bfa1-f81a-0205-f6f1fb2b4280">
+		<InternalInfo>
+			<xr:GeneratedType name="AccountingRegisterRecord.РегистрБухгалтерии2" category="Record">
+				<xr:TypeId>3c253c4f-cf0a-8b3d-d1f3-6d935c53ab88</xr:TypeId>
+				<xr:ValueId>9e666c4e-73bc-2427-aa91-f91107fb75d6</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="AccountingRegisterExtDimensions.РегистрБухгалтерии2" category="ExtDimensions">
+				<xr:TypeId>dbd42ea6-3c65-46d2-d071-dc308ccd3237</xr:TypeId>
+				<xr:ValueId>e2dbdd3d-7fb3-6478-a642-6d9850f072ab</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="AccountingRegisterRecordSet.РегистрБухгалтерии2" category="RecordSet">
+				<xr:TypeId>217672c9-7ea6-e55c-47c2-e732670e3e15</xr:TypeId>
+				<xr:ValueId>34eede2a-f8cc-2445-ee11-c7d66225e2e8</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="AccountingRegisterRecordKey.РегистрБухгалтерии2" category="RecordKey">
+				<xr:TypeId>721cf5a7-9f91-a44e-6c51-32a06db12998</xr:TypeId>
+				<xr:ValueId>d2453ee4-c73d-bee5-ae8e-82079a5873f1</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="AccountingRegisterSelection.РегистрБухгалтерии2" category="Selection">
+				<xr:TypeId>f4e9a286-5ada-6072-7297-391049d8cef0</xr:TypeId>
+				<xr:ValueId>bb33fef5-cdaa-d6eb-9e45-244f5b8b9e38</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="AccountingRegisterList.РегистрБухгалтерии2" category="List">
+				<xr:TypeId>f7e4a075-de06-f6ad-dc87-1dde917b9e3b</xr:TypeId>
+				<xr:ValueId>035f53c7-bbbe-ab1e-23ec-918e8774e26d</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="AccountingRegisterManager.РегистрБухгалтерии2" category="Manager">
+				<xr:TypeId>03c20871-97b9-3853-c7e1-3fb69cda0a31</xr:TypeId>
+				<xr:ValueId>151bb74b-cd70-6093-4f69-797f39cbe4ee</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>РегистрБухгалтерии2</Name>
+			<Synonym/>
+			<Comment/>
+			<UseStandardCommands>true</UseStandardCommands>
+			<ChartOfAccounts>ChartOfAccounts.ПланСчетов1</ChartOfAccounts>
+			<Correspondence>true</Correspondence>
+			<PeriodAdjustmentLength>0</PeriodAdjustmentLength>
+			<IncludeHelpInContents>false</IncludeHelpInContents>
+			<DataLockControlMode>Managed</DataLockControlMode>
+			<FullTextSearch>DontUse</FullTextSearch>
+			<ListPresentation/>
+			<ExtendedListPresentation/>
+			<Explanation/>
+		</Properties>
+		<ChildObjects>
+			<Dimension uuid="c4944e03-517d-a918-d266-b07e12ce8af3">
+				<Properties>
+					<Name>Измерение1</Name>
+					<Synonym/>
+					<Comment/>
+					<Type>
+						<v8:Type>xs:string</v8:Type>
+						<v8:StringQualifiers>
+							<v8:Length>10</v8:Length>
+							<v8:AllowedLength>Variable</v8:AllowedLength>
+						</v8:StringQualifiers>
+					</Type>
+				</Properties>
+			</Dimension>
+			<Resource uuid="50cf9d6b-1e9c-fa06-02fd-05d4a662decc">
+				<Properties>
+					<Name>Ресурс1</Name>
+					<Synonym/>
+					<Comment/>
+					<Type>
+						<v8:Type>xs:decimal</v8:Type>
+						<v8:NumberQualifiers>
+							<v8:Digits>10</v8:Digits>
+							<v8:FractionDigits>2</v8:FractionDigits>
+							<v8:AllowedSign>Any</v8:AllowedSign>
+						</v8:NumberQualifiers>
+					</Type>
+				</Properties>
+			</Resource>
+		</ChildObjects>
+	</AccountingRegister>
+</MetaDataObject>

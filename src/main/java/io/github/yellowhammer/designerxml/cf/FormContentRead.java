@@ -38,7 +38,7 @@ public final class FormContentRead {
     if (!Files.isRegularFile(formXml)) {
       throw new IllegalArgumentException("file not found: " + formXml);
     }
-    return readForm(JaxbReflect.value(DesignerXml.read(formXml, version)));
+    return read(Files.readAllBytes(formXml), version);
   }
 
   /**
@@ -48,12 +48,15 @@ public final class FormContentRead {
    * @param version версия формата выгрузки
    */
   public static FormContentDto read(byte[] utf8Xml, SchemaVersion version) throws JAXBException {
-    return readForm(JaxbReflect.value(DesignerXml.unmarshal(version, new ByteArrayInputStream(utf8Xml))));
+    FormContentDto dto = readForm(JaxbReflect.value(DesignerXml.unmarshal(version, new ByteArrayInputStream(utf8Xml))));
+    dto.excludedCommands = FormCommandSetReader.excludedCommands(utf8Xml);
+    return dto;
   }
 
   private static FormContentDto readForm(Object form) {
     FormContentDto dto = new FormContentDto();
     dto.title = titleText(form);
+    dto.properties = writtenProperties(form);
     dto.events = readEvents(form);
     dto.items = readItems(form);
 
@@ -93,6 +96,11 @@ public final class FormContentRead {
     dto.title = titleText(attribute);
     dto.type = MdTypeDescriptionBridge.read(JaxbReflect.getOptional(attribute, "getType"));
     dto.main = JaxbReflect.getBooleanOptional(attribute, "isMainAttribute");
+    Object settings = JaxbReflect.getOptional(attribute, "getSettings");
+    if (settings != null) {
+      Object mainTable = JaxbReflect.getOptional(settings, "getMainTable");
+      dto.mainTable = mainTable == null ? null : String.valueOf(mainTable);
+    }
     Object columns = JaxbReflect.getOptional(attribute, "getColumns");
     if (columns != null) {
       // Помимо колонок в этом списке лежит блок дополнительных колонок - у него нет имени.

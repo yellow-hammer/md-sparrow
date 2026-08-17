@@ -59,12 +59,29 @@ class FormItemPropertyDictionaryTest {
     }
   }
 
+  /** Свойства самой формы стоят отдельным видом: у элементов их нет, а умолчания нужны так же. */
+  @Test
+  void отдаётСоставСвойствСамойФормы() {
+    List<FormItemPropertyDto> properties =
+      FormItemPropertyDictionary.forVersion(SchemaVersion.V2_20).get(FormItemPropertyDictionary.FORM_KIND);
+
+    assertThat(property(properties, "CommandBarLocation").defaultValue).isEqualTo("Auto");
+    assertThat(property(properties, "CommandBarLocation").values).containsExactly("None", "Auto", "Top", "Bottom");
+    assertThat(property(properties, "AutoTitle").defaultValue).isEqualTo("true");
+    assertThat(property(properties, "SaveDataInSettings").defaultValue).isEqualTo("DontUse");
+    assertThat(property(properties, "Title").kind).isEqualTo("localString");
+    // Реквизиты, команды и параметры формы - её состав, а не свойства.
+    assertThat(properties).extracting(p -> p.name)
+      .doesNotContain("Attributes", "Commands", "Parameters", "CommandInterface", "BaseForm", "ChildItems");
+  }
+
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
   void словарьСобираетсяДляВсехВерсий(SchemaVersion version) {
     Map<String, List<FormItemPropertyDto>> dictionary = FormItemPropertyDictionary.forVersion(version);
 
-    assertThat(dictionary).containsKeys("InputField", "UsualGroup", "Table", "Button", "AutoCommandBar");
+    assertThat(dictionary).containsKeys("InputField", "UsualGroup", "Table", "Button", "AutoCommandBar", "Form");
+    assertThat(dictionary.get("Form")).extracting(p -> p.name).contains("CommandBarLocation", "AutoTitle");
     assertThat(dictionary.get("UsualGroup")).extracting(p -> p.name).contains("Group", "Title", "Visible");
   }
 }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <SessionParameter uuid="733df40d-6ae0-357a-b596-a92d5c62a8d2">
+        <Properties>
+            <Name>ПараметрСеанса1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <Type>
+                <v8:Type xmlns:xs="http://www.w3.org/2001/XMLSchema">xs:string</v8:Type>
+                <v8:StringQualifiers>
+                    <v8:Length>10</v8:Length>
+                    <v8:AllowedLength>Variable</v8:AllowedLength>
+                </v8:StringQualifiers>
+            </Type>
+        </Properties>
+    </SessionParameter>
+</MetaDataObject>

@@ -51,6 +51,7 @@ import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataGraphDto;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
+import io.github.yellowhammer.designerxml.cf.StandardCommandLabels;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -93,6 +94,7 @@ import java.util.concurrent.Callable;
     DesignerXmlCli.CfMdObjectStructureGetCmd.class,
     DesignerXmlCli.CfFormContentGetCmd.class,
     DesignerXmlCli.CfFormItemPropertiesCmd.class,
+    DesignerXmlCli.CfFormStandardCommandsCmd.class,
     DesignerXmlCli.CfFormItemPropertiesSetCmd.class,
     MdObjectMutationCommands.CfMdObjectSetCmd.class,
     MdObjectMutationCommands.CfMdAttributeAddCmd.class,
@@ -490,6 +492,19 @@ public final class DesignerXmlCli implements Callable<Integer> {
     public Integer call() {
       Gson gson = new GsonBuilder().disableHtmlEscaping().create();
       System.out.println(gson.toJson(FormItemPropertyDictionary.forVersion(version)));
+      return 0;
+    }
+  }
+
+  @Command(
+    name = "cf-form-standard-commands",
+    description = "Вывести JSON того, что платформа знает про стандартные команды формы."
+  )
+  static final class CfFormStandardCommandsCmd implements Callable<Integer> {
+    @Override
+    public Integer call() {
+      Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+      System.out.println(gson.toJson(StandardCommandLabels.dto()));
       return 0;
     }
   }

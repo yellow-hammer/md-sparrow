@@ -36,6 +36,15 @@ class FormContentReadTest {
     return path;
   }
 
+  /** Форма объекта другого вида: {@code <вид>/<объект>/Forms/<форма>/Ext/Form.xml}. */
+  private static Path formOf(String tag, String object, String name) {
+    String root = System.getProperty("fixtures.ssl31.root");
+    assertThat(root).isNotBlank();
+    Path path = Path.of(root, "src", "cf", tag, object, "Forms", name, "Ext", "Form.xml");
+    assertThat(path).exists();
+    return path;
+  }
+
   private static FormItemDto byName(List<FormItemDto> items, String name) {
     return items.stream().filter(i -> name.equals(i.name)).findFirst().orElseThrow(
       () -> new AssertionError("нет элемента " + name + " среди " + items.stream().map(i -> i.name).toList()));
@@ -82,6 +91,25 @@ class FormContentReadTest {
     });
   }
 
+  /** Колонки динамического списка идут по полям основной таблицы, а не по реквизитам формы. */
+  @Test
+  void читаетОсновнуюТаблицуДинамическогоСписка() throws Exception {
+    FormContentDto dto = FormContentRead.read(form("ФормаСписка"), SchemaVersion.V2_20);
+
+    assertThat(dto.attributes)
+      .filteredOn(a -> "Список".equals(a.name))
+      .singleElement()
+      .satisfies(a -> assertThat(a.mainTable).isEqualTo("Catalog.Валюты"));
+  }
+
+  /** У обычного реквизита основной таблицы нет: её заводит только динамический список. */
+  @Test
+  void обычныйРеквизитОстаётсяБезОсновнойТаблицы() throws Exception {
+    FormContentDto dto = FormContentRead.read(form("ФормаЭлемента"), SchemaVersion.V2_20);
+
+    assertThat(dto.attributes).allSatisfy(a -> assertThat(a.mainTable).isNull());
+  }
+
   @Test
   void читаетТаблицуИКоманднуюПанель() throws Exception {
     FormContentDto dto = FormContentRead.read(form("ФормаСписка"), SchemaVersion.V2_20);
@@ -99,6 +127,53 @@ class FormContentReadTest {
     assertThat(commandBar.type).isEqualTo("CommandBar");
     assertThat(byName(commandBar.items, "Создать").type).isEqualTo("Popup");
     assertThat(dto.attributes).extracting(a -> a.name).containsExactly("Список");
+  }
+
+  /** Свойства самой формы записаны в корне файла и к элементам отношения не имеют. */
+  @Test
+  void читаетСвойстваСамойФормы() throws Exception {
+    FormContentDto dto = FormContentRead.read(
+      formOf("DataProcessors", "ПереносФайлов", "Форма"), SchemaVersion.V2_20);
+
+    assertThat(dto.properties)
+      .containsEntry("CommandBarLocation", "Bottom")
+      .containsEntry("WindowOpeningMode", "LockOwnerWindow")
+      .containsEntry("Customizable", "false")
+      .containsEntry("version", "2.20");
+    // Состав формы к свойствам не относится: он приходит отдельными блоками.
+    assertThat(dto.properties).doesNotContainKeys("ChildItems", "Attributes", "Commands", "AutoCommandBar");
+  }
+
+  /** Свойства корня не подмешиваются к свойствам элементов: у панели своё положение, у формы своё. */
+  @Test
+  void свойстваФормыНеПопадаютКЭлементам() throws Exception {
+    FormContentDto dto = FormContentRead.read(
+      formOf("DataProcessors", "ПереносФайлов", "Форма"), SchemaVersion.V2_20);
+
+    FormItemDto commandBar = byName(dto.items, "ФормаКоманднаяПанель");
+    assertThat(commandBar.properties).containsEntry("HorizontalAlign", "Right");
+    assertThat(commandBar.properties).doesNotContainKey("CommandBarLocation");
+  }
+
+  /**
+   * Исключённые команды платформа пишет столькими узлами, сколько команд, а схема объявляет узел
+   * одиночным: читаем их потоком, иначе от списка осталась бы одна команда.
+   */
+  @Test
+  void читаетИсключённыеКоманды() throws Exception {
+    FormContentDto dto = FormContentRead.read(
+      formOf("BusinessProcesses", "Задание", "ДействиеВыполнить"), SchemaVersion.V2_20);
+
+    assertThat(dto.excludedCommands).containsExactly(
+      "Activate", "Copy", "Delete", "Execute", "ExecuteAndClose", "SetDeletionMark");
+  }
+
+  /** Состав команд есть и у поля, и у таблицы: корню формы принадлежит только его собственный. */
+  @Test
+  void неБерётСоставКомандВложенныхЭлементов() throws Exception {
+    FormContentDto dto = FormContentRead.read(form("ФормаСписка"), SchemaVersion.V2_20);
+
+    assertThat(dto.excludedCommands).isEmpty();
   }
 
   /** Модель формы собрана для каждого формата: иначе форма читается не везде, а выборочно. */

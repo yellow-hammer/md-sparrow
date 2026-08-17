@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <ChartOfAccounts uuid="c51cfdeb-acdc-3689-9cc3-cbba1db5bd37">
+        <InternalInfo>
+            <xr:GeneratedType category="Object" name="ChartOfAccountsObject.ПланСчетов1">
+                <xr:TypeId>c64b9bbd-7d14-3516-bf03-009a3a42dd05</xr:TypeId>
+                <xr:ValueId>9961de04-c81e-3b9d-bd4c-c01840d92435</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Ref" name="ChartOfAccountsRef.ПланСчетов1">
+                <xr:TypeId>b7149e95-0bde-33be-94e3-b434de3bd5aa</xr:TypeId>
+                <xr:ValueId>6f78b78e-64ac-39f2-a8c3-ec2144356a39</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Selection" name="ChartOfAccountsSelection.ПланСчетов1">
+                <xr:TypeId>62ed8cc5-91fa-3f80-9435-6b6f80bd1749</xr:TypeId>
+                <xr:ValueId>2fab48be-b7de-3112-9824-e43d48ad9b01</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="List" name="ChartOfAccountsList.ПланСчетов1">
+                <xr:TypeId>fb99d3f0-904d-37c5-82b3-3063d97c3a70</xr:TypeId>
+                <xr:ValueId>532fd458-8173-394b-9cb2-50a2fdb11b77</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Manager" name="ChartOfAccountsManager.ПланСчетов1">
+                <xr:TypeId>2d31104c-601b-3b5e-88f0-ea6acc71894a</xr:TypeId>
+                <xr:ValueId>c6c1caef-83a5-3991-aa48-ef0754795964</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="ExtDimensionTypes" name="ChartOfAccountsExtDimensionTypes.ПланСчетов1">
+                <xr:TypeId>8cb3b79b-168e-314a-b3de-724d20fda7b0</xr:TypeId>
+                <xr:ValueId>cc078bf0-67a9-3950-b049-7bcd0100d1f8</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="ExtDimensionTypesRow" name="ChartOfAccountsExtDimensionTypesRow.ПланСчетов1">
+                <xr:TypeId>80f81847-ae4f-30e3-a28a-37d73924bc35</xr:TypeId>
+                <xr:ValueId>e4a4e002-f02b-34ed-bbbd-a4e3548a982e</xr:ValueId>
+            </xr:GeneratedType>
+        </InternalInfo>
+        <Properties>
+            <Name>ПланСчетов1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <UseStandardCommands>true</UseStandardCommands>
+            <IncludeHelpInContents>false</IncludeHelpInContents>
+            <BasedOn/>
+            <ExtDimensionTypes>ChartOfCharacteristicTypes.ПланВидовХарактеристик1</ExtDimensionTypes>
+            <MaxExtDimensionCount>3</MaxExtDimensionCount>
+            <CodeMask></CodeMask>
+            <CodeLength>9</CodeLength>
+            <DescriptionLength>25</DescriptionLength>
+            <CodeSeries>WholeChartOfAccounts</CodeSeries>
+            <CheckUnique>true</CheckUnique>
+            <DefaultPresentation>AsCode</DefaultPresentation>
+            <Characteristics/>
+            <PredefinedDataUpdate>Auto</PredefinedDataUpdate>
+            <EditType>InDialog</EditType>
+            <QuickChoice>false</QuickChoice>
+            <ChoiceMode>BothWays</ChoiceMode>
+            <InputByString>
+                <xr:Field>ChartOfAccounts.ПланСчетов1.StandardAttribute.Description</xr:Field>
+                <xr:Field>ChartOfAccounts.ПланСчетов1.StandardAttribute.Code</xr:Field>
+            </InputByString>
+            <SearchStringModeOnInputByString>Begin</SearchStringModeOnInputByString>
+            <FullTextSearchOnInputByString>DontUse</FullTextSearchOnInputByString>
+            <ChoiceDataGetModeOnInputByString>Directly</ChoiceDataGetModeOnInputByString>
+            <CreateOnInput>DontUse</CreateOnInput>
+            <ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>
+            <DefaultObjectForm></DefaultObjectForm>
+            <DefaultListForm></DefaultListForm>
+            <DefaultChoiceForm></DefaultChoiceForm>
+            <AuxiliaryObjectForm></AuxiliaryObjectForm>
+            <AuxiliaryListForm></AuxiliaryListForm>
+            <AuxiliaryChoiceForm></AuxiliaryChoiceForm>
+            <AutoOrderByCode>true</AutoOrderByCode>
+            <OrderLength>5</OrderLength>
+            <DataLockFields/>
+            <DataLockControlMode>Managed</DataLockControlMode>
+            <FullTextSearch>Use</FullTextSearch>
+            <DataHistory>DontUse</DataHistory>
+            <ObjectPresentation/>
+            <ExtendedObjectPresentation/>
+            <ListPresentation/>
+            <ExtendedListPresentation/>
+            <Explanation/>
+            <UpdateDataHistoryImmediatelyAfterWrite>false</UpdateDataHistoryImmediatelyAfterWrite>
+            <ExecuteAfterWriteDataHistoryVersionProcessing>false</ExecuteAfterWriteDataHistoryVersionProcessing>
+        </Properties>
+        <ChildObjects/>
+    </ChartOfAccounts>
+</MetaDataObject>

@@ -1,0 +1,87 @@
+{
+  "platformVersion": "8.5.1.1343",
+  "form": {
+    "WriteAndClose": "Записать и закрыть",
+    "Write": "Записать",
+    "Reread": "Перечитать",
+    "PostAndClose": "Провести и закрыть",
+    "Post": "Провести",
+    "UndoPosting": "Отменить проведение",
+    "StartAndClose": "Стартовать и закрыть",
+    "Start": "Старт",
+    "SetDeletionMark": "Пометить на удаление / Снять пометку",
+    "ShowInList": "Показать в списке",
+    "Close": "Закрыть",
+    "ChangeHistory": "История изменений",
+    "CustomizeForm": "Изменить форму...",
+    "Help": "Справка"
+  },
+  "table": {
+    "Create": "Создать",
+    "Change": "Изменить",
+    "Refresh": "Обновить",
+    "Find": "Расширенный поиск",
+    "OutputList": "Вывести список...",
+    "Add": "Добавить",
+    "Delete": "Удалить",
+    "MoveUp": "Переместить вверх",
+    "MoveDown": "Переместить вниз",
+    "SortListAsc": "Сортировать по возрастанию"
+  },
+  "atRight": [
+    "CustomizeForm",
+    "Help"
+  ],
+  "autoCommandBar": {
+    "CatalogObject": [
+      { "command": "WriteAndClose", "defaultButton": true },
+      { "command": "Write" },
+      { "command": "Help", "representation": "Picture" }
+    ],
+    "InformationRegisterRecordManager": [
+      { "command": "WriteAndClose", "defaultButton": true },
+      { "command": "Write" },
+      { "command": "Help", "representation": "Picture" }
+    ],
+    "DocumentObject": [
+      { "command": "PostAndClose", "defaultButton": true },
+      { "command": "Write" },
+      { "command": "Post" },
+      { "label": "Создать на основании", "submenu": true, "afterOwnButtons": true },
+      { "command": "Help", "representation": "Picture" }
+    ],
+    "ChartOfCharacteristicTypesObject": [
+      { "command": "WriteAndClose", "defaultButton": true },
+      { "command": "Write" },
+      { "command": "Help", "representation": "Picture" }
+    ],
+    "DataProcessorObject": [
+      { "command": "Help", "representation": "Picture" }
+    ],
+    "ReportObject": [
+      { "command": "Help", "representation": "Picture" }
+    ],
+    "TaskObject": [
+      { "command": "Write" },
+      { "label": "Создать на основании", "submenu": true, "afterOwnButtons": true }
+    ],
+    "BusinessProcessObject": [
+      { "command": "StartAndClose" },
+      { "command": "WriteAndClose" }
+    ],
+    "DynamicList": [
+      { "representation": "Picture" },
+      { "command": "Help", "representation": "Picture" }
+    ]
+  },
+  "tableCommandBar": {
+    "ObjectTablePart": [
+      { "command": "Add" },
+      { "representation": "Picture" },
+      { "representation": "Picture" }
+    ],
+    "DynamicList": [
+      { "representation": "Picture" }
+    ]
+  }
+}

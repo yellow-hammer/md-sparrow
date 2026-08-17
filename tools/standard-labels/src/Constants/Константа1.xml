@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/uobjects" xmlns:ns10="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns11="http://v8.1c.ru/8.2/data/bsl" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <Constant uuid="2d586927-fca2-3e09-a7e1-3916a92b77fe">
+        <InternalInfo>
+            <xr:GeneratedType category="Manager" name="ConstantManager.Константа1">
+                <xr:TypeId>34ae94c4-f98e-3dfa-99d8-926a454784d5</xr:TypeId>
+                <xr:ValueId>62ead61a-832b-3c5e-a0be-47e799e4a5d1</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="ValueManager" name="ConstantValueManager.Константа1">
+                <xr:TypeId>b23ef94f-a577-37a7-9ba1-4339784e5c13</xr:TypeId>
+                <xr:ValueId>f699430c-52a7-3f95-a650-0bd18f9f02c2</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="ValueKey" name="ConstantValueKey.Константа1">
+                <xr:TypeId>73f07cc8-6ae1-3de8-8e9e-e89c256f3768</xr:TypeId>
+                <xr:ValueId>421b40a3-32a4-3443-ba5d-f64e12cf794c</xr:ValueId>
+            </xr:GeneratedType>
+        </InternalInfo>
+        <Properties>
+            <Name>Константа1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <Type>
+                <v8:Type xmlns:xs="http://www.w3.org/2001/XMLSchema">xs:string</v8:Type>
+                <v8:StringQualifiers>
+                    <v8:Length>10</v8:Length>
+                    <v8:AllowedLength>Variable</v8:AllowedLength>
+                </v8:StringQualifiers>
+            </Type>
+            <UseStandardCommands>true</UseStandardCommands>
+            <DefaultForm></DefaultForm>
+            <ExtendedPresentation/>
+            <Explanation/>
+            <PasswordMode>false</PasswordMode>
+            <Format/>
+            <EditFormat/>
+            <ToolTip/>
+            <MarkNegatives>false</MarkNegatives>
+            <Mask></Mask>
+            <MultiLine>false</MultiLine>
+            <ExtendedEdit>false</ExtendedEdit>
+            <MinValue xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+            <MaxValue xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+            <FillChecking>DontCheck</FillChecking>
+            <ChoiceFoldersAndItems>Items</ChoiceFoldersAndItems>
+            <ChoiceParameterLinks/>
+            <ChoiceParameters/>
+            <QuickChoice>Auto</QuickChoice>
+            <ChoiceForm></ChoiceForm>
+            <LinkByType/>
+            <ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>
+            <DataLockControlMode>Managed</DataLockControlMode>
+            <DataHistory>DontUse</DataHistory>
+            <UpdateDataHistoryImmediatelyAfterWrite>false</UpdateDataHistoryImmediatelyAfterWrite>
+            <ExecuteAfterWriteDataHistoryVersionProcessing>false</ExecuteAfterWriteDataHistoryVersionProcessing>
+        </Properties>
+    </Constant>
+</MetaDataObject>

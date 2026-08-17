@@ -55,6 +55,16 @@ public final class FormItemPropertyDictionary {
     STRUCTURE_NODES.add("Events");
   }
 
+  /** Вид «сама форма»: свойства корня {@code Form.xml}, а не какого-либо её элемента. */
+  public static final String FORM_KIND = "Form";
+
+  /**
+   * Узлы корня формы, которые к свойствам не относятся: реквизиты, команды, параметры, командный
+   * интерфейс и форма-основание. Они приходят отдельными блоками содержимого формы.
+   */
+  private static final List<String> FORM_STRUCTURE_NODES = List.of(
+    "Attributes", "Commands", "Parameters", "CommandInterface", "BaseForm");
+
   private FormItemPropertyDictionary() {
   }
 
@@ -110,6 +120,9 @@ public final class FormItemPropertyDictionary {
       }
       out.put(kind.getKey(), properties);
     }
+    List<String> formStructure = new ArrayList<>(structure);
+    formStructure.addAll(FORM_STRUCTURE_NODES);
+    out.put(FORM_KIND, properties(logformClass(version, FORM_KIND), formStructure));
     return out;
   }
 

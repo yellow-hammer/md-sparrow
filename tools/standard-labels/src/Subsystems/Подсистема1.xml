@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <Subsystem uuid="f4d81bab-0352-3bae-8292-927a95e26675">
+        <Properties>
+            <Name>Подсистема1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <IncludeHelpInContents>true</IncludeHelpInContents>
+            <IncludeInCommandInterface>true</IncludeInCommandInterface>
+            <Explanation/>
+            <Picture/>
+            <Content/>
+        </Properties>
+        <ChildObjects/>
+    </Subsystem>
+</MetaDataObject>

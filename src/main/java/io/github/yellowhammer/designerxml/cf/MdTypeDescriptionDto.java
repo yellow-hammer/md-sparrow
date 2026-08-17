@@ -24,6 +24,13 @@ import java.util.List;
 public final class MdTypeDescriptionDto {
 
   public List<String> types;
+  /**
+   * Наборы типов ({@code v8:TypeSet}): определяемый тип и характеристики.
+   *
+   * <p>Состав такого набора лежит у другого объекта конфигурации, поэтому здесь стоит только
+   * ссылка: {@code cfg:DefinedType.ДенежнаяСумма}.
+   */
+  public List<String> typeSets;
   public MdStringQualifiersDto stringQualifiers;
   public MdNumberQualifiersDto numberQualifiers;
   public MdDateQualifiersDto dateQualifiers;
@@ -31,6 +38,7 @@ public final class MdTypeDescriptionDto {
 
   public MdTypeDescriptionDto() {
     this.types = new ArrayList<>();
+    this.typeSets = new ArrayList<>();
   }
 
   /** Квалификаторы строки: длина и её изменяемость. */
