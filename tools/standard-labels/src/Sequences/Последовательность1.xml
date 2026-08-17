@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.10">
+	<Sequence uuid="05311d44-8f5f-e452-d1ba-0798e3defc9f">
+		<InternalInfo>
+			<xr:GeneratedType name="SequenceRecord.Последовательность1" category="Record">
+				<xr:TypeId>86296a3b-ed73-5590-30cc-7c42f59290d2</xr:TypeId>
+				<xr:ValueId>2848c958-dbaa-a6b9-28d0-39983c89c805</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="SequenceManager.Последовательность1" category="Manager">
+				<xr:TypeId>e0ded40b-4a98-eeba-cf21-265f691210a8</xr:TypeId>
+				<xr:ValueId>41959c3b-1730-f2ad-17e2-21f36fb00878</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="SequenceRecordSet.Последовательность1" category="RecordSet">
+				<xr:TypeId>2bd31c0a-5a29-ccae-7690-b08619bb5039</xr:TypeId>
+				<xr:ValueId>9a856440-598d-23b1-0b0f-7f3c41095b1c</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>Последовательность1</Name>
+			<Synonym/>
+			<Comment/>
+			<MoveBoundaryOnPosting>Move</MoveBoundaryOnPosting>
+			<Documents>
+				<xr:Item xsi:type="xr:MDObjectRef">Document.Документ1</xr:Item>
+			</Documents>
+			<RegisterRecords/>
+			<DataLockControlMode>Managed</DataLockControlMode>
+		</Properties>
+		<ChildObjects>
+			<Dimension uuid="69aafb1e-1560-ee55-7548-09acb5789f6f">
+				<Properties>
+					<Name>Измерение1</Name>
+					<Synonym/>
+					<Comment/>
+					<Type>
+						<v8:Type>xs:string</v8:Type>
+						<v8:StringQualifiers>
+							<v8:Length>10</v8:Length>
+							<v8:AllowedLength>Variable</v8:AllowedLength>
+						</v8:StringQualifiers>
+					</Type>
+				</Properties>
+			</Dimension>
+		</ChildObjects>
+	</Sequence>
+</MetaDataObject>

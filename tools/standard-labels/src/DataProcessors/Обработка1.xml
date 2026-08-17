@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <DataProcessor uuid="49856221-b07a-390c-af9f-0b1db81f971c">
+        <InternalInfo>
+            <xr:GeneratedType category="Object" name="DataProcessorObject.Обработка1">
+                <xr:TypeId>18088994-b056-32e8-b7b6-a87361864017</xr:TypeId>
+                <xr:ValueId>7e218d17-ef34-3aba-a798-1304ce8b4ea4</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Manager" name="DataProcessorManager.Обработка1">
+                <xr:TypeId>ac604d24-6e77-3490-8a04-d1c8c82be9a1</xr:TypeId>
+                <xr:ValueId>2539144d-e6a1-3350-a8f3-f92a4551617b</xr:ValueId>
+            </xr:GeneratedType>
+        </InternalInfo>
+        <Properties>
+            <Name>Обработка1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <UseStandardCommands>true</UseStandardCommands>
+            <DefaultForm></DefaultForm>
+            <AuxiliaryForm></AuxiliaryForm>
+            <IncludeHelpInContents>false</IncludeHelpInContents>
+            <ExtendedPresentation/>
+            <Explanation/>
+        </Properties>
+        <ChildObjects/>
+    </DataProcessor>
+</MetaDataObject>

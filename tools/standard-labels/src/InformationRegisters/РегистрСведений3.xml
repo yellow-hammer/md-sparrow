@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.10">
+	<InformationRegister uuid="b9da2364-a476-7a14-1fe3-38dfacd9a437">
+		<InternalInfo>
+			<xr:GeneratedType name="InformationRegisterRecord.РегистрСведений3" category="Record">
+				<xr:TypeId>6fdd7c07-902f-6486-d909-dcb82eb4c6ce</xr:TypeId>
+				<xr:ValueId>4b3ba01d-d3fb-6fa8-6551-132db8008c94</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterManager.РегистрСведений3" category="Manager">
+				<xr:TypeId>68fa393a-cf44-6a66-abdf-6d9dd5fbf230</xr:TypeId>
+				<xr:ValueId>e09877b8-12dc-b3b6-0217-dbae7b999798</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterSelection.РегистрСведений3" category="Selection">
+				<xr:TypeId>25a66d11-7886-18ee-8c73-5ddc5a03e03c</xr:TypeId>
+				<xr:ValueId>aa321d3a-63fe-663f-1a5d-1c0a1d84965e</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterList.РегистрСведений3" category="List">
+				<xr:TypeId>cf41a6c3-253e-5277-376b-432d00728cda</xr:TypeId>
+				<xr:ValueId>6a1bbe29-d7ac-c2d6-67a6-0fa6e7ee7c4c</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterRecordSet.РегистрСведений3" category="RecordSet">
+				<xr:TypeId>5f728e54-a565-8832-3655-2cd8eee5e057</xr:TypeId>
+				<xr:ValueId>60f7a273-973b-3258-98fd-0ac60f65594d</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterRecordKey.РегистрСведений3" category="RecordKey">
+				<xr:TypeId>41d37353-b720-4696-381f-0c9c7fc90dad</xr:TypeId>
+				<xr:ValueId>dbe4c1c2-c200-77df-17c2-04bfe6763a81</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterRecordManager.РегистрСведений3" category="RecordManager">
+				<xr:TypeId>5f8cd7e5-6bc8-b00a-b3dc-9e8447cca79c</xr:TypeId>
+				<xr:ValueId>a0c42096-5254-1978-5175-d82ffe76d91d</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>РегистрСведений3</Name>
+			<Synonym/>
+			<Comment/>
+			<UseStandardCommands>true</UseStandardCommands>
+			<EditType>InDialog</EditType>
+			<InformationRegisterPeriodicity>Nonperiodical</InformationRegisterPeriodicity>
+			<WriteMode>Independent</WriteMode>
+			<MainFilterOnPeriod>false</MainFilterOnPeriod>
+			<IncludeHelpInContents>false</IncludeHelpInContents>
+			<DataLockControlMode>Managed</DataLockControlMode>
+			<FullTextSearch>DontUse</FullTextSearch>
+			<EnableTotalsSliceFirst>false</EnableTotalsSliceFirst>
+			<EnableTotalsSliceLast>false</EnableTotalsSliceLast>
+			<RecordPresentation/>
+			<ExtendedRecordPresentation/>
+			<ListPresentation/>
+			<ExtendedListPresentation/>
+			<Explanation/>
+		</Properties>
+		<ChildObjects>
+			<Dimension uuid="c5fa2dba-f557-283f-caf3-ebda0332f68b">
+				<Properties>
+					<Name>Дата</Name>
+					<Synonym/>
+					<Comment/>
+					<Type>
+						<v8:Type>xs:dateTime</v8:Type>
+						<v8:DateQualifiers>
+							<v8:DateFractions>Date</v8:DateFractions>
+						</v8:DateQualifiers>
+					</Type>
+				</Properties>
+			</Dimension>
+			<Resource uuid="ec6c732f-fa50-e227-a14c-0454755007b2">
+				<Properties>
+					<Name>Значение</Name>
+					<Synonym/>
+					<Comment/>
+					<Type>
+						<v8:Type>xs:decimal</v8:Type>
+						<v8:NumberQualifiers>
+							<v8:Digits>10</v8:Digits>
+							<v8:FractionDigits>2</v8:FractionDigits>
+							<v8:AllowedSign>Any</v8:AllowedSign>
+						</v8:NumberQualifiers>
+					</Type>
+				</Properties>
+			</Resource>
+		</ChildObjects>
+	</InformationRegister>
+</MetaDataObject>

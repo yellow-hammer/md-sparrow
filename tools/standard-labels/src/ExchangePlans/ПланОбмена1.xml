@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <ExchangePlan uuid="dc264f57-5f4e-30cf-99ec-5dcfeff3f0b7">
+        <InternalInfo>
+            <xr:ThisNode>659c0921-1022-3698-a35d-ba26894bf50c</xr:ThisNode>
+            <xr:GeneratedType category="Object" name="ExchangePlanObject.ПланОбмена1">
+                <xr:TypeId>4e2db846-74a5-33b4-af2e-8d85eb1e150c</xr:TypeId>
+                <xr:ValueId>ea120dc4-96d1-3057-995e-5f898aab91b8</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Ref" name="ExchangePlanRef.ПланОбмена1">
+                <xr:TypeId>19e881fa-d5f7-367b-b1e0-f22a2d323323</xr:TypeId>
+                <xr:ValueId>64f246f4-8c52-37de-8879-a42e0ba3b19c</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Selection" name="ExchangePlanSelection.ПланОбмена1">
+                <xr:TypeId>8ba32217-8ca2-3fa9-888c-168084508e6e</xr:TypeId>
+                <xr:ValueId>c3809e55-5a75-3b67-8f90-af5833f13c43</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="List" name="ExchangePlanList.ПланОбмена1">
+                <xr:TypeId>853abd96-82f6-32d5-911f-a868eb419407</xr:TypeId>
+                <xr:ValueId>9c6e9426-7dc5-377e-b49a-d34adcde71df</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Manager" name="ExchangePlanManager.ПланОбмена1">
+                <xr:TypeId>d59c05ea-8c1a-3d29-b12e-5f5aaec0ca0d</xr:TypeId>
+                <xr:ValueId>fb73596f-ee74-3b54-809d-61f8c140e3a0</xr:ValueId>
+            </xr:GeneratedType>
+        </InternalInfo>
+        <Properties>
+            <Name>ПланОбмена1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <UseStandardCommands>true</UseStandardCommands>
+            <CodeLength>9</CodeLength>
+            <CodeAllowedLength>Variable</CodeAllowedLength>
+            <DescriptionLength>25</DescriptionLength>
+            <DefaultPresentation>AsDescription</DefaultPresentation>
+            <EditType>InDialog</EditType>
+            <QuickChoice>false</QuickChoice>
+            <ChoiceMode>BothWays</ChoiceMode>
+            <InputByString>
+                <xr:Field>ExchangePlan.ПланОбмена1.StandardAttribute.Description</xr:Field>
+                <xr:Field>ExchangePlan.ПланОбмена1.StandardAttribute.Code</xr:Field>
+            </InputByString>
+            <SearchStringModeOnInputByString>Begin</SearchStringModeOnInputByString>
+            <FullTextSearchOnInputByString>DontUse</FullTextSearchOnInputByString>
+            <ChoiceDataGetModeOnInputByString>Directly</ChoiceDataGetModeOnInputByString>
+            <DefaultObjectForm></DefaultObjectForm>
+            <DefaultListForm></DefaultListForm>
+            <DefaultChoiceForm></DefaultChoiceForm>
+            <AuxiliaryObjectForm></AuxiliaryObjectForm>
+            <AuxiliaryListForm></AuxiliaryListForm>
+            <AuxiliaryChoiceForm></AuxiliaryChoiceForm>
+            <Characteristics/>
+            <BasedOn/>
+            <DistributedInfoBase>false</DistributedInfoBase>
+            <IncludeConfigurationExtensions>false</IncludeConfigurationExtensions>
+            <CreateOnInput>DontUse</CreateOnInput>
+            <ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>
+            <IncludeHelpInContents>false</IncludeHelpInContents>
+            <DataLockFields/>
+            <DataLockControlMode>Managed</DataLockControlMode>
+            <FullTextSearch>Use</FullTextSearch>
+            <ObjectPresentation/>
+            <ExtendedObjectPresentation/>
+            <ListPresentation/>
+            <ExtendedListPresentation/>
+            <Explanation/>
+            <DataHistory>DontUse</DataHistory>
+            <UpdateDataHistoryImmediatelyAfterWrite>false</UpdateDataHistoryImmediatelyAfterWrite>
+            <ExecuteAfterWriteDataHistoryVersionProcessing>false</ExecuteAfterWriteDataHistoryVersionProcessing>
+        </Properties>
+        <ChildObjects/>
+    </ExchangePlan>
+</MetaDataObject>

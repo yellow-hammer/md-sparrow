@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <DocumentNumerator uuid="7c036271-f508-3bf6-b798-87807766f160">
+        <Properties>
+            <Name>Нумератор1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <NumberType>String</NumberType>
+            <NumberLength>9</NumberLength>
+            <NumberAllowedLength>Variable</NumberAllowedLength>
+            <NumberPeriodicity>Nonperiodical</NumberPeriodicity>
+            <CheckUnique>true</CheckUnique>
+        </Properties>
+    </DocumentNumerator>
+</MetaDataObject>

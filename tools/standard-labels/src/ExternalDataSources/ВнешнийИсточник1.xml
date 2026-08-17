@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <ExternalDataSource uuid="6c5d7269-c7cb-3e9f-8105-81d925c7e482">
+        <InternalInfo>
+            <xr:GeneratedType category="Manager" name="ExternalDataSourceManager.ВнешнийИсточник1">
+                <xr:TypeId>ea781777-0493-373c-9642-9447f446e588</xr:TypeId>
+                <xr:ValueId>fa5bf475-812f-365d-8e21-d1b795c1ff44</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="TablesManager" name="ExternalDataSourceTablesManager.ВнешнийИсточник1">
+                <xr:TypeId>5216c447-ad1e-3d75-a002-341a5db57e79</xr:TypeId>
+                <xr:ValueId>78b18cf6-116c-31f3-b7ec-98d0c4c8e2b0</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="CubesManager" name="ExternalDataSourceCubesManager.ВнешнийИсточник1">
+                <xr:TypeId>df5c9aa5-a906-359e-9a20-c304cd896c99</xr:TypeId>
+                <xr:ValueId>9af5f646-febe-324b-8b7f-23febbaf7749</xr:ValueId>
+            </xr:GeneratedType>
+        </InternalInfo>
+        <Properties>
+            <Name>ВнешнийИсточник1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <DataLockControlMode>Automatic</DataLockControlMode>
+        </Properties>
+        <ChildObjects/>
+    </ExternalDataSource>
+</MetaDataObject>

@@ -1,0 +1,8 @@
+http:
+  - base: /
+    http-services:
+      publish-by-default: true
+      service:
+        - name: ВыгрузкаПодписей
+          root: labels
+          publish: true

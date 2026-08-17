@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MetaDataObject xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ns="http://v8.1c.ru/8.2/managed-application/modules" xmlns:ns10="http://v8.1c.ru/8.2/data/bsl" xmlns:ns11="http://v8.1c.ru/8.2/uobjects" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:ns13="http://v8.1c.ru/8.2/data/spreadsheet" version="2.10">
+    <Report uuid="92e6cdd2-fc02-311b-9397-f161156bb8bc">
+        <InternalInfo>
+            <xr:GeneratedType category="Object" name="ReportObject.Отчет1">
+                <xr:TypeId>49de26a5-4dac-3a9e-a2d7-f5749738edda</xr:TypeId>
+                <xr:ValueId>4f157620-f60a-3502-b07c-df5a736ebfb5</xr:ValueId>
+            </xr:GeneratedType>
+            <xr:GeneratedType category="Manager" name="ReportManager.Отчет1">
+                <xr:TypeId>14f3df92-4878-304a-bd1b-53dfcfdb26ee</xr:TypeId>
+                <xr:ValueId>e33bad97-9244-3436-8566-b633141b978e</xr:ValueId>
+            </xr:GeneratedType>
+        </InternalInfo>
+        <Properties>
+            <Name>Отчет1</Name>
+            <Synonym/>
+            <Comment></Comment>
+            <UseStandardCommands>true</UseStandardCommands>
+            <DefaultForm></DefaultForm>
+            <AuxiliaryForm></AuxiliaryForm>
+            <MainDataCompositionSchema></MainDataCompositionSchema>
+            <DefaultSettingsForm></DefaultSettingsForm>
+            <AuxiliarySettingsForm></AuxiliarySettingsForm>
+            <DefaultVariantForm></DefaultVariantForm>
+            <VariantsStorage></VariantsStorage>
+            <SettingsStorage></SettingsStorage>
+            <IncludeHelpInContents>false</IncludeHelpInContents>
+            <ExtendedPresentation/>
+            <Explanation/>
+        </Properties>
+        <ChildObjects/>
+    </Report>
+</MetaDataObject>

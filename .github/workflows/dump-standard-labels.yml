@@ -1,0 +1,127 @@
+name: "Вспомогательный: подписи стандартных реквизитов (ibcmd)"
+
+# Назначение: снять с платформы подписи стандартных реквизитов, которых нет в формате выгрузки.
+# На каждой версии: ставит платформу (как namespace-forest), создаёт файловую ИБ, загружает
+# конфигурацию из tools/standard-labels/src с HTTP-сервисом, публикует его автономным сервером
+# и забирает JSON. Конфигуратор не участвует, лицензия 1С не нужна.
+#
+# Результат - артефакт labels/<версия>/standard-labels.json; готовый файл кладут в ресурсы
+# библиотеки (src/main/resources/io/github/yellowhammer/designerxml/cf/standard-labels.json).
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: 'Версии платформы через пробел, например "8.3.27.2214 8.5.1.1343"'
+        required: true
+
+concurrency:
+  group: dump-standard-labels
+  cancel-in-progress: false
+
+jobs:
+  labels:
+    name: Подписи стандартных реквизитов
+    runs-on: ubuntu-22.04
+    timeout-minutes: 340
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установить OneScript
+        uses: otymko/setup-onescript@v1.5.1
+        with:
+          version: stable
+
+      - name: Установить yard
+        run: |
+          opm install opm
+          opm install yard
+          YARD_OS=$(find "$HOME/.local/share/ovm" -path '*/yard/src/yard.os' 2>/dev/null | head -1)
+          if [ -z "$YARD_OS" ]; then echo "ERROR: yard.os не найден"; exit 1; fi
+          echo "YARD_OS=$YARD_OS" >> "$GITHUB_ENV"
+
+      - name: Установить зависимости платформы 1С
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            fontconfig libgsf-1-114 libglib2.0-0 libodbc1 libwebkit2gtk-4.0-37 \
+            xvfb unzip curl
+          LE_BASE=http://archive.ubuntu.com/ubuntu/pool/universe/e/enchant/
+          LE_FILE=$(curl -s "$LE_BASE" | grep -oE 'libenchant1c2a_[^"]*_amd64\.deb' | head -1)
+          curl -sL "$LE_BASE$LE_FILE" -o /tmp/libenchant.deb
+          sudo apt-get install -y /tmp/libenchant.deb
+
+      - name: Снять подписи по версиям
+        env:
+          YARD_RELEASES_USER: ${{ secrets.ONEC_LOGIN }}
+          YARD_RELEASES_PWD: ${{ secrets.ONEC_PASSWORD }}
+          VERSIONS: ${{ inputs.versions }}
+        run: |
+          set +e
+          REPO_DIR=$(pwd)
+          mkdir -p "$REPO_DIR/labels"
+
+          for PLATFORM_VERSION in $VERSIONS; do
+            echo "===================== $PLATFORM_VERSION ====================="
+            DISTR_DIR=$(mktemp -d); chmod 777 "$DISTR_DIR"
+            ESCAPED_VERSION=$(echo "$PLATFORM_VERSION" | sed 's/\./\\./g')
+            APP_MAJOR=$(echo "$PLATFORM_VERSION" | cut -d. -f1,2)
+            DISTR_FILTERS=(
+              "[CС]ервер.+\(64-bit\) для DEB-based Linux-систем$"
+              "Технологическая платформа.+\(64-bit\) для Linux$"
+            )
+            OK=0
+            for ATTEMPT in 1 2 3; do
+              for DF in "${DISTR_FILTERS[@]}"; do
+                timeout 900 oscript "$YARD_OS" releases get \
+                  --app-filter "Технологическая платформа $APP_MAJOR\$" \
+                  --version-filter "$ESCAPED_VERSION" \
+                  --distr-filter "$DF" \
+                  --path "$DISTR_DIR" --download-limit 1 --extract || true
+                if find "$DISTR_DIR" -type f \( -name 'setup-full*.run' -o -name '*.deb' \) | grep -q .; then OK=1; break; fi
+              done
+              [ "$OK" -eq 1 ] && break
+              echo "Попытка $ATTEMPT: дистрибутив не получен, пауза 20с"; sleep 20
+            done
+            [ "$OK" -eq 1 ] || { echo "WARN: дистрибутив $PLATFORM_VERSION не скачан, пропуск"; rm -rf "$DISTR_DIR"; continue; }
+
+            sudo rm -rf /opt/1cv8 /opt/1C 2>/dev/null || true
+            RUN_INSTALLER=$(find "$DISTR_DIR" -name 'setup-full*.run' | head -1)
+            if [ -n "$RUN_INSTALLER" ]; then
+              chmod +x "$RUN_INSTALLER"
+              for COMPONENTS in server,client_full,v8_install_deps server,client_full; do
+                if timeout 900 xvfb-run -a sudo "$RUN_INSTALLER" --mode unattended \
+                  --enable-components "$COMPONENTS" > /tmp/install.log 2>&1; then break; fi
+              done
+            else
+              DEBS=$(find "$DISTR_DIR" -name '*.deb' | sort)
+              [ -n "$DEBS" ] || { echo "WARN: ни .run, ни .deb для $PLATFORM_VERSION, пропуск"; rm -rf "$DISTR_DIR"; continue; }
+              timeout 600 sudo dpkg -i $DEBS > /tmp/install.log 2>&1 \
+                || timeout 600 sudo apt-get install -f -y >> /tmp/install.log 2>&1
+            fi
+
+            OUT_DIR="$REPO_DIR/labels/$PLATFORM_VERSION"
+            OUT="$OUT_DIR" PROBE=1 bash "$REPO_DIR/tools/standard-labels/dump.sh"
+            if [ ! -s "$OUT_DIR/standard-labels.json" ]; then
+              echo "ERROR: подписи не сняты для $PLATFORM_VERSION"
+              rm -rf "$DISTR_DIR"; continue
+            fi
+            rm -rf "$DISTR_DIR"
+          done
+
+          echo "=== снятые версии ==="
+          find "$REPO_DIR/labels" -name 'standard-labels.json' | sed "s#$REPO_DIR/labels/##" | sort
+          [ -n "$(ls -A "$REPO_DIR/labels" 2>/dev/null)" ] || { echo "ERROR: не снято ни одной версии"; exit 1; }
+          exit 0
+
+      - name: Загрузить подписи как артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: standard-labels-${{ github.run_id }}
+          path: labels/
+          if-no-files-found: error
+          retention-days: 30
