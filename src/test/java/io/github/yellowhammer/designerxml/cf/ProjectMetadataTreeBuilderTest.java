@@ -10,6 +10,7 @@ import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +53,39 @@ class ProjectMetadataTreeBuilderTest {
   }
 
   @Test
+  void ssl31OpenTargetsFollowDumpLayout() throws Exception {
+    Path project = Ssl31SubmodulePaths.projectRoot();
+    var dto = ProjectMetadataTreeBuilder.build(project);
+    ProjectMetadataTreeDto.MetadataSourceDto main =
+      dto.sources().stream().filter(s -> "main".equals(s.kind())).findFirst().orElseThrow();
+    var common = main.groups().stream().filter(g -> "common".equals(g.id())).findFirst().orElseThrow();
+
+    var forms = subgroupItems(common, "common_commonform");
+    assertThat(forms).isNotEmpty();
+    var form = forms.getFirst();
+    assertThat(form.open()).isNotNull();
+    assertThat(form.open().action()).isEqualTo(MdObjectOpen.ACTION_FORM);
+    assertThat(form.open().relativePath()).endsWith("/Ext/Form.xml");
+    assertThat(form.open().moduleRelativePath()).endsWith("/Ext/Form/Module.bsl");
+    assertThat(project.resolve(form.open().relativePath())).exists();
+
+    var modules = subgroupItems(common, "common_commonmodule");
+    assertThat(modules).isNotEmpty();
+    var module = modules.getFirst();
+    assertThat(module.open()).isNotNull();
+    assertThat(module.open().action()).isEqualTo(MdObjectOpen.ACTION_MODULE);
+    assertThat(module.open().relativePath()).endsWith("/Ext/Module.bsl");
+
+    var catalogs =
+      main.groups().stream().filter(g -> "catalogs".equals(g.id())).findFirst().orElseThrow();
+    assertThat(catalogs.items()).isNotEmpty();
+    var catalog = catalogs.items().getFirst();
+    assertThat(catalog.open()).isNotNull();
+    assertThat(catalog.open().action()).isEqualTo(MdObjectOpen.ACTION_PROPERTIES);
+    assertThat(catalog.open().relativePath()).isNull();
+  }
+
+  @Test
   void unsupportedSchemaVersionThrows() {
     assertThatThrownBy(() -> SupportedSchemaVersions.requireSupported("2.99"))
       .isInstanceOf(IOException.class)
@@ -76,6 +110,17 @@ class ProjectMetadataTreeBuilderTest {
     assertThatThrownBy(() -> MetadataTreeTagGroups.buildGroups(entries))
       .isInstanceOf(IOException.class)
       .hasMessageContaining("FutureMdTag");
+  }
+
+  private static List<ProjectMetadataTreeDto.MetadataItemDto> subgroupItems(
+    ProjectMetadataTreeDto.MetadataGroupDto common,
+    String subgroupId
+  ) {
+    return common.subgroups().stream()
+      .filter(s -> subgroupId.equals(s.id()))
+      .findFirst()
+      .orElseThrow()
+      .items();
   }
 
   @Test

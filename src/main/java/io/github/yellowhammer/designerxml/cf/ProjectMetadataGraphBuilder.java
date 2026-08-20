@@ -145,7 +145,7 @@ public final class ProjectMetadataGraphBuilder {
         }
         String relativePath = projectRoot.relativize(xml).toString().replace('\\', '/');
         ProjectMetadataTreeDto.MetadataItemDto fakeItem =
-          new ProjectMetadataTreeDto.MetadataItemDto("Subsystem", name, relativePath, null);
+          new ProjectMetadataTreeDto.MetadataItemDto("Subsystem", name, relativePath, null, null);
         processItem(projectRoot, source, fakeItem, nodes, edges, subsystemKeysByTarget);
       }
     }

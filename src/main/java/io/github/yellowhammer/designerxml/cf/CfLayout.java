@@ -54,4 +54,31 @@ public final class CfLayout {
   public static Path roleExtRightsXml(Path cfRoot, String roleName) {
     return cfRoot.resolve("Roles").resolve(roleName).resolve("Ext").resolve("Rights.xml");
   }
+
+  /**
+   * Каталог объекта рядом с {@code <имя>.xml}: {@code <имя>/}.
+   *
+   * @param objectXml путь к XML объекта
+   * @return каталог с тем же именем, что у файла без суффикса
+   */
+  public static Path objectDirectory(Path objectXml) {
+    String fileName = objectXml.getFileName().toString();
+    String stem = fileName.endsWith(".xml") ? fileName.substring(0, fileName.length() - 4) : fileName;
+    return objectXml.resolveSibling(stem);
+  }
+
+  /** {@code <Объект>/Ext/Form.xml} — содержимое общей формы. */
+  public static Path objectExtFormXml(Path objectXml) {
+    return objectDirectory(objectXml).resolve("Ext").resolve("Form.xml");
+  }
+
+  /** {@code <Объект>/Ext/Form/Module.bsl} — модуль общей формы. */
+  public static Path objectExtFormModuleBsl(Path objectXml) {
+    return objectDirectory(objectXml).resolve("Ext").resolve("Form").resolve("Module.bsl");
+  }
+
+  /** {@code <Объект>/Ext/Module.bsl} — модуль общего модуля, HTTP- и Web-сервиса. */
+  public static Path objectExtModuleBsl(Path objectXml) {
+    return objectDirectory(objectXml).resolve("Ext").resolve("Module.bsl");
+  }
 }

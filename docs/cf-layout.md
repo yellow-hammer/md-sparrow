@@ -8,6 +8,10 @@ submodule **`fixtures/samples-1c-platform`** (см. [scaffold-golden.md](scaffol
 при наличии — расширения `src/cfe/*/Configuration.xml`, плюс внешние отчёты/обработки в `src/erf` и `src/epf`.
 **ConfigDumpInfo.xml не используется.**
 
+У объекта в дереве поле **`open`**: что открывать по клику в IDE (`form`, `module`, `properties`) и
+пути к файлам выгрузки относительно корня проекта. Пусто только если файла объекта нет.
+То же правило отдаёт **`cf-md-object-open-get`**.
+
 - `src/cf/Configuration.xml` — корневой `MetaDataObject` с `Configuration`; список объектов в `Configuration/ChildObjects`.
 - `src/cf/Catalogs/<ИмяСправочника>.xml` — `MetaDataObject` с единственным `Catalog`.
 
