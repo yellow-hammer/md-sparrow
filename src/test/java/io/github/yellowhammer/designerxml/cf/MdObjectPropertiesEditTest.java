@@ -28,6 +28,14 @@ class MdObjectPropertiesEditTest {
   Path tempDir;
 
   @Test
+  void supportsChildObjectType_matchesCfMdObject() {
+    assertThat(MdObjectPropertiesEdit.supportsChildObjectType("Catalog")).isTrue();
+    assertThat(MdObjectPropertiesEdit.supportsChildObjectType("CommonModule")).isTrue();
+    assertThat(MdObjectPropertiesEdit.supportsChildObjectType("CommonForm")).isFalse();
+    assertThat(MdObjectPropertiesEdit.supportsChildObjectType("HTTPService")).isFalse();
+  }
+
+  @Test
   void readDto_catalog_fromSsl31() throws Exception {
     Path any = Ssl31SubmodulePaths.anyCatalogObjectXml();
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(any, SchemaVersion.V2_20);

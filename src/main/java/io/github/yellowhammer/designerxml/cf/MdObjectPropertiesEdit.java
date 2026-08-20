@@ -61,6 +61,31 @@ public final class MdObjectPropertiesEdit {
   private MdObjectPropertiesEdit() {
   }
 
+  /**
+   * Виды из {@code ChildObjects}, которые читает {@code cf-md-object-get}.
+   *
+   * @param childObjectType {@code Catalog}, {@code CommonForm}, …
+   * @return {@code true}, если для вида есть разбор свойств
+   */
+  public static boolean supportsChildObjectType(String childObjectType) {
+    if (childObjectType == null || childObjectType.isBlank()) {
+      return false;
+    }
+    if (childObjectType.equals("Catalog")
+        || childObjectType.equals("Document")
+        || childObjectType.equals("Subsystem")
+        || childObjectType.equals("ExchangePlan")) {
+      return true;
+    }
+    String getter = "get" + childObjectType;
+    for (SimpleKindDef def : SIMPLE_KINDS) {
+      if (def.getterName().equals(getter)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public static MdObjectPropertiesDto readDto(Path objectXml, SchemaVersion version) throws IOException, JAXBException {
     if (!Files.isRegularFile(objectXml)) {
       throw new IllegalArgumentException("file not found: " + objectXml);
