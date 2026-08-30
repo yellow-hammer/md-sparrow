@@ -57,6 +57,103 @@ public final class DcsRead {
     return out;
   }
 
+  /**
+   * Заменяет текст запроса набора данных; после правки схема перечитывается
+   * моделью, битый файл не пишется.
+   *
+   * @param dataSetName имя набора; пусто - единственный набор с запросом
+   */
+  public static void setQuery(Path templateXml, SchemaVersion version, String dataSetName, String queryText)
+    throws IOException, JAXBException {
+    String text = java.nio.file.Files.readString(templateXml, java.nio.charset.StandardCharsets.UTF_8);
+    java.util.regex.Matcher sets = java.util.regex.Pattern
+      .compile("<dataSet[^>]*>(.*?)</dataSet>", java.util.regex.Pattern.DOTALL)
+      .matcher(text);
+    int queryStart = -1;
+    int queryEnd = -1;
+    while (sets.find()) {
+      String body = sets.group(1);
+      java.util.regex.Matcher name = java.util.regex.Pattern.compile("<name>([^<]+)</name>").matcher(body);
+      String setName = name.find() ? name.group(1).trim() : "";
+      int local = body.indexOf("<query>");
+      if (local < 0) {
+        continue;
+      }
+      if (dataSetName != null && !dataSetName.isBlank() && !dataSetName.trim().equals(setName)) {
+        continue;
+      }
+      if (queryStart >= 0) {
+        throw new IllegalArgumentException("Наборов с запросом несколько: укажите имя набора.");
+      }
+      queryStart = sets.start(1) + local + "<query>".length();
+      queryEnd = sets.start(1) + body.indexOf("</query>");
+    }
+    if (queryStart < 0) {
+      throw new IllegalArgumentException("Набор данных с запросом не найден.");
+    }
+    String escaped = queryText
+      .replace("&", "&amp;")
+      .replace("<", "&lt;")
+      .replace(">", "&gt;");
+    String updated = text.substring(0, queryStart) + escaped + text.substring(queryEnd);
+    verify(updated, version);
+    java.nio.file.Files.writeString(templateXml, updated, java.nio.charset.StandardCharsets.UTF_8);
+  }
+
+  /** Добавляет вычисляемое поле: путь к данным и выражение. */
+  public static void addCalculatedField(
+    Path templateXml, SchemaVersion version, String dataPath, String expression, String title)
+    throws IOException, JAXBException {
+    String text = java.nio.file.Files.readString(templateXml, java.nio.charset.StandardCharsets.UTF_8);
+    String eol = text.contains("\r\n") ? "\r\n" : "\n";
+    StringBuilder block = new StringBuilder();
+    block.append("	<calculatedField>").append(eol);
+    block.append("		<dataPath>").append(escape(dataPath)).append("</dataPath>").append(eol);
+    block.append("		<expression>").append(escape(expression)).append("</expression>").append(eol);
+    if (title != null && !title.isBlank()) {
+      block.append("		<title xsi:type=\"v8:LocalStringType\">").append(eol);
+      block.append("			<v8:item>").append(eol);
+      block.append("				<v8:lang>ru</v8:lang>").append(eol);
+      block.append("				<v8:content>").append(escape(title)).append("</v8:content>").append(eol);
+      block.append("			</v8:item>").append(eol);
+      block.append("		</title>").append(eol);
+    }
+    block.append("	</calculatedField>").append(eol);
+    int at = text.lastIndexOf("</calculatedField>");
+    String updated;
+    if (at >= 0) {
+      int lineEnd = text.indexOf('\n', at);
+      updated = text.substring(0, lineEnd + 1) + block + text.substring(lineEnd + 1);
+    } else {
+      int lastDataSet = text.lastIndexOf("</dataSet>");
+      if (lastDataSet < 0) {
+        throw new IllegalArgumentException("В схеме нет наборов данных.");
+      }
+      int lineEnd = text.indexOf('\n', lastDataSet);
+      updated = text.substring(0, lineEnd + 1) + block + text.substring(lineEnd + 1);
+    }
+    verify(updated, version);
+    java.nio.file.Files.writeString(templateXml, updated, java.nio.charset.StandardCharsets.UTF_8);
+  }
+
+  private static void verify(String xml, SchemaVersion version) throws IOException {
+    Path temp = java.nio.file.Files.createTempFile("dcs", ".xml");
+    try {
+      java.nio.file.Files.writeString(temp, xml, java.nio.charset.StandardCharsets.UTF_8);
+      schemaRoot(temp, version);
+    } catch (JAXBException e) {
+      throw new IOException("Схема после правки не читается моделью: " + e.getMessage(), e);
+    } finally {
+      java.nio.file.Files.deleteIfExists(temp);
+    }
+  }
+
+  private static String escape(String value) {
+    return value == null
+      ? ""
+      : value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+  }
+
   private static Object schemaRoot(Path templateXml, SchemaVersion version) throws IOException, JAXBException {
     // Платформа пишет корень DataCompositionSchema с заглавной, а схема XSD
     // объявляет строчный элемент: читаем с явным типом корня

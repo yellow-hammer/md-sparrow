@@ -94,6 +94,21 @@ class FormScaffoldTest {
   }
 
   @Test
+  void dcsEditQueryAndCalculatedField() throws Exception {
+    java.nio.file.Path source = Ssl31SubmodulePaths.projectRoot().resolve(
+      "src/erf/_ДемоОтчетНоменклатураОперации/_ДемоНоменклатураОперации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml");
+    java.nio.file.Path dcs = tempDir.resolve("Template.xml");
+    Files.copy(source, dcs, StandardCopyOption.REPLACE_EXISTING);
+
+    DcsRead.setQuery(dcs, SchemaVersion.V2_20, null, "ВЫБРАТЬ 1 КАК Поле1");
+    DcsRead.addCalculatedField(dcs, SchemaVersion.V2_20, "Наценка", "Поле1 * 2", "Наценка");
+
+    java.util.Map<String, Object> info = DcsRead.info(dcs, SchemaVersion.V2_20);
+    assertThat(String.valueOf(info)).contains("ВЫБРАТЬ 1 КАК Поле1");
+    assertThat(String.valueOf(info.get("calculatedFields"))).contains("Наценка");
+  }
+
+  @Test
   void dcsInfoReadsSchema() throws Exception {
     java.nio.file.Path dcs = Ssl31SubmodulePaths.projectRoot().resolve(
       "src/erf/_ДемоОтчетНоменклатураОперации/_ДемоНоменклатураОперации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml");
