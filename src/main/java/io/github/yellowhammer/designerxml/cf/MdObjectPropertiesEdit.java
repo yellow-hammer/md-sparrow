@@ -150,6 +150,7 @@ public final class MdObjectPropertiesEdit {
     if (!Files.isRegularFile(objectXml)) {
       throw new IllegalArgumentException("file not found: " + objectXml);
     }
+    SupportRules.ensureEditable(objectXml);
     MdObjectPropertiesDto baseline = readDto(objectXml, version);
     MdObjectPropertiesJsonCoalesce.coalesceFromBaseline(dto, baseline);
     if (dto.attributes == null) {

@@ -777,6 +777,7 @@ public final class MdObjectChildMutations {
     if (!Files.isRegularFile(objectXml)) {
       throw new IllegalArgumentException("file not found: " + objectXml);
     }
+    SupportRules.ensureEditable(objectXml);
     MdObjectStructureDto structure = MdObjectStructureRead.read(objectXml, version);
     String containerLocal = MdObjectPropertiesGranularPatch.containerLocalForKind(structure.kind);
     if (containerLocal == null || containerLocal.isBlank()) {
