@@ -39,6 +39,47 @@ public final class DcsRead {
     out.put("calculatedFields", namedList(schema, "getCalculatedField", "getDataPath", "getExpression"));
     out.put("totalFields", namedList(schema, "getTotalField", "getDataPath", "getExpression"));
     out.put("parameters", parameters(schema));
+    out.put("dataSources", dataSources(schema));
+    out.put("dataSetLinks", dataSetLinks(schema));
+    out.put("nestedSchemas", namedList(schema, "getNestedSchema", "getName", "getTitle"));
+    out.put("settingsVariants", namedList(schema, "getSettingsVariant", "getName", "getPresentation"));
+    return out;
+  }
+
+  /** Источники данных схемы: имя, тип и строка соединения. */
+  private static List<Map<String, Object>> dataSources(Object schema) {
+    List<Map<String, Object>> out = new ArrayList<>();
+    for (Object source : JaxbReflect.<Object>listOptional(schema, "getDataSource")) {
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("name", text(source, "getName"));
+      String type = text(source, "getDataSourceType");
+      if (!type.isEmpty()) {
+        row.put("type", type);
+      }
+      String connection = text(source, "getConnectionString");
+      if (!connection.isEmpty()) {
+        row.put("connectionString", connection);
+      }
+      out.add(row);
+    }
+    return out;
+  }
+
+  /** Связи наборов данных: источник и приёмник с выражениями связи. */
+  private static List<Map<String, Object>> dataSetLinks(Object schema) {
+    List<Map<String, Object>> out = new ArrayList<>();
+    for (Object link : JaxbReflect.<Object>listOptional(schema, "getDataSetLink")) {
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("source", text(link, "getSourceDataSet"));
+      row.put("destination", text(link, "getDestinationDataSet"));
+      row.put("sourceExpression", text(link, "getSourceExpression"));
+      row.put("destinationExpression", text(link, "getDestinationExpression"));
+      String parameter = text(link, "getParameter");
+      if (!parameter.isEmpty()) {
+        row.put("parameter", parameter);
+      }
+      out.add(row);
+    }
     return out;
   }
 

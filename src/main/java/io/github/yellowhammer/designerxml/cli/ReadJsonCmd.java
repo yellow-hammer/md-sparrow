@@ -30,6 +30,7 @@ import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
 import io.github.yellowhammer.designerxml.cf.DcsRead;
 import io.github.yellowhammer.designerxml.cf.RoleRightsFile;
 import io.github.yellowhammer.designerxml.cf.SupportRules;
+import io.github.yellowhammer.designerxml.cf.UiLabels;
 import io.github.yellowhammer.designerxml.cf.CatalogFormDto;
 import io.github.yellowhammer.designerxml.cf.CfDumpValidation;
 import io.github.yellowhammer.designerxml.cf.CatalogFormEdit;
@@ -122,10 +123,15 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(dto);
       }
       case "cf-enum-labels": {
-        return gson.toJson(Map.of(
-          "values", EnumValueLabels.all(),
-          "byProperty", EnumValueLabels.byProperty()
-        ));
+        // Значения формата и подписи платформы одним словарём: у потребителя своих копий нет
+        java.util.Map<String, Object> labels = new java.util.LinkedHashMap<>();
+        labels.put("values", EnumValueLabels.all());
+        labels.put("byProperty", EnumValueLabels.byProperty());
+        labels.put("rights", UiLabels.rights());
+        labels.put("commandGroups", UiLabels.commandGroups());
+        labels.put("objectStandardCommands", UiLabels.objectStandardCommands());
+        labels.put("objectKinds", UiLabels.objectKinds());
+        return gson.toJson(labels);
       }
       case "cf-md-object-enums": {
         return gson.toJson(MdObjectPropertyEnums.forVersion(p.version()));

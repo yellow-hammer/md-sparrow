@@ -54,4 +54,22 @@ class EnumValueLabelsTest {
     assertThat(EnumValueLabels.labelOf("СОВСЕМ_НОВОЕ")).isEqualTo("СОВСЕМ_НОВОЕ");
     assertThat(EnumValueLabels.labelOf(null)).isEmpty();
   }
+
+  @org.junit.jupiter.api.Test
+  void uiLabelsCoverRightsGroupsAndStandardCommands() {
+    // Эти подписи задаёт платформа, а не XSD: потребитель берёт их у библиотеки
+    org.assertj.core.api.Assertions.assertThat(UiLabels.rights())
+      .containsEntry("Read", "Чтение")
+      .containsEntry("InteractiveClearDeletionMark", "Интерактивное снятие пометки удаления");
+    org.assertj.core.api.Assertions.assertThat(UiLabels.commandGroups())
+      .containsEntry("NavigationPanelSeeAlso", "Панель навигации: См. также")
+      .containsEntry("ActionsPanelCreate", "Панель действий: Создать");
+    org.assertj.core.api.Assertions.assertThat(UiLabels.objectStandardCommands())
+      .containsEntry("OpenList", "Открыть список");
+    // Ссылочный тип подписывается тем же видом: Catalog и CatalogRef - «Справочник»
+    org.assertj.core.api.Assertions.assertThat(UiLabels.objectKinds())
+      .containsEntry("Catalog", "Справочник")
+      .containsEntry("CatalogRef", "Справочник")
+      .containsEntry("InformationRegister", "Регистр сведений");
+  }
 }
