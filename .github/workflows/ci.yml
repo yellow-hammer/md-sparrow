@@ -1,0 +1,67 @@
+name: CI
+
+# Прогон тестов на каждый pull request и на push в main.
+#
+# Проверка идёт на Linux и Windows: библиотека пишет XML побайтово, а выгрузка
+# разворачивается с разными переводами строк (у ssl31 `* text=auto`), поэтому
+# одной ОС мало. Тестам нужны все подмодули: XSD лежат в namespace-forest,
+# данные - в ssl31 и samples-1c-platform.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Тесты (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Установить JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Тесты и проверка лицензий
+        shell: bash
+        run: ./gradlew check --no-daemon
+
+      # Расширение работает с собранным jar, поэтому поломка сборки должна
+      # находиться на pull request, а не при выпуске релиза.
+      - name: Собрать jar
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: ./gradlew shadowJar --no-daemon
+
+      - name: Сохранить отчёт о тестах
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report-${{ matrix.os }}
+          path: build/reports/tests/test
+          retention-days: 7
