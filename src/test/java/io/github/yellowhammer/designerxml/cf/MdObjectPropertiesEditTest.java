@@ -31,8 +31,10 @@ class MdObjectPropertiesEditTest {
   void supportsChildObjectType_matchesCfMdObject() {
     assertThat(MdObjectPropertiesEdit.supportsChildObjectType("Catalog")).isTrue();
     assertThat(MdObjectPropertiesEdit.supportsChildObjectType("CommonModule")).isTrue();
-    assertThat(MdObjectPropertiesEdit.supportsChildObjectType("CommonForm")).isFalse();
-    assertThat(MdObjectPropertiesEdit.supportsChildObjectType("HTTPService")).isFalse();
+    // Свойства читаются у любого вида дерева: раньше эти два отвечали отказом
+    assertThat(MdObjectPropertiesEdit.supportsChildObjectType("CommonForm")).isTrue();
+    assertThat(MdObjectPropertiesEdit.supportsChildObjectType("HTTPService")).isTrue();
+    assertThat(MdObjectPropertiesEdit.supportsChildObjectType("НеВид")).isFalse();
   }
 
   @Test

@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -55,7 +56,40 @@ public final class MdObjectPropertiesEdit {
     new SimpleKindDef("scheduledJob", "getScheduledJob"),
     new SimpleKindDef("commonCommand", "getCommonCommand"),
     new SimpleKindDef("documentJournal", "getDocumentJournal"),
-    new SimpleKindDef("businessProcess", "getBusinessProcess")
+    new SimpleKindDef("businessProcess", "getBusinessProcess"),
+    // Форма и макет описываются своими файлами Forms/<Имя>.xml и Templates/<Имя>.xml:
+    // в составе объекта они лежат одним именем, свойства - только там
+    new SimpleKindDef("form", "getForm"),
+    new SimpleKindDef("template", "getTemplate"),
+    // Внешние отчёт и обработка описываются как обычные объекты метаданных,
+    // поэтому и свойства у них читаются тем же путём
+    new SimpleKindDef("externalReport", "getExternalReport"),
+    new SimpleKindDef("externalDataProcessor", "getExternalDataProcessor"),
+    // Виды без своего моста свойств: читаются имя, синоним, комментарий и
+    // состав; пишутся синоним и комментарий общим путём. Панель свойств
+    // работает у любого узла дерева, а не отвечает «unsupported MetaDataObject»
+    new SimpleKindDef("accountingRegister", "getAccountingRegister"),
+    new SimpleKindDef("calculationRegister", "getCalculationRegister"),
+    new SimpleKindDef("filterCriterion", "getFilterCriterion"),
+    new SimpleKindDef("settingsStorage", "getSettingsStorage"),
+    new SimpleKindDef("webService", "getWebService"),
+    new SimpleKindDef("httpService", "getHTTPService"),
+    new SimpleKindDef("integrationService", "getIntegrationService"),
+    new SimpleKindDef("functionalOption", "getFunctionalOption"),
+    new SimpleKindDef("functionalOptionsParameter", "getFunctionalOptionsParameter"),
+    new SimpleKindDef("definedType", "getDefinedType"),
+    new SimpleKindDef("commonForm", "getCommonForm"),
+    new SimpleKindDef("commonTemplate", "getCommonTemplate"),
+    new SimpleKindDef("commandGroup", "getCommandGroup"),
+    new SimpleKindDef("xdtoPackage", "getXDTOPackage"),
+    new SimpleKindDef("wsReference", "getWSReference"),
+    new SimpleKindDef("style", "getStyle"),
+    new SimpleKindDef("styleItem", "getStyleItem"),
+    new SimpleKindDef("language", "getLanguage"),
+    new SimpleKindDef("interface", "getInterface"),
+    new SimpleKindDef("bot", "getBot"),
+    new SimpleKindDef("webSocketClient", "getWebSocketClient"),
+    new SimpleKindDef("sequence", "getSequence")
   );
 
   private MdObjectPropertiesEdit() {
@@ -229,7 +263,56 @@ public final class MdObjectPropertiesEdit {
       MdDocumentPropertiesBridge.read(version, props, dto);
     }
     readCatalogLikeChildren(node, dto);
+    readNamedChildren(node, dto);
     return dto;
+  }
+
+  /**
+   * Прочие виды узлов состава: команды, графы, признаки учёта и остальные.
+   *
+   * Читаются у любого объекта: getter, которого у вида нет, возвращает пустой
+   * список. Из-за этого палитра расширения показывает свойства у всех узлов,
+   * а не только у реквизитов, табличных частей, значений, измерений и ресурсов.
+   */
+  private static final List<NamedChildDef> NAMED_CHILDREN = List.of(
+    new NamedChildDef("getCommand", dto -> dto.commands),
+    new NamedChildDef("getColumn", dto -> dto.columns),
+    new NamedChildDef("getAccountingFlag", dto -> dto.accountingFlags),
+    new NamedChildDef("getExtDimensionAccountingFlag", dto -> dto.extDimensionAccountingFlags),
+    new NamedChildDef("getAddressingAttribute", dto -> dto.addressingAttributes),
+    new NamedChildDef("getRecalculation", dto -> dto.recalculations),
+    new NamedChildDef("getOperation", dto -> dto.operations),
+    new NamedChildDef("getURLTemplate", dto -> dto.urlTemplates),
+    new NamedChildDef("getChannel", dto -> dto.channels),
+    new NamedChildDef("getTable", dto -> dto.tables),
+    new NamedChildDef("getCube", dto -> dto.cubes),
+    new NamedChildDef("getFunction", dto -> dto.functions)
+  );
+
+  /** Вид узла состава: имя getter в ChildObjects и список DTO, куда он читается. */
+  private record NamedChildDef(
+    String getterName,
+    java.util.function.Function<MdObjectPropertiesDto, List<MdNamedPropertyDto>> target
+  ) {
+  }
+
+  /** Читает все прочие виды узлов состава объекта. */
+  private static void readNamedChildren(Object node, MdObjectPropertiesDto dto) {
+    Object co = invokeNoArgOrNull(node, "getChildObjects");
+    if (co == null) {
+      return;
+    }
+    for (NamedChildDef def : NAMED_CHILDREN) {
+      for (Object child : JaxbReflect.<Object>listOptional(co, def.getterName())) {
+        // Перерасчёт в составе регистра расчёта лежит одним именем, его
+        // описание - отдельным файлом; узлом с Properties он не является
+        if (child instanceof String name) {
+          def.target().apply(dto).add(new MdNamedPropertyDto(name, "", ""));
+        } else {
+          def.target().apply(dto).add(namedDto(child));
+        }
+      }
+    }
   }
 
   /** Реквизиты и табличные части объекта: состав одинаков у справочника, документа, ПВХ и других. */
@@ -265,6 +348,17 @@ public final class MdObjectPropertiesEdit {
       comment == null ? "" : comment);
     // У табличной части и значения перечисления типа нет — getType вернёт null.
     dto.type = MdTypeDescriptionBridge.read(JaxbReflect.getOptional(p, "getType"));
+    // Реквизиты табличной части: у остальных видов узлов ChildObjects нет
+    Object nested = invokeNoArgOrNull(attrOrSection, "getChildObjects");
+    if (nested != null) {
+      List<MdNamedPropertyDto> inner = new ArrayList<>();
+      for (Object a : JaxbReflect.<Object>listOptional(nested, "getAttribute")) {
+        inner.add(namedDto(a));
+      }
+      if (!inner.isEmpty()) {
+        dto.attributes = inner;
+      }
+    }
     return dto;
   }
 
@@ -279,6 +373,7 @@ public final class MdObjectPropertiesEdit {
     if (ch != null) {
       dto.nestedSubsystems.addAll(JaxbReflect.<String>list(ch, "getSubsystem"));
     }
+    readScalars(props, dto);
     return dto;
   }
 
@@ -397,6 +492,7 @@ public final class MdObjectPropertiesEdit {
     List<Object> nested = JaxbReflect.list(ch, "getSubsystem");
     nested.clear();
     nested.addAll(new ArrayList<>(dto.nestedSubsystems));
+    applyScalars(props, dto);
   }
 
   private static <T> void validateNamed(List<MdNamedPropertyDto> dtos, List<T> xml, String label) {
@@ -430,6 +526,29 @@ public final class MdObjectPropertiesEdit {
     applySimpleDto(child, version, dto);
     return true;
   }
+
+  /**
+   * Виды без своего моста свойств: их скалярные свойства читаются и пишутся
+   * рефлексией по Properties, панель показывает их единой формой.
+   */
+  private static final Set<String> GENERIC_SCALAR_KINDS = Set.of(
+    "externalReport", "externalDataProcessor", "form", "template",
+    "commonForm", "commonTemplate", "webService", "httpService",
+    "integrationService", "filterCriterion", "settingsStorage",
+    "functionalOption", "functionalOptionsParameter", "definedType",
+    "commandGroup", "xdtoPackage", "wsReference", "style", "styleItem",
+    "language", "interface", "bot", "webSocketClient", "sequence",
+    "accountingRegister", "calculationRegister");
+
+  /**
+   * Свойства, которые в скаляры не попадают: имя, синоним и комментарий несут
+   * свои поля, остальное - ссылки на файлы выгрузки и служебные отметки,
+   * правка которых строкой ломает объект.
+   */
+  private static final Set<String> SCALAR_SKIPPED = Set.of(
+    "Name", "Synonym", "Comment", "Uuid",
+    "ExtendedConfigurationObject", "Form", "Help", "Picture",
+    "Module", "ManagerModule", "RecordSetModule", "Template");
 
   private static MdObjectPropertiesDto readSimpleDto(String kind, Object objectNode, SchemaVersion version) {
     Object props = invokeNoArg(objectNode, "getProperties");
@@ -480,10 +599,171 @@ public final class MdObjectPropertiesEdit {
         MdRegisterPropertiesBridge.read(version, props, dto);
         readRegisterChildren(objectNode, dto);
       }
+      case "externalReport", "externalDataProcessor" -> readCatalogLikeChildren(objectNode, dto);
+      // Регистры бухгалтерии и расчёта: измерения, ресурсы и реквизиты как у
+      // остальных регистров; перерасчёты приходят общим чтением состава
+      case "accountingRegister", "calculationRegister" -> readRegisterChildren(objectNode, dto);
       default -> {
       }
     }
+    readNamedChildren(objectNode, dto);
+    if (GENERIC_SCALAR_KINDS.contains(kind)) {
+      readScalars(props, dto);
+    }
+    if ("functionalOption".equals(kind)) {
+      readRefList(props, "getContent", dto);
+    }
+    if ("functionalOptionsParameter".equals(kind)) {
+      readRefList(props, "getUse", dto);
+    }
+    if ("sequence".equals(kind)) {
+      dto.documents = readRefTexts(props, "getDocuments");
+      dto.registerRecords = readRefTexts(props, "getRegisterRecords");
+    }
+    if ("filterCriterion".equals(kind)) {
+      readRefList(props, "getContent", dto);
+    }
+    if ("commonAttribute".equals(kind)) {
+      readContentMembers(props, dto);
+    }
     return dto;
+  }
+
+  /** Состав общего реквизита: ссылка, использование, условное разделение. */
+  private static void readContentMembers(Object props, MdObjectPropertiesDto dto) {
+    dto.contentMembers = new ArrayList<>();
+    Object holder = invokeNoArgOrNull(props, "getContent");
+    if (holder == null) {
+      return;
+    }
+    for (Object item : JaxbReflect.<Object>listOptional(holder, "getItem")) {
+      String ref = toStringOrEmpty(invokeNoArgOrNull(item, "getMetadata"));
+      if (ref.isEmpty()) {
+        continue;
+      }
+      Object use = invokeNoArgOrNull(item, "getUse");
+      String mode = use instanceof Enum<?> constant ? constant.name() : toStringOrEmpty(use);
+      Object separation = invokeNoArgOrNull(item, "getConditionalSeparation");
+      dto.contentMembers.add(
+        new MdContentMemberDto(ref, mode, separation == null ? "" : String.valueOf(separation)));
+    }
+  }
+
+  /** Ссылки MDListType-списка свойства: пустой список, когда свойства нет. */
+  private static List<String> readRefTexts(Object props, String getterName) {
+    Object holder = invokeNoArgOrNull(props, getterName);
+    if (holder == null) {
+      return new ArrayList<>();
+    }
+    return new ArrayList<>(MdListTypeRefs.readItemTexts(JaxbReflect.listOptional(holder, "getItem")));
+  }
+
+  /**
+   * Список ссылок на объекты метаданных: состав функциональной опции,
+   * использование её параметра. Ссылки приходят в contentRefs, панель
+   * показывает их той же вкладкой состава, что у подсистемы.
+   */
+  private static void readRefList(Object props, String getterName, MdObjectPropertiesDto dto) {
+    Object holder = invokeNoArgOrNull(props, getterName);
+    if (holder == null) {
+      return;
+    }
+    for (Object item : JaxbReflect.<Object>listOptional(holder, "getObject")) {
+      if (item instanceof String text && !text.isEmpty()) {
+        dto.contentRefs.add(text);
+      }
+    }
+    dto.contentRefs.addAll(MdListTypeRefs.readItemTexts(JaxbReflect.listOptional(holder, "getItem")));
+  }
+
+  /**
+   * Скалярные свойства по полям JAXB-класса Properties: порядок полей повторяет
+   * схему, значения переводятся в переносимый вид - перечисления именами
+   * констант, числа строками.
+   */
+  private static void readScalars(Object props, MdObjectPropertiesDto dto) {
+    dto.scalars = new java.util.LinkedHashMap<>();
+    dto.scalarMeta = new java.util.LinkedHashMap<>();
+    for (java.lang.reflect.Field field : props.getClass().getDeclaredFields()) {
+      String name = field.getName();
+      String capital = Character.toUpperCase(name.charAt(0)) + name.substring(1);
+      if (SCALAR_SKIPPED.contains(capital)) {
+        continue;
+      }
+      Object value;
+      try {
+        value = props.getClass().getMethod("get" + capital).invoke(props);
+      } catch (ReflectiveOperationException e) {
+        try {
+          value = props.getClass().getMethod("is" + capital).invoke(props);
+        } catch (ReflectiveOperationException ignored) {
+          continue;
+        }
+      }
+      Class<?> type = field.getType();
+      if (type == String.class) {
+        dto.scalars.put(capital, value == null ? "" : value);
+        dto.scalarMeta.put(capital, new MdScalarPropertyMeta("string", List.of()));
+      } else if (type == Boolean.class || type == boolean.class) {
+        dto.scalars.put(capital, Boolean.TRUE.equals(value));
+        dto.scalarMeta.put(capital, new MdScalarPropertyMeta("boolean", List.of()));
+      } else if (Number.class.isAssignableFrom(type)) {
+        dto.scalars.put(capital, value == null ? "" : value.toString());
+        dto.scalarMeta.put(capital, new MdScalarPropertyMeta("number", List.of()));
+      } else if (type.isEnum()) {
+        dto.scalars.put(capital, value == null ? "" : ((Enum<?>) value).name());
+        List<String> allowed = new ArrayList<>();
+        for (Object constant : type.getEnumConstants()) {
+          allowed.add(((Enum<?>) constant).name());
+        }
+        dto.scalarMeta.put(capital, new MdScalarPropertyMeta("enum", allowed));
+      }
+    }
+  }
+
+  /** Пишет скалярные свойства обратно: типы значений берутся из сеттеров. */
+  private static void applyScalars(Object props, MdObjectPropertiesDto dto) {
+    if (dto.scalars == null) {
+      return;
+    }
+    for (java.util.Map.Entry<String, Object> entry : dto.scalars.entrySet()) {
+      String name = entry.getKey();
+      Object value = entry.getValue();
+      java.lang.reflect.Method setter = null;
+      for (java.lang.reflect.Method m : props.getClass().getMethods()) {
+        if (m.getName().equals("set" + name) && m.getParameterCount() == 1) {
+          setter = m;
+          break;
+        }
+      }
+      if (setter == null) {
+        continue;
+      }
+      Class<?> param = setter.getParameterTypes()[0];
+      try {
+        if (param == String.class) {
+          String text = value == null ? "" : String.valueOf(value);
+          setter.invoke(props, text.isEmpty() ? null : text);
+        } else if (param == Boolean.class || param == boolean.class) {
+          setter.invoke(props, Boolean.TRUE.equals(value) || "true".equals(value));
+        } else if (param == java.math.BigDecimal.class) {
+          String text = value == null ? "" : String.valueOf(value);
+          setter.invoke(props, text.isEmpty() ? null : new java.math.BigDecimal(text));
+        } else if (param == java.math.BigInteger.class) {
+          String text = value == null ? "" : String.valueOf(value);
+          setter.invoke(props, text.isEmpty() ? null : new java.math.BigInteger(text));
+        } else if (param.isEnum()) {
+          String constant = value == null ? "" : String.valueOf(value);
+          if (!constant.isEmpty()) {
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            Object enumValue = Enum.valueOf((Class<? extends Enum>) param, constant);
+            setter.invoke(props, enumValue);
+          }
+        }
+      } catch (ReflectiveOperationException | IllegalArgumentException e) {
+        throw new IllegalStateException("scalar write failed: " + name, e);
+      }
+    }
   }
 
   private static void applySimpleDto(Object objectNode, SchemaVersion version, MdObjectPropertiesDto dto) {
@@ -582,6 +862,9 @@ public final class MdObjectPropertiesEdit {
     String syn = dto.synonymRu == null ? "" : dto.synonymRu;
     writeLocalStringRu(props, syn);
     invokeSetterString(props, "setComment", dto.comment == null ? "" : dto.comment);
+    if (GENERIC_SCALAR_KINDS.contains(dto.kind)) {
+      applyScalars(props, dto);
+    }
   }
 
   private static void readRegisterChildren(Object objectNode, MdObjectPropertiesDto dto) {

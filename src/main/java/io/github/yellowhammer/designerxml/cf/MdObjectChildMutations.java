@@ -248,6 +248,109 @@ public final class MdObjectChildMutations {
     reorderRegisterChildren(objectXml, version, "Resource", "Ресурс", order);
   }
 
+  /** Добавляет признак учёта плана счетов: тип Булево обязателен формату. */
+  public static void addAccountingFlag(Path objectXml, SchemaVersion version, String newName)
+    throws IOException, JAXBException {
+    addBooleanChild(objectXml, version, "AccountingFlag", "Признак учёта", newName);
+  }
+
+  public static void renameAccountingFlag(Path objectXml, SchemaVersion version, String oldName, String newName)
+    throws IOException, JAXBException {
+    renameRegisterChild(objectXml, version, "AccountingFlag", "Признак учёта", oldName, newName);
+  }
+
+  public static void deleteAccountingFlag(Path objectXml, SchemaVersion version, String name)
+    throws IOException, JAXBException {
+    deleteRegisterChild(objectXml, version, "AccountingFlag", "Признак учёта", name);
+  }
+
+  public static void addExtDimensionAccountingFlag(Path objectXml, SchemaVersion version, String newName)
+    throws IOException, JAXBException {
+    addBooleanChild(objectXml, version, "ExtDimensionAccountingFlag", "Признак учёта субконто", newName);
+  }
+
+  public static void renameExtDimensionAccountingFlag(
+    Path objectXml, SchemaVersion version, String oldName, String newName)
+    throws IOException, JAXBException {
+    renameRegisterChild(objectXml, version, "ExtDimensionAccountingFlag", "Признак учёта субконто", oldName, newName);
+  }
+
+  public static void deleteExtDimensionAccountingFlag(Path objectXml, SchemaVersion version, String name)
+    throws IOException, JAXBException {
+    deleteRegisterChild(objectXml, version, "ExtDimensionAccountingFlag", "Признак учёта субконто", name);
+  }
+
+  /**
+   * Удаляет форму объекта: запись в ChildObjects, файл описания и каталог
+   * содержимого. Ссылки на форму в основных и вспомогательных слотах
+   * очищаются, чтобы объект не указывал на несуществующую форму.
+   */
+  public static void deleteForm(Path objectXml, SchemaVersion version, String formName)
+    throws IOException, JAXBException {
+    ensureNotBlank(formName, "Введите имя формы.");
+    mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      String entry = "<Form>" + escapeXml(formName) + "</Form>";
+      int at = xml.indexOf(entry);
+      if (at < 0) {
+        throw new IllegalArgumentException("Форма не найдена: " + formName);
+      }
+      int lineStart = xml.lastIndexOf('\n', at);
+      String updated = xml.substring(0, lineStart) + xml.substring(at + entry.length());
+      // Слоты основных и вспомогательных форм, указывающие на удаляемую,
+      // становятся пустыми самозакрывающимися элементами
+      updated = updated.replaceAll(
+        "<([A-Za-z]*Form)>[^<]*[.]Form[.]" + java.util.regex.Pattern.quote(formName) + "</\\1>",
+        "<$1/>");
+      return updated;
+    });
+    Path formsDir = objectXml.toAbsolutePath().normalize().getParent()
+      .resolve(stemOf(objectXml))
+      .resolve("Forms");
+    Path descriptor = formsDir.resolve(formName + ".xml");
+    Files.deleteIfExists(descriptor);
+    Path contentDir = formsDir.resolve(formName);
+    if (Files.isDirectory(contentDir)) {
+      try (var walk = Files.walk(contentDir)) {
+        for (Path path : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
+          Files.deleteIfExists(path);
+        }
+      }
+    }
+  }
+
+  private static String stemOf(Path objectXml) {
+    return objectXml.getFileName().toString().replaceFirst("[.][Xx][Mm][Ll]$", "");
+  }
+
+  private static void addBooleanChild(
+    Path objectXml,
+    SchemaVersion version,
+    String childLocal,
+    String label,
+    String newName
+  ) throws IOException, JAXBException {
+    mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ensureNotBlank(newName, "Введите имя: " + label.toLowerCase(java.util.Locale.ROOT) + ".");
+      ensureMissingNamedChild(xml, containerLocal, childLocal, newName, label + " уже существует: " + newName);
+      String snippet = "<" + childLocal + " uuid=\"" + UUID.randomUUID() + "\">\n"
+        + "\t<Properties>\n"
+        + "\t\t<Name>" + escapeXml(newName) + "</Name>\n"
+        + "\t\t<Synonym>\n"
+        + "\t\t\t<v8:item>\n"
+        + "\t\t\t\t<v8:lang>ru</v8:lang>\n"
+        + "\t\t\t\t<v8:content>" + escapeXml(newName) + "</v8:content>\n"
+        + "\t\t\t</v8:item>\n"
+        + "\t\t</Synonym>\n"
+        + "\t\t<Comment/>\n"
+        + "\t\t<Type>\n"
+        + "\t\t\t<v8:Type>xs:boolean</v8:Type>\n"
+        + "\t\t</Type>\n"
+        + "\t</Properties>\n"
+        + "</" + childLocal + ">";
+      return insertIntoRootChildObjects(xml, containerLocal, snippet);
+    });
+  }
+
   private static void addRegisterChild(
     Path objectXml,
     SchemaVersion version,

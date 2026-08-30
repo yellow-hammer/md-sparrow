@@ -21,6 +21,8 @@ public final class MdNamedPropertyDto {
   public String synonymRu;
   public String comment;
   public MdTypeDescriptionDto type;
+  /** Реквизиты табличной части; у остальных видов узлов пусто. */
+  public java.util.List<MdNamedPropertyDto> attributes;
 
   public MdNamedPropertyDto() {
   }

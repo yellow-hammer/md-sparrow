@@ -28,6 +28,8 @@ import io.github.yellowhammer.designerxml.cf.CfMdObjectMutations;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.EmptyCfScaffold;
+import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
+import io.github.yellowhammer.designerxml.cf.MdContentMemberDto;
 import io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactKind;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactMutations;
@@ -158,6 +160,41 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.sourceName, "sourceName"), p.req(p.newName, "newName"));
         return "OK";
 
+      case "cf-md-exchange-plan-content-set": {
+        java.util.List<MdContentMemberDto> members = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.List<MdContentMemberDto>>() { }.getType());
+        ExchangePlanContentFile.write(p.reqPath(p.objectXml, "objectXml"), p.version(), members);
+        return "OK";
+      }
+      case "cf-md-form-delete":
+        MdObjectChildMutations.deleteForm(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-accounting-flag-add":
+        MdObjectChildMutations.addAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-accounting-flag-rename":
+        MdObjectChildMutations.renameAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-accounting-flag-delete":
+        MdObjectChildMutations.deleteAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-ext-dimension-accounting-flag-add":
+        MdObjectChildMutations.addExtDimensionAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-ext-dimension-accounting-flag-rename":
+        MdObjectChildMutations.renameExtDimensionAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-ext-dimension-accounting-flag-delete":
+        MdObjectChildMutations.deleteExtDimensionAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
       case "cf-md-dimension-add":
         MdObjectChildMutations.addDimension(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
         return "OK";
