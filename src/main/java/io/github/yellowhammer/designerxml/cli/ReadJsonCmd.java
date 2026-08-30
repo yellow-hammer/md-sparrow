@@ -27,6 +27,8 @@ import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.cf.EnumValueLabels;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
+import io.github.yellowhammer.designerxml.cf.DcsRead;
+import io.github.yellowhammer.designerxml.cf.SupportRules;
 import io.github.yellowhammer.designerxml.cf.CatalogFormDto;
 import io.github.yellowhammer.designerxml.cf.CfDumpValidation;
 import io.github.yellowhammer.designerxml.cf.CatalogFormEdit;
@@ -162,6 +164,34 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "cf-form-content-get": {
         FormContentDto dto = FormContentRead.read(p.reqPath(p.formXml, "formXml"), p.version());
         return gson.toJson(dto);
+      }
+      case "cf-dcs-info": {
+        return gson.toJson(DcsRead.info(p.reqPath(p.objectXml, "objectXml"), p.version()));
+      }
+      case "cf-dcs-validate": {
+        return gson.toJson(DcsRead.validate(p.reqPath(p.objectXml, "objectXml"), p.version()));
+      }
+      case "cf-support-get": {
+        java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
+        SupportRules.Rules rules = SupportRules.read(root);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("vendor", rules.vendor);
+        out.put("version", rules.version);
+        out.put("name", rules.name);
+        out.put("objectCount", rules.modeByUuid.size());
+        return gson.toJson(out);
+      }
+      case "cf-support-object-get": {
+        java.nio.file.Path objectXml = p.reqPath(p.objectXml, "objectXml");
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        try {
+          SupportRules.ensureEditable(objectXml);
+          out.put("editable", true);
+        } catch (IllegalStateException e) {
+          out.put("editable", false);
+          out.put("reason", e.getMessage());
+        }
+        return gson.toJson(out);
       }
       case "cf-md-subsystem-command-interface-get": {
         return gson.toJson(SubsystemCommandInterfaceFile.toJsonModel(

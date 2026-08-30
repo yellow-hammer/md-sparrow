@@ -92,4 +92,14 @@ class FormScaffoldTest {
       assertThat(root).isNotNull();
     }
   }
+
+  @Test
+  void dcsInfoReadsSchema() throws Exception {
+    java.nio.file.Path dcs = Ssl31SubmodulePaths.projectRoot().resolve(
+      "src/erf/_ДемоОтчетНоменклатураОперации/_ДемоНоменклатураОперации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml");
+    java.util.Map<String, Object> info = DcsRead.info(dcs, SchemaVersion.V2_20);
+    assertThat(info.get("dataSets")).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST).isNotEmpty();
+    java.util.Map<String, Object> valid = DcsRead.validate(dcs, SchemaVersion.V2_20);
+    assertThat(valid.get("valid")).isEqualTo(true);
+  }
 }

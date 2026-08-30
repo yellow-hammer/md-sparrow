@@ -183,6 +183,30 @@ public final class EnumValueLabels {
 
     // Скалярные свойства видов без моста: группы команд, формы, макеты,
     // сервисы, регистры расчёта, элементы стиля
+    // Стандартные реквизиты: имена платформы в списках выбора и кандидатах
+    put(m, "Ref", "Ссылка");
+    put(m, "DeletionMark", "Пометка удаления");
+    put(m, "Owner", "Владелец");
+    put(m, "IsFolder", "Это группа");
+    put(m, "Parent", "Родитель");
+    put(m, "Code", "Код");
+    put(m, "Description", "Наименование");
+    put(m, "Predefined", "Предопределённый");
+    put(m, "PredefinedDataName", "Имя предопределённых данных");
+    put(m, "Posted", "Проведён");
+    put(m, "Date", "Дата");
+    put(m, "Number", "Номер");
+    put(m, "Period", "Период");
+    put(m, "Recorder", "Регистратор");
+    put(m, "LineNumber", "Номер строки");
+    put(m, "Active", "Активность");
+    put(m, "RecordType", "Вид движения");
+    put(m, "Account", "Счёт");
+    put(m, "Started", "Стартован");
+    put(m, "Completed", "Завершён");
+    put(m, "HeadTask", "Ведущая задача");
+    put(m, "Executed", "Выполнена");
+
     put(m, "NAVIGATION_PANEL", "Панель навигации");
     put(m, "ACTIONS_PANEL", "Панель действий");
     put(m, "FORM_NAVIGATION_PANEL", "Панель навигации формы");
