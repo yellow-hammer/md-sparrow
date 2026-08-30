@@ -28,7 +28,10 @@ import io.github.yellowhammer.designerxml.cf.CfMdObjectMutations;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.EmptyCfScaffold;
+import io.github.yellowhammer.designerxml.cf.CfeBorrow;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
+import io.github.yellowhammer.designerxml.cf.FormScaffold;
+import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
 import io.github.yellowhammer.designerxml.cf.MdContentMemberDto;
 import io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactKind;
@@ -160,6 +163,15 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.sourceName, "sourceName"), p.req(p.newName, "newName"));
         return "OK";
 
+      case "cf-md-subsystem-command-visibility-set": {
+        java.util.List<SubsystemCommandInterfaceFile.CommandEntry> entries = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<
+            java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
+        SubsystemCommandInterfaceFile.writeVisibility(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), entries);
+        return "OK";
+      }
       case "cf-md-exchange-plan-content-set": {
         java.util.List<MdContentMemberDto> members = new Gson().fromJson(
           p.req(p.payloadJson, "payloadJson"),
@@ -167,6 +179,20 @@ final class ApplyMutationCmd implements Callable<Integer> {
         ExchangePlanContentFile.write(p.reqPath(p.objectXml, "objectXml"), p.version(), members);
         return "OK";
       }
+      case "cfe-borrow-object": {
+        java.nio.file.Path created = CfeBorrow.borrowObject(
+          p.reqPath(p.objectXml, "objectXml"),
+          p.reqPath(p.configurationXml, "configurationXml"),
+          p.version());
+        return created.toString();
+      }
+      case "cf-form-add":
+        FormScaffold.addForm(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-form-compile":
+        FormScaffold.compileForm(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"), p.req(p.payloadJson, "payloadJson"));
+        return "OK";
       case "cf-md-form-delete":
         MdObjectChildMutations.deleteForm(
           p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));

@@ -26,6 +26,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.cf.EnumValueLabels;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
+import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
 import io.github.yellowhammer.designerxml.cf.CatalogFormDto;
 import io.github.yellowhammer.designerxml.cf.CfDumpValidation;
 import io.github.yellowhammer.designerxml.cf.CatalogFormEdit;
@@ -161,6 +162,10 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "cf-form-content-get": {
         FormContentDto dto = FormContentRead.read(p.reqPath(p.formXml, "formXml"), p.version());
         return gson.toJson(dto);
+      }
+      case "cf-md-subsystem-command-interface-get": {
+        return gson.toJson(SubsystemCommandInterfaceFile.toJsonModel(
+          SubsystemCommandInterfaceFile.read(p.reqPath(p.objectXml, "objectXml"))));
       }
       case "cf-md-exchange-plan-content-get": {
         return gson.toJson(ExchangePlanContentFile.read(p.reqPath(p.objectXml, "objectXml")));
