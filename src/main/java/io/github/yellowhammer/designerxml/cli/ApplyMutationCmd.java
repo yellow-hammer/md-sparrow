@@ -112,12 +112,52 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
   }
 
+  /** Режимы правки существующего элемента: у цели есть своё правило поддержки. */
+  private static final java.util.Map<String, String> ELEMENT_TARGET_BY_MODE = java.util.Map.of(
+    "rename", "oldName",
+    "delete", "name",
+    "duplicate", "sourceName");
+
+  /**
+   * Отказывает в правке элемента, которому поставщик запретил изменение.
+   *
+   * <p>Правило заведено на каждый элемент объекта, поэтому разрешение на объект
+   * не открывает его реквизиты: цель правки видна по имени операции.
+   */
+  private static void refuseLockedElement(CliParams p) throws IOException {
+    if (p.op == null || !p.op.startsWith("cf-md-") || p.objectXml == null) {
+      return;
+    }
+    int lastDash = p.op.lastIndexOf('-');
+    if (lastDash < 0) {
+      return;
+    }
+    String field = ELEMENT_TARGET_BY_MODE.get(p.op.substring(lastDash + 1));
+    if (field == null) {
+      return;
+    }
+    String name = switch (field) {
+      case "oldName" -> p.oldName;
+      case "sourceName" -> p.sourceName;
+      default -> p.name;
+    };
+    if (name == null || name.isBlank()) {
+      return;
+    }
+    String path = p.tabularSection == null || p.tabularSection.isBlank()
+      ? name
+      : p.tabularSection + "/" + name;
+    SupportRules.ensureElementEditable(
+      Path.of(p.objectXml), "element:" + p.op.substring(0, lastDash) + ":" + path);
+  }
+
   /**
    * Выполняет операцию из {@code p.op}, переиспользуя сервисы изменения.
    *
    * @return текст для stdout (как у одиночных подкоманд: {@code OK} либо имя созданного объекта)
    */
   private static String dispatch(CliParams p) throws IOException, JAXBException {
+    refuseLockedElement(p);
     switch (p.op) {
       case "cf-md-object-delete":
         CfMdObjectMutations.delete(
@@ -213,14 +253,23 @@ final class ApplyMutationCmd implements Callable<Integer> {
         return "OK";
       }
       case "cf-support-object-mode-set": {
-        // Режим в name: "0" запретить, "1" разрешить, "2" снять с поддержки
-        java.nio.file.Path objectXml = p.reqPath(p.objectXml, "objectXml");
-        String uuid = io.github.yellowhammer.designerxml.cf.ObjectBelongingReader.readRootUuid(objectXml);
-        if (uuid == null) {
-          throw new IllegalArgumentException("В шапке файла объекта не найден uuid.");
-        }
-        java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
-        SupportRules.setObjectMode(root, uuid, Integer.parseInt(p.req(p.name, "name")));
+        // Режим в name: "0" запретить, "1" разрешить, "2" снять с поддержки;
+        // tag = "children" распространяет режим на подчинённые объекту субъекты
+        SupportRules.setModeForFile(
+          p.reqPath(p.objectXml, "objectXml"),
+          Integer.parseInt(p.req(p.name, "name")),
+          "children".equals(p.tag),
+          p.expectedGeneration);
+        return "OK";
+      }
+      case "cf-support-element-mode-set": {
+        // Правило есть у каждого элемента объекта: tag несёт ключ элемента из
+        // cf-support-object-states, name - режим
+        SupportRules.setModeForElement(
+          p.reqPath(p.objectXml, "objectXml"),
+          p.req(p.tag, "tag"),
+          Integer.parseInt(p.req(p.name, "name")),
+          p.expectedGeneration);
         return "OK";
       }
       case "cf-md-subsystem-command-placement-set": {
@@ -255,13 +304,13 @@ final class ApplyMutationCmd implements Callable<Integer> {
       }
       case "cf-support-remove": {
         java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
-        SupportRules.removeSupport(root);
+        SupportRules.removeSupport(root, p.expectedGeneration);
         return "OK";
       }
       case "cf-support-enable-rules": {
         java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
         int defaultMode = p.name == null || p.name.isBlank() ? 0 : Integer.parseInt(p.name.trim());
-        SupportRules.enableRules(root, defaultMode);
+        SupportRules.enableRules(root, defaultMode, p.expectedGeneration);
         return "OK";
       }
       case "cfe-borrow-object": {

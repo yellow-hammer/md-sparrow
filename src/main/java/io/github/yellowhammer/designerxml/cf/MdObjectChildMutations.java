@@ -288,6 +288,14 @@ public final class MdObjectChildMutations {
   public static void deleteForm(Path objectXml, SchemaVersion version, String formName)
     throws IOException, JAXBException {
     ensureNotBlank(formName, "Введите имя формы.");
+    // У формы своё правило поддержки: разрешение на объект её не открывает
+    Path formDescriptor = objectXml.toAbsolutePath().normalize().getParent()
+      .resolve(stemOf(objectXml))
+      .resolve("Forms")
+      .resolve(formName + ".xml");
+    if (Files.isRegularFile(formDescriptor)) {
+      SupportRules.ensureEditable(formDescriptor);
+    }
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
       String entry = "<Form>" + escapeXml(formName) + "</Form>";
       int at = xml.indexOf(entry);

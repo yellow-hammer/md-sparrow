@@ -89,8 +89,11 @@ public final class ProjectMetadataTreeBuilder {
     String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
     String rootRel = projectRoot.relativize(cfRoot).toString().replace('\\', '/');
     String support;
+    String supportGeneration = null;
     try {
-      support = SupportRules.read(cfRoot).configurationState();
+      SupportRules.Rules rules = SupportRules.read(cfRoot);
+      support = rules.configurationState();
+      supportGeneration = rules.generationId;
     } catch (IOException e) {
       support = null;
     }
@@ -101,6 +104,7 @@ public final class ProjectMetadataTreeBuilder {
       cfgRel,
       rootRel,
       support,
+      supportGeneration,
       groups
     );
   }
@@ -133,6 +137,7 @@ public final class ProjectMetadataTreeBuilder {
       label,
       cfgRel,
       rootRel,
+      null,
       null,
       groups
     );
@@ -279,6 +284,7 @@ public final class ProjectMetadataTreeBuilder {
       "",
       rootRelativePath,
       null,
+      null,
       groups
     );
   }
@@ -301,6 +307,7 @@ public final class ProjectMetadataTreeBuilder {
       "Внешние обработки",
       "",
       rootRelativePath,
+      null,
       null,
       groups
     );

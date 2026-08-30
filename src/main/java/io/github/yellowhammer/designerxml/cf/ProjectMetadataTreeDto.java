@@ -39,6 +39,8 @@ public record ProjectMetadataTreeDto(
      * правил нет.
      */
     String support,
+    /** Отпечаток правил поддержки на момент чтения дерева: с ним правка сверяется. */
+    String supportGeneration,
     List<MetadataGroupDto> groups
   ) {
   }

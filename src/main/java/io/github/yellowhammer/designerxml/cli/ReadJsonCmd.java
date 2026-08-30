@@ -184,8 +184,13 @@ final class ReadJsonCmd implements Callable<Integer> {
         out.put("name", rules.name);
         out.put("rulesEnabled", rules.rulesEnabled);
         out.put("configurationState", rules.configurationState());
+        out.put("generationId", rules.generationId);
         out.put("objectCount", rules.modeByUuid.size());
         return gson.toJson(out);
+      }
+      case "cf-support-object-states": {
+        // Состояния объекта и его подчинённых одним чтением: дерево красит формы и макеты
+        return gson.toJson(SupportRules.statesForObject(p.reqPath(p.objectXml, "objectXml")));
       }
       case "cf-support-object-get": {
         java.nio.file.Path objectXml = p.reqPath(p.objectXml, "objectXml");
@@ -204,6 +209,7 @@ final class ReadJsonCmd implements Callable<Integer> {
           out.put("vendor", rules.vendor);
           out.put("version", rules.version);
           out.put("configurationState", rules.configurationState());
+          out.put("generationId", rules.generationId);
         }
         return gson.toJson(out);
       }

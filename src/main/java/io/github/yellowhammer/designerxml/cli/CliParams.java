@@ -87,6 +87,9 @@ final class CliParams {
   boolean synonymEmpty;
   boolean autoName;
   /** Полезная нагрузка для set-операций: JSON DTO как строка (вместо отдельного файла). */
+  /** Отпечаток прочитанных правил поддержки: правка поверх устаревшего снимка отклоняется. */
+  String expectedGeneration;
+
   String payloadJson;
 
   /** Читает параметры из UTF-8 JSON-файла. */

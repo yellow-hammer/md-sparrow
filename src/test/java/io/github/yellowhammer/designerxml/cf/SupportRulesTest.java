@@ -82,7 +82,7 @@ class SupportRulesTest {
     byte[] before = rulesFile("1", "1", "1", "1");
     Files.write(SupportRules.rulesPath(root), before);
 
-    SupportRules.enableRules(root, SupportRules.MODE_NOT_EDITABLE);
+    SupportRules.enableRules(root, SupportRules.MODE_NOT_EDITABLE, null);
 
     byte[] after = Files.readAllBytes(SupportRules.rulesPath(root));
     assertThat(after).hasSameSizeAs(before);
@@ -98,7 +98,7 @@ class SupportRulesTest {
     Files.createDirectories(root.resolve("Ext"));
     Files.write(SupportRules.rulesPath(root), rulesFile("1", "1", "1", "1"));
 
-    SupportRules.enableRules(root, SupportRules.MODE_EDITABLE);
+    SupportRules.enableRules(root, SupportRules.MODE_EDITABLE, null);
 
     SupportRules.Rules rules = SupportRules.parse(Files.readAllBytes(SupportRules.rulesPath(root)));
     assertThat(rules.rulesEnabled).isTrue();
@@ -112,7 +112,7 @@ class SupportRulesTest {
     byte[] before = rulesFile("0", "0", "0", "0");
     Files.write(SupportRules.rulesPath(root), before);
 
-    SupportRules.setObjectMode(root, UUID_B, SupportRules.MODE_EDITABLE);
+    SupportRules.setObjectMode(root, UUID_B, SupportRules.MODE_EDITABLE, null);
 
     byte[] after = Files.readAllBytes(SupportRules.rulesPath(root));
     assertThat(after).hasSameSizeAs(before);
@@ -135,7 +135,7 @@ class SupportRulesTest {
     byte[] before = rulesFile("1", "1", "1", "1");
     Files.write(SupportRules.rulesPath(root), before);
 
-    assertThatThrownBy(() -> SupportRules.setObjectMode(root, UUID_A, SupportRules.MODE_EDITABLE))
+    assertThatThrownBy(() -> SupportRules.setObjectMode(root, UUID_A, SupportRules.MODE_EDITABLE, null))
       .isInstanceOf(IllegalStateException.class)
       .hasMessageContaining("возможность изменения");
     assertThat(Files.readAllBytes(SupportRules.rulesPath(root))).isEqualTo(before);
@@ -152,16 +152,219 @@ class SupportRulesTest {
   }
 
   @Test
+  void formAndTemplateCarryTheirOwnRule() throws Exception {
+    // У формы и макета свои записи в правилах: режим объекта за них не решает
+    Path objectXml = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Catalogs/_ДемоБанковскиеСчета.xml");
+    Path formXml = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Catalogs/_ДемоБанковскиеСчета/Forms/ФормаЭлемента.xml");
+    Path formContent = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Catalogs/_ДемоБанковскиеСчета/Forms/ФормаЭлемента/Ext/Form.xml");
+
+    assertThat(SupportRules.supportSubjectXml(formXml)).isEqualTo(formXml);
+    assertThat(SupportRules.supportSubjectXml(formContent)).isEqualTo(formXml);
+    assertThat(SupportRules.supportSubjectXml(objectXml)).isEqualTo(objectXml);
+
+    java.util.Map<String, String> states = SupportRules.statesForObject(objectXml);
+    assertThat(states).containsEntry("Catalogs/_ДемоБанковскиеСчета.xml", "locked");
+    assertThat(states).containsEntry("Catalogs/_ДемоБанковскиеСчета/Forms/ФормаЭлемента.xml", "locked");
+  }
+
+  @Test
+  void formOfSupportedObjectIsLockedThroughItsOwner() throws Exception {
+    // У формы свой uuid, в правилах его нет: состояние берётся у объекта-владельца
+    Path objectXml = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Catalogs/_ДемоБанковскиеСчета.xml");
+    for (String relative : java.util.List.of(
+      "src/cf/Catalogs/_ДемоБанковскиеСчета/Ext/ObjectModule.bsl",
+      "src/cf/Catalogs/_ДемоБанковскиеСчета/Ext/ManagerModule.bsl")) {
+      Path inside = Ssl31SubmodulePaths.projectRoot().resolve(relative);
+      assertThat(SupportRules.supportSubjectXml(inside)).isEqualTo(objectXml);
+      assertThat(SupportRules.objectState(inside)).isEqualTo("locked");
+    }
+    Path formXml = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Catalogs/_ДемоБанковскиеСчета/Forms/ФормаЭлемента/Ext/Form.xml");
+    assertThatThrownBy(() -> SupportRules.ensureEditable(formXml))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("на поддержке");
+  }
+
+  @Test
+  void emptyVendorPayloadDirectoryBlocksRuleWrites(@TempDir Path dir) throws Exception {
+    // Каталог поставок заведён, а файла поставки нет: следующая выгрузка платформы его не вернёт
+    Path root = dir.resolve("cf");
+    Files.createDirectories(SupportRules.vendorPayloadDir(root));
+    byte[] before = rulesFile("1", "1", "1", "1");
+    Files.write(SupportRules.rulesPath(root), before);
+
+    assertThatThrownBy(() -> SupportRules.enableRules(root, SupportRules.MODE_NOT_EDITABLE, null))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("нет ни одного файла поставки");
+    assertThat(Files.readAllBytes(SupportRules.rulesPath(root))).isEqualTo(before);
+
+    Files.writeString(SupportRules.vendorPayloadDir(root).resolve("Поставка.cf"), "payload");
+    SupportRules.enableRules(root, SupportRules.MODE_NOT_EDITABLE, null);
+    assertThat(SupportRules.parse(Files.readAllBytes(SupportRules.rulesPath(root))).rulesEnabled).isTrue();
+  }
+
+  @Test
+  void removeSupportDropsVendorPayloadToo(@TempDir Path dir) throws Exception {
+    Path root = dir.resolve("cf");
+    Files.createDirectories(SupportRules.vendorPayloadDir(root));
+    Files.write(SupportRules.rulesPath(root), rulesFile("1", "1", "1", "1"));
+    Files.writeString(SupportRules.vendorPayloadDir(root).resolve("Поставка.cf"), "payload");
+
+    SupportRules.removeSupport(root, null);
+
+    assertThat(Files.exists(SupportRules.rulesPath(root))).isFalse();
+    assertThat(Files.exists(SupportRules.vendorPayloadDir(root))).isFalse();
+  }
+
+  @Test
+  void modeForFileTouchesOnlySubjectUnlessChildrenAsked(@TempDir Path dir) throws Exception {
+    // Объект и его форма - разные субъекты правила: режим объекта форму не трогает
+    String eol = System.lineSeparator();
+    Path root = dir.resolve("cf");
+    Path forms = root.resolve("Catalogs/Товары/Forms");
+    Files.createDirectories(forms);
+    Files.createDirectories(root.resolve("Ext"));
+    Files.writeString(root.resolve("Configuration.xml"), "<MetaDataObject/>");
+    Files.writeString(root.resolve("Catalogs/Товары.xml"), "<MetaDataObject>" + eol + "<Catalog uuid=\"" + UUID_A + "\">" + eol);
+    Files.writeString(forms.resolve("ФормаЭлемента.xml"), "<MetaDataObject>" + eol + "<Form uuid=\"" + UUID_B + "\">" + eol);
+    Files.write(SupportRules.rulesPath(root), rulesFile("0", "0", "0", "0"));
+
+    SupportRules.setModeForFile(root.resolve("Catalogs/Товары.xml"), SupportRules.MODE_EDITABLE, false, null);
+    SupportRules.Rules afterObject = SupportRules.parse(Files.readAllBytes(SupportRules.rulesPath(root)));
+    assertThat(afterObject.effectiveState(UUID_A)).isEqualTo("editable");
+    assertThat(afterObject.effectiveState(UUID_B)).isEqualTo("locked");
+
+    SupportRules.setModeForFile(root.resolve("Catalogs/Товары.xml"), SupportRules.MODE_EDITABLE, true, null);
+    SupportRules.Rules withChildren = SupportRules.parse(Files.readAllBytes(SupportRules.rulesPath(root)));
+    assertThat(withChildren.effectiveState(UUID_B)).isEqualTo("editable");
+  }
+
+  @Test
+  void everyElementOfObjectIsRuleSubject() throws Exception {
+    // Правило заведено на каждый uuid выгрузки, а не только на файл объекта
+    Path objectXml = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Catalogs/_ДемоБанковскиеСчета.xml");
+
+    java.util.Map<String, String> elements = SupportRules.elementSubjects(objectXml);
+    assertThat(elements).containsKey("element:cf-md-attribute:НомерСчета");
+    assertThat(elements.keySet()).allMatch(key -> key.startsWith("element:cf-md-"));
+
+    SupportRules.Rules rules = SupportRules.rulesFor(objectXml);
+    assertThat(rules).isNotNull();
+    assertThat(elements.values()).allMatch(uuid -> rules.modeByUuid.containsKey(uuid));
+
+    java.util.Map<String, String> states = SupportRules.statesForObject(objectXml);
+    assertThat(states).containsEntry("element:cf-md-attribute:НомерСчета", "locked");
+  }
+
+  @Test
+  void modeForElementTouchesOnlyThatElement(@TempDir Path dir) throws Exception {
+    String eol = System.lineSeparator();
+    Path root = dir.resolve("cf");
+    Files.createDirectories(root.resolve("Catalogs"));
+    Files.createDirectories(root.resolve("Ext"));
+    Files.writeString(root.resolve("Configuration.xml"), "<MetaDataObject/>");
+    Files.writeString(root.resolve("Catalogs/Товары.xml"),
+      "<MetaDataObject>" + eol
+        + "<Catalog uuid=\"" + UUID_A + "\">" + eol
+        + "<Properties><Name>Товары</Name></Properties>" + eol
+        + "<ChildObjects>" + eol
+        + "<Attribute uuid=\"" + UUID_B + "\"><Properties><Name>Артикул</Name></Properties></Attribute>" + eol
+        + "<TabularSection uuid=\"" + UUID_C + "\"><Properties><Name>Состав</Name></Properties>" + eol
+        + "</TabularSection>" + eol
+        + "</ChildObjects></Catalog></MetaDataObject>");
+    Files.write(SupportRules.rulesPath(root), rulesFile("0", "0", "0", "0"));
+    Path objectXml = root.resolve("Catalogs/Товары.xml");
+
+    assertThat(SupportRules.elementSubjects(objectXml))
+      .containsEntry("element:cf-md-attribute:Артикул", UUID_B)
+      .containsEntry("element:cf-md-tabular-section:Состав", UUID_C);
+
+    SupportRules.setModeForElement(objectXml, "element:cf-md-attribute:Артикул", SupportRules.MODE_EDITABLE, null);
+
+    SupportRules.Rules rules = SupportRules.parse(Files.readAllBytes(SupportRules.rulesPath(root)));
+    assertThat(rules.effectiveState(UUID_B)).isEqualTo("editable");
+    assertThat(rules.effectiveState(UUID_A)).isEqualTo("locked");
+    assertThat(rules.effectiveState(UUID_C)).isEqualTo("locked");
+
+    // Подчинённые объекта - не только формы и макеты: элементы файла тоже
+    SupportRules.setModeForFile(objectXml, SupportRules.MODE_EDITABLE, true, null);
+    SupportRules.Rules withChildren = SupportRules.parse(Files.readAllBytes(SupportRules.rulesPath(root)));
+    assertThat(withChildren.effectiveState(UUID_C)).isEqualTo("editable");
+
+    assertThatThrownBy(() ->
+      SupportRules.setModeForElement(objectXml, "element:cf-md-attribute:Нет", SupportRules.MODE_EDITABLE, null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("нет элемента");
+  }
+
+  @Test
+  void lockedElementIsRefusedWhileItsObjectIsEditable(@TempDir Path dir) throws Exception {
+    String eol = System.lineSeparator();
+    Path root = dir.resolve("cf");
+    Files.createDirectories(root.resolve("Catalogs"));
+    Files.createDirectories(root.resolve("Ext"));
+    Files.writeString(root.resolve("Configuration.xml"), "<MetaDataObject/>");
+    Files.writeString(root.resolve("Catalogs/Товары.xml"),
+      "<MetaDataObject>" + eol
+        + "<Catalog uuid=\"" + UUID_A + "\">" + eol
+        + "<Properties><Name>Товары</Name></Properties>" + eol
+        + "<ChildObjects>" + eol
+        + "<Attribute uuid=\"" + UUID_B + "\"><Properties><Name>Артикул</Name></Properties></Attribute>" + eol
+        + "</ChildObjects></Catalog></MetaDataObject>");
+    // Объект менять разрешено, его реквизит - нет
+    Files.write(SupportRules.rulesPath(root), rulesFile("0", "1", "0", "0"));
+    Path objectXml = root.resolve("Catalogs/Товары.xml");
+
+    SupportRules.ensureEditable(objectXml);
+    assertThatThrownBy(() ->
+      SupportRules.ensureElementEditable(objectXml, "element:cf-md-attribute:Артикул"))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("Элемент на поддержке");
+
+    // Элемента нет в правилах - правку не ограничиваем
+    SupportRules.ensureElementEditable(objectXml, "element:cf-md-attribute:Нет");
+  }
+
+  @Test
+  void staleGenerationStopsRuleWrite(@TempDir Path dir) throws Exception {
+    // Правка поверх устаревшего снимка: файл успел измениться, запись отклоняется
+    Path root = dir.resolve("cf");
+    Files.createDirectories(root.resolve("Ext"));
+    Files.write(SupportRules.rulesPath(root), rulesFile("0", "0", "0", "0"));
+    String staleGeneration = SupportRules.read(root).generationId;
+    assertThat(staleGeneration).isNotBlank();
+
+    byte[] changed = rulesFile("0", "1", "0", "0");
+    Files.write(SupportRules.rulesPath(root), changed);
+
+    assertThatThrownBy(() ->
+      SupportRules.setObjectMode(root, UUID_B, SupportRules.MODE_EDITABLE, staleGeneration))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("изменились после чтения");
+    assertThat(Files.readAllBytes(SupportRules.rulesPath(root))).isEqualTo(changed);
+
+    // Свежий отпечаток правку пропускает
+    SupportRules.setObjectMode(root, UUID_B, SupportRules.MODE_EDITABLE, SupportRules.generationOf(changed));
+    assertThat(SupportRules.parse(Files.readAllBytes(SupportRules.rulesPath(root))).effectiveState(UUID_B))
+      .isEqualTo("editable");
+  }
+
+  @Test
   void removeSupportDeletesRulesFile(@TempDir Path dir) throws Exception {
     Path root = dir.resolve("cf");
     Files.createDirectories(root.resolve("Ext"));
     Files.write(SupportRules.rulesPath(root), rulesFile("1", "1", "1", "1"));
 
-    SupportRules.removeSupport(root);
+    SupportRules.removeSupport(root, null);
 
     assertThat(Files.exists(SupportRules.rulesPath(root))).isFalse();
     assertThat(SupportRules.read(root).isEmpty()).isTrue();
-    assertThatThrownBy(() -> SupportRules.removeSupport(root))
+    assertThatThrownBy(() -> SupportRules.removeSupport(root, null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessageContaining("не на поддержке");
   }
