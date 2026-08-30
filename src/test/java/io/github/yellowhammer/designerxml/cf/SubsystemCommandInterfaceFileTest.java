@@ -69,6 +69,47 @@ class SubsystemCommandInterfaceFileTest {
   }
 
   @Test
+  void writePlacementChangesGroupAndKeepsSections() throws Exception {
+    Path source = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Subsystems/_ДемоАнкетирование/Ext/CommandInterface.xml");
+    Path subsystemXml = tempDir.resolve("Подсистема.xml");
+    Files.writeString(subsystemXml, "<x/>");
+    Path target = SubsystemCommandInterfaceFile.interfacePath(subsystemXml);
+    Files.createDirectories(target.getParent());
+    Files.copy(source, target);
+
+    SubsystemCommandInterfaceFile.Dto before = SubsystemCommandInterfaceFile.read(subsystemXml);
+    before.placement.get(0).value = "NavigationPanelImportant";
+    SubsystemCommandInterfaceFile.writePlacement(subsystemXml, SchemaVersion.V2_20, before.placement);
+
+    SubsystemCommandInterfaceFile.Dto after = SubsystemCommandInterfaceFile.read(subsystemXml);
+    assertThat(after.placement.get(0).value).isEqualTo("NavigationPanelImportant");
+    assertThat(after.placement).hasSameSizeAs(before.placement);
+    assertThat(after.visibility).hasSameSizeAs(before.visibility);
+    assertThat(after.order).hasSameSizeAs(before.order);
+  }
+
+  @Test
+  void writeOrderReordersCommandsInsideSection() throws Exception {
+    Path source = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Subsystems/_ДемоАнкетирование/Ext/CommandInterface.xml");
+    Path subsystemXml = tempDir.resolve("Подсистема.xml");
+    Files.writeString(subsystemXml, "<x/>");
+    Path target = SubsystemCommandInterfaceFile.interfacePath(subsystemXml);
+    Files.createDirectories(target.getParent());
+    Files.copy(source, target);
+
+    SubsystemCommandInterfaceFile.Dto before = SubsystemCommandInterfaceFile.read(subsystemXml);
+    java.util.List<SubsystemCommandInterfaceFile.CommandEntry> reversed = new java.util.ArrayList<>(before.order);
+    java.util.Collections.reverse(reversed);
+    SubsystemCommandInterfaceFile.writeOrder(subsystemXml, SchemaVersion.V2_20, reversed);
+
+    SubsystemCommandInterfaceFile.Dto after = SubsystemCommandInterfaceFile.read(subsystemXml);
+    assertThat(after.order.get(0).command).isEqualTo(before.order.get(before.order.size() - 1).command);
+    assertThat(after.subsystemsOrder).isEqualTo(before.subsystemsOrder);
+  }
+
+  @Test
   void writeCreatesFileWhenMissing() throws Exception {
     Path subsystemXml = tempDir.resolve("Новая.xml");
     Files.writeString(subsystemXml, "<x/>");

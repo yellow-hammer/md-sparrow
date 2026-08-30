@@ -223,9 +223,31 @@ final class ApplyMutationCmd implements Callable<Integer> {
         SupportRules.setObjectMode(root, uuid, Integer.parseInt(p.req(p.name, "name")));
         return "OK";
       }
+      case "cf-md-subsystem-command-placement-set": {
+        java.util.List<SubsystemCommandInterfaceFile.CommandEntry> placement = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<
+            java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
+        SubsystemCommandInterfaceFile.writePlacement(p.reqPath(p.objectXml, "objectXml"), p.version(), placement);
+        return "OK";
+      }
+      case "cf-md-subsystem-command-order-set": {
+        java.util.List<SubsystemCommandInterfaceFile.CommandEntry> order = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<
+            java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
+        SubsystemCommandInterfaceFile.writeOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), order);
+        return "OK";
+      }
+      case "cf-support-remove": {
+        java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
+        SupportRules.removeSupport(root);
+        return "OK";
+      }
       case "cf-support-enable-rules": {
         java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
-        SupportRules.enableRules(root);
+        int defaultMode = p.name == null || p.name.isBlank() ? 0 : Integer.parseInt(p.name.trim());
+        SupportRules.enableRules(root, defaultMode);
         return "OK";
       }
       case "cfe-borrow-object": {

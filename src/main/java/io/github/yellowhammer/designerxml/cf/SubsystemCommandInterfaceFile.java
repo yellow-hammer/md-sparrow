@@ -33,7 +33,10 @@ public final class SubsystemCommandInterfaceFile {
   private static final Pattern VISIBILITY_COMMAND = Pattern.compile(
     "<Command name=\"([^\"]+)\">\\s*<Visibility>\\s*<xr:Common>([^<]+)</xr:Common>\\s*</Visibility>\\s*</Command>");
   private static final Pattern PLACEMENT_COMMAND = Pattern.compile(
-    "<Command name=\"([^\"]+)\">\\s*<CommandGroup>([^<]+)</CommandGroup>");
+    "<Command name=\"([^\"]+)\">\\s*<CommandGroup>([^<]+)</CommandGroup>"
+      + "(?:\\s*<Placement>([^<]+)</Placement>)?");
+  private static final Pattern SUBSYSTEM_ENTRY = Pattern.compile("<Subsystem>([^<]+)</Subsystem>");
+  private static final Pattern GROUP_ENTRY = Pattern.compile("<Group>([^<]+)</Group>");
 
   private SubsystemCommandInterfaceFile() {
   }
@@ -42,6 +45,8 @@ public final class SubsystemCommandInterfaceFile {
   public static final class CommandEntry {
     public String command;
     public String value;
+    /** Способ размещения из CommandsPlacement; у других секций пусто. */
+    public String place;
 
     public CommandEntry() {
     }
@@ -50,12 +55,21 @@ public final class SubsystemCommandInterfaceFile {
       this.command = command;
       this.value = value;
     }
+
+    public CommandEntry(String command, String value, String place) {
+      this.command = command;
+      this.value = value;
+      this.place = place;
+    }
   }
 
-  /** Содержимое командного интерфейса подсистемы. */
+  /** Содержимое командного интерфейса подсистемы: все секции файла. */
   public static final class Dto {
     public List<CommandEntry> visibility = new ArrayList<>();
     public List<CommandEntry> placement = new ArrayList<>();
+    public List<CommandEntry> order = new ArrayList<>();
+    public List<String> subsystemsOrder = new ArrayList<>();
+    public List<String> groupsOrder = new ArrayList<>();
   }
 
   /** Путь к файлу рядом с XML подсистемы. */
@@ -78,7 +92,22 @@ public final class SubsystemCommandInterfaceFile {
     }
     Matcher placement = PLACEMENT_COMMAND.matcher(section(text, "CommandsPlacement"));
     while (placement.find()) {
-      out.placement.add(new CommandEntry(placement.group(1), placement.group(2).trim()));
+      out.placement.add(new CommandEntry(
+        placement.group(1),
+        placement.group(2).trim(),
+        placement.group(3) == null ? "" : placement.group(3).trim()));
+    }
+    Matcher order = PLACEMENT_COMMAND.matcher(section(text, "CommandsOrder"));
+    while (order.find()) {
+      out.order.add(new CommandEntry(order.group(1), order.group(2).trim()));
+    }
+    Matcher subsystems = SUBSYSTEM_ENTRY.matcher(section(text, "SubsystemsOrder"));
+    while (subsystems.find()) {
+      out.subsystemsOrder.add(subsystems.group(1).trim());
+    }
+    Matcher groups = GROUP_ENTRY.matcher(section(text, "GroupsOrder"));
+    while (groups.find()) {
+      out.groupsOrder.add(groups.group(1).trim());
     }
     return out;
   }
@@ -89,6 +118,54 @@ public final class SubsystemCommandInterfaceFile {
    */
   public static void writeVisibility(Path subsystemXml, SchemaVersion version, List<CommandEntry> visibility)
     throws IOException {
+    writeSection(subsystemXml, version, "CommandsVisibility", visibility, (block, entry, eol) -> {
+      block.append("\t\t<Command name=\"").append(escapeXml(entry.command.trim())).append("\">").append(eol);
+      block.append("\t\t\t<Visibility>").append(eol);
+      block.append("\t\t\t\t<xr:Common>").append("true".equals(entry.value) ? "true" : "false")
+        .append("</xr:Common>").append(eol);
+      block.append("\t\t\t</Visibility>").append(eol);
+      block.append("\t\t</Command>").append(eol);
+    });
+  }
+
+  /** Пишет размещение команд: группа и способ; блок CommandsPlacement заменяется целиком. */
+  public static void writePlacement(Path subsystemXml, SchemaVersion version, List<CommandEntry> placement)
+    throws IOException {
+    writeSection(subsystemXml, version, "CommandsPlacement", placement, (block, entry, eol) -> {
+      block.append("\t\t<Command name=\"").append(escapeXml(entry.command.trim())).append("\">").append(eol);
+      block.append("\t\t\t<CommandGroup>").append(escapeXml(entry.value.trim())).append("</CommandGroup>").append(eol);
+      block.append("\t\t\t<Placement>")
+        .append(escapeXml(entry.place == null || entry.place.isBlank() ? "Auto" : entry.place.trim()))
+        .append("</Placement>").append(eol);
+      block.append("\t\t</Command>").append(eol);
+    });
+  }
+
+  /** Пишет порядок команд внутри групп; блок CommandsOrder заменяется целиком. */
+  public static void writeOrder(Path subsystemXml, SchemaVersion version, List<CommandEntry> order)
+    throws IOException {
+    writeSection(subsystemXml, version, "CommandsOrder", order, (block, entry, eol) -> {
+      block.append("\t\t<Command name=\"").append(escapeXml(entry.command.trim())).append("\">").append(eol);
+      block.append("\t\t\t<CommandGroup>").append(escapeXml(entry.value.trim())).append("</CommandGroup>").append(eol);
+      block.append("\t\t</Command>").append(eol);
+    });
+  }
+
+  private interface EntryRenderer {
+    void render(StringBuilder block, CommandEntry entry, String eol);
+  }
+
+  /** Секции файла в порядке схемы: новый блок встаёт после предыдущей существующей. */
+  private static final List<String> SECTION_ORDER = List.of(
+    "CommandsVisibility", "CommandsPlacement", "CommandsOrder", "SubsystemsOrder", "GroupsOrder");
+
+  private static void writeSection(
+    Path subsystemXml,
+    SchemaVersion version,
+    String sectionName,
+    List<CommandEntry> entries,
+    EntryRenderer renderer
+  ) throws IOException {
     SupportRules.ensureEditable(subsystemXml);
     Path file = interfacePath(subsystemXml);
     String eol = "\r\n";
@@ -98,34 +175,28 @@ public final class SubsystemCommandInterfaceFile {
       eol = existing.contains("\r\n") ? "\r\n" : "\n";
     }
     StringBuilder block = new StringBuilder();
-    List<CommandEntry> entries = visibility == null ? List.of() : visibility;
-    if (!entries.isEmpty()) {
-      block.append("\t<CommandsVisibility>").append(eol);
-      for (CommandEntry entry : entries) {
+    List<CommandEntry> safeEntries = entries == null ? List.of() : entries;
+    if (!safeEntries.isEmpty()) {
+      block.append('\t').append('<').append(sectionName).append('>').append(eol);
+      for (CommandEntry entry : safeEntries) {
         if (entry == null || entry.command == null || entry.command.isBlank()) {
           continue;
         }
-        block.append("\t\t<Command name=\"").append(escapeXml(entry.command.trim())).append("\">").append(eol);
-        block.append("\t\t\t<Visibility>").append(eol);
-        block.append("\t\t\t\t<xr:Common>").append("true".equals(entry.value) ? "true" : "false")
-          .append("</xr:Common>").append(eol);
-        block.append("\t\t\t</Visibility>").append(eol);
-        block.append("\t\t</Command>").append(eol);
+        renderer.render(block, entry, eol);
       }
-      block.append("\t</CommandsVisibility>").append(eol);
+      block.append('\t').append("</").append(sectionName).append('>').append(eol);
     }
     String text;
     if (existing != null) {
-      int start = existing.indexOf("<CommandsVisibility>");
-      int end = existing.indexOf("</CommandsVisibility>");
+      int start = existing.indexOf('<' + sectionName + '>');
+      int end = existing.indexOf("</" + sectionName + '>');
       if (start >= 0 && end >= 0) {
         int lineStart = existing.lastIndexOf('\n', start);
         int blockEnd = existing.indexOf('\n', end);
         text = existing.substring(0, lineStart + 1) + block + existing.substring(blockEnd + 1);
       } else {
-        int open = existing.indexOf('>', existing.indexOf("<CommandInterface"));
-        text = existing.substring(0, open + 1) + eol + block
-          + existing.substring(skipEol(existing, open + 1));
+        int at = insertionPoint(existing, sectionName);
+        text = existing.substring(0, at) + block + existing.substring(at);
       }
     } else {
       text = "﻿<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + eol
@@ -139,6 +210,25 @@ public final class SubsystemCommandInterfaceFile {
       Files.createDirectories(file.getParent());
     }
     Files.writeString(file, text, StandardCharsets.UTF_8);
+  }
+
+  /** Точка вставки нового блока: после последней секции, идущей раньше по схеме. */
+  private static int insertionPoint(String existing, String sectionName) {
+    int anchor = -1;
+    for (String section : SECTION_ORDER) {
+      if (section.equals(sectionName)) {
+        break;
+      }
+      int end = existing.indexOf("</" + section + '>');
+      if (end >= 0) {
+        anchor = existing.indexOf('\n', end);
+      }
+    }
+    if (anchor >= 0) {
+      return anchor + 1;
+    }
+    int open = existing.indexOf('>', existing.indexOf("<CommandInterface"));
+    return skipEol(existing, open + 1);
   }
 
   private static int skipEol(String text, int index) {
@@ -166,11 +256,14 @@ public final class SubsystemCommandInterfaceFile {
       .replace("\"", "&quot;");
   }
 
-  /** Для JSON-ответа CLI: видимость и размещение картами «команда - значение». */
+  /** Для JSON-ответа CLI: все секции файла. */
   public static Map<String, Object> toJsonModel(Dto dto) {
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("visibility", dto.visibility);
     out.put("placement", dto.placement);
+    out.put("order", dto.order);
+    out.put("subsystemsOrder", dto.subsystemsOrder);
+    out.put("groupsOrder", dto.groupsOrder);
     return out;
   }
 

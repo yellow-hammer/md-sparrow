@@ -236,6 +236,8 @@ public final class EnumValueLabels {
     put(m, "MONTH", "Месяц");
     put(m, "DAY", "День");
 
+    put(m, "PLATFORM_APPLICATION", "Приложение для платформы");
+    put(m, "MOBILE_PLATFORM_APPLICATION", "Приложение для мобильной платформы");
     put(m, "MANAGED_APPLICATION", "Управляемое приложение");
     put(m, "ORDINARY_APPLICATION", "Обычное приложение");
     put(m, "RUSSIAN", "Русский");

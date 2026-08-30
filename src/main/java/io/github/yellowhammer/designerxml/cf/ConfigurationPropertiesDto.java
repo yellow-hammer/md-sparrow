@@ -19,6 +19,8 @@ public final class ConfigurationPropertiesDto {
 
   public String defaultRunMode;
   public List<String> usePurposes;
+  /** Допустимые назначения использования: константы модели текущей версии формата. */
+  public List<String> usePurposeOptions;
   public String scriptVariant;
   public List<String> defaultRoles;
 
@@ -47,6 +49,7 @@ public final class ConfigurationPropertiesDto {
 
   public ConfigurationPropertiesDto() {
     this.usePurposes = new ArrayList<>();
+    this.usePurposeOptions = new ArrayList<>();
     this.defaultRoles = new ArrayList<>();
   }
 }

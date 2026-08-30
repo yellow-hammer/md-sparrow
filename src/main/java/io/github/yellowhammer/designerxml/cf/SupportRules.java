@@ -292,10 +292,14 @@ public final class SupportRules {
 
   /**
    * Включает возможность изменения конфигурации: глобальный флаг и флаги блоков
-   * открываются, каждой записи ставится режим «не редактируется», как это делает
-   * конфигуратор по умолчанию. Дальше режим меняется по объекту.
+   * открываются, каждой записи ставится правило по умолчанию из диалога
+   * конфигуратора - «не редактируется» либо «редактируется с сохранением
+   * поддержки». Дальше режим меняется по объекту.
    */
-  public static void enableRules(Path configurationRoot) throws IOException {
+  public static void enableRules(Path configurationRoot, int defaultMode) throws IOException {
+    if (defaultMode != MODE_NOT_EDITABLE && defaultMode != MODE_EDITABLE) {
+      throw new IllegalArgumentException("Правило по умолчанию: 0 не редактируется либо 1 с сохранением поддержки.");
+    }
     Path file = rulesPath(configurationRoot);
     if (!Files.isRegularFile(file)) {
       throw new IllegalArgumentException("У выгрузки нет файла правил поддержки.");
@@ -312,10 +316,24 @@ public final class SupportRules {
     for (SupplierBlock block : rules.suppliers) {
       patchDigit(bytes, block.blockTokenStart, 0);
       for (ObjectEntry entry : block.objects) {
-        patchDigit(bytes, entry.modeTokenStart, MODE_NOT_EDITABLE);
+        patchDigit(bytes, entry.modeTokenStart, defaultMode);
       }
     }
     verifyAndWrite(file, bytes);
+  }
+
+  /**
+   * Снимает конфигурацию с поддержки: файл поставки удаляется, правил больше
+   * нет, вся выгрузка редактируется свободно. Обратной дороги без поставщика
+   * нет, поэтому вызывающая сторона спрашивает подтверждение сама.
+   */
+  public static void removeSupport(Path configurationRoot) throws IOException {
+    Path file = rulesPath(configurationRoot);
+    if (!Files.isRegularFile(file)) {
+      throw new IllegalArgumentException("Конфигурация не на поддержке: файла поставки нет.");
+    }
+    Files.delete(file);
+    CACHE.remove(file.toAbsolutePath().normalize().toString());
   }
 
   private static void patchDigit(byte[] bytes, int at, int digit) {

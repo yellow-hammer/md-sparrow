@@ -82,7 +82,7 @@ class SupportRulesTest {
     byte[] before = rulesFile("1", "1", "1", "1");
     Files.write(SupportRules.rulesPath(root), before);
 
-    SupportRules.enableRules(root);
+    SupportRules.enableRules(root, SupportRules.MODE_NOT_EDITABLE);
 
     byte[] after = Files.readAllBytes(SupportRules.rulesPath(root));
     assertThat(after).hasSameSizeAs(before);
@@ -90,6 +90,19 @@ class SupportRulesTest {
     assertThat(rules.rulesEnabled).isTrue();
     assertThat(rules.effectiveState(UUID_A)).isEqualTo("locked");
     assertThat(rules.modeByUuid.get(UUID_A)).isEqualTo(0);
+  }
+
+  @Test
+  void enableRulesWithEditableDefaultOpensObjects(@TempDir Path dir) throws Exception {
+    Path root = dir.resolve("cf");
+    Files.createDirectories(root.resolve("Ext"));
+    Files.write(SupportRules.rulesPath(root), rulesFile("1", "1", "1", "1"));
+
+    SupportRules.enableRules(root, SupportRules.MODE_EDITABLE);
+
+    SupportRules.Rules rules = SupportRules.parse(Files.readAllBytes(SupportRules.rulesPath(root)));
+    assertThat(rules.rulesEnabled).isTrue();
+    assertThat(rules.effectiveState(UUID_A)).isEqualTo("editable");
   }
 
   @Test
@@ -126,6 +139,21 @@ class SupportRulesTest {
       .isInstanceOf(IllegalStateException.class)
       .hasMessageContaining("возможность изменения");
     assertThat(Files.readAllBytes(SupportRules.rulesPath(root))).isEqualTo(before);
+  }
+
+  @Test
+  void removeSupportDeletesRulesFile(@TempDir Path dir) throws Exception {
+    Path root = dir.resolve("cf");
+    Files.createDirectories(root.resolve("Ext"));
+    Files.write(SupportRules.rulesPath(root), rulesFile("1", "1", "1", "1"));
+
+    SupportRules.removeSupport(root);
+
+    assertThat(Files.exists(SupportRules.rulesPath(root))).isFalse();
+    assertThat(SupportRules.read(root).isEmpty()).isTrue();
+    assertThatThrownBy(() -> SupportRules.removeSupport(root))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("не на поддержке");
   }
 
   @Test
