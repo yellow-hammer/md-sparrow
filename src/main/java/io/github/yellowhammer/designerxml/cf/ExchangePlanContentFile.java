@@ -66,6 +66,7 @@ public final class ExchangePlanContentFile {
    */
   public static void write(Path exchangePlanXml, SchemaVersion version, List<MdContentMemberDto> members)
     throws IOException {
+    SupportRules.ensureEditable(exchangePlanXml);
     Path content = contentPath(exchangePlanXml);
     String existing = Files.isRegularFile(content)
       ? Files.readString(content, StandardCharsets.UTF_8)

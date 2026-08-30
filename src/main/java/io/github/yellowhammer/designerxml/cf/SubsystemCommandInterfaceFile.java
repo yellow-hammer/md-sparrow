@@ -89,6 +89,7 @@ public final class SubsystemCommandInterfaceFile {
    */
   public static void writeVisibility(Path subsystemXml, SchemaVersion version, List<CommandEntry> visibility)
     throws IOException {
+    SupportRules.ensureEditable(subsystemXml);
     Path file = interfacePath(subsystemXml);
     String eol = "\r\n";
     String existing = null;

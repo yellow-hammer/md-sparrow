@@ -48,6 +48,7 @@ public final class FormScaffold {
    */
   public static void addForm(Path objectXml, SchemaVersion version, String formName)
     throws IOException, JAXBException {
+    SupportRules.ensureEditable(objectXml);
     CatalogNameConstraints.check(formName);
     Path descriptor = formDescriptorPath(objectXml, formName);
     if (Files.exists(descriptor)) {
@@ -88,6 +89,7 @@ public final class FormScaffold {
    */
   public static void compileForm(Path objectXml, SchemaVersion version, String formName, String definitionJson)
     throws IOException, JAXBException {
+    SupportRules.ensureEditable(objectXml);
     Path descriptor = formDescriptorPath(objectXml, formName);
     if (!Files.exists(descriptor)) {
       addForm(objectXml, version, formName);

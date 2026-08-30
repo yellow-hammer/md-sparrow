@@ -31,6 +31,7 @@ import io.github.yellowhammer.designerxml.cf.EmptyCfScaffold;
 import io.github.yellowhammer.designerxml.cf.CfeBorrow;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.FormScaffold;
+import io.github.yellowhammer.designerxml.cf.SupportRules;
 import io.github.yellowhammer.designerxml.cf.DcsRead;
 import io.github.yellowhammer.designerxml.cf.RoleRightsFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
@@ -199,6 +200,22 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<java.util.List<RoleRightsFile.Edit>>() { }.getType());
         RoleRightsFile.applyEdits(p.reqPath(p.objectXml, "objectXml"), edits);
+        return "OK";
+      }
+      case "cf-support-object-mode-set": {
+        // Режим в name: "0" запретить, "1" разрешить, "2" снять с поддержки
+        java.nio.file.Path objectXml = p.reqPath(p.objectXml, "objectXml");
+        String uuid = io.github.yellowhammer.designerxml.cf.ObjectBelongingReader.readRootUuid(objectXml);
+        if (uuid == null) {
+          throw new IllegalArgumentException("В шапке файла объекта не найден uuid.");
+        }
+        java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
+        SupportRules.setObjectMode(root, uuid, Integer.parseInt(p.req(p.name, "name")));
+        return "OK";
+      }
+      case "cf-support-enable-rules": {
+        java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
+        SupportRules.enableRules(root);
         return "OK";
       }
       case "cfe-borrow-object": {

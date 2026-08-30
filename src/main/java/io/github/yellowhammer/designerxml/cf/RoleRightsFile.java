@@ -115,6 +115,7 @@ public final class RoleRightsFile {
    * объект без оставшихся прав уходит из файла целиком.
    */
   public static void applyEdits(Path roleXml, List<Edit> edits) throws IOException {
+    SupportRules.ensureEditable(roleXml);
     Path file = rightsPath(roleXml);
     if (!Files.isRegularFile(file)) {
       throw new IllegalArgumentException("У роли нет файла прав: " + file);

@@ -12,7 +12,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -21,19 +24,30 @@ import java.util.regex.Pattern;
 /**
  * Правила поддержки поставщика: {@code Ext/ParentConfigurations.bin} выгрузки.
  *
- * <p>Файл текстовый, скобочного формата: заголовок с поставщиком и версией,
- * затем записи «признак, режим, uuid, uuid» по каждому объекту. Объект с
- * режимом {@code 0} менять нельзя - правка разъехалась бы с правилами
- * поставщика; изменение самих правил остаётся конфигуратору, пока запись не
- * выверена byte-в-byte на его выгрузках.
+ * <p>Файл текстовый, скобочного формата, ревизия 6: заголовок с глобальным
+ * флагом видимости правил, затем блоки поставщиков. Блок несёт свой флаг,
+ * реквизиты поставки и записи объектов «режим, флаг, uuid, uuid поставщика».
+ * Режим записи: {@code 0} - не редактируется, {@code 1} - на поддержке с
+ * возможностью изменения, {@code 2} - снят с поддержки. Глобальный флаг и флаг
+ * блока: {@code 0} - правила объектов действуют, {@code 1} - скрыты, вся
+ * поставка закрыта от изменения.
+ *
+ * <p>Запись меняет только однобайтовые цифровые токены: длина файла и всё
+ * остальное содержимое сохраняются байт-в-байт, результат перечитывается
+ * разбором перед записью.
  */
 public final class SupportRules {
 
-  private static final Pattern HEADER = Pattern.compile(
-    "^\\{\\d+,\\d+,\\d+,[0-9a-f-]+,\\d+,[0-9a-f-]+,\"([^\"]*)\",\"(.*?)\",\"([^\"]*)\",(\\d+),");
-  private static final Pattern ENTRY = Pattern.compile(
-    "(\\d+),(\\d+),([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}),\\3");
+  /** Режим записи объекта: изменение запрещено. */
+  public static final int MODE_NOT_EDITABLE = 0;
+  /** Режим записи объекта: на поддержке с возможностью изменения. */
+  public static final int MODE_EDITABLE = 1;
+  /** Режим записи объекта: снят с поддержки. */
+  public static final int MODE_REMOVED = 2;
+
   private static final Pattern OBJECT_UUID = Pattern.compile("<[A-Za-z]+ uuid=\"([0-9a-fA-F-]+)\">");
+  private static final Pattern UUID_TOKEN = Pattern.compile(
+    "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", Pattern.CASE_INSENSITIVE);
 
   /** Кэш разбора: файл большой, а guard дёргает его на каждую мутацию. */
   private static final Map<String, CacheEntry> CACHE = new ConcurrentHashMap<>();
@@ -41,19 +55,79 @@ public final class SupportRules {
   private SupportRules() {
   }
 
+  /** Токен скобочного файла: значение и границы в байтах. */
+  private record Token(String value, int start, int end) {
+  }
+
+  /** Запись объекта: режим и позиция его токена. */
+  static final class ObjectEntry {
+    final int mode;
+    final int modeTokenStart;
+    final String localUuid;
+
+    ObjectEntry(int mode, int modeTokenStart, String localUuid) {
+      this.mode = mode;
+      this.modeTokenStart = modeTokenStart;
+      this.localUuid = localUuid;
+    }
+  }
+
+  /** Блок поставщика: флаг блока и его записи. */
+  static final class SupplierBlock {
+    String vendor = "";
+    String version = "";
+    String name = "";
+    boolean rulesEnabled;
+    int blockTokenStart;
+    final List<ObjectEntry> objects = new ArrayList<>();
+  }
+
   /** Свод правил поддержки одной выгрузки. */
   public static final class Rules {
-    /** Поставщик из заголовка. */
+    /** Поставщик из первого блока. */
     public String vendor = "";
     /** Версия поставки. */
     public String version = "";
     /** Имя конфигурации поставщика. */
     public String name = "";
-    /** Режим по uuid объекта: 0 - изменение запрещено. */
+    /** Глобальный флаг: правила объектов действуют, конфигурация открыта для изменения. */
+    public boolean rulesEnabled;
+    /** Сырой режим записи по uuid объекта: 0 - запрещено, 1 - разрешено, 2 - снят. */
     public Map<String, Integer> modeByUuid = new HashMap<>();
+    /** Объекты поставщиков с выключенным флагом блока: для них правила скрыты. */
+    public Map<String, Boolean> blockLockedByUuid = new HashMap<>();
+
+    int globalTokenStart = -1;
+    List<SupplierBlock> suppliers = new ArrayList<>();
 
     public boolean isEmpty() {
       return modeByUuid.isEmpty();
+    }
+
+    /**
+     * Действующее состояние объекта: {@code locked}, {@code editable} либо пусто,
+     * когда объект снят с поддержки или записи о нём нет.
+     */
+    public String effectiveState(String uuid) {
+      if (uuid == null) {
+        return null;
+      }
+      Integer mode = modeByUuid.get(uuid.toLowerCase(Locale.ROOT));
+      if (mode == null || mode == MODE_REMOVED) {
+        return null;
+      }
+      if (!rulesEnabled || Boolean.TRUE.equals(blockLockedByUuid.get(uuid.toLowerCase(Locale.ROOT)))) {
+        return "locked";
+      }
+      return mode == MODE_NOT_EDITABLE ? "locked" : "editable";
+    }
+
+    /** Состояние конфигурации целиком: {@code locked}, {@code editable} либо пусто без правил. */
+    public String configurationState() {
+      if (isEmpty()) {
+        return null;
+      }
+      return rulesEnabled ? "editable" : "locked";
     }
   }
 
@@ -82,32 +156,189 @@ public final class SupportRules {
     if (cached != null && cached.modified == modified && cached.size == size) {
       return cached.rules;
     }
-    Rules rules = parse(Files.readString(file, StandardCharsets.UTF_8));
+    Rules rules = parse(Files.readAllBytes(file));
     CACHE.put(key, new CacheEntry(modified, size, rules));
     return rules;
   }
 
-  static Rules parse(String text) {
+  static Rules parse(byte[] bytes) {
     Rules rules = new Rules();
-    String body = text.startsWith("﻿") ? text.substring(1) : text;
-    Matcher header = HEADER.matcher(body);
-    if (header.find()) {
-      rules.version = header.group(1);
-      rules.vendor = header.group(2).replace("\"\"", "\"");
-      rules.name = header.group(3);
+    List<Token> tokens = tokenize(bytes);
+    if (tokens.size() < 3 || !"6".equals(tokens.get(0).value())) {
+      return rules;
     }
-    Matcher entry = ENTRY.matcher(body);
-    while (entry.find()) {
-      rules.modeByUuid.put(entry.group(3), Integer.parseInt(entry.group(2)));
+    Token global = tokens.get(1);
+    rules.rulesEnabled = "0".equals(global.value());
+    rules.globalTokenStart = global.start();
+    int supplierCount = parseIntSafe(tokens.get(2).value());
+    int cursor = 3;
+    for (int s = 0; s < supplierCount && cursor + 7 <= tokens.size(); s++) {
+      SupplierBlock block = new SupplierBlock();
+      cursor++; // uuid конфигурации поставщика
+      Token blockToken = tokens.get(cursor++);
+      block.rulesEnabled = "0".equals(blockToken.value());
+      block.blockTokenStart = blockToken.start();
+      cursor++; // uuid родительской конфигурации
+      block.version = unquote(tokens.get(cursor++).value());
+      block.vendor = unquote(tokens.get(cursor++).value());
+      block.name = unquote(tokens.get(cursor++).value());
+      int objectCount = parseIntSafe(tokens.get(cursor++).value());
+      for (int o = 0; o < objectCount && cursor + 4 <= tokens.size(); o++) {
+        Token modeToken = tokens.get(cursor++);
+        cursor++; // служебный флаг записи
+        Token localUuid = tokens.get(cursor++);
+        cursor++; // uuid объекта поставщика
+        if (!UUID_TOKEN.matcher(localUuid.value()).matches()) {
+          continue;
+        }
+        int mode = parseIntSafe(modeToken.value());
+        String uuid = localUuid.value().toLowerCase(Locale.ROOT);
+        block.objects.add(new ObjectEntry(mode, modeToken.start(), uuid));
+        rules.modeByUuid.put(uuid, mode);
+        if (!block.rulesEnabled) {
+          rules.blockLockedByUuid.put(uuid, true);
+        }
+      }
+      cursor += 2; // хвост блока
+      if (rules.vendor.isEmpty()) {
+        rules.vendor = block.vendor;
+        rules.version = block.version;
+        rules.name = block.name;
+      }
+      rules.suppliers.add(block);
     }
     return rules;
+  }
+
+  /** Токены между внешними скобками; кавычки с удвоением учитываются, границы — в байтах. */
+  private static List<Token> tokenize(byte[] bytes) {
+    List<Token> tokens = new ArrayList<>();
+    int cursor = bytes.length >= 3
+      && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF ? 3 : 0;
+    if (cursor >= bytes.length || bytes[cursor] != '{') {
+      return tokens;
+    }
+    cursor++;
+    int start = cursor;
+    boolean quoted = false;
+    for (; cursor < bytes.length; cursor++) {
+      byte b = bytes[cursor];
+      if (b == '"') {
+        if (quoted && cursor + 1 < bytes.length && bytes[cursor + 1] == '"') {
+          cursor++;
+          continue;
+        }
+        quoted = !quoted;
+        continue;
+      }
+      if (!quoted && (b == ',' || b == '}')) {
+        int from = start;
+        int to = cursor;
+        while (from < to && isWhitespace(bytes[from])) {
+          from++;
+        }
+        while (to > from && isWhitespace(bytes[to - 1])) {
+          to--;
+        }
+        tokens.add(new Token(new String(bytes, from, to - from, StandardCharsets.UTF_8), from, to));
+        if (b == '}') {
+          return tokens;
+        }
+        start = cursor + 1;
+      }
+    }
+    return tokens;
+  }
+
+  /**
+   * Ставит объекту режим поддержки: 0 - запретить, 1 - разрешить, 2 - снять.
+   *
+   * <p>Меняется один байт токена режима; правила при выключенном глобальном
+   * флаге скрыты, и правка отклоняется с подсказкой включить возможность
+   * изменения конфигурации.
+   */
+  public static void setObjectMode(Path configurationRoot, String uuid, int mode) throws IOException {
+    if (mode != MODE_NOT_EDITABLE && mode != MODE_EDITABLE && mode != MODE_REMOVED) {
+      throw new IllegalArgumentException("Неизвестный режим поддержки: " + mode);
+    }
+    Path file = rulesPath(configurationRoot);
+    if (!Files.isRegularFile(file)) {
+      throw new IllegalArgumentException("У выгрузки нет файла правил поддержки.");
+    }
+    byte[] bytes = Files.readAllBytes(file);
+    Rules rules = parse(bytes);
+    if (rules.isEmpty()) {
+      throw new IllegalArgumentException("Файл правил поддержки не разобран.");
+    }
+    if (!rules.rulesEnabled) {
+      throw new IllegalStateException(
+        "Конфигурация на полной поддержке: сначала включите возможность изменения конфигурации.");
+    }
+    String needle = uuid.toLowerCase(Locale.ROOT);
+    boolean patched = false;
+    for (SupplierBlock block : rules.suppliers) {
+      for (ObjectEntry entry : block.objects) {
+        if (entry.localUuid.equals(needle)) {
+          patchDigit(bytes, entry.modeTokenStart, mode);
+          patched = true;
+        }
+      }
+    }
+    if (!patched) {
+      throw new IllegalArgumentException("В правилах поддержки нет записи об объекте " + uuid + ".");
+    }
+    verifyAndWrite(file, bytes);
+  }
+
+  /**
+   * Включает возможность изменения конфигурации: глобальный флаг и флаги блоков
+   * открываются, каждой записи ставится режим «не редактируется», как это делает
+   * конфигуратор по умолчанию. Дальше режим меняется по объекту.
+   */
+  public static void enableRules(Path configurationRoot) throws IOException {
+    Path file = rulesPath(configurationRoot);
+    if (!Files.isRegularFile(file)) {
+      throw new IllegalArgumentException("У выгрузки нет файла правил поддержки.");
+    }
+    byte[] bytes = Files.readAllBytes(file);
+    Rules rules = parse(bytes);
+    if (rules.isEmpty()) {
+      throw new IllegalArgumentException("Файл правил поддержки не разобран.");
+    }
+    if (rules.rulesEnabled) {
+      throw new IllegalStateException("Возможность изменения уже включена.");
+    }
+    patchDigit(bytes, rules.globalTokenStart, 0);
+    for (SupplierBlock block : rules.suppliers) {
+      patchDigit(bytes, block.blockTokenStart, 0);
+      for (ObjectEntry entry : block.objects) {
+        patchDigit(bytes, entry.modeTokenStart, MODE_NOT_EDITABLE);
+      }
+    }
+    verifyAndWrite(file, bytes);
+  }
+
+  private static void patchDigit(byte[] bytes, int at, int digit) {
+    if (at < 0 || at >= bytes.length || bytes[at] < '0' || bytes[at] > '2') {
+      throw new IllegalStateException("Токен правил поддержки не совпал с ожидаемым: смещение " + at + ".");
+    }
+    bytes[at] = (byte) ('0' + digit);
+  }
+
+  private static void verifyAndWrite(Path file, byte[] bytes) throws IOException {
+    Rules verified = parse(bytes);
+    if (verified.isEmpty()) {
+      throw new IllegalStateException("Файл правил поддержки после правки не разобран, запись отменена.");
+    }
+    Files.write(file, bytes);
+    CACHE.remove(file.toAbsolutePath().normalize().toString());
   }
 
   /**
    * Проверяет, что объект можно менять; иначе бросает с внятным текстом.
    *
-   * <p>Корень выгрузки ищется от файла объекта вверх; правила без записи об
-   * объекте изменению не мешают.
+   * <p>Корень выгрузки ищется от файла объекта вверх; объект, снятый с
+   * поддержки, и объект без записи изменению не мешают.
    */
   public static void ensureEditable(Path objectXml) throws IOException {
     Path normalized = objectXml.toAbsolutePath().normalize();
@@ -123,11 +354,10 @@ public final class SupportRules {
     if (uuid == null) {
       return;
     }
-    Integer mode = rules.modeByUuid.get(uuid.toLowerCase());
-    if (mode != null && mode == 0) {
+    if ("locked".equals(rules.effectiveState(uuid))) {
       throw new IllegalStateException(
         "Объект на поддержке поставщика «" + rules.vendor
-          + "» без возможности изменения. Включите возможность изменения в конфигураторе"
+          + "» без возможности изменения. Включите возможность изменения"
           + " или снимите объект с поддержки.");
     }
   }
@@ -153,5 +383,24 @@ public final class SupportRules {
       current = current.getParent();
     }
     return null;
+  }
+
+  private static boolean isWhitespace(byte b) {
+    return b == ' ' || b == '\t' || b == '\r' || b == '\n';
+  }
+
+  private static int parseIntSafe(String value) {
+    try {
+      return Integer.parseInt(value);
+    } catch (NumberFormatException e) {
+      return -1;
+    }
+  }
+
+  private static String unquote(String value) {
+    if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+      return value.substring(1, value.length() - 1).replace("\"\"", "\"");
+    }
+    return value;
   }
 }

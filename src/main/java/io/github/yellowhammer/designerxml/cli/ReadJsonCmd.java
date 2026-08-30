@@ -182,6 +182,8 @@ final class ReadJsonCmd implements Callable<Integer> {
         out.put("vendor", rules.vendor);
         out.put("version", rules.version);
         out.put("name", rules.name);
+        out.put("rulesEnabled", rules.rulesEnabled);
+        out.put("configurationState", rules.configurationState());
         out.put("objectCount", rules.modeByUuid.size());
         return gson.toJson(out);
       }

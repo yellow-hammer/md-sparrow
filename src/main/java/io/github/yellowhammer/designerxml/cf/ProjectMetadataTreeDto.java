@@ -33,6 +33,12 @@ public record ProjectMetadataTreeDto(
     String configurationXmlRelativePath,
     /** Каталог выгрузки ({@code src/cf} или {@code src/cfe/…}) относительно корня проекта. */
     String metadataRootRelativePath,
+    /**
+     * Поддержка поставщика для выгрузки целиком: {@code locked} - конфигурация на
+     * полной поддержке, {@code editable} - возможность изменения включена, пусто -
+     * правил нет.
+     */
+    String support,
     List<MetadataGroupDto> groups
   ) {
   }

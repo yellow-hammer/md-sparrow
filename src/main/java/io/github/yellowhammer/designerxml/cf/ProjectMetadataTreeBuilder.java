@@ -88,12 +88,19 @@ public final class ProjectMetadataTreeBuilder {
       mapGroups(projectRoot, cfRoot, payloads);
     String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
     String rootRel = projectRoot.relativize(cfRoot).toString().replace('\\', '/');
+    String support;
+    try {
+      support = SupportRules.read(cfRoot).configurationState();
+    } catch (IOException e) {
+      support = null;
+    }
     return new ProjectMetadataTreeDto.MetadataSourceDto(
       "main",
       "main",
       MAIN_LABEL,
       cfgRel,
       rootRel,
+      support,
       groups
     );
   }
@@ -126,6 +133,7 @@ public final class ProjectMetadataTreeBuilder {
       label,
       cfgRel,
       rootRel,
+      null,
       groups
     );
   }
@@ -218,15 +226,7 @@ public final class ProjectMetadataTreeBuilder {
     if (rules == null || rules.isEmpty() || relativePath == null || relativePath.isEmpty()) {
       return null;
     }
-    String uuid = ObjectBelongingReader.readRootUuid(projectRoot.resolve(relativePath));
-    if (uuid == null) {
-      return null;
-    }
-    Integer mode = rules.modeByUuid.get(uuid.toLowerCase(java.util.Locale.ROOT));
-    if (mode == null) {
-      return null;
-    }
-    return mode == 0 ? "locked" : "editable";
+    return rules.effectiveState(ObjectBelongingReader.readRootUuid(projectRoot.resolve(relativePath)));
   }
 
   private static String relativePathForItem(
@@ -278,6 +278,7 @@ public final class ProjectMetadataTreeBuilder {
       "Внешние отчёты",
       "",
       rootRelativePath,
+      null,
       groups
     );
   }
@@ -300,6 +301,7 @@ public final class ProjectMetadataTreeBuilder {
       "Внешние обработки",
       "",
       rootRelativePath,
+      null,
       groups
     );
   }
