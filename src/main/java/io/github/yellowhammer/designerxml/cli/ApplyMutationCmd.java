@@ -31,6 +31,8 @@ import io.github.yellowhammer.designerxml.cf.EmptyCfScaffold;
 import io.github.yellowhammer.designerxml.cf.CfeBorrow;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.FormScaffold;
+import io.github.yellowhammer.designerxml.cf.DcsRead;
+import io.github.yellowhammer.designerxml.cf.RoleRightsFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
 import io.github.yellowhammer.designerxml.cf.MdContentMemberDto;
 import io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold;
@@ -177,6 +179,26 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<java.util.List<MdContentMemberDto>>() { }.getType());
         ExchangePlanContentFile.write(p.reqPath(p.objectXml, "objectXml"), p.version(), members);
+        return "OK";
+      }
+      case "cf-dcs-set-query":
+        DcsRead.setQuery(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.tag, p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-dcs-add-calculated-field": {
+        java.util.Map<String, String> field = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, String>>() { }.getType());
+        DcsRead.addCalculatedField(
+          p.reqPath(p.objectXml, "objectXml"), p.version(),
+          field.get("dataPath"), field.get("expression"), field.get("title"));
+        return "OK";
+      }
+      case "cf-role-rights-set": {
+        java.util.List<RoleRightsFile.Edit> edits = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.List<RoleRightsFile.Edit>>() { }.getType());
+        RoleRightsFile.applyEdits(p.reqPath(p.objectXml, "objectXml"), edits);
         return "OK";
       }
       case "cfe-borrow-object": {

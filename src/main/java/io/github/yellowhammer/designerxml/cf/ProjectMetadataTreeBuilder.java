@@ -117,7 +117,7 @@ public final class ProjectMetadataTreeBuilder {
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
       MetadataTreeTagGroups.buildGroups(entries);
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
-      mapGroups(projectRoot, extensionRoot, payloads, true);
+      mapGroups(projectRoot, extensionRoot, payloads, true, null);
     String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
     String rootRel = projectRoot.relativize(extensionRoot).toString().replace('\\', '/');
     return new ProjectMetadataTreeDto.MetadataSourceDto(
@@ -155,7 +155,13 @@ public final class ProjectMetadataTreeBuilder {
     Path metadataRoot,
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads
   ) {
-    return mapGroups(projectRoot, metadataRoot, payloads, false);
+    SupportRules.Rules supportRules;
+    try {
+      supportRules = SupportRules.read(metadataRoot);
+    } catch (IOException e) {
+      supportRules = null;
+    }
+    return mapGroups(projectRoot, metadataRoot, payloads, false, supportRules);
   }
 
   /**
@@ -166,7 +172,8 @@ public final class ProjectMetadataTreeBuilder {
     Path projectRoot,
     Path metadataRoot,
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads,
-    boolean readBelonging
+    boolean readBelonging,
+    SupportRules.Rules supportRules
   ) {
     List<ProjectMetadataTreeDto.MetadataGroupDto> out = new ArrayList<>();
     for (MetadataTreeTagGroups.MetadataTreeGroupPayload p : payloads) {
@@ -175,14 +182,14 @@ public final class ProjectMetadataTreeBuilder {
         List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
         for (MetadataTreeTagGroups.MetadataTreeItemPayload it : sp.items()) {
           String rel = relativePathForItem(projectRoot, metadataRoot, it.objectType(), it.name());
-          items.add(itemDto(projectRoot, it.objectType(), it.name(), rel, readBelonging));
+          items.add(itemDto(projectRoot, it.objectType(), it.name(), rel, readBelonging, supportRules));
         }
         subgroups.add(new ProjectMetadataTreeDto.MetadataSubgroupDto(sp.id(), sp.label(), sp.iconHint(), items));
       }
       List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
       for (MetadataTreeTagGroups.MetadataTreeItemPayload it : p.items()) {
         String rel = relativePathForItem(projectRoot, metadataRoot, it.objectType(), it.name());
-        items.add(itemDto(projectRoot, it.objectType(), it.name(), rel, readBelonging));
+        items.add(itemDto(projectRoot, it.objectType(), it.name(), rel, readBelonging, supportRules));
       }
       out.add(new ProjectMetadataTreeDto.MetadataGroupDto(p.id(), p.label(), p.iconHint(), items, subgroups));
     }
@@ -194,14 +201,32 @@ public final class ProjectMetadataTreeBuilder {
     String objectType,
     String name,
     String relativePath,
-    boolean readBelonging
+    boolean readBelonging,
+    SupportRules.Rules supportRules
   ) {
     return new ProjectMetadataTreeDto.MetadataItemDto(
       objectType,
       name,
       relativePath,
       belonging(projectRoot, relativePath, readBelonging),
+      supportState(projectRoot, relativePath, supportRules),
       MdObjectOpen.resolve(objectType, projectRoot, relativePath));
+  }
+
+  /** Режим поддержки объекта по правилам поставщика; пусто без правил или записи. */
+  private static String supportState(Path projectRoot, String relativePath, SupportRules.Rules rules) {
+    if (rules == null || rules.isEmpty() || relativePath == null || relativePath.isEmpty()) {
+      return null;
+    }
+    String uuid = ObjectBelongingReader.readRootUuid(projectRoot.resolve(relativePath));
+    if (uuid == null) {
+      return null;
+    }
+    Integer mode = rules.modeByUuid.get(uuid.toLowerCase(java.util.Locale.ROOT));
+    if (mode == null) {
+      return null;
+    }
+    return mode == 0 ? "locked" : "editable";
   }
 
   private static String relativePathForItem(
@@ -242,7 +267,7 @@ public final class ProjectMetadataTreeBuilder {
   ) {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
-      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalReport", e.name(), e.relativePath(), null, null));
+      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalReport", e.name(), e.relativePath(), null, null, null));
     }
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = List.of(
       new ProjectMetadataTreeDto.MetadataGroupDto("content", "", "report", items, List.of())
@@ -264,7 +289,7 @@ public final class ProjectMetadataTreeBuilder {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
       items.add(new ProjectMetadataTreeDto.MetadataItemDto(
-        "ExternalDataProcessor", e.name(), e.relativePath(), null, null));
+        "ExternalDataProcessor", e.name(), e.relativePath(), null, null, null));
     }
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = List.of(
       new ProjectMetadataTreeDto.MetadataGroupDto("content", "", "run-below", items, List.of())

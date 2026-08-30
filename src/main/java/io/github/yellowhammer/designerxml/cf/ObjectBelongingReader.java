@@ -31,6 +31,28 @@ public final class ObjectBelongingReader {
   private ObjectBelongingReader() {
   }
 
+  private static final java.util.regex.Pattern ROOT_UUID =
+    java.util.regex.Pattern.compile("<[A-Za-z]+ uuid=\"([0-9a-fA-F-]+)\">");
+
+  /**
+   * Идентификатор корневого узла объекта из шапки файла.
+   *
+   * @return uuid либо пусто, если файл недоступен или шапка не разобрана
+   */
+  public static String readRootUuid(java.nio.file.Path objectXml) {
+    try (var lines = java.nio.file.Files.lines(objectXml, java.nio.charset.StandardCharsets.UTF_8)) {
+      return lines
+        .limit(8)
+        .map(ROOT_UUID::matcher)
+        .filter(java.util.regex.Matcher::find)
+        .map(matcher -> matcher.group(1))
+        .findFirst()
+        .orElse(null);
+    } catch (java.io.IOException e) {
+      return null;
+    }
+  }
+
   /**
    * Читает {@code ObjectBelonging} объекта метаданных.
    *

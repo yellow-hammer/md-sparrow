@@ -28,6 +28,7 @@ import io.github.yellowhammer.designerxml.cf.EnumValueLabels;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
 import io.github.yellowhammer.designerxml.cf.DcsRead;
+import io.github.yellowhammer.designerxml.cf.RoleRightsFile;
 import io.github.yellowhammer.designerxml.cf.SupportRules;
 import io.github.yellowhammer.designerxml.cf.CatalogFormDto;
 import io.github.yellowhammer.designerxml.cf.CfDumpValidation;
@@ -164,6 +165,9 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "cf-form-content-get": {
         FormContentDto dto = FormContentRead.read(p.reqPath(p.formXml, "formXml"), p.version());
         return gson.toJson(dto);
+      }
+      case "cf-role-rights-get": {
+        return gson.toJson(RoleRightsFile.read(p.reqPath(p.objectXml, "objectXml")));
       }
       case "cf-dcs-info": {
         return gson.toJson(DcsRead.info(p.reqPath(p.objectXml, "objectXml"), p.version()));
