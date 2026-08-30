@@ -110,6 +110,29 @@ class SubsystemCommandInterfaceFileTest {
   }
 
   @Test
+  void writeSubsystemsAndGroupsOrderKeepsOtherSections() throws Exception {
+    Path source = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Subsystems/_ДемоАнкетирование/Ext/CommandInterface.xml");
+    Path subsystemXml = tempDir.resolve("Подсистема.xml");
+    Files.writeString(subsystemXml, "<x/>");
+    Path target = SubsystemCommandInterfaceFile.interfacePath(subsystemXml);
+    Files.createDirectories(target.getParent());
+    Files.copy(source, target);
+
+    SubsystemCommandInterfaceFile.Dto before = SubsystemCommandInterfaceFile.read(subsystemXml);
+    java.util.List<String> subsystems = new java.util.ArrayList<>(before.subsystemsOrder);
+    java.util.Collections.reverse(subsystems);
+    SubsystemCommandInterfaceFile.writeSubsystemsOrder(subsystemXml, SchemaVersion.V2_20, subsystems);
+    SubsystemCommandInterfaceFile.writeGroupsOrder(subsystemXml, SchemaVersion.V2_20, before.groupsOrder);
+
+    SubsystemCommandInterfaceFile.Dto after = SubsystemCommandInterfaceFile.read(subsystemXml);
+    assertThat(after.subsystemsOrder).isEqualTo(subsystems);
+    assertThat(after.groupsOrder).isEqualTo(before.groupsOrder);
+    assertThat(after.visibility).hasSameSizeAs(before.visibility);
+    assertThat(after.placement).hasSameSizeAs(before.placement);
+  }
+
+  @Test
   void writeCreatesFileWhenMissing() throws Exception {
     Path subsystemXml = tempDir.resolve("Новая.xml");
     Files.writeString(subsystemXml, "<x/>");

@@ -151,6 +151,37 @@ public final class SubsystemCommandInterfaceFile {
     });
   }
 
+  /** Пишет порядок подчинённых подсистем; блок SubsystemsOrder заменяется целиком. */
+  public static void writeSubsystemsOrder(Path subsystemXml, SchemaVersion version, List<String> refs)
+    throws IOException {
+    writeRefSection(subsystemXml, version, "SubsystemsOrder", "Subsystem", refs);
+  }
+
+  /** Пишет порядок групп командного интерфейса; блок GroupsOrder заменяется целиком. */
+  public static void writeGroupsOrder(Path subsystemXml, SchemaVersion version, List<String> groups)
+    throws IOException {
+    writeRefSection(subsystemXml, version, "GroupsOrder", "Group", groups);
+  }
+
+  private static void writeRefSection(
+    Path subsystemXml,
+    SchemaVersion version,
+    String sectionName,
+    String itemName,
+    List<String> refs
+  ) throws IOException {
+    List<CommandEntry> entries = new ArrayList<>();
+    for (String ref : refs == null ? List.<String>of() : refs) {
+      if (ref != null && !ref.isBlank()) {
+        entries.add(new CommandEntry(ref.trim(), ""));
+      }
+    }
+    writeSection(subsystemXml, version, sectionName, entries, (block, entry, eol) ->
+      block.append("\t\t<").append(itemName).append('>')
+        .append(escapeXml(entry.command.trim()))
+        .append("</").append(itemName).append('>').append(eol));
+  }
+
   private interface EntryRenderer {
     void render(StringBuilder block, CommandEntry entry, String eol);
   }

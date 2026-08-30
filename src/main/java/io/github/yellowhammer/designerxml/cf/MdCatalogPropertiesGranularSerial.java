@@ -326,6 +326,10 @@ public final class MdCatalogPropertiesGranularSerial {
 
   static String localStringRuElement(String localName, String ru) {
     String t = ru == null ? "" : ru;
+    if (t.isEmpty()) {
+      // Пустое представление платформа пишет пустым элементом, без ru-строки
+      return "<" + localName + "/>";
+    }
     return "<" + localName + ">"
       + "<v8:item>"
       + "<v8:lang>ru</v8:lang>"

@@ -22,7 +22,15 @@ import java.util.regex.Pattern;
  */
 final class XmlGranularPatch {
 
-  private static final Pattern INTER_TAG_WS = Pattern.compile(">\\s+<");
+  /**
+   * Отступы разметки между тегами: обязателен перевод строки, иначе пробел -
+   * это значение элемента, и схлопывать его нельзя.
+   */
+  private static final Pattern INTER_TAG_WS = Pattern.compile(">[ \\t]*[\\r\\n]\\s*<");
+
+  /** Пара «открыли и сразу закрыли»: значение элемента пустое, ломать строку нельзя. */
+  private static final Pattern EMPTY_ELEMENT = Pattern.compile("<([A-Za-z0-9:_.\\-]+)([^>]*)></\\1>");
+  private static final String EMPTY_ELEMENT_MARK = String.valueOf((char) 0);
 
   private XmlGranularPatch() {
   }
@@ -88,7 +96,7 @@ final class XmlGranularPatch {
     if (!compact.contains("><")) {
       return replacementElementXml;
     }
-    String[] lines = compact.replace("><", ">\n<").split("\n");
+    String[] lines = splitByTags(compact);
     StringBuilder out = new StringBuilder(compact.length() + lines.length * 2);
     int depth = 0;
     for (int i = 0; i < lines.length; i++) {
@@ -117,7 +125,7 @@ final class XmlGranularPatch {
   static String formatInsertion(String xmlUtf8, String indent, String elementXml) {
     String eol = fileEol(xmlUtf8);
     String compact = INTER_TAG_WS.matcher(elementXml.trim()).replaceAll("><");
-    String[] lines = compact.replace("><", ">\n<").split("\n");
+    String[] lines = splitByTags(compact);
     StringBuilder out = new StringBuilder(compact.length() + indent.length() * lines.length + 2);
     int depth = 0;
     for (int i = 0; i < lines.length; i++) {
@@ -134,6 +142,17 @@ final class XmlGranularPatch {
       }
     }
     return out.toString();
+  }
+
+  /** Разбивает фрагмент по тегам, оставляя пустые элементы одной строкой. */
+  private static String[] splitByTags(String compact) {
+    String guarded = EMPTY_ELEMENT.matcher(compact).replaceAll(m ->
+      "<" + m.group(1) + m.group(2) + ">" + EMPTY_ELEMENT_MARK + "</" + m.group(1) + ">");
+    String[] lines = guarded.replace("><", ">\n<").split("\n");
+    for (int i = 0; i < lines.length; i++) {
+      lines[i] = lines[i].replace(EMPTY_ELEMENT_MARK, "");
+    }
+    return lines;
   }
 
   private static boolean isOpeningTagWithoutInlineClose(String line) {

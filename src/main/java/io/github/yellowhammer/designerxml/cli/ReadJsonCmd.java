@@ -197,6 +197,14 @@ final class ReadJsonCmd implements Callable<Integer> {
           out.put("editable", false);
           out.put("reason", e.getMessage());
         }
+        // Состояние самого объекта: он бывает снят с поддержки в конфигурации на поддержке
+        out.put("state", SupportRules.objectState(objectXml));
+        SupportRules.Rules rules = SupportRules.rulesFor(objectXml);
+        if (rules != null && !rules.isEmpty()) {
+          out.put("vendor", rules.vendor);
+          out.put("version", rules.version);
+          out.put("configurationState", rules.configurationState());
+        }
         return gson.toJson(out);
       }
       case "cf-md-subsystem-command-interface-get": {

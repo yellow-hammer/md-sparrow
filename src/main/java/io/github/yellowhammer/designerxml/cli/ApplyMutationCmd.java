@@ -239,6 +239,20 @@ final class ApplyMutationCmd implements Callable<Integer> {
         SubsystemCommandInterfaceFile.writeOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), order);
         return "OK";
       }
+      case "cf-md-subsystem-subsystems-order-set": {
+        java.util.List<String> refs = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.List<String>>() { }.getType());
+        SubsystemCommandInterfaceFile.writeSubsystemsOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), refs);
+        return "OK";
+      }
+      case "cf-md-subsystem-groups-order-set": {
+        java.util.List<String> groups = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.List<String>>() { }.getType());
+        SubsystemCommandInterfaceFile.writeGroupsOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), groups);
+        return "OK";
+      }
       case "cf-support-remove": {
         java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
         SupportRules.removeSupport(root);

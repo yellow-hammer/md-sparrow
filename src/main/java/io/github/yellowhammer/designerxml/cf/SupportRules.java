@@ -380,6 +380,24 @@ public final class SupportRules {
     }
   }
 
+  /**
+   * Действующее состояние конкретного объекта: {@code locked}, {@code editable}
+   * либо пусто, когда объект не на поддержке или правил в выгрузке нет.
+   */
+  public static String objectState(Path objectXml) throws IOException {
+    Rules rules = rulesFor(objectXml);
+    if (rules == null || rules.isEmpty()) {
+      return null;
+    }
+    return rules.effectiveState(objectUuid(objectXml.toAbsolutePath().normalize()));
+  }
+
+  /** Правила выгрузки, которой принадлежит объект; пусто вне выгрузки. */
+  public static Rules rulesFor(Path objectXml) throws IOException {
+    Path root = findConfigurationRoot(objectXml.toAbsolutePath().normalize());
+    return root == null ? null : read(root);
+  }
+
   private static String objectUuid(Path objectXml) throws IOException {
     try (var lines = Files.lines(objectXml, StandardCharsets.UTF_8)) {
       return lines

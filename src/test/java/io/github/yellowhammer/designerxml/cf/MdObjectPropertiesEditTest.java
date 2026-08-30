@@ -54,6 +54,22 @@ class MdObjectPropertiesEditTest {
   }
 
   @Test
+  void writeDto_keepsWhitespaceOnlyLocalString() throws Exception {
+    // Пробел в пояснении - значение элемента, а не отступ разметки: точечная
+    // запись раньше схлопывала его и падала сверкой
+    Path src = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Constants/_ДемоИспользоватьКонтактныеЛицаПартнеров.xml");
+    Path copy = tempDir.resolve(src.getFileName());
+    Files.copy(src, copy);
+
+    MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
+    dto.constant.explanationRu = " ";
+    MdObjectPropertiesEdit.writeDto(copy, SchemaVersion.V2_20, dto);
+
+    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).constant.explanationRu).isEqualTo(" ");
+  }
+
+  @Test
   void writeDto_roundTrip_catalog() throws Exception {
     Path src = Ssl31SubmodulePaths.anyCatalogObjectXml();
     Path copy = tempDir.resolve(src.getFileName());

@@ -142,6 +142,16 @@ class SupportRulesTest {
   }
 
   @Test
+  void objectStateFollowsRulesOfItsDump() throws Exception {
+    Path objectXml = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Catalogs/_ДемоГруппыДоступаПартнеров.xml");
+    assertThat(SupportRules.objectState(objectXml)).isEqualTo("locked");
+    SupportRules.Rules rules = SupportRules.rulesFor(objectXml);
+    assertThat(rules).isNotNull();
+    assertThat(rules.vendor).contains("1С");
+  }
+
+  @Test
   void removeSupportDeletesRulesFile(@TempDir Path dir) throws Exception {
     Path root = dir.resolve("cf");
     Files.createDirectories(root.resolve("Ext"));
