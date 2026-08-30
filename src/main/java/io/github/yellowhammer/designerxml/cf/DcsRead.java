@@ -38,8 +38,54 @@ public final class DcsRead {
     out.put("dataSets", dataSets(schema));
     out.put("calculatedFields", namedList(schema, "getCalculatedField", "getDataPath", "getExpression"));
     out.put("totalFields", namedList(schema, "getTotalField", "getDataPath", "getExpression"));
-    out.put("parameters", namedList(schema, "getParameter", "getName", "getTitle"));
+    out.put("parameters", parameters(schema));
     return out;
+  }
+
+  /** Параметры схемы: имя, заголовок, тип и значение по умолчанию. */
+  private static List<Map<String, Object>> parameters(Object schema) {
+    List<Map<String, Object>> out = new ArrayList<>();
+    for (Object parameter : JaxbReflect.<Object>listOptional(schema, "getParameter")) {
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("name", text(parameter, "getName"));
+      String title = text(parameter, "getTitle");
+      if (!title.isEmpty()) {
+        row.put("title", title);
+      }
+      String type = compactType(JaxbReflect.getOptional(parameter, "getValueType"));
+      if (!type.isEmpty()) {
+        row.put("type", type);
+      }
+      String value = text(parameter, "getValue");
+      if (!value.isEmpty()) {
+        row.put("value", value);
+      }
+      String expression = text(parameter, "getExpression");
+      if (!expression.isEmpty()) {
+        row.put("expression", expression);
+      }
+      out.add(row);
+    }
+    return out;
+  }
+
+  /** Составной тип в подпись: локальные имена QName через запятую. */
+  private static String compactType(Object typeDescription) {
+    if (typeDescription == null) {
+      return "";
+    }
+    List<String> parts = new ArrayList<>();
+    for (Object qname : JaxbReflect.<Object>listOptional(typeDescription, "getType")) {
+      if (qname instanceof javax.xml.namespace.QName typed) {
+        parts.add(typed.getLocalPart());
+      }
+    }
+    for (Object qname : JaxbReflect.<Object>listOptional(typeDescription, "getTypeSet")) {
+      if (qname instanceof javax.xml.namespace.QName typed) {
+        parts.add(typed.getLocalPart());
+      }
+    }
+    return String.join(", ", parts);
   }
 
   /** Схема читается моделью: ошибка разбора возвращается текстом. */
@@ -193,6 +239,10 @@ public final class DcsRead {
         if (!source.isEmpty()) {
           fieldItem.put("field", source);
         }
+        String title = text(field, "getTitle");
+        if (!title.isEmpty()) {
+          fieldItem.put("title", title);
+        }
         fields.add(fieldItem);
       }
       if (!fields.isEmpty()) {
@@ -218,21 +268,54 @@ public final class DcsRead {
     return out;
   }
 
+  /**
+   * Значение в текст для JSON: скаляры как есть, локализованные строки содержимым,
+   * прочие объекты модели наружу не выходят - Java-представление читателю не нужно.
+   */
   private static String text(Object target, String getter) {
-    Object value = JaxbReflect.getOptional(target, getter);
+    return stringify(JaxbReflect.getOptional(target, getter));
+  }
+
+  private static String stringify(Object value) {
     if (value == null) {
       return "";
     }
+    if (value instanceof String || value instanceof Number || value instanceof Boolean
+      || value instanceof Enum<?>) {
+      return String.valueOf(value);
+    }
     if (value instanceof List<?> list) {
-      // Локализованные строки: берём первый элемент содержимого
+      List<String> parts = new ArrayList<>();
       for (Object item : list) {
-        Object content = JaxbReflect.getOptional(item, "getContent");
-        if (content != null) {
-          return String.valueOf(content);
+        String part = stringify(item);
+        if (!part.isEmpty()) {
+          parts.add(part);
         }
       }
-      return "";
+      return String.join(", ", parts);
     }
-    return String.valueOf(value);
+    // Локализованная строка: элементы item с lang/content, предпочитается русский
+    List<Object> items = JaxbReflect.listOptional(value, "getItem");
+    if (!items.isEmpty()) {
+      String first = "";
+      for (Object item : items) {
+        String content = stringify(JaxbReflect.getOptional(item, "getContent"));
+        if (first.isEmpty()) {
+          first = content;
+        }
+        if ("ru".equals(stringify(JaxbReflect.getOptional(item, "getLang")))) {
+          return content;
+        }
+      }
+      return first;
+    }
+    Object content = JaxbReflect.getOptional(value, "getContent");
+    if (content != null && content != value) {
+      return stringify(content);
+    }
+    if (value instanceof javax.xml.namespace.QName qname) {
+      return qname.getLocalPart();
+    }
+    return "";
   }
 }

@@ -71,6 +71,12 @@ import java.util.concurrent.Callable;
 )
 final class ApplyMutationCmd implements Callable<Integer> {
 
+  /** Полезная нагрузка cf-role-rights-set: правки прав и флаги по умолчанию. */
+  static final class RoleRightsPayload {
+    java.util.List<RoleRightsFile.Edit> edits;
+    java.util.Map<String, Boolean> flags;
+  }
+
   @Option(
     names = "--params",
     required = true,
@@ -196,10 +202,14 @@ final class ApplyMutationCmd implements Callable<Integer> {
         return "OK";
       }
       case "cf-role-rights-set": {
-        java.util.List<RoleRightsFile.Edit> edits = new Gson().fromJson(
-          p.req(p.payloadJson, "payloadJson"),
-          new com.google.gson.reflect.TypeToken<java.util.List<RoleRightsFile.Edit>>() { }.getType());
-        RoleRightsFile.applyEdits(p.reqPath(p.objectXml, "objectXml"), edits);
+        // payload: {"edits":[{object,right,value}...],"flags":{имяФлага:значение}}
+        RoleRightsPayload payload = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"), RoleRightsPayload.class);
+        java.nio.file.Path roleXml = p.reqPath(p.objectXml, "objectXml");
+        RoleRightsFile.applyFlags(roleXml, payload.flags);
+        if (payload.edits != null && !payload.edits.isEmpty()) {
+          RoleRightsFile.applyEdits(roleXml, payload.edits);
+        }
         return "OK";
       }
       case "cf-support-object-mode-set": {

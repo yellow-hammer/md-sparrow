@@ -111,6 +111,33 @@ public final class RoleRightsFile {
   }
 
   /**
+   * Пишет флаги прав по умолчанию: точечная замена значения в своём теге.
+   *
+   * @param flags имя флага из шапки файла -> значение; неизвестные имена пропускаются
+   */
+  public static void applyFlags(Path roleXml, Map<String, Boolean> flags) throws IOException {
+    if (flags == null || flags.isEmpty()) {
+      return;
+    }
+    SupportRules.ensureEditable(roleXml);
+    Path file = rightsPath(roleXml);
+    if (!Files.isRegularFile(file)) {
+      throw new IllegalArgumentException("У роли нет файла прав: " + file);
+    }
+    String text = Files.readString(file, StandardCharsets.UTF_8);
+    for (Map.Entry<String, Boolean> flag : flags.entrySet()) {
+      String name = flag.getKey();
+      if (!name.matches("[A-Za-z]+")) {
+        continue;
+      }
+      text = text.replaceFirst(
+        "<" + name + ">(true|false)</" + name + ">",
+        "<" + name + ">" + flag.getValue() + "</" + name + ">");
+    }
+    Files.writeString(file, text, StandardCharsets.UTF_8);
+  }
+
+  /**
    * Применяет правки прав: право выдаётся записью, снимается удалением записи,
    * объект без оставшихся прав уходит из файла целиком.
    */

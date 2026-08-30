@@ -200,8 +200,17 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(out);
       }
       case "cf-md-subsystem-command-interface-get": {
-        return gson.toJson(SubsystemCommandInterfaceFile.toJsonModel(
-          SubsystemCommandInterfaceFile.read(p.reqPath(p.objectXml, "objectXml"))));
+        java.nio.file.Path subsystemXml = p.reqPath(p.objectXml, "objectXml");
+        java.util.Map<String, Object> model =
+          SubsystemCommandInterfaceFile.toJsonModel(SubsystemCommandInterfaceFile.read(subsystemXml));
+        // Стандартные команды состава видны и без файла настроек, как в конфигураторе
+        try {
+          MdObjectPropertiesDto subsystem = MdObjectPropertiesEdit.readDto(subsystemXml, p.version());
+          model.put("contentCommands", SubsystemCommandInterfaceFile.contentCommands(subsystem.contentRefs));
+        } catch (RuntimeException e) {
+          model.put("contentCommands", java.util.List.of());
+        }
+        return gson.toJson(model);
       }
       case "cf-md-exchange-plan-content-get": {
         return gson.toJson(ExchangePlanContentFile.read(p.reqPath(p.objectXml, "objectXml")));

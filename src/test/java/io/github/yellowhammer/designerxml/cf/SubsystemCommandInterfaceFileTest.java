@@ -23,6 +23,21 @@ class SubsystemCommandInterfaceFileTest {
   @TempDir Path tempDir;
 
   @Test
+  void contentCommandsFollowMemberKinds() {
+    java.util.List<String> commands = SubsystemCommandInterfaceFile.contentCommands(java.util.List.of(
+      "Catalog.Товары",
+      "Report.Продажи",
+      "CommonCommand.ОткрытьНастройки",
+      "Constant.ОсновнаяВалюта",
+      "InformationRegister.Курсы"));
+    assertThat(commands).containsExactly(
+      "Catalog.Товары.StandardCommand.OpenList",
+      "Report.Продажи.StandardCommand.Open",
+      "CommonCommand.ОткрытьНастройки",
+      "InformationRegister.Курсы.StandardCommand.OpenList");
+  }
+
+  @Test
   void readsVisibilityAndPlacement() throws Exception {
     SubsystemCommandInterfaceFile.Dto dto = SubsystemCommandInterfaceFile.read(
       Ssl31SubmodulePaths.projectRoot().resolve("src/cf/Subsystems/_ДемоАнкетирование.xml"));

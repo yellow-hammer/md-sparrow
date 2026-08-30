@@ -173,4 +173,41 @@ public final class SubsystemCommandInterfaceFile {
     out.put("placement", dto.placement);
     return out;
   }
+
+  /** Виды, чей стандартной командой в интерфейсе подсистемы открывается список. */
+  private static final List<String> OPEN_LIST_KINDS = List.of(
+    "Catalog", "Document", "DocumentJournal", "Enum",
+    "ChartOfCharacteristicTypes", "ChartOfAccounts", "ChartOfCalculationTypes",
+    "InformationRegister", "AccumulationRegister", "AccountingRegister", "CalculationRegister",
+    "ExchangePlan", "BusinessProcess", "Task", "FilterCriterion");
+
+  /** Виды, чья стандартная команда открывает сам объект. */
+  private static final List<String> OPEN_KINDS = List.of("Report", "DataProcessor", "CommonForm");
+
+  /**
+   * Стандартные команды объектов состава подсистемы: их конфигуратор показывает в
+   * командном интерфейсе и без записей в файле настроек. Ссылки видов без
+   * стандартной команды пропускаются.
+   */
+  public static List<String> contentCommands(List<String> contentRefs) {
+    List<String> out = new ArrayList<>();
+    for (String ref : contentRefs == null ? List.<String>of() : contentRefs) {
+      if (ref == null) {
+        continue;
+      }
+      int dot = ref.indexOf('.');
+      if (dot <= 0) {
+        continue;
+      }
+      String kind = ref.substring(0, dot);
+      if (OPEN_LIST_KINDS.contains(kind)) {
+        out.add(ref + ".StandardCommand.OpenList");
+      } else if (OPEN_KINDS.contains(kind)) {
+        out.add(ref + ".StandardCommand.Open");
+      } else if ("CommonCommand".equals(kind)) {
+        out.add(ref);
+      }
+    }
+    return out;
+  }
 }
