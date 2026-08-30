@@ -52,6 +52,24 @@ public final class SupportRules {
   /** Кэш разбора: файл большой, а guard дёргает его на каждую мутацию. */
   private static final Map<String, CacheEntry> CACHE = new ConcurrentHashMap<>();
 
+  /**
+   * Отказывать ли в правке того, что запрещено правилами поставки.
+   *
+   * <p>Выключается на весь процесс вызывающей программой, когда она работает с
+   * выгрузкой так, будто поставки нет. Чтения правил это не касается.
+   */
+  private static volatile boolean enforced = true;
+
+  /** Включает или выключает работу с правилами поддержки на весь процесс. */
+  public static void setEnforced(boolean value) {
+    enforced = value;
+  }
+
+  /** Правила поддержки учитываются: иначе выгрузка читается и правится как без поставки. */
+  public static boolean isEnforced() {
+    return enforced;
+  }
+
   private SupportRules() {
   }
 
@@ -90,8 +108,18 @@ public final class SupportRules {
     public String version = "";
     /** Имя конфигурации поставщика. */
     public String name = "";
-    /** Глобальный флаг: правила объектов действуют, конфигурация открыта для изменения. */
+    /** Глобальный флаг файла правил: правила объектов действуют. */
     public boolean rulesEnabled;
+    /**
+     * Рядом с правилами лежит файл поставки.
+     *
+     * <p>Его создаёт конфигуратор, когда включают возможность изменения, поэтому
+     * без него правила ещё не включены, каким бы ни был глобальный флаг. Разбор
+     * одних байтов каталога не видит и считает поставку на месте.
+     */
+    public boolean vendorPayloadPresent = true;
+    /** Хотя бы у одного блока поставщика правила открыты. */
+    public boolean anyBlockOpen;
     /** Сырой режим записи по uuid объекта: 0 - запрещено, 1 - разрешено, 2 - снят. */
     public Map<String, Integer> modeByUuid = new HashMap<>();
     /** Объекты поставщиков с выключенным флагом блока: для них правила скрыты. */
@@ -110,6 +138,17 @@ public final class SupportRules {
     }
 
     /**
+     * Возможность изменения включена: правила действуют и поставка на месте.
+     *
+     * <p>Правила действуют, когда открыт и глобальный флаг, и флаг хотя бы
+     * одного блока поставщика: при закрытом блоке его объекты заблокированы
+     * целиком. Включает это только конфигуратор, он же кладёт файл поставки.
+     */
+    public boolean editingEnabled() {
+      return rulesEnabled && anyBlockOpen && vendorPayloadPresent;
+    }
+
+    /**
      * Действующее состояние объекта: {@code locked}, {@code editable} либо пусто,
      * когда объект снят с поддержки или записи о нём нет.
      */
@@ -121,7 +160,7 @@ public final class SupportRules {
       if (mode == null || mode == MODE_REMOVED) {
         return null;
       }
-      if (!rulesEnabled || Boolean.TRUE.equals(blockLockedByUuid.get(uuid.toLowerCase(Locale.ROOT)))) {
+      if (!editingEnabled() || Boolean.TRUE.equals(blockLockedByUuid.get(uuid.toLowerCase(Locale.ROOT)))) {
         return "locked";
       }
       return mode == MODE_NOT_EDITABLE ? "locked" : "editable";
@@ -132,7 +171,7 @@ public final class SupportRules {
       if (isEmpty()) {
         return null;
       }
-      return rulesEnabled ? "editable" : "locked";
+      return editingEnabled() ? "editable" : "locked";
     }
   }
 
@@ -146,8 +185,11 @@ public final class SupportRules {
 
   /**
    * Каталог поставок поставщика рядом с правилами: платформа кладёт туда
-   * {@code <Конфигурация>.cf} каждой поставки. Пока каталог заведён, но пуст,
-   * править правила нельзя: следующая выгрузка платформы потеряет поставку.
+   * {@code <Имя поставки>.cf} каждой поставки.
+   *
+   * <p>Проверено загрузкой в базу платформой 8.3.27: пока правила действуют,
+   * выгрузка без файла поставки не загружается («Каталог не обнаружен»), а на
+   * полной поддержке загружается и без него.
    */
   public static Path vendorPayloadDir(Path configurationRoot) {
     return configurationRoot.resolve("Ext").resolve("ParentConfigurations");
@@ -182,22 +224,6 @@ public final class SupportRules {
     }
   }
 
-  private static void ensureVendorPayloadPresent(Path configurationRoot) throws IOException {
-    Path dir = vendorPayloadDir(configurationRoot);
-    if (!Files.isDirectory(dir)) {
-      return;
-    }
-    try (var entries = Files.list(dir)) {
-      boolean hasPayload = entries.anyMatch(path ->
-        Files.isRegularFile(path) && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".cf"));
-      if (!hasPayload) {
-        throw new IllegalStateException(
-          "В каталоге поставок " + dir + " нет ни одного файла поставки. Выгрузите конфигурацию заново:"
-            + " без поставки платформа не сможет обновляться от поставщика.");
-      }
-    }
-  }
-
   /**
    * Читает правила поддержки выгрузки; пустые правила, когда файла нет.
    *
@@ -218,8 +244,24 @@ public final class SupportRules {
     byte[] bytes = Files.readAllBytes(file);
     Rules rules = parse(bytes);
     rules.generationId = generationOf(bytes);
+    rules.vendorPayloadPresent = vendorPayloadFile(configurationRoot) != null;
     CACHE.put(key, new CacheEntry(modified, size, rules));
     return rules;
+  }
+
+  /** Файл поставки рядом с правилами; пусто, когда его нет. */
+  public static Path vendorPayloadFile(Path configurationRoot) throws IOException {
+    Path dir = vendorPayloadDir(configurationRoot);
+    if (!Files.isDirectory(dir)) {
+      return null;
+    }
+    try (var entries = Files.list(dir)) {
+      return entries
+        .filter(path -> Files.isRegularFile(path)
+          && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".cf"))
+        .findFirst()
+        .orElse(null);
+    }
   }
 
   static Rules parse(byte[] bytes) {
@@ -238,6 +280,7 @@ public final class SupportRules {
       cursor++; // uuid конфигурации поставщика
       Token blockToken = tokens.get(cursor++);
       block.rulesEnabled = "0".equals(blockToken.value());
+      rules.anyBlockOpen = rules.anyBlockOpen || block.rulesEnabled;
       block.blockTokenStart = blockToken.start();
       cursor++; // uuid родительской конфигурации
       block.version = unquote(tokens.get(cursor++).value());
@@ -343,14 +386,16 @@ public final class SupportRules {
     byte[] bytes = Files.readAllBytes(file);
     ensureSameGeneration(bytes, expectedGeneration);
     Rules rules = parse(bytes);
+    rules.vendorPayloadPresent = vendorPayloadFile(configurationRoot) != null;
     if (rules.isEmpty()) {
       throw new IllegalArgumentException("Файл правил поддержки не разобран.");
     }
-    if (!rules.rulesEnabled) {
+    if (!rules.editingEnabled()) {
       throw new IllegalStateException(
-        "Конфигурация на полной поддержке: сначала включите возможность изменения конфигурации.");
+        "Возможность изменения конфигурации не включена: включите её в конфигураторе и выгрузите"
+          + " конфигурацию заново. Тогда рядом с правилами появится файл поставки, и правила"
+          + " станут доступны для правки.");
     }
-    ensureVendorPayloadPresent(configurationRoot);
     java.util.Set<String> needles = new java.util.HashSet<>();
     for (String uuid : uuids) {
       if (uuid != null && !uuid.isBlank()) {
@@ -369,41 +414,6 @@ public final class SupportRules {
     if (patched == 0) {
       throw new IllegalArgumentException(
         "В правилах поддержки нет записей о выбранных объектах: " + String.join(", ", needles));
-    }
-    verifyAndWrite(file, bytes);
-  }
-
-  /**
-   * Включает возможность изменения конфигурации: глобальный флаг и флаги блоков
-   * открываются, каждой записи ставится правило по умолчанию из диалога
-   * конфигуратора - «не редактируется» либо «редактируется с сохранением
-   * поддержки». Дальше режим меняется по объекту.
-   */
-  public static void enableRules(Path configurationRoot, int defaultMode, String expectedGeneration)
-    throws IOException {
-    if (defaultMode != MODE_NOT_EDITABLE && defaultMode != MODE_EDITABLE) {
-      throw new IllegalArgumentException("Правило по умолчанию: 0 не редактируется либо 1 с сохранением поддержки.");
-    }
-    Path file = rulesPath(configurationRoot);
-    if (!Files.isRegularFile(file)) {
-      throw new IllegalArgumentException("У выгрузки нет файла правил поддержки.");
-    }
-    byte[] bytes = Files.readAllBytes(file);
-    ensureSameGeneration(bytes, expectedGeneration);
-    Rules rules = parse(bytes);
-    if (rules.isEmpty()) {
-      throw new IllegalArgumentException("Файл правил поддержки не разобран.");
-    }
-    if (rules.rulesEnabled) {
-      throw new IllegalStateException("Возможность изменения уже включена.");
-    }
-    ensureVendorPayloadPresent(configurationRoot);
-    patchDigit(bytes, rules.globalTokenStart, 0);
-    for (SupplierBlock block : rules.suppliers) {
-      patchDigit(bytes, block.blockTokenStart, 0);
-      for (ObjectEntry entry : block.objects) {
-        patchDigit(bytes, entry.modeTokenStart, defaultMode);
-      }
     }
     verifyAndWrite(file, bytes);
   }
@@ -436,7 +446,12 @@ public final class SupportRules {
     }
     uuids.add(own);
     if (includeChildren) {
-      uuids.addAll(childSubjectUuids(subject));
+      // У конфигурации подчинённые - вся выгрузка, у объекта - его формы,
+      // макеты и элементы
+      uuids.addAll(
+        subject.equals(root.resolve("Configuration.xml"))
+          ? read(root).modeByUuid.keySet()
+          : childSubjectUuids(subject));
     }
     setObjectModes(root, uuids, mode, expectedGeneration);
   }
@@ -701,6 +716,9 @@ public final class SupportRules {
    * поддержки, и объект без записи изменению не мешают.
    */
   public static void ensureEditable(Path objectXml) throws IOException {
+    if (!enforced) {
+      return;
+    }
     Path normalized = supportSubjectXml(objectXml.toAbsolutePath().normalize());
     Path root = findConfigurationRoot(normalized);
     if (root == null) {
@@ -731,6 +749,9 @@ public final class SupportRules {
    * @param elementKey ключ из {@link #elementSubjects(Path)}
    */
   public static void ensureElementEditable(Path objectXml, String elementKey) throws IOException {
+    if (!enforced) {
+      return;
+    }
     Path subject = objectXml.toAbsolutePath().normalize();
     Path root = findConfigurationRoot(subject);
     if (root == null) {

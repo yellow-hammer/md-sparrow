@@ -157,6 +157,8 @@ final class ApplyMutationCmd implements Callable<Integer> {
    * @return текст для stdout (как у одиночных подкоманд: {@code OK} либо имя созданного объекта)
    */
   private static String dispatch(CliParams p) throws IOException, JAXBException {
+    // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
+    SupportRules.setEnforced(!p.ignoreSupport);
     refuseLockedElement(p);
     switch (p.op) {
       case "cf-md-object-delete":
@@ -305,12 +307,6 @@ final class ApplyMutationCmd implements Callable<Integer> {
       case "cf-support-remove": {
         java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
         SupportRules.removeSupport(root, p.expectedGeneration);
-        return "OK";
-      }
-      case "cf-support-enable-rules": {
-        java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
-        int defaultMode = p.name == null || p.name.isBlank() ? 0 : Integer.parseInt(p.name.trim());
-        SupportRules.enableRules(root, defaultMode, p.expectedGeneration);
         return "OK";
       }
       case "cfe-borrow-object": {

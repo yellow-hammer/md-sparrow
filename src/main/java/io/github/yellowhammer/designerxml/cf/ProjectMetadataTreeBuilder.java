@@ -88,12 +88,18 @@ public final class ProjectMetadataTreeBuilder {
       mapGroups(projectRoot, cfRoot, payloads);
     String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
     String rootRel = projectRoot.relativize(cfRoot).toString().replace('\\', '/');
-    String support;
+    // Пока поддержку не учитывают, дерево о ней и не рассказывает. Состояние
+    // корня - его собственное правило: возможность изменения отдельно от него
+    String support = null;
     String supportGeneration = null;
+    boolean supportEditingEnabled = false;
     try {
-      SupportRules.Rules rules = SupportRules.read(cfRoot);
-      support = rules.configurationState();
-      supportGeneration = rules.generationId;
+      SupportRules.Rules rules = SupportRules.isEnforced() ? SupportRules.read(cfRoot) : null;
+      if (rules != null && !rules.isEmpty()) {
+        support = SupportRules.objectState(configurationXml);
+        supportEditingEnabled = rules.editingEnabled();
+        supportGeneration = rules.generationId;
+      }
     } catch (IOException e) {
       support = null;
     }
@@ -104,6 +110,7 @@ public final class ProjectMetadataTreeBuilder {
       cfgRel,
       rootRel,
       support,
+      supportEditingEnabled,
       supportGeneration,
       groups
     );
@@ -138,6 +145,7 @@ public final class ProjectMetadataTreeBuilder {
       cfgRel,
       rootRel,
       null,
+      false,
       null,
       groups
     );
@@ -170,7 +178,7 @@ public final class ProjectMetadataTreeBuilder {
   ) {
     SupportRules.Rules supportRules;
     try {
-      supportRules = SupportRules.read(metadataRoot);
+      supportRules = SupportRules.isEnforced() ? SupportRules.read(metadataRoot) : null;
     } catch (IOException e) {
       supportRules = null;
     }
@@ -284,6 +292,7 @@ public final class ProjectMetadataTreeBuilder {
       "",
       rootRelativePath,
       null,
+      false,
       null,
       groups
     );
@@ -308,6 +317,7 @@ public final class ProjectMetadataTreeBuilder {
       "",
       rootRelativePath,
       null,
+      false,
       null,
       groups
     );

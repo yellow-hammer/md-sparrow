@@ -116,6 +116,8 @@ final class ReadJsonCmd implements Callable<Integer> {
    * @return JSON для stdout
    */
   private static String dispatch(CliParams p) throws Exception {
+    // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
+    SupportRules.setEnforced(!p.ignoreSupport);
     Gson gson = new GsonBuilder().disableHtmlEscaping().create();
     switch (p.op) {
       case "cf-md-object-get": {
@@ -189,7 +191,11 @@ final class ReadJsonCmd implements Callable<Integer> {
         out.put("version", rules.version);
         out.put("name", rules.name);
         out.put("rulesEnabled", rules.rulesEnabled);
+        out.put("vendorPayloadPresent", rules.vendorPayloadPresent);
+        out.put("editingEnabled", rules.editingEnabled());
         out.put("configurationState", rules.configurationState());
+        // правило самого корня: им конфигурация закрыта или открыта для правки
+        out.put("rootState", SupportRules.objectState(p.reqPath(p.configurationXml, "configurationXml")));
         out.put("generationId", rules.generationId);
         out.put("objectCount", rules.modeByUuid.size());
         return gson.toJson(out);
