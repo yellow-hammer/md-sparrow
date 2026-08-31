@@ -359,7 +359,9 @@ class ApplyMutationCmdTest {
 
     assertThat(exit).isZero();
     String after = Files.readString(objectXml, StandardCharsets.UTF_8);
-    assertThat(after).contains("<v8:Type xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">xs:string</v8:Type>");
+    // Префикс объявлен в корне файла, на элементе его быть не должно: конфигуратор пишет так же
+    assertThat(after).contains("<v8:Type>xs:string</v8:Type>");
+    assertThat(after).doesNotContain("<v8:Type xmlns:xs=");
     assertThat(after).contains("<v8:Length>25</v8:Length>");
     assertThat(after).contains("<v8:AllowedLength>Variable</v8:AllowedLength>");
     assertThat(after).doesNotContain("xs:boolean");

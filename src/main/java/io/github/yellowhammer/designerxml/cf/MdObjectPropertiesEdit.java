@@ -349,6 +349,7 @@ public final class MdObjectPropertiesEdit {
       comment == null ? "" : comment);
     // У табличной части и значения перечисления типа нет — getType вернёт null.
     dto.type = MdTypeDescriptionBridge.read(JaxbReflect.getOptional(p, "getType"));
+    readPaletteProperties(p, dto);
     // Реквизиты табличной части: у остальных видов узлов ChildObjects нет
     Object nested = invokeNoArgOrNull(attrOrSection, "getChildObjects");
     if (nested != null) {
@@ -473,6 +474,137 @@ public final class MdObjectPropertiesEdit {
     String syn = d.synonymRu == null ? "" : d.synonymRu;
     LocalStringSync.setOrPutRu(JaxbReflect.get(p, "getSynonym"), syn);
     JaxbReflect.set(p, "setComment", d.comment == null ? "" : d.comment);
+    applyPaletteProperties(p, d);
+  }
+
+  /**
+   * Свойства палитры узла состава: подсказка и перечислимые флаги.
+   *
+   * <p>Набор зависит от вида узла и версии формата: чего в схеме нет, у того нет и геттера,
+   * и поле остаётся пустым.
+   */
+  private static void readPaletteProperties(Object props, MdNamedPropertyDto dto) {
+    dto.toolTipRu = LocalStringSync.firstRu(JaxbReflect.getOptional(props, "getToolTip"));
+    dto.fillChecking = JaxbReflect.enumNameOptional(props, "getFillChecking");
+    dto.indexing = JaxbReflect.enumNameOptional(props, "getIndexing");
+    dto.fullTextSearch = JaxbReflect.enumNameOptional(props, "getFullTextSearch");
+    dto.dataHistory = JaxbReflect.enumNameOptional(props, "getDataHistory");
+    dto.use = JaxbReflect.enumNameOptional(props, "getUse");
+    dto.quickChoice = JaxbReflect.enumNameOptional(props, "getQuickChoice");
+    dto.createOnInput = JaxbReflect.enumNameOptional(props, "getCreateOnInput");
+    dto.choiceHistoryOnInput = JaxbReflect.enumNameOptional(props, "getChoiceHistoryOnInput");
+    dto.choiceForm = JaxbReflect.getStringOptional(props, "getChoiceForm");
+    readChoiceParameters(props, dto);
+  }
+
+  /**
+   * Кладёт свойства палитры обратно в XML.
+   *
+   * <p>Пустое значение оставляет прежнее: панель присылает только то, что правила, а
+   * отсутствующее в схеме свойство пропускается вместе со своим сеттером.
+   */
+  private static void applyPaletteProperties(Object props, MdNamedPropertyDto d) {
+    if (d.toolTipRu != null) {
+      Object toolTip = JaxbReflect.ensureOptional(props, "getToolTip", "setToolTip");
+      if (toolTip != null) {
+        LocalStringSync.setOrPutRu(toolTip, d.toolTipRu);
+      }
+    }
+    JaxbReflect.setEnumOrKeep(props, "setFillChecking", d.fillChecking);
+    JaxbReflect.setEnumOrKeep(props, "setIndexing", d.indexing);
+    JaxbReflect.setEnumOrKeep(props, "setFullTextSearch", d.fullTextSearch);
+    JaxbReflect.setEnumOrKeep(props, "setDataHistory", d.dataHistory);
+    JaxbReflect.setEnumOrKeep(props, "setUse", d.use);
+    JaxbReflect.setEnumOrKeep(props, "setQuickChoice", d.quickChoice);
+    JaxbReflect.setEnumOrKeep(props, "setCreateOnInput", d.createOnInput);
+    JaxbReflect.setEnumOrKeep(props, "setChoiceHistoryOnInput", d.choiceHistoryOnInput);
+    if (d.choiceForm != null) {
+      JaxbReflect.setOptional(props, "setChoiceForm", d.choiceForm);
+    }
+    applyChoiceParameterLinks(props, d);
+  }
+
+  /**
+   * Параметры выбора и связи параметров выбора.
+   *
+   * <p>У параметра значение типизировано (строка, число, ссылка, список выбора формы), поэтому
+   * оно читается текстом и не пишется: строкой его не восстановить. Связь состоит из имени, пути
+   * к данным и режима изменения - её читаем и пишем целиком.
+   */
+  private static void readChoiceParameters(Object props, MdNamedPropertyDto dto) {
+    Object parameters = JaxbReflect.getOptional(props, "getChoiceParameters");
+    if (parameters != null) {
+      List<MdChoiceParameterDto> out = new ArrayList<>();
+      for (Object item : JaxbReflect.<Object>listOptional(parameters, "getItem")) {
+        Object value = JaxbReflect.getOptional(item, "getValue");
+        out.add(new MdChoiceParameterDto(
+          JaxbReflect.getStringOptional(item, "getName"),
+          value == null ? "" : MdListTypeRefs.readItemTexts(List.of(value)).stream().findFirst().orElse("")));
+      }
+      if (!out.isEmpty()) {
+        dto.choiceParameters = out;
+      }
+    }
+    Object links = JaxbReflect.getOptional(props, "getChoiceParameterLinks");
+    if (links == null) {
+      return;
+    }
+    List<MdChoiceParameterLinkDto> out = new ArrayList<>();
+    for (Object link : JaxbReflect.<Object>listOptional(links, "getLink")) {
+      out.add(new MdChoiceParameterLinkDto(
+        firstText(link, "getName"),
+        firstText(link, "getDataPath"),
+        JaxbReflect.enumNameOptional(link, "getValueChange")));
+    }
+    if (!out.isEmpty()) {
+      dto.choiceParameterLinks = out;
+    }
+  }
+
+  /** Имя и путь к данным приходят списками из-за xs:choice схемы: берём первое значение. */
+  private static String firstText(Object node, String getter) {
+    List<String> values = JaxbReflect.listOptional(node, getter);
+    return values.isEmpty() ? "" : values.get(0);
+  }
+
+  /**
+   * Кладёт связи параметров выбора обратно.
+   *
+   * <p>Число и порядок связей должны совпадать с XML: панель их не добавляет и не удаляет,
+   * а расхождение означало бы правку поверх устаревшего снимка.
+   */
+  private static void applyChoiceParameterLinks(Object props, MdNamedPropertyDto d) {
+    if (d.choiceParameterLinks == null) {
+      return;
+    }
+    Object links = JaxbReflect.getOptional(props, "getChoiceParameterLinks");
+    if (links == null) {
+      return;
+    }
+    List<Object> items = JaxbReflect.listOptional(links, "getLink");
+    if (items.size() != d.choiceParameterLinks.size()) {
+      throw new IllegalArgumentException("choiceParameterLinks: число связей не совпадает с XML");
+    }
+    for (int i = 0; i < items.size(); i++) {
+      MdChoiceParameterLinkDto link = d.choiceParameterLinks.get(i);
+      Object item = items.get(i);
+      replaceFirstText(item, "getName", link.name);
+      replaceFirstText(item, "getDataPath", link.dataPath);
+      JaxbReflect.setEnumOrKeep(item, "setValueChange", link.mode);
+    }
+  }
+
+  /** Заменяет первое значение списка строк, оставляя остальные как в файле. */
+  private static void replaceFirstText(Object node, String getter, String value) {
+    if (value == null) {
+      return;
+    }
+    List<String> values = JaxbReflect.listOptional(node, getter);
+    if (values.isEmpty()) {
+      values.add(value);
+      return;
+    }
+    values.set(0, value);
   }
 
   private static void applySubsystem(Object sub, MdObjectPropertiesDto dto) {

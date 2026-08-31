@@ -351,7 +351,53 @@ public final class MdObjectPropertiesLeafDiff {
           "Type",
           MdTypeDescriptionSerial.typeElement("Type", y.type)));
       }
+      appendNamedChildPaletteChanges(childContainerLocal, x, y, out);
     }
+  }
+
+  /**
+   * Свойства палитры узла состава: правятся точечно, по одному элементу XML.
+   *
+   * <p>Без этого правка одного индексирования уходила бы в пересборку блока состава: платформа
+   * такой файл примет, но diff в Git станет нечитаемым.
+   */
+  private static void appendNamedChildPaletteChanges(
+    String childContainerLocal,
+    MdNamedPropertyDto x,
+    MdNamedPropertyDto y,
+    List<GranularPatchChange> out) {
+    if (!Objects.equals(x.toolTipRu, y.toolTipRu)) {
+      out.add(GranularPatchChange.namedChild(childContainerLocal, y.name, "ToolTip",
+        MdCatalogPropertiesGranularSerial.localStringRuElement("ToolTip", y.toolTipRu)));
+    }
+    appendNamedChildEnum(childContainerLocal, y.name, "FillChecking", x.fillChecking, y.fillChecking, out);
+    appendNamedChildEnum(childContainerLocal, y.name, "Indexing", x.indexing, y.indexing, out);
+    appendNamedChildEnum(childContainerLocal, y.name, "FullTextSearch", x.fullTextSearch, y.fullTextSearch, out);
+    appendNamedChildEnum(childContainerLocal, y.name, "DataHistory", x.dataHistory, y.dataHistory, out);
+    appendNamedChildEnum(childContainerLocal, y.name, "Use", x.use, y.use, out);
+    appendNamedChildEnum(childContainerLocal, y.name, "QuickChoice", x.quickChoice, y.quickChoice, out);
+    appendNamedChildEnum(childContainerLocal, y.name, "CreateOnInput", x.createOnInput, y.createOnInput, out);
+    appendNamedChildEnum(
+      childContainerLocal, y.name, "ChoiceHistoryOnInput", x.choiceHistoryOnInput, y.choiceHistoryOnInput, out);
+    if (!Objects.equals(x.choiceForm, y.choiceForm)) {
+      out.add(GranularPatchChange.namedChild(childContainerLocal, y.name, "ChoiceForm",
+        MdCatalogPropertiesGranularSerial.textElement("ChoiceForm", MdCatalogPropertiesGranularSerial.nz(y.choiceForm))));
+    }
+  }
+
+  /** Перечислимое свойство узла: в DTO имя константы, в XML значение схемы. */
+  private static void appendNamedChildEnum(
+    String childContainerLocal,
+    String name,
+    String elementLocalName,
+    String before,
+    String after,
+    List<GranularPatchChange> out) {
+    if (Objects.equals(before, after) || after == null || after.isEmpty()) {
+      return;
+    }
+    out.add(GranularPatchChange.namedChild(childContainerLocal, name, elementLocalName,
+      MdCatalogPropertiesGranularSerial.enumTextElement(elementLocalName, after)));
   }
 
   private static List<GranularPatchChange> documentPropertyChanges(
