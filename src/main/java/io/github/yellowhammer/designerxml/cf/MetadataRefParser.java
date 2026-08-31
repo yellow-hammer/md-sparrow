@@ -72,6 +72,24 @@ public final class MetadataRefParser {
     Map.entry("AccountingRegisterRecordSet", "AccountingRegister"),
     Map.entry("CalculationRegisterRecordSet", "CalculationRegister"));
 
+  /**
+   * Вид объекта -&gt; суффикс его ссылочного типа: {@code Catalog} -&gt; {@code CatalogRef}.
+   *
+   * <p>Обратная карта к {@link #REF_SUFFIX_TO_TYPE}, только по ссылкам: типы объекта и набора
+   * записей встречаются в источниках подписок, а типом реквизита быть не могут.
+   *
+   * @return вид объекта -&gt; суффикс ссылочного типа
+   */
+  public static Map<String, String> refTypeSuffixesByObjectType() {
+    Map<String, String> out = new java.util.LinkedHashMap<>();
+    for (Map.Entry<String, String> entry : REF_SUFFIX_TO_TYPE.entrySet()) {
+      if (entry.getKey().endsWith("Ref")) {
+        out.put(entry.getValue(), entry.getKey());
+      }
+    }
+    return out;
+  }
+
   /** Псевдо-типы из {@code v8:TypeSet} / {@code Location}, разворачиваются в реальные типы метаданных. */
   private static final Map<String, String> ALIAS_TO_TYPE = Map.ofEntries(
     Map.entry("Characteristic", "ChartOfCharacteristicTypes"),

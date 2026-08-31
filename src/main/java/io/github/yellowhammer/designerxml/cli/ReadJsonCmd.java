@@ -36,6 +36,7 @@ import io.github.yellowhammer.designerxml.cf.CfDumpValidation;
 import io.github.yellowhammer.designerxml.cf.CatalogFormEdit;
 import io.github.yellowhammer.designerxml.cf.ConfigurationCatalogLister;
 import io.github.yellowhammer.designerxml.cf.ConfigurationChildObjectLister;
+import io.github.yellowhammer.designerxml.cf.ConfigurationRefTypeLister;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
@@ -240,6 +241,10 @@ final class ReadJsonCmd implements Callable<Integer> {
       }
       case "cf-md-exchange-plan-content-get": {
         return gson.toJson(ExchangePlanContentFile.read(p.reqPath(p.objectXml, "objectXml")));
+      }
+      case "cf-list-ref-types": {
+        return gson.toJson(ConfigurationRefTypeLister.listRefTypes(
+          p.reqPath(p.configurationXml, "configurationXml"), p.version()));
       }
       case "cf-list-all-child-objects": {
         return gson.toJson(ConfigurationChildObjectLister.listAll(
