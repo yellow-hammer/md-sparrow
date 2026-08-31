@@ -80,7 +80,9 @@ public final class MdObjectPropertiesGranularPatch {
           continue;
         }
         String replacement = XmlGranularPatch.formatReplacementPreservingIndent(
-          xmlUtf8, reg.start(), ch.replacementElementXml());
+          xmlUtf8,
+          reg.start(),
+          XmlGranularPatch.dropRedundantNamespaces(xmlUtf8, ch.replacementElementXml()));
         reps.add(new XmlGranularPatch.Replacement(reg.start(), reg.end(), replacement));
       }
     } catch (XMLStreamException e) {

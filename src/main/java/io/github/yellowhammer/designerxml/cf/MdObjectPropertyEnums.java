@@ -40,6 +40,11 @@ public final class MdObjectPropertyEnums {
   public static Map<String, List<String>> forVersion(SchemaVersion version) {
     Map<String, List<String>> out = new LinkedHashMap<>();
     collect(out, "configuration", propertiesClass(version, "Configuration"));
+    // Узлы состава лежат списками, а не блоками DTO: их перечисления собираются
+    // под общим ключом вида, чтобы палитра реквизита знала допустимые значения
+    for (String childKind : CHILD_KINDS) {
+      collect(out, childKind, propertiesClass(version, capitalize(childKind)));
+    }
     for (Field block : MdObjectPropertiesDto.class.getFields()) {
       String typeName = block.getType().getSimpleName();
       if (!typeName.startsWith("Md") || !typeName.endsWith("PropertiesDto")) {
@@ -95,6 +100,14 @@ public final class MdObjectPropertyEnums {
         }
       }
     }
+  }
+
+  /** Виды узлов состава, чьи перечислимые свойства нужны палитре. */
+  private static final List<String> CHILD_KINDS = List.of(
+    "attribute", "dimension", "resource", "accountingFlag", "extDimensionAccountingFlag", "addressingAttribute");
+
+  private static String capitalize(String value) {
+    return Character.toUpperCase(value.charAt(0)) + value.substring(1);
   }
 
   private static String propertyName(String getterName) {

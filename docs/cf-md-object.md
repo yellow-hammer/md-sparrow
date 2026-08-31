@@ -74,7 +74,7 @@
 
 Для `catalog`, `document`, `exchangePlan`:
 
-- `attributes[]`, `tabularSections[]`: элементы `{ "name", "synonymRu", "comment" }`. Имя **не меняется** через `cf-md-object-set`; при сохранении число и порядок элементов должны совпадать с XML.
+- `attributes[]`, `tabularSections[]`: элементы `{ "name", "synonymRu", "comment", "type" }` плюс свойства палитры: `toolTipRu`, `fillChecking`, `indexing`, `fullTextSearch`, `dataHistory`, `use`, `quickChoice`, `createOnInput`, `choiceHistoryOnInput`, `choiceForm`, `choiceParameters`, `choiceParameterLinks`. Набор свойств зависит от вида узла и версии формата: чего в схеме нет, приходит пустым и при записи не трогается. Допустимые значения перечислений отдаёт `cf-md-object-enums` под ключами вида `attribute.indexing`. Имя **не меняется** через `cf-md-object-set`; при сохранении число и порядок элементов должны совпадать с XML.
 
 Для `subsystem`:
 
@@ -90,4 +90,5 @@ Round-trip и регрессии — на выгрузках вроде submodul
 - Для всех перечисленных `kind` поддержаны базовые поля `internalName/synonymRu/comment` с гранулярной записью.
 - Типизированный блок свойств есть у видов из строк «полная»; остальным доступны только базовые поля.
 - Для `subsystem` дополнительно поддержаны `nestedSubsystems` и `contentRefs`. Тем же полем `contentRefs` приходят состав функциональной опции и её параметра, общего реквизита, последовательности и критерия отбора: у критерия ссылки только снимаются, дерево кандидатов не строится.
+- Параметры выбора (`choiceParameters`) читаются текстом и не пишутся: значение платформа хранит типизированным, строкой его не восстановить. Связи параметров выбора (`choiceParameterLinks`: `name`, `dataPath`, `mode`) читаются и пишутся целиком, число и порядок связей при записи должны совпадать с XML.
 - Состав плана обмена лежит отдельным файлом `<План>/Ext/Content.xml` и правится операцией `cf-md-exchange-plan-content-set`.

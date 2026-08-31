@@ -627,7 +627,42 @@ public final class MdObjectPropertiesDiff {
       if (!Objects.equals(x.name, y.name)
         || !Objects.equals(x.synonymRu, y.synonymRu)
         || !Objects.equals(x.comment, y.comment)
-        || !MdFlatDtoSupport.equalsFlat(x.type, y.type, false)) {
+        || !MdFlatDtoSupport.equalsFlat(x.type, y.type, false)
+        || !paletteEquals(x, y)
+        || !namedListEquals(x.attributes, y.attributes)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Свойства палитры узла состава: подсказка и перечислимые флаги. */
+  private static boolean paletteEquals(MdNamedPropertyDto x, MdNamedPropertyDto y) {
+    return Objects.equals(x.toolTipRu, y.toolTipRu)
+      && Objects.equals(x.fillChecking, y.fillChecking)
+      && Objects.equals(x.indexing, y.indexing)
+      && Objects.equals(x.fullTextSearch, y.fullTextSearch)
+      && Objects.equals(x.dataHistory, y.dataHistory)
+      && Objects.equals(x.use, y.use)
+      && Objects.equals(x.quickChoice, y.quickChoice)
+      && Objects.equals(x.createOnInput, y.createOnInput)
+      && Objects.equals(x.choiceHistoryOnInput, y.choiceHistoryOnInput)
+      && Objects.equals(x.choiceForm, y.choiceForm)
+      && choiceLinksEqual(x.choiceParameterLinks, y.choiceParameterLinks);
+  }
+
+  /** Связи параметров выбора: сравниваем поштучно, порядок значим как в XML. */
+  private static boolean choiceLinksEqual(
+    List<MdChoiceParameterLinkDto> a, List<MdChoiceParameterLinkDto> b) {
+    List<MdChoiceParameterLinkDto> left = a == null ? new ArrayList<>() : a;
+    List<MdChoiceParameterLinkDto> right = b == null ? new ArrayList<>() : b;
+    if (left.size() != right.size()) {
+      return false;
+    }
+    for (int i = 0; i < left.size(); i++) {
+      if (!Objects.equals(left.get(i).name, right.get(i).name)
+        || !Objects.equals(left.get(i).dataPath, right.get(i).dataPath)
+        || !Objects.equals(left.get(i).mode, right.get(i).mode)) {
         return false;
       }
     }

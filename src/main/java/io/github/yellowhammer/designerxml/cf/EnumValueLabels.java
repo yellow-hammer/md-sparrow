@@ -106,6 +106,12 @@ public final class EnumValueLabels {
     put(m, "MAKE_DISABLE", "Выключать");
     put(m, "DONT_CHANGE_BEHAVIOR", "Не менять поведение");
 
+    put(m, "FOR_ITEM", "Для элемента");
+    put(m, "FOR_FOLDER", "Для группы");
+    put(m, "FOR_FOLDER_AND_ITEM", "Для группы и элемента");
+    put(m, "DELETE_DATA", "Удалять данные");
+    put(m, "TRANSFORM_VALUES", "Преобразовывать значения");
+
     put(m, "AS_CODE", "В виде кода");
     put(m, "AS_DESCRIPTION", "В виде наименования");
     put(m, "AS_NUMBER", "В виде номера");

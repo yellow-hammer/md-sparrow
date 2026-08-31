@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -181,6 +184,47 @@ final class XmlGranularPatch {
   }
 
   /** Перевод строки исходного файла: не смешиваем CRLF и LF при точечных заменах. */
+  /**
+   * Убирает из фрагмента объявления пространств имён, которые уже стоят в корне файла.
+   *
+   * <p>Конфигуратор объявляет префиксы один раз в корневом теге, поэтому повторное объявление
+   * на элементе - лишняя разница в diff, хотя платформа принимает и так.
+   *
+   * @param xmlUtf8 файл целиком
+   * @param fragment вставляемый фрагмент
+   * @return фрагмент без повторных объявлений
+   */
+  /** Объявление пространства имён в корневом теге. */
+  private static final Pattern NAMESPACE_DECLARATION =
+    Pattern.compile("xmlns:([A-Za-z0-9_.-]+)=\"([^\"]+)\"");
+
+  static String dropRedundantNamespaces(String xmlUtf8, String fragment) {
+    Matcher declared = NAMESPACE_DECLARATION.matcher(rootTag(xmlUtf8));
+    Map<String, String> byPrefix = new LinkedHashMap<>();
+    while (declared.find()) {
+      byPrefix.put(declared.group(1), declared.group(2));
+    }
+    if (byPrefix.isEmpty()) {
+      return fragment;
+    }
+    String out = fragment;
+    for (Map.Entry<String, String> entry : byPrefix.entrySet()) {
+      String declaration = " xmlns:" + entry.getKey() + "=\"" + entry.getValue() + "\"";
+      out = out.replace(declaration, "");
+    }
+    return out;
+  }
+
+  /** Корневой тег файла: в нём конфигуратор и объявляет пространства имён. */
+  private static String rootTag(String xmlUtf8) {
+    int start = xmlUtf8.indexOf("<MetaDataObject");
+    if (start < 0) {
+      return "";
+    }
+    int end = xmlUtf8.indexOf('>', start);
+    return end < 0 ? "" : xmlUtf8.substring(start, end);
+  }
+
   static String fileEol(String xmlUtf8) {
     return xmlUtf8.contains("\r\n") ? "\r\n" : "\n";
   }
