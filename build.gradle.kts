@@ -180,13 +180,13 @@ val modelToVersions = versionToModel.entries.groupBy({ it.value }, { it.key })
 val xjc by configurations.creating
 dependencies {
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
-    xjc("org.glassfish.jaxb:jaxb-runtime:4.0.5")
+    xjc("org.glassfish.jaxb:jaxb-runtime:4.0.6")
 
     api("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
     implementation("org.glassfish.jaxb:jaxb-runtime:4.0.5")
     implementation("info.picocli:picocli:4.7.7")
-    implementation("com.google.code.gson:gson:2.11.0")
-    implementation("com.fasterxml.woodstox:woodstox-core:6.6.0")
+    implementation("com.google.code.gson:gson:2.14.0")
+    implementation("com.fasterxml.woodstox:woodstox-core:7.1.0")
 
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
