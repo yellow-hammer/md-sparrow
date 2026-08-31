@@ -52,12 +52,12 @@
 | `dataProcessor`              | `DataProcessor`              | полная (`report`, поля отчёта пусты)                                                 |
 | `documentJournal`            | `DocumentJournal`            | полная (`documentJournal`, регистрируемые документы)                                 |
 | `chartOfCharacteristicTypes` | `ChartOfCharacteristicTypes` | полная (`chartOfCharacteristicTypes`, `attributes`, `tabularSections`)               |
-| `exchangePlan`               | `ExchangePlan`               | полная (`exchangePlan`, `attributes`, `tabularSections`; состав плана не трогаем)    |
+| `exchangePlan`               | `ExchangePlan`               | полная (`exchangePlan`, `attributes`, `tabularSections`; состав - `cf-md-exchange-plan-content-set`) |
 | `task`                       | `Task`                       | полная (`task`, `attributes`, `tabularSections`)                                     |
 | `businessProcess`            | `BusinessProcess`            | полная (`businessProcess`, `attributes`, `tabularSections`)                          |
 | `chartOfAccounts`            | `ChartOfAccounts`            | полная (`chartOfAccounts`, `attributes`, `tabularSections`)                          |
 | `chartOfCalculationTypes`    | `ChartOfCalculationTypes`    | полная (`chartOfCalculationTypes`, `attributes`, `tabularSections`)                  |
-| `subsystem`                  | `Subsystem`                  | расширенная (`nestedSubsystems`, `contentRefs` чтение)                               |
+| `subsystem`                  | `Subsystem`                  | расширенная (`nestedSubsystems`, `contentRefs`)                                      |
 
 | `sessionParameter`            | `SessionParameter`            | полная (`sessionParameter`: тип значения) |
 | `commonAttribute` | `CommonAttribute` | полная (`commonAttribute`: разделение данных, поле ввода) |
@@ -79,7 +79,7 @@
 Для `subsystem`:
 
 - `nestedSubsystems[]`: строки — вложенные подсистемы в `ChildObjects`
-- `contentRefs[]`: только **чтение** (состав подсистемы из `Properties/Content`); при `cf-md-object-set` не изменяется
+- `contentRefs[]`: состав подсистемы из `Properties/Content`, читается и пишется через `cf-md-object-set`
 
 ## Эталоны для проверки
 
@@ -89,4 +89,5 @@ Round-trip и регрессии — на выгрузках вроде submodul
 
 - Для всех перечисленных `kind` поддержаны базовые поля `internalName/synonymRu/comment` с гранулярной записью.
 - Типизированный блок свойств есть у видов из строк «полная»; остальным доступны только базовые поля.
-- Для `subsystem` дополнительно поддержаны `nestedSubsystems` и чтение `contentRefs`.
+- Для `subsystem` дополнительно поддержаны `nestedSubsystems` и `contentRefs`. Тем же полем `contentRefs` приходят состав функциональной опции и её параметра, общего реквизита, последовательности и критерия отбора: у критерия ссылки только снимаются, дерево кандидатов не строится.
+- Состав плана обмена лежит отдельным файлом `<План>/Ext/Content.xml` и правится операцией `cf-md-exchange-plan-content-set`.
