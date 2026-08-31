@@ -36,7 +36,49 @@ public final class MdObjectPropertiesDto {
   public List<MdNamedPropertyDto> dimensions;
   /** Ресурсы регистра. */
   public List<MdNamedPropertyDto> resources;
+  /** Команды объекта. */
+  public List<MdNamedPropertyDto> commands;
+  /** Графы журнала документов. */
+  public List<MdNamedPropertyDto> columns;
+  /** Признаки учёта плана счетов. */
+  public List<MdNamedPropertyDto> accountingFlags;
+  /** Признаки учёта субконто плана счетов. */
+  public List<MdNamedPropertyDto> extDimensionAccountingFlags;
+  /** Реквизиты адресации задачи. */
+  public List<MdNamedPropertyDto> addressingAttributes;
+  /** Перерасчёты регистра расчёта. */
+  public List<MdNamedPropertyDto> recalculations;
+  /** Операции Web-сервиса. */
+  public List<MdNamedPropertyDto> operations;
+  /** Шаблоны URL HTTP-сервиса. */
+  public List<MdNamedPropertyDto> urlTemplates;
+  /** Каналы сервиса интеграции. */
+  public List<MdNamedPropertyDto> channels;
+  /** Таблицы внешнего источника данных. */
+  public List<MdNamedPropertyDto> tables;
+  /** Кубы внешнего источника данных. */
+  public List<MdNamedPropertyDto> cubes;
+  /** Функции внешнего источника данных. */
+  public List<MdNamedPropertyDto> functions;
   /** Подсистемы, вложенные в данную (только для kind=subsystem). */
+  /**
+   * Скалярные свойства вида без своего моста: имя элемента выгрузки → значение.
+   * Перечислимые значения несут имена Java-констант модели, числа - строками.
+   */
+  public java.util.Map<String, Object> scalars;
+
+  /** Описание скалярных свойств: тип и допустимые значения. */
+  public java.util.Map<String, MdScalarPropertyMeta> scalarMeta;
+
+  /** Состав общего реквизита: ссылки с режимом использования. */
+  public java.util.List<MdContentMemberDto> contentMembers;
+
+  /** Входящие документы последовательности: ссылки {@code Document.Имя}. */
+  public List<String> documents;
+
+  /** Движения регистров последовательности: ссылки на регистры. */
+  public List<String> registerRecords;
+
   public List<String> nestedSubsystems;
   /**
    * Состав подсистемы (ссылки на объекты метаданных) — только чтение; при записи не изменяется.
@@ -109,5 +151,17 @@ public final class MdObjectPropertiesDto {
     this.resources = new ArrayList<>();
     this.nestedSubsystems = new ArrayList<>();
     this.contentRefs = new ArrayList<>();
+    this.commands = new ArrayList<>();
+    this.columns = new ArrayList<>();
+    this.accountingFlags = new ArrayList<>();
+    this.extDimensionAccountingFlags = new ArrayList<>();
+    this.addressingAttributes = new ArrayList<>();
+    this.recalculations = new ArrayList<>();
+    this.operations = new ArrayList<>();
+    this.urlTemplates = new ArrayList<>();
+    this.channels = new ArrayList<>();
+    this.tables = new ArrayList<>();
+    this.cubes = new ArrayList<>();
+    this.functions = new ArrayList<>();
   }
 }

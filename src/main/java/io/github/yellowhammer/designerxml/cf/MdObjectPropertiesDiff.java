@@ -90,6 +90,18 @@ public final class MdObjectPropertiesDiff {
     if (!listStringEquals(a.contentRefs, b.contentRefs)) {
       return false;
     }
+    if (!scalarsEqual(a.scalars, b.scalars)) {
+      return false;
+    }
+    if (!listStringEquals(a.documents, b.documents)
+      || !listStringEquals(a.registerRecords, b.registerRecords)) {
+      return false;
+    }
+    if (!Objects.equals(
+      a.contentMembers == null ? java.util.List.of() : a.contentMembers,
+      b.contentMembers == null ? java.util.List.of() : b.contentMembers)) {
+      return false;
+    }
     return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs)
       && documentEquals(a.document, b.document, lenientCatalogXmlBlobs)
       && simpleKindsEqual(a, b, lenientCatalogXmlBlobs);
@@ -208,6 +220,18 @@ public final class MdObjectPropertiesDiff {
       return false;
     }
     if (!listStringEquals(a.contentRefs, b.contentRefs)) {
+      return false;
+    }
+    if (!scalarsEqual(a.scalars, b.scalars)) {
+      return false;
+    }
+    if (!listStringEquals(a.documents, b.documents)
+      || !listStringEquals(a.registerRecords, b.registerRecords)) {
+      return false;
+    }
+    if (!Objects.equals(
+      a.contentMembers == null ? java.util.List.of() : a.contentMembers,
+      b.contentMembers == null ? java.util.List.of() : b.contentMembers)) {
       return false;
     }
     return catalogEquals(a.catalog, b.catalog, lenientCatalogXmlBlobs)
@@ -566,6 +590,25 @@ public final class MdObjectPropertiesDiff {
       && a.updateDataHistoryImmediatelyAfterWrite == b.updateDataHistoryImmediatelyAfterWrite
       && a.executeAfterWriteDataHistoryVersionProcessing == b.executeAfterWriteDataHistoryVersionProcessing
       && Objects.equals(a.additionalIndexes, b.additionalIndexes);
+  }
+
+  /** Булево из JSON может прийти строкой: скаляры сравниваются по каноничному виду. */
+  private static boolean scalarsEqual(java.util.Map<String, Object> a, java.util.Map<String, Object> b) {
+    if (a == null || b == null) {
+      return a == b;
+    }
+    if (!a.keySet().equals(b.keySet())) {
+      return false;
+    }
+    for (java.util.Map.Entry<String, Object> entry : a.entrySet()) {
+      String left = entry.getValue() == null ? "" : String.valueOf(entry.getValue());
+      Object other = b.get(entry.getKey());
+      String right = other == null ? "" : String.valueOf(other);
+      if (!left.equals(right)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   static boolean namedListEquals(List<MdNamedPropertyDto> a, List<MdNamedPropertyDto> b) {

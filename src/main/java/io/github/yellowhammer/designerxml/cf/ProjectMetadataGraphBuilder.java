@@ -145,7 +145,7 @@ public final class ProjectMetadataGraphBuilder {
         }
         String relativePath = projectRoot.relativize(xml).toString().replace('\\', '/');
         ProjectMetadataTreeDto.MetadataItemDto fakeItem =
-          new ProjectMetadataTreeDto.MetadataItemDto("Subsystem", name, relativePath, null, null);
+          new ProjectMetadataTreeDto.MetadataItemDto("Subsystem", name, relativePath, null, null, null);
         processItem(projectRoot, source, fakeItem, nodes, edges, subsystemKeysByTarget);
       }
     }
@@ -165,7 +165,7 @@ public final class ProjectMetadataGraphBuilder {
       : projectRoot.resolve(item.relativePath());
     String synonym = "";
     boolean partial = !MdObjectGraphExtractor.isSupported(item.objectType());
-    if (xml != null && Files.isRegularFile(xml) && hasMdObjectRoot(item.objectType())) {
+    if (xml != null && Files.isRegularFile(xml)) {
       MdObjectGraphExtractor.Inspection inspection = MdObjectGraphExtractor.inspect(xml, item.objectType());
       synonym = inspection.synonymRu();
       partial = inspection.partial();
@@ -200,11 +200,6 @@ public final class ProjectMetadataGraphBuilder {
       item.relativePath(),
       List.of(),
       partial));
-  }
-
-  /** Внешние отчёты/обработки лежат в .erf/.epf — у них нет XML-корня {@code MetaDataObject} в обычном виде. */
-  private static boolean hasMdObjectRoot(String objectType) {
-    return !"ExternalReport".equals(objectType) && !"ExternalDataProcessor".equals(objectType);
   }
 
   private static void addEdge(

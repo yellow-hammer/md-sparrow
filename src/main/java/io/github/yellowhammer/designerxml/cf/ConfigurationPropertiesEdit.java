@@ -38,7 +38,7 @@ public final class ConfigurationPropertiesEdit {
 
   public static ConfigurationPropertiesDto read(Path configurationXml, SchemaVersion schemaVersion)
     throws JAXBException, IOException {
-    return fill(properties(DesignerXml.read(configurationXml, schemaVersion)), configurationXml);
+    return fill(properties(DesignerXml.read(configurationXml, schemaVersion)), configurationXml, schemaVersion);
   }
 
   public static void write(Path configurationXml, SchemaVersion schemaVersion, ConfigurationPropertiesDto dto)
@@ -112,12 +112,12 @@ public final class ConfigurationPropertiesEdit {
     return p;
   }
 
-  private static ConfigurationPropertiesDto fill(Object p, Path configurationXml) {
-    return fill(p, (value, element) -> UnknownEnumValues.orFromXml(value, configurationXml, element));
+  private static ConfigurationPropertiesDto fill(Object p, Path configurationXml, SchemaVersion version) {
+    return fill(p, (value, element) -> UnknownEnumValues.orFromXml(value, configurationXml, element), version);
   }
 
-  private static ConfigurationPropertiesDto fill(Object p, byte[] xml) {
-    return fill(p, (value, element) -> UnknownEnumValues.orFromXml(value, xml, element));
+  private static ConfigurationPropertiesDto fill(Object p, byte[] xml, SchemaVersion version) {
+    return fill(p, (value, element) -> UnknownEnumValues.orFromXml(value, xml, element), version);
   }
 
   /** Значение перечислимого свойства: от модели либо дочитанное из выгрузки. */
@@ -125,13 +125,14 @@ public final class ConfigurationPropertiesEdit {
     String of(String fromModel, String element);
   }
 
-  private static ConfigurationPropertiesDto fill(Object p, EnumValue enumValue) {
+  private static ConfigurationPropertiesDto fill(Object p, EnumValue enumValue, SchemaVersion version) {
     var out = new ConfigurationPropertiesDto();
     out.name = nvl(JaxbReflect.getStringOptional(p, "getName"));
     out.synonymRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getSynonym"));
     out.comment = nvl(JaxbReflect.getStringOptional(p, "getComment"));
     out.defaultRunMode = JaxbReflect.enumNameOptional(p, "getDefaultRunMode");
     out.usePurposes = enumListToNames(JaxbReflect.getOptional(p, "getUsePurposes"));
+    out.usePurposeOptions = usePurposeOptions(version);
     out.scriptVariant = JaxbReflect.enumNameOptional(p, "getScriptVariant");
     Object roles = JaxbReflect.getOptional(p, "getDefaultRoles");
     out.defaultRoles = roles == null
@@ -219,7 +220,7 @@ public final class ConfigurationPropertiesEdit {
   }
 
   private static ConfigurationPropertiesDto readDto(byte[] xmlBytes, SchemaVersion version) throws JAXBException {
-    return fill(properties(DesignerXml.unmarshal(version, new ByteArrayInputStream(xmlBytes))), xmlBytes);
+    return fill(properties(DesignerXml.unmarshal(version, new ByteArrayInputStream(xmlBytes))), xmlBytes, version);
   }
 
   private static List<String> enumListToNames(Object fixedArray) {
@@ -489,5 +490,21 @@ public final class ConfigurationPropertiesEdit {
 
   private static String nvl(String v) {
     return v == null ? "" : v;
+  }
+
+  /** Константы назначений использования из модели формата: без своей копии списка. */
+  private static List<String> usePurposeOptions(SchemaVersion version) {
+    try {
+      Class<?> enumClass = Class.forName(
+        "io.github.yellowhammer.designerxml.jaxb." + version.name().toLowerCase(java.util.Locale.ROOT)
+          + ".v8_2_managed_application_core.ApplicationUsePurpose");
+      List<String> out = new ArrayList<>();
+      for (Object constant : enumClass.getEnumConstants()) {
+        out.add(((Enum<?>) constant).name());
+      }
+      return out;
+    } catch (ClassNotFoundException e) {
+      return new ArrayList<>();
+    }
   }
 }

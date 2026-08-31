@@ -69,6 +69,8 @@ public final class MdObjectGraphExtractor {
     "ScheduledJob",
     "Report",
     "DataProcessor",
+    "ExternalReport",
+    "ExternalDataProcessor",
     "CommonCommand");
 
   private MdObjectGraphExtractor() {
@@ -125,7 +127,10 @@ public final class MdObjectGraphExtractor {
       case "CommonAttribute" -> extractCommonAttribute(properties, edges);
       case "EventSubscription" -> extractEventSubscription(properties, edges);
       case "ScheduledJob" -> extractScheduledJob(properties, edges);
-      case "Report", "DataProcessor" -> extractCatalogLikeWithAttributes(childObjects, edges);
+      case "Report",
+        "DataProcessor",
+        "ExternalReport",
+        "ExternalDataProcessor" -> extractCatalogLikeWithAttributes(childObjects, edges);
       case "CommonCommand" -> extractCommonCommand(properties, edges);
       default -> {
         // Синоним прочитан выше; для этого типа специализированный извлекатель не реализован —

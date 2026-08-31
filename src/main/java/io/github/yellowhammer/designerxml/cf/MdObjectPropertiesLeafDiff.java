@@ -83,6 +83,12 @@ public final class MdObjectPropertiesLeafDiff {
     // попадала бы в список дважды и вторая резала бы уже изменённый XML по старым смещениям.
     appendNamedChildSynonymComment("Attribute", baseline.attributes, incoming.attributes, out);
     appendNamedChildSynonymComment("TabularSection", baseline.tabularSections, incoming.tabularSections, out);
+    // Состав с режимами носит только общий реквизит: блок заменяется целиком
+    if (contentMembersChanged(baseline, incoming)) {
+      out.add(GranularPatchChange.objectProperty(
+        "Content",
+        MdCatalogPropertiesGranularSerial.contentMembersElement(incoming.contentMembers)));
+    }
     return out;
   }
 
@@ -141,7 +147,9 @@ public final class MdObjectPropertiesLeafDiff {
         (b, i, out) -> MdSimplePropertiesGranularSerial.appendExternalDataSourceScalarChanges(
           b.externalDataSource, i.externalDataSource, out),
         baseline.externalDataSource != null && incoming.externalDataSource != null);
-      default -> List.of();
+      // Вид без своего сериализатора: синоним, комментарий и скалярные свойства
+      // меняются общим путём
+      default -> genericKindChanges(baseline, incoming);
     };
   }
 
@@ -389,6 +397,74 @@ public final class MdObjectPropertiesLeafDiff {
     return out;
   }
 
+  /** Скалярные свойства общего чтения: изменившиеся элементы точечными заменами. */
+  private static void appendScalarChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming,
+    List<GranularPatchChange> out) {
+    if (baseline.scalars == null || incoming.scalars == null || baseline.scalarMeta == null) {
+      return;
+    }
+    for (java.util.Map.Entry<String, Object> entry : incoming.scalars.entrySet()) {
+      String name = entry.getKey();
+      String next = entry.getValue() == null ? "" : String.valueOf(entry.getValue());
+      Object baseRaw = baseline.scalars.get(name);
+      String base = baseRaw == null ? "" : String.valueOf(baseRaw);
+      if (base.equals(next)) {
+        continue;
+      }
+      MdScalarPropertyMeta meta = baseline.scalarMeta.get(name);
+      String element = meta != null && "enum".equals(meta.type)
+        ? MdCatalogPropertiesGranularSerial.enumTextElement(name, next)
+        : MdCatalogPropertiesGranularSerial.textElement(name, next);
+      out.add(GranularPatchChange.objectProperty(name, element));
+    }
+  }
+
+  private static List<GranularPatchChange> genericKindChanges(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    List<GranularPatchChange> out = new ArrayList<>(docLikePropertyChanges(baseline, incoming));
+    if (!MdObjectPropertiesDiff.listStringEquals(baseline.contentRefs, incoming.contentRefs)) {
+      if ("functionalOption".equals(incoming.kind)) {
+        out.add(GranularPatchChange.objectProperty(
+          "Content",
+          MdCatalogPropertiesGranularSerial.objectRefsElement("Content", incoming.contentRefs)));
+      }
+      if ("functionalOptionsParameter".equals(incoming.kind)) {
+        out.add(GranularPatchChange.objectProperty(
+          "Use",
+          MdCatalogPropertiesGranularSerial.mdListTypeRefsElement("Use", incoming.contentRefs)));
+      }
+    }
+    if (!MdObjectPropertiesDiff.listStringEquals(baseline.documents, incoming.documents)) {
+      out.add(GranularPatchChange.objectProperty(
+        "Documents",
+        MdCatalogPropertiesGranularSerial.mdListTypeRefsElement("Documents", incoming.documents)));
+    }
+    if (!MdObjectPropertiesDiff.listStringEquals(baseline.registerRecords, incoming.registerRecords)) {
+      out.add(GranularPatchChange.objectProperty(
+        "RegisterRecords",
+        MdCatalogPropertiesGranularSerial.mdListTypeRefsElement("RegisterRecords", incoming.registerRecords)));
+    }
+    if ("filterCriterion".equals(incoming.kind)
+      && !MdObjectPropertiesDiff.listStringEquals(baseline.contentRefs, incoming.contentRefs)) {
+      out.add(GranularPatchChange.objectProperty(
+        "Content",
+        MdCatalogPropertiesGranularSerial.mdListTypeRefsElement("Content", incoming.contentRefs)));
+    }
+    appendScalarChanges(baseline, incoming, out);
+    return out;
+  }
+
+  private static boolean contentMembersChanged(
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming) {
+    List<MdContentMemberDto> a = baseline.contentMembers == null ? List.of() : baseline.contentMembers;
+    List<MdContentMemberDto> b = incoming.contentMembers == null ? List.of() : incoming.contentMembers;
+    return !a.equals(b);
+  }
+
   private static List<GranularPatchChange> docLikePropertyChanges(
     MdObjectPropertiesDto baseline,
     MdObjectPropertiesDto incoming) {
@@ -425,6 +501,7 @@ public final class MdObjectPropertiesLeafDiff {
         "Content",
         MdCatalogPropertiesGranularSerial.mdListTypeRefsElement("Content", incoming.contentRefs)));
     }
+    appendScalarChanges(baseline, incoming, out);
     return out;
   }
 

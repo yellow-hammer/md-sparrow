@@ -186,6 +186,35 @@ public final class MdObjectPropertiesGranularPatch {
       case "commonCommand" -> "CommonCommand";
       case "externalDataSource" -> "ExternalDataSource";
       case "role" -> "Role";
+      // Контейнер совпадает с именем корневого элемента выгрузки: без него
+      // запись отвечала «не удалось применить изменения точечно» у любого
+      // вида из общего чтения
+      case "externalReport" -> "ExternalReport";
+      case "externalDataProcessor" -> "ExternalDataProcessor";
+      case "form" -> "Form";
+      case "template" -> "Template";
+      case "commonForm" -> "CommonForm";
+      case "commonTemplate" -> "CommonTemplate";
+      case "webService" -> "WebService";
+      case "httpService" -> "HTTPService";
+      case "integrationService" -> "IntegrationService";
+      case "filterCriterion" -> "FilterCriterion";
+      case "settingsStorage" -> "SettingsStorage";
+      case "functionalOption" -> "FunctionalOption";
+      case "functionalOptionsParameter" -> "FunctionalOptionsParameter";
+      case "definedType" -> "DefinedType";
+      case "commandGroup" -> "CommandGroup";
+      case "xdtoPackage" -> "XDTOPackage";
+      case "wsReference" -> "WSReference";
+      case "style" -> "Style";
+      case "styleItem" -> "StyleItem";
+      case "language" -> "Language";
+      case "interface" -> "Interface";
+      case "bot" -> "Bot";
+      case "webSocketClient" -> "WebSocketClient";
+      case "sequence" -> "Sequence";
+      case "accountingRegister" -> "AccountingRegister";
+      case "calculationRegister" -> "CalculationRegister";
       default -> "";
     };
   }

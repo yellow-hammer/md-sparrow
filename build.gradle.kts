@@ -276,6 +276,23 @@ tasks.named<Copy>("processResources") {
             relativePath = RelativePath(true, "golden-cfe", segs[0], *segs.drop(2).toTypedArray())
         }
     }
+    // Пустая управляемая форма платформы: golden-form/<формат>/{Форма.xml, Ext.xml}
+    from("fixtures/samples-1c-platform/snapshots") {
+        include("*/external-files/empty-full-objects/ВнешнийОтчет1/ВнешнийОтчет1/Forms/Форма.xml")
+        includeEmptyDirs = false
+        eachFile {
+            val segs = relativePath.segments
+            relativePath = RelativePath(true, "golden-form", segs[0], "Форма.xml")
+        }
+    }
+    from("fixtures/samples-1c-platform/snapshots") {
+        include("*/external-files/empty-full-objects/ВнешнийОтчет1/ВнешнийОтчет1/Forms/Форма/Ext/Form.xml")
+        includeEmptyDirs = false
+        eachFile {
+            val segs = relativePath.segments
+            relativePath = RelativePath(true, "golden-form", segs[0], "Ext.xml")
+        }
+    }
     // Голые внешние объекты (отчёт/обработка): golden-ext/<формат>/<Имя>/<Имя>.xml
     from("fixtures/samples-1c-platform/snapshots") {
         include("*/external-files/empty/**")

@@ -168,6 +168,23 @@ public final class JaxbReflect {
   }
 
   /**
+   * Список из геттера, которого у типа может не быть.
+   *
+   * Состав {@code ChildObjects} свой у каждого вида объекта: у справочника нет
+   * графы, у журнала документов нет реквизита. Отсутствие геттера здесь - не
+   * ошибка, а «у этого вида такого состава не бывает».
+   *
+   * @param target Узел JAXB
+   * @param getter Имя геттера
+   * @return Список или пустой список, если геттера нет
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> List<T> listOptional(Object target, String getter) {
+    Object v = getOptional(target, getter);
+    return v == null ? new ArrayList<>() : (List<T>) v;
+  }
+
+  /**
    * Вызывает метод с одним аргументом, подбирая его по имени (единственная перегрузка с 1 параметром).
    */
   public static Object call1(Object target, String method, Object arg) {

@@ -326,6 +326,10 @@ public final class MdCatalogPropertiesGranularSerial {
 
   static String localStringRuElement(String localName, String ru) {
     String t = ru == null ? "" : ru;
+    if (t.isEmpty()) {
+      // Пустое представление платформа пишет пустым элементом, без ru-строки
+      return "<" + localName + "/>";
+    }
     return "<" + localName + ">"
       + "<v8:item>"
       + "<v8:lang>ru</v8:lang>"
@@ -363,6 +367,46 @@ public final class MdCatalogPropertiesGranularSerial {
       }
     }
     sb.append("</").append(listElementName).append(">");
+    return sb.toString();
+  }
+
+  /** Состав функциональной опции: ссылки идут элементами {@code xr:Object}. */
+  static String objectRefsElement(String listElementName, List<String> items) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("<").append(listElementName).append(">");
+    if (items != null) {
+      for (String t : items) {
+        if (t == null || t.isBlank()) {
+          continue;
+        }
+        sb.append("<xr:Object>").append(escapeXml(t.trim())).append("</xr:Object>");
+      }
+    }
+    sb.append("</").append(listElementName).append(">");
+    return sb.toString();
+  }
+
+  /** Состав общего реквизита: ссылка, использование, условное разделение как есть. */
+  static String contentMembersElement(java.util.List<MdContentMemberDto> members) {
+    StringBuilder sb = new StringBuilder("<Content>");
+    if (members != null) {
+      for (MdContentMemberDto member : members) {
+        if (member == null || member.ref == null || member.ref.isBlank()) {
+          continue;
+        }
+        sb.append("<xr:Item><xr:Metadata>").append(escapeXml(member.ref.trim())).append("</xr:Metadata>");
+        String mode = member.mode == null ? "" : member.mode.trim();
+        sb.append("<xr:Use>").append(escapeXml(enumConstantToXmlText(mode))).append("</xr:Use>");
+        String separation = member.conditionalSeparation == null ? "" : member.conditionalSeparation.trim();
+        if (separation.isEmpty()) {
+          sb.append("<xr:ConditionalSeparation/>");
+        } else {
+          sb.append("<xr:ConditionalSeparation>").append(escapeXml(separation)).append("</xr:ConditionalSeparation>");
+        }
+        sb.append("</xr:Item>");
+      }
+    }
+    sb.append("</Content>");
     return sb.toString();
   }
 

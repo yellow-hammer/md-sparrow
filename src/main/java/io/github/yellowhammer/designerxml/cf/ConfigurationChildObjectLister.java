@@ -16,6 +16,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -61,6 +63,55 @@ public final class ConfigurationChildObjectLister {
       raw.add(String.valueOf(name));
     }
     return sortedCopy(raw);
+  }
+
+  /**
+   * Весь состав конфигурации одним чтением: вид объекта - имена.
+   *
+   * <p>Панели с деревом состава нужен полный список объектов; читать его по
+   * одному виду - сорок вызовов JVM вместо одного.
+   *
+   * @return локальное имя тега -> отсортированные имена; пустые виды опущены
+   */
+  public static Map<String, List<String>> listAll(Path configurationXml, SchemaVersion version)
+    throws JAXBException, IOException {
+    Object mdo = JaxbReflect.value(DesignerXml.read(configurationXml, version));
+    Object cfg = JaxbReflect.get(mdo, "getConfiguration");
+    if (cfg == null) {
+      throw new IllegalStateException("Configuration.xml has no Configuration element");
+    }
+    Object child = JaxbReflect.get(cfg, "getChildObjects");
+    Map<String, List<String>> out = new LinkedHashMap<>();
+    if (child == null) {
+      return out;
+    }
+    for (java.lang.reflect.Method method : child.getClass().getMethods()) {
+      if (!method.getName().startsWith("get") || method.getParameterCount() != 0) {
+        continue;
+      }
+      if (!List.class.isAssignableFrom(method.getReturnType())) {
+        continue;
+      }
+      Object value;
+      try {
+        value = method.invoke(child);
+      } catch (ReflectiveOperationException e) {
+        continue;
+      }
+      if (!(value instanceof List<?> list) || list.isEmpty()) {
+        continue;
+      }
+      List<String> names = new ArrayList<>();
+      for (Object item : list) {
+        if (item instanceof String name) {
+          names.add(name);
+        }
+      }
+      if (!names.isEmpty()) {
+        out.put(method.getName().substring(3), sortedCopy(names));
+      }
+    }
+    return out;
   }
 
   private static List<String> sortedCopy(List<String> raw) {

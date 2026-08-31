@@ -181,6 +181,63 @@ public final class EnumValueLabels {
     put(m, "BUSINESS_PROCESS_NUMBER", "Номер бизнес-процесса");
     put(m, "ADOPTED", "Заимствованный");
 
+    // Скалярные свойства видов без моста: группы команд, формы, макеты,
+    // сервисы, регистры расчёта, элементы стиля
+    // Стандартные реквизиты: имена платформы в списках выбора и кандидатах
+    put(m, "Ref", "Ссылка");
+    put(m, "DeletionMark", "Пометка удаления");
+    put(m, "Owner", "Владелец");
+    put(m, "IsFolder", "Это группа");
+    put(m, "Parent", "Родитель");
+    put(m, "Code", "Код");
+    put(m, "Description", "Наименование");
+    put(m, "Predefined", "Предопределённый");
+    put(m, "PredefinedDataName", "Имя предопределённых данных");
+    put(m, "Posted", "Проведён");
+    put(m, "Date", "Дата");
+    put(m, "Number", "Номер");
+    put(m, "Period", "Период");
+    put(m, "Recorder", "Регистратор");
+    put(m, "LineNumber", "Номер строки");
+    put(m, "Active", "Активность");
+    put(m, "RecordType", "Вид движения");
+    put(m, "Account", "Счёт");
+    put(m, "Started", "Стартован");
+    put(m, "Completed", "Завершён");
+    put(m, "HeadTask", "Ведущая задача");
+    put(m, "Executed", "Выполнена");
+
+    put(m, "NAVIGATION_PANEL", "Панель навигации");
+    put(m, "ACTIONS_PANEL", "Панель действий");
+    put(m, "FORM_NAVIGATION_PANEL", "Панель навигации формы");
+    put(m, "FORM_COMMAND_BAR", "Командная панель формы");
+    put(m, "TEXT", "Текст");
+    put(m, "PICTURE", "Картинка");
+    put(m, "PICTURE_AND_TEXT", "Картинка и текст");
+    put(m, "ORDINARY", "Обычная");
+    put(m, "SPREADSHEET_DOCUMENT", "Табличный документ");
+    put(m, "BINARY_DATA", "Двоичные данные");
+    put(m, "ACTIVE_DOCUMENT", "Активный документ");
+    put(m, "HTML_DOCUMENT", "HTML-документ");
+    put(m, "TEXT_DOCUMENT", "Текстовый документ");
+    put(m, "GEOGRAPHICAL_SCHEMA", "Географическая схема");
+    put(m, "GRAPHICAL_SCHEMA", "Графическая схема");
+    put(m, "DATA_COMPOSITION_SCHEMA", "Схема компоновки данных");
+    put(m, "DATA_COMPOSITION_APPEARANCE_TEMPLATE", "Макет оформления компоновки данных");
+    put(m, "ADD_IN", "Внешняя компонента");
+    put(m, "AUTO_USE", "Использовать автоматически");
+    put(m, "MOVE", "Сдвигать");
+    put(m, "DONT_MOVE", "Не сдвигать");
+    put(m, "COLOR", "Цвет");
+    put(m, "FONT", "Шрифт");
+    put(m, "BORDER", "Рамка");
+    put(m, "YEAR", "Год");
+    put(m, "QUARTER", "Квартал");
+    put(m, "MONTH", "Месяц");
+    put(m, "DAY", "День");
+
+    put(m, "PLATFORM_APPLICATION", "Приложение для платформы");
+    put(m, "MOBILE_PLATFORM_APPLICATION", "Приложение для мобильной платформы");
     put(m, "MANAGED_APPLICATION", "Управляемое приложение");
     put(m, "ORDINARY_APPLICATION", "Обычное приложение");
     put(m, "RUSSIAN", "Русский");

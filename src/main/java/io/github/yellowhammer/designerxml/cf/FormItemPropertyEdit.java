@@ -50,6 +50,7 @@ public final class FormItemPropertyEdit {
     if (changes == null || changes.isEmpty()) {
       return;
     }
+    SupportRules.ensureEditable(formXml);
     String xml = Files.readString(formXml, StandardCharsets.UTF_8);
     Map<String, List<FormItemPropertyDto>> dictionary = FormItemPropertyDictionary.forVersion(version);
     List<XmlGranularPatch.Replacement> replacements = new ArrayList<>();

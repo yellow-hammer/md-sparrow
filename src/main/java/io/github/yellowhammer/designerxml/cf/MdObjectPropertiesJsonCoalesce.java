@@ -33,6 +33,31 @@ public final class MdObjectPropertiesJsonCoalesce {
     if (incoming.comment == null) {
       incoming.comment = baseline.comment;
     }
+    if (incoming.scalars == null || incoming.scalars.isEmpty()) {
+      incoming.scalars = baseline.scalars == null ? null : new java.util.LinkedHashMap<>(baseline.scalars);
+    }
+    // Описание скаляров панель не редактирует: источник правды всегда файл
+    incoming.scalarMeta = baseline.scalarMeta;
+    if (incoming.documents == null && baseline.documents != null) {
+      incoming.documents = new java.util.ArrayList<>(baseline.documents);
+    }
+    if (incoming.registerRecords == null && baseline.registerRecords != null) {
+      incoming.registerRecords = new java.util.ArrayList<>(baseline.registerRecords);
+    }
+    if (incoming.contentMembers == null && baseline.contentMembers != null) {
+      incoming.contentMembers = new java.util.ArrayList<>(baseline.contentMembers);
+    }
+    if (incoming.contentMembers != null) {
+      // Пустое условное разделение и режим приходят по-разному: к одному виду
+      for (MdContentMemberDto member : incoming.contentMembers) {
+        if (member.mode == null) {
+          member.mode = "";
+        }
+        if (member.conditionalSeparation == null) {
+          member.conditionalSeparation = "";
+        }
+      }
+    }
     if (incoming.attributes == null || incoming.attributes.isEmpty()) {
       incoming.attributes = copyNamedList(baseline.attributes);
     }

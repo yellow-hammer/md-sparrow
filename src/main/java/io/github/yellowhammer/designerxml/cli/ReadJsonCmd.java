@@ -25,6 +25,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.cf.EnumValueLabels;
+import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
+import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
+import io.github.yellowhammer.designerxml.cf.DcsRead;
+import io.github.yellowhammer.designerxml.cf.RoleRightsFile;
+import io.github.yellowhammer.designerxml.cf.SupportRules;
+import io.github.yellowhammer.designerxml.cf.UiLabels;
 import io.github.yellowhammer.designerxml.cf.CatalogFormDto;
 import io.github.yellowhammer.designerxml.cf.CfDumpValidation;
 import io.github.yellowhammer.designerxml.cf.CatalogFormEdit;
@@ -110,6 +116,8 @@ final class ReadJsonCmd implements Callable<Integer> {
    * @return JSON для stdout
    */
   private static String dispatch(CliParams p) throws Exception {
+    // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
+    SupportRules.setEnforced(!p.ignoreSupport);
     Gson gson = new GsonBuilder().disableHtmlEscaping().create();
     switch (p.op) {
       case "cf-md-object-get": {
@@ -117,10 +125,15 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(dto);
       }
       case "cf-enum-labels": {
-        return gson.toJson(Map.of(
-          "values", EnumValueLabels.all(),
-          "byProperty", EnumValueLabels.byProperty()
-        ));
+        // Значения формата и подписи платформы одним словарём: у потребителя своих копий нет
+        java.util.Map<String, Object> labels = new java.util.LinkedHashMap<>();
+        labels.put("values", EnumValueLabels.all());
+        labels.put("byProperty", EnumValueLabels.byProperty());
+        labels.put("rights", UiLabels.rights());
+        labels.put("commandGroups", UiLabels.commandGroups());
+        labels.put("objectStandardCommands", UiLabels.objectStandardCommands());
+        labels.put("objectKinds", UiLabels.objectKinds());
+        return gson.toJson(labels);
       }
       case "cf-md-object-enums": {
         return gson.toJson(MdObjectPropertyEnums.forVersion(p.version()));
@@ -160,6 +173,77 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "cf-form-content-get": {
         FormContentDto dto = FormContentRead.read(p.reqPath(p.formXml, "formXml"), p.version());
         return gson.toJson(dto);
+      }
+      case "cf-role-rights-get": {
+        return gson.toJson(RoleRightsFile.read(p.reqPath(p.objectXml, "objectXml")));
+      }
+      case "cf-dcs-info": {
+        return gson.toJson(DcsRead.info(p.reqPath(p.objectXml, "objectXml"), p.version()));
+      }
+      case "cf-dcs-validate": {
+        return gson.toJson(DcsRead.validate(p.reqPath(p.objectXml, "objectXml"), p.version()));
+      }
+      case "cf-support-get": {
+        java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
+        SupportRules.Rules rules = SupportRules.read(root);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("vendor", rules.vendor);
+        out.put("version", rules.version);
+        out.put("name", rules.name);
+        out.put("rulesEnabled", rules.rulesEnabled);
+        out.put("vendorPayloadPresent", rules.vendorPayloadPresent);
+        out.put("editingEnabled", rules.editingEnabled());
+        out.put("configurationState", rules.configurationState());
+        // правило самого корня: им конфигурация закрыта или открыта для правки
+        out.put("rootState", SupportRules.objectState(p.reqPath(p.configurationXml, "configurationXml")));
+        out.put("generationId", rules.generationId);
+        out.put("objectCount", rules.modeByUuid.size());
+        return gson.toJson(out);
+      }
+      case "cf-support-object-states": {
+        // Состояния объекта и его подчинённых одним чтением: дерево красит формы и макеты
+        return gson.toJson(SupportRules.statesForObject(p.reqPath(p.objectXml, "objectXml")));
+      }
+      case "cf-support-object-get": {
+        java.nio.file.Path objectXml = p.reqPath(p.objectXml, "objectXml");
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        try {
+          SupportRules.ensureEditable(objectXml);
+          out.put("editable", true);
+        } catch (IllegalStateException e) {
+          out.put("editable", false);
+          out.put("reason", e.getMessage());
+        }
+        // Состояние самого объекта: он бывает снят с поддержки в конфигурации на поддержке
+        out.put("state", SupportRules.objectState(objectXml));
+        SupportRules.Rules rules = SupportRules.rulesFor(objectXml);
+        if (rules != null && !rules.isEmpty()) {
+          out.put("vendor", rules.vendor);
+          out.put("version", rules.version);
+          out.put("configurationState", rules.configurationState());
+          out.put("generationId", rules.generationId);
+        }
+        return gson.toJson(out);
+      }
+      case "cf-md-subsystem-command-interface-get": {
+        java.nio.file.Path subsystemXml = p.reqPath(p.objectXml, "objectXml");
+        java.util.Map<String, Object> model =
+          SubsystemCommandInterfaceFile.toJsonModel(SubsystemCommandInterfaceFile.read(subsystemXml));
+        // Стандартные команды состава видны и без файла настроек, как в конфигураторе
+        try {
+          MdObjectPropertiesDto subsystem = MdObjectPropertiesEdit.readDto(subsystemXml, p.version());
+          model.put("contentCommands", SubsystemCommandInterfaceFile.contentCommands(subsystem.contentRefs));
+        } catch (RuntimeException e) {
+          model.put("contentCommands", java.util.List.of());
+        }
+        return gson.toJson(model);
+      }
+      case "cf-md-exchange-plan-content-get": {
+        return gson.toJson(ExchangePlanContentFile.read(p.reqPath(p.objectXml, "objectXml")));
+      }
+      case "cf-list-all-child-objects": {
+        return gson.toJson(ConfigurationChildObjectLister.listAll(
+          p.reqPath(p.configurationXml, "configurationXml"), p.version()));
       }
       case "cf-list-child-objects": {
         var names = ConfigurationChildObjectLister.listNames(

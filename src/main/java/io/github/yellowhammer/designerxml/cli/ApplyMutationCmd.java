@@ -28,6 +28,14 @@ import io.github.yellowhammer.designerxml.cf.CfMdObjectMutations;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.EmptyCfScaffold;
+import io.github.yellowhammer.designerxml.cf.CfeBorrow;
+import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
+import io.github.yellowhammer.designerxml.cf.FormScaffold;
+import io.github.yellowhammer.designerxml.cf.SupportRules;
+import io.github.yellowhammer.designerxml.cf.DcsRead;
+import io.github.yellowhammer.designerxml.cf.RoleRightsFile;
+import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
+import io.github.yellowhammer.designerxml.cf.MdContentMemberDto;
 import io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactKind;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactMutations;
@@ -62,6 +70,12 @@ import java.util.concurrent.Callable;
       + "(надёжный обход искажения не-ASCII аргументов в argv JVM на Windows)."
 )
 final class ApplyMutationCmd implements Callable<Integer> {
+
+  /** Полезная нагрузка cf-role-rights-set: правки прав и флаги по умолчанию. */
+  static final class RoleRightsPayload {
+    java.util.List<RoleRightsFile.Edit> edits;
+    java.util.Map<String, Boolean> flags;
+  }
 
   @Option(
     names = "--params",
@@ -98,12 +112,54 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
   }
 
+  /** Режимы правки существующего элемента: у цели есть своё правило поддержки. */
+  private static final java.util.Map<String, String> ELEMENT_TARGET_BY_MODE = java.util.Map.of(
+    "rename", "oldName",
+    "delete", "name",
+    "duplicate", "sourceName");
+
+  /**
+   * Отказывает в правке элемента, которому поставщик запретил изменение.
+   *
+   * <p>Правило заведено на каждый элемент объекта, поэтому разрешение на объект
+   * не открывает его реквизиты: цель правки видна по имени операции.
+   */
+  private static void refuseLockedElement(CliParams p) throws IOException {
+    if (p.op == null || !p.op.startsWith("cf-md-") || p.objectXml == null) {
+      return;
+    }
+    int lastDash = p.op.lastIndexOf('-');
+    if (lastDash < 0) {
+      return;
+    }
+    String field = ELEMENT_TARGET_BY_MODE.get(p.op.substring(lastDash + 1));
+    if (field == null) {
+      return;
+    }
+    String name = switch (field) {
+      case "oldName" -> p.oldName;
+      case "sourceName" -> p.sourceName;
+      default -> p.name;
+    };
+    if (name == null || name.isBlank()) {
+      return;
+    }
+    String path = p.tabularSection == null || p.tabularSection.isBlank()
+      ? name
+      : p.tabularSection + "/" + name;
+    SupportRules.ensureElementEditable(
+      Path.of(p.objectXml), "element:" + p.op.substring(0, lastDash) + ":" + path);
+  }
+
   /**
    * Выполняет операцию из {@code p.op}, переиспользуя сервисы изменения.
    *
    * @return текст для stdout (как у одиночных подкоманд: {@code OK} либо имя созданного объекта)
    */
   private static String dispatch(CliParams p) throws IOException, JAXBException {
+    // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
+    SupportRules.setEnforced(!p.ignoreSupport);
+    refuseLockedElement(p);
     switch (p.op) {
       case "cf-md-object-delete":
         CfMdObjectMutations.delete(
@@ -158,6 +214,143 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.sourceName, "sourceName"), p.req(p.newName, "newName"));
         return "OK";
 
+      case "cf-md-subsystem-command-visibility-set": {
+        java.util.List<SubsystemCommandInterfaceFile.CommandEntry> entries = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<
+            java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
+        SubsystemCommandInterfaceFile.writeVisibility(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), entries);
+        return "OK";
+      }
+      case "cf-md-exchange-plan-content-set": {
+        java.util.List<MdContentMemberDto> members = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.List<MdContentMemberDto>>() { }.getType());
+        ExchangePlanContentFile.write(p.reqPath(p.objectXml, "objectXml"), p.version(), members);
+        return "OK";
+      }
+      case "cf-dcs-set-query":
+        DcsRead.setQuery(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.tag, p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-dcs-add-calculated-field": {
+        java.util.Map<String, String> field = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, String>>() { }.getType());
+        DcsRead.addCalculatedField(
+          p.reqPath(p.objectXml, "objectXml"), p.version(),
+          field.get("dataPath"), field.get("expression"), field.get("title"));
+        return "OK";
+      }
+      case "cf-role-rights-set": {
+        // payload: {"edits":[{object,right,value}...],"flags":{имяФлага:значение}}
+        RoleRightsPayload payload = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"), RoleRightsPayload.class);
+        java.nio.file.Path roleXml = p.reqPath(p.objectXml, "objectXml");
+        RoleRightsFile.applyFlags(roleXml, payload.flags);
+        if (payload.edits != null && !payload.edits.isEmpty()) {
+          RoleRightsFile.applyEdits(roleXml, payload.edits);
+        }
+        return "OK";
+      }
+      case "cf-support-object-mode-set": {
+        // Режим в name: "0" запретить, "1" разрешить, "2" снять с поддержки;
+        // tag = "children" распространяет режим на подчинённые объекту субъекты
+        SupportRules.setModeForFile(
+          p.reqPath(p.objectXml, "objectXml"),
+          Integer.parseInt(p.req(p.name, "name")),
+          "children".equals(p.tag),
+          p.expectedGeneration);
+        return "OK";
+      }
+      case "cf-support-element-mode-set": {
+        // Правило есть у каждого элемента объекта: tag несёт ключ элемента из
+        // cf-support-object-states, name - режим
+        SupportRules.setModeForElement(
+          p.reqPath(p.objectXml, "objectXml"),
+          p.req(p.tag, "tag"),
+          Integer.parseInt(p.req(p.name, "name")),
+          p.expectedGeneration);
+        return "OK";
+      }
+      case "cf-md-subsystem-command-placement-set": {
+        java.util.List<SubsystemCommandInterfaceFile.CommandEntry> placement = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<
+            java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
+        SubsystemCommandInterfaceFile.writePlacement(p.reqPath(p.objectXml, "objectXml"), p.version(), placement);
+        return "OK";
+      }
+      case "cf-md-subsystem-command-order-set": {
+        java.util.List<SubsystemCommandInterfaceFile.CommandEntry> order = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<
+            java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
+        SubsystemCommandInterfaceFile.writeOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), order);
+        return "OK";
+      }
+      case "cf-md-subsystem-subsystems-order-set": {
+        java.util.List<String> refs = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.List<String>>() { }.getType());
+        SubsystemCommandInterfaceFile.writeSubsystemsOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), refs);
+        return "OK";
+      }
+      case "cf-md-subsystem-groups-order-set": {
+        java.util.List<String> groups = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.List<String>>() { }.getType());
+        SubsystemCommandInterfaceFile.writeGroupsOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), groups);
+        return "OK";
+      }
+      case "cf-support-remove": {
+        java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();
+        SupportRules.removeSupport(root, p.expectedGeneration);
+        return "OK";
+      }
+      case "cfe-borrow-object": {
+        java.nio.file.Path created = CfeBorrow.borrowObject(
+          p.reqPath(p.objectXml, "objectXml"),
+          p.reqPath(p.configurationXml, "configurationXml"),
+          p.version());
+        return created.toString();
+      }
+      case "cf-form-add":
+        FormScaffold.addForm(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-form-compile":
+        FormScaffold.compileForm(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"), p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-md-form-delete":
+        MdObjectChildMutations.deleteForm(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-accounting-flag-add":
+        MdObjectChildMutations.addAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-accounting-flag-rename":
+        MdObjectChildMutations.renameAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-accounting-flag-delete":
+        MdObjectChildMutations.deleteAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-ext-dimension-accounting-flag-add":
+        MdObjectChildMutations.addExtDimensionAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-md-ext-dimension-accounting-flag-rename":
+        MdObjectChildMutations.renameExtDimensionAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-md-ext-dimension-accounting-flag-delete":
+        MdObjectChildMutations.deleteExtDimensionAccountingFlag(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
       case "cf-md-dimension-add":
         MdObjectChildMutations.addDimension(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
         return "OK";
