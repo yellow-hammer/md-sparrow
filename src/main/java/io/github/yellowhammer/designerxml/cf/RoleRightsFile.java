@@ -72,10 +72,20 @@ public final class RoleRightsFile {
     public boolean value;
   }
 
-  /** Путь к файлу прав рядом с XML роли. */
+  /**
+   * Путь к файлу прав рядом с описанием роли.
+   *
+   * Формат прав у выгрузки конфигуратора и у проекта 1С:EDT один и тот же,
+   * различается только место файла: {@code Ext/Rights.xml} против
+   * {@code Rights.rights} рядом с описанием роли.
+   */
   public static Path rightsPath(Path roleXml) {
     Path normalized = roleXml.toAbsolutePath().normalize();
-    String stem = normalized.getFileName().toString().replaceFirst("[.][Xx][Mm][Ll]$", "");
+    String name = normalized.getFileName().toString();
+    if (name.endsWith(".mdo")) {
+      return normalized.getParent().resolve("Rights.rights");
+    }
+    String stem = name.replaceFirst("[.][Xx][Mm][Ll]$", "");
     return normalized.getParent().resolve(stem).resolve("Ext").resolve("Rights.xml");
   }
 

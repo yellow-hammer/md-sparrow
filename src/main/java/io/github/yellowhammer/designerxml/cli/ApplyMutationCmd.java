@@ -54,6 +54,14 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import io.github.yellowhammer.edt.EdtLayout;
+import io.github.yellowhammer.edt.EdtConfigurationProperties;
+import io.github.yellowhammer.edt.EdtExchangePlanContent;
+import io.github.yellowhammer.edt.EdtModel;
+import io.github.yellowhammer.edt.EdtMutationRouter;
+import io.github.yellowhammer.edt.EdtObjectMutations;
+import io.github.yellowhammer.edt.EdtObjectProperties;
+import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
+import io.github.yellowhammer.edt.EdtObjectWriter;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -114,15 +122,92 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
   }
 
+  /** Правки, которые умеем и вне состава объекта. */
+  private static final java.util.Set<String> EDT_WRITES = java.util.Set.of(
+    "cf-md-object-set",
+    "cf-configuration-properties-set",
+    "cf-role-rights-set",
+    "cf-md-object-rename",
+    "cf-md-object-delete",
+    "cf-md-object-duplicate",
+    "cf-md-exchange-plan-content-set",
+    "cf-md-subsystem-command-visibility-set",
+    "cf-md-subsystem-command-placement-set",
+    "cf-md-subsystem-command-order-set",
+    "cf-md-subsystem-subsystems-order-set",
+    "cf-md-subsystem-groups-order-set",
+    "external-artifact-properties-set");
+
   /**
-   * Отказывает в правке исходников 1С:EDT.
+   * Правит состав объекта в формате 1С:EDT.
    *
-   * Читать формат мы уже умеем, а писать пока нет: без внятного отказа правка
-   * ушла бы в разбор выгрузки конфигуратора и упала бы там на первом же теге.
+   * @return выполнена ли команда здесь
+   */
+  private static boolean applyEdtMutation(CliParams p) throws IOException {
+    if (!EdtLayout.isObjectFile(p.objectXml)) {
+      return false;
+    }
+    // Объект в EDT - это каталог целиком, поэтому у операций над ним свой код
+    switch (p.op) {
+      case "cf-md-object-rename" -> {
+        EdtObjectMutations.rename(
+          p.reqPath(p.configurationXml, "configurationXml"),
+          p.reqPath(p.objectXml, "objectXml"),
+          p.req(p.tag, "tag"),
+          p.req(p.oldName, "oldName"),
+          p.req(p.newName, "newName"));
+        return true;
+      }
+      case "cf-md-object-delete" -> {
+        EdtObjectMutations.delete(
+          p.reqPath(p.configurationXml, "configurationXml"),
+          p.reqPath(p.objectXml, "objectXml"),
+          p.req(p.tag, "tag"),
+          p.req(p.name, "name"));
+        return true;
+      }
+      case "cf-md-object-duplicate" -> {
+        EdtObjectMutations.duplicate(
+          p.reqPath(p.configurationXml, "configurationXml"),
+          p.reqPath(p.objectXml, "objectXml"),
+          p.req(p.tag, "tag"),
+          p.req(p.sourceName, "sourceName"),
+          p.req(p.newName, "newName"));
+        return true;
+      }
+      default -> {
+        // Остальное правит общий разбор команд состава
+      }
+    }
+    if (!EdtMutationRouter.handles(p.op)) {
+      return false;
+    }
+    EdtMutationRouter.apply(
+      p.op,
+      p.reqPath(p.objectXml, "objectXml"),
+      EdtModel.bundled(),
+      new EdtMutationRouter.Arguments(
+        p.name,
+        p.oldName,
+        p.newName,
+        p.sourceName,
+        p.tabularSection,
+        // Порядок узлов приходит списком имён и нужен только перестановке
+        p.op.endsWith("-reorder") ? parseNameList(p) : java.util.List.of()));
+    return true;
+  }
+
+  /**
+   * Отказывает в правках, которых для формата 1С:EDT ещё нет.
+   *
+   * Без внятного отказа правка ушла бы в разбор выгрузки конфигуратора и упала
+   * бы там на первом же теге.
    */
   private static void refuseEdtWrite(CliParams p) {
-    if (EdtLayout.isObjectFile(p.objectXml) || EdtLayout.isObjectFile(p.configurationXml)) {
-      throw new IllegalArgumentException("Правка исходников в формате 1С:EDT пока не поддержана.");
+    boolean edt = EdtLayout.isObjectFile(p.objectXml) || EdtLayout.isObjectFile(p.configurationXml);
+    if (edt && !EDT_WRITES.contains(p.op) && !EdtMutationRouter.handles(p.op)) {
+      throw new IllegalArgumentException(
+        "Правка \"" + p.op + "\" в формате 1С:EDT пока не поддержана.");
     }
   }
 
@@ -174,6 +259,9 @@ final class ApplyMutationCmd implements Callable<Integer> {
     // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
     SupportRules.setEnforced(!p.ignoreSupport);
     refuseEdtWrite(p);
+    if (applyEdtMutation(p)) {
+      return "OK";
+    }
     refuseLockedElement(p);
     switch (p.op) {
       case "cf-md-object-delete":
@@ -234,15 +322,26 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<
             java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
-        SubsystemCommandInterfaceFile.writeVisibility(
-          p.reqPath(p.objectXml, "objectXml"), p.version(), entries);
+        java.nio.file.Path visibilityOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(visibilityOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(visibilityOwner);
+          dto.visibility = entries;
+          EdtSubsystemCommandInterface.write(visibilityOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writeVisibility(visibilityOwner, p.version(), entries);
+        }
         return "OK";
       }
       case "cf-md-exchange-plan-content-set": {
         java.util.List<MdContentMemberDto> members = new Gson().fromJson(
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<java.util.List<MdContentMemberDto>>() { }.getType());
-        ExchangePlanContentFile.write(p.reqPath(p.objectXml, "objectXml"), p.version(), members);
+        java.nio.file.Path plan = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(plan)) {
+          EdtExchangePlanContent.write(plan, members);
+        } else {
+          ExchangePlanContentFile.write(plan, p.version(), members);
+        }
         return "OK";
       }
       case "cf-dcs-set-query":
@@ -294,7 +393,14 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<
             java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
-        SubsystemCommandInterfaceFile.writePlacement(p.reqPath(p.objectXml, "objectXml"), p.version(), placement);
+        java.nio.file.Path placementOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(placementOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(placementOwner);
+          dto.placement = placement;
+          EdtSubsystemCommandInterface.write(placementOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writePlacement(placementOwner, p.version(), placement);
+        }
         return "OK";
       }
       case "cf-md-subsystem-command-order-set": {
@@ -302,21 +408,42 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<
             java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
-        SubsystemCommandInterfaceFile.writeOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), order);
+        java.nio.file.Path orderOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(orderOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(orderOwner);
+          dto.order = order;
+          EdtSubsystemCommandInterface.write(orderOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writeOrder(orderOwner, p.version(), order);
+        }
         return "OK";
       }
       case "cf-md-subsystem-subsystems-order-set": {
         java.util.List<String> refs = new Gson().fromJson(
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<java.util.List<String>>() { }.getType());
-        SubsystemCommandInterfaceFile.writeSubsystemsOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), refs);
+        java.nio.file.Path subsystemsOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(subsystemsOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(subsystemsOwner);
+          dto.subsystemsOrder = refs;
+          EdtSubsystemCommandInterface.write(subsystemsOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writeSubsystemsOrder(subsystemsOwner, p.version(), refs);
+        }
         return "OK";
       }
       case "cf-md-subsystem-groups-order-set": {
         java.util.List<String> groups = new Gson().fromJson(
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<java.util.List<String>>() { }.getType());
-        SubsystemCommandInterfaceFile.writeGroupsOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), groups);
+        java.nio.file.Path groupsOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(groupsOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(groupsOwner);
+          dto.groupsOrder = groups;
+          EdtSubsystemCommandInterface.write(groupsOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writeGroupsOrder(groupsOwner, p.version(), groups);
+        }
         return "OK";
       }
       case "cf-support-remove": {
@@ -489,12 +616,22 @@ final class ApplyMutationCmd implements Callable<Integer> {
 
       case "cf-md-object-set": {
         MdObjectPropertiesDto dto = parsePayload(p, MdObjectPropertiesDto.class);
-        MdObjectPropertiesEdit.writeDto(p.reqPath(p.objectXml, "objectXml"), p.version(), dto);
+        java.nio.file.Path objectFile = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(objectFile)) {
+          EdtObjectWriter.writeDto(objectFile, dto, EdtModel.bundled());
+        } else {
+          MdObjectPropertiesEdit.writeDto(objectFile, p.version(), dto);
+        }
         return "OK";
       }
       case "external-artifact-properties-set": {
         ExternalArtifactPropertiesDto dto = parsePayload(p, ExternalArtifactPropertiesDto.class);
-        ExternalArtifactPropertiesEdit.write(p.reqPath(p.objectXml, "objectXml"), p.version(), dto);
+        java.nio.file.Path artifact = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(artifact)) {
+          EdtObjectProperties.writeExternalDto(artifact, dto, EdtModel.bundled());
+        } else {
+          ExternalArtifactPropertiesEdit.write(artifact, p.version(), dto);
+        }
         return "OK";
       }
       case "cf-form-item-properties-set": {
@@ -504,7 +641,12 @@ final class ApplyMutationCmd implements Callable<Integer> {
       }
       case "cf-configuration-properties-set": {
         ConfigurationPropertiesDto dto = parsePayload(p, ConfigurationPropertiesDto.class);
-        ConfigurationPropertiesEdit.write(p.reqPath(p.configurationXml, "configurationXml"), p.version(), dto);
+        java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        if (EdtLayout.isObjectFile(configuration)) {
+          EdtConfigurationProperties.write(configuration, dto, EdtModel.bundled());
+        } else {
+          ConfigurationPropertiesEdit.write(configuration, p.version(), dto);
+        }
         return "OK";
       }
       case "init-empty-cf": {

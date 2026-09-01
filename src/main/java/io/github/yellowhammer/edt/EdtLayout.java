@@ -92,6 +92,19 @@ public final class EdtLayout {
   }
 
   /**
+   * Файл схемы компоновки в формате EDT.
+   *
+   * Сама схема у обоих форматов одна и та же, различается только имя файла:
+   * {@code Template.dcs} вместо {@code Ext/Template.xml}.
+   *
+   * @param path путь к файлу
+   * @return {@code true} у файла {@code .dcs}
+   */
+  public static boolean isSchemaFile(String path) {
+    return path != null && path.endsWith(".dcs");
+  }
+
+  /**
    * Файл объекта метаданных.
    *
    * @param sourceRoot каталог {@code src} проекта
