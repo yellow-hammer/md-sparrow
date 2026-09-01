@@ -48,6 +48,8 @@ import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.edt.EdtConfigurationLists;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
+import io.github.yellowhammer.edt.EdtExchangePlanContent;
+import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtObjectOpen;
@@ -145,6 +147,8 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-list-all-child-objects",
     "cf-list-ref-types",
     "cf-role-rights-get",
+    "cf-md-exchange-plan-content-get",
+    "cf-md-subsystem-command-interface-get",
     "cf-support-object-get",
     "cf-enum-labels");
 
@@ -284,8 +288,10 @@ final class ReadJsonCmd implements Callable<Integer> {
       }
       case "cf-md-subsystem-command-interface-get": {
         java.nio.file.Path subsystemXml = p.reqPath(p.objectXml, "objectXml");
-        java.util.Map<String, Object> model =
-          SubsystemCommandInterfaceFile.toJsonModel(SubsystemCommandInterfaceFile.read(subsystemXml));
+        java.util.Map<String, Object> model = SubsystemCommandInterfaceFile.toJsonModel(
+          EdtLayout.isObjectFile(subsystemXml)
+            ? EdtSubsystemCommandInterface.read(subsystemXml)
+            : SubsystemCommandInterfaceFile.read(subsystemXml));
         // Стандартные команды состава видны и без файла настроек, как в конфигураторе
         try {
           MdObjectPropertiesDto subsystem = MdObjectPropertiesEdit.readDto(subsystemXml, p.version());
@@ -296,7 +302,10 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(model);
       }
       case "cf-md-exchange-plan-content-get": {
-        return gson.toJson(ExchangePlanContentFile.read(p.reqPath(p.objectXml, "objectXml")));
+        java.nio.file.Path plan = p.reqPath(p.objectXml, "objectXml");
+        return gson.toJson(EdtLayout.isObjectFile(plan)
+          ? EdtExchangePlanContent.read(plan)
+          : ExchangePlanContentFile.read(plan));
       }
       case "cf-list-ref-types": {
         java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");

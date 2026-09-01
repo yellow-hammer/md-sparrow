@@ -55,9 +55,11 @@ import picocli.CommandLine.Option;
 
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
+import io.github.yellowhammer.edt.EdtExchangePlanContent;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtMutationRouter;
 import io.github.yellowhammer.edt.EdtObjectMutations;
+import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
 import io.github.yellowhammer.edt.EdtObjectWriter;
 
 import java.io.IOException;
@@ -126,7 +128,13 @@ final class ApplyMutationCmd implements Callable<Integer> {
     "cf-role-rights-set",
     "cf-md-object-rename",
     "cf-md-object-delete",
-    "cf-md-object-duplicate");
+    "cf-md-object-duplicate",
+    "cf-md-exchange-plan-content-set",
+    "cf-md-subsystem-command-visibility-set",
+    "cf-md-subsystem-command-placement-set",
+    "cf-md-subsystem-command-order-set",
+    "cf-md-subsystem-subsystems-order-set",
+    "cf-md-subsystem-groups-order-set");
 
   /**
    * Правит состав объекта в формате 1С:EDT.
@@ -312,15 +320,26 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<
             java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
-        SubsystemCommandInterfaceFile.writeVisibility(
-          p.reqPath(p.objectXml, "objectXml"), p.version(), entries);
+        java.nio.file.Path visibilityOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(visibilityOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(visibilityOwner);
+          dto.visibility = entries;
+          EdtSubsystemCommandInterface.write(visibilityOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writeVisibility(visibilityOwner, p.version(), entries);
+        }
         return "OK";
       }
       case "cf-md-exchange-plan-content-set": {
         java.util.List<MdContentMemberDto> members = new Gson().fromJson(
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<java.util.List<MdContentMemberDto>>() { }.getType());
-        ExchangePlanContentFile.write(p.reqPath(p.objectXml, "objectXml"), p.version(), members);
+        java.nio.file.Path plan = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(plan)) {
+          EdtExchangePlanContent.write(plan, members);
+        } else {
+          ExchangePlanContentFile.write(plan, p.version(), members);
+        }
         return "OK";
       }
       case "cf-dcs-set-query":
@@ -372,7 +391,14 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<
             java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
-        SubsystemCommandInterfaceFile.writePlacement(p.reqPath(p.objectXml, "objectXml"), p.version(), placement);
+        java.nio.file.Path placementOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(placementOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(placementOwner);
+          dto.placement = placement;
+          EdtSubsystemCommandInterface.write(placementOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writePlacement(placementOwner, p.version(), placement);
+        }
         return "OK";
       }
       case "cf-md-subsystem-command-order-set": {
@@ -380,21 +406,42 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<
             java.util.List<SubsystemCommandInterfaceFile.CommandEntry>>() { }.getType());
-        SubsystemCommandInterfaceFile.writeOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), order);
+        java.nio.file.Path orderOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(orderOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(orderOwner);
+          dto.order = order;
+          EdtSubsystemCommandInterface.write(orderOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writeOrder(orderOwner, p.version(), order);
+        }
         return "OK";
       }
       case "cf-md-subsystem-subsystems-order-set": {
         java.util.List<String> refs = new Gson().fromJson(
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<java.util.List<String>>() { }.getType());
-        SubsystemCommandInterfaceFile.writeSubsystemsOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), refs);
+        java.nio.file.Path subsystemsOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(subsystemsOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(subsystemsOwner);
+          dto.subsystemsOrder = refs;
+          EdtSubsystemCommandInterface.write(subsystemsOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writeSubsystemsOrder(subsystemsOwner, p.version(), refs);
+        }
         return "OK";
       }
       case "cf-md-subsystem-groups-order-set": {
         java.util.List<String> groups = new Gson().fromJson(
           p.req(p.payloadJson, "payloadJson"),
           new com.google.gson.reflect.TypeToken<java.util.List<String>>() { }.getType());
-        SubsystemCommandInterfaceFile.writeGroupsOrder(p.reqPath(p.objectXml, "objectXml"), p.version(), groups);
+        java.nio.file.Path groupsOwner = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(groupsOwner)) {
+          SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(groupsOwner);
+          dto.groupsOrder = groups;
+          EdtSubsystemCommandInterface.write(groupsOwner, dto);
+        } else {
+          SubsystemCommandInterfaceFile.writeGroupsOrder(groupsOwner, p.version(), groups);
+        }
         return "OK";
       }
       case "cf-support-remove": {
