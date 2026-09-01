@@ -118,21 +118,29 @@ final class EdtPropertyValues {
     return feature instanceof EAttribute attribute ? attribute.getDefaultValue() : null;
   }
 
-  /**
-   * Имя константы перечислимого значения.
-   *
-   * @param feature свойство схемы
-   * @param value значение из файла
-   * @return {@code DONT_USE} для {@code DontUse}; прочие значения не меняются
-   */
+  /** Значение перечислимого свойства в написании общего контракта. */
   private static String enumConstant(EStructuralFeature feature, String value) {
     if (feature == null || !(feature.getEType() instanceof EEnum) || value.isEmpty()) {
       return value;
     }
+    return constantName(value);
+  }
+
+  /**
+   * Имя константы перечислимого значения.
+   *
+   * @param value значение формата EDT
+   * @return {@code DONT_USE} для {@code DontUse}
+   */
+  static String constantName(String value) {
     StringBuilder constant = new StringBuilder();
     for (int index = 0; index < value.length(); index++) {
       char symbol = value.charAt(index);
-      if (index > 0 && Character.isUpperCase(symbol) && !Character.isUpperCase(value.charAt(index - 1))) {
+      char previous = index > 0 ? value.charAt(index - 1) : 0;
+      boolean startsWord = Character.isUpperCase(symbol) && !Character.isUpperCase(previous);
+      // Версии режимов совместимости пишутся числами: Version8_3_12
+      boolean startsNumber = Character.isDigit(symbol) && Character.isLetter(previous);
+      if (index > 0 && (startsWord || startsNumber)) {
         constant.append('_');
       }
       constant.append(Character.toUpperCase(symbol));

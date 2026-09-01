@@ -78,7 +78,17 @@ public final class EdtLayout {
    * @return {@code true} у файла {@code .mdo}
    */
   public static boolean isObjectFile(Path file) {
-    return file != null && file.getFileName().toString().endsWith(".mdo");
+    return file != null && isObjectFile(file.getFileName().toString());
+  }
+
+  /**
+   * Файл объекта в формате EDT.
+   *
+   * @param path путь к файлу
+   * @return {@code true} у файла {@code .mdo}
+   */
+  public static boolean isObjectFile(String path) {
+    return path != null && path.endsWith(".mdo");
   }
 
   /**

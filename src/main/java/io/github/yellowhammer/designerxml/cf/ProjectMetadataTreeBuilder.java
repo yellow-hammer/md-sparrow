@@ -52,7 +52,8 @@ public final class ProjectMetadataTreeBuilder {
       if (!EdtLayout.projects(normalized).isEmpty()) {
         return EdtProjectMetadataTree.build(normalized);
       }
-      throw new IOException("Не найден файл основной выгрузки: " + mainCfg);
+      throw new IOException("Не найдены исходники конфигурации: ни выгрузка конфигуратора " + mainCfg
+        + ", ни проект 1С:EDT в " + normalized);
     }
     String ver = MetaDataObjectHeadReader.readMetaDataObjectVersion(mainCfg);
     SchemaVersion mainSchema = SupportedSchemaVersions.requireSupported(ver);

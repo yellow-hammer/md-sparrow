@@ -46,6 +46,7 @@ import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtObjectProperties;
 import io.github.yellowhammer.edt.EdtObjectStructure;
+import io.github.yellowhammer.edt.EdtPropertyEnums;
 import io.github.yellowhammer.designerxml.cf.ConfigurationCatalogLister;
 import io.github.yellowhammer.designerxml.cf.ConfigurationChildObjectLister;
 import io.github.yellowhammer.designerxml.cf.CfLayout;
@@ -456,13 +457,15 @@ public final class DesignerXmlCli implements Callable<Integer> {
     description = "Вывести JSON допустимых значений перечислимых свойств объектов метаданных."
   )
   static final class CfMdObjectEnumsCmd implements Callable<Integer> {
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, description = "Версия формата выгрузки конфигуратора; без неё словарь берётся из схем 1С:EDT")
     SchemaVersion version;
 
     @Override
-    public Integer call() {
+    public Integer call() throws IOException {
       Gson gson = new GsonBuilder().disableHtmlEscaping().create();
-      System.out.println(gson.toJson(MdObjectPropertyEnums.forVersion(version)));
+      System.out.println(gson.toJson(version == null
+          ? EdtPropertyEnums.all(EdtModel.bundled())
+          : MdObjectPropertyEnums.forVersion(version)));
       return 0;
     }
   }

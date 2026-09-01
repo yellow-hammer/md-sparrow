@@ -50,6 +50,7 @@ import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtObjectProperties;
 import io.github.yellowhammer.edt.EdtObjectStructure;
+import io.github.yellowhammer.edt.EdtPropertyEnums;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertyEnums;
 import io.github.yellowhammer.designerxml.cf.MdObjectOpen;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureDto;
@@ -145,7 +146,10 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(labels);
       }
       case "cf-md-object-enums": {
-        return gson.toJson(MdObjectPropertyEnums.forVersion(p.version()));
+        // Без версии формата словарь спрашивают для проекта EDT: у него значения свои
+        return gson.toJson(p.schemaVersion == null || p.schemaVersion.isBlank()
+          ? EdtPropertyEnums.all(EdtModel.bundled())
+          : MdObjectPropertyEnums.forVersion(p.version()));
       }
       case "cf-md-object-structure-get": {
         java.nio.file.Path structureFile = p.reqPath(p.objectXml, "objectXml");
