@@ -36,12 +36,12 @@ public enum SchemaVersion {
   V2_16, V2_17, V2_18, V2_19, V2_20, V2_21;
 
   /**
-   * Подкаталог с {@code *.xsd} относительно корня {@code resources/namespace-forest} (например {@code schemas/2.21}).
+   * Подкаталог с {@code *.xsd} относительно корня {@code resources/namespace-forest} (например {@code schemas/designer/2.21}).
    *
-   * @return относительный путь вида {@code schemas/2.21}
+   * @return относительный путь вида {@code schemas/designer/2.21}
    */
   public String xsdDirectoryName() {
-    return "schemas/" + metadataObjectVersionAttribute();
+    return "schemas/designer/" + metadataObjectVersionAttribute();
   }
 
   /**
