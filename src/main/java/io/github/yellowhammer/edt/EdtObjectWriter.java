@@ -82,18 +82,7 @@ public final class EdtObjectWriter {
     EdtObjectReader.EdtNode node = EdtObjectReader.read(objectMdo);
     EClass eClass = model.classOf(node.kind());
     MdObjectPropertiesDto baseline = EdtObjectProperties.readDto(objectMdo, model);
-    List<Change> changes = changes(baseline, dto, node, eClass, model);
-    if (changes.isEmpty()) {
-      return 0;
-    }
-
-    String xml = Files.readString(objectMdo, StandardCharsets.UTF_8);
-    try {
-      Files.writeString(objectMdo, apply(xml, changes, eClass), StandardCharsets.UTF_8);
-    } catch (XMLStreamException error) {
-      throw new IOException("Не удалось разобрать файл объекта: " + objectMdo, error);
-    }
-    return changes.size();
+    return apply(objectMdo, changes(baseline, dto, node, eClass, model), eClass);
   }
 
   /**
@@ -115,6 +104,51 @@ public final class EdtObjectWriter {
    * @param owner узел-владелец или {@code null}
    */
   private record NodeRef(String feature, String name, NodeRef owner) {
+  }
+
+  /**
+   * Записывает изменённые свойства корня файла.
+   *
+   * Сравниваются поля двух описаний: у объекта это свойства его вида, у
+   * конфигурации - её собственные. Пишется только то, что отличается.
+   *
+   * @param objectMdo файл объекта или конфигурации
+   * @param wanted присланные свойства
+   * @param written свойства, прочитанные из файла
+   * @param model метамодель EDT
+   * @return число изменённых свойств
+   * @throws IOException если файл не читается или не пишется
+   */
+  public static int writeFields(Path objectMdo, Object wanted, Object written, EdtModel model)
+      throws IOException {
+    EdtObjectReader.EdtNode node = EdtObjectReader.read(objectMdo);
+    EClass eClass = model.classOf(node.kind());
+
+    List<Change> changes = new ArrayList<>();
+    for (Field field : wanted.getClass().getFields()) {
+      if (Modifier.isStatic(field.getModifiers())) {
+        continue;
+      }
+      Change change = change(field, wanted, written, node, eClass);
+      if (change != null) {
+        changes.add(change);
+      }
+    }
+    return apply(objectMdo, changes, eClass);
+  }
+
+  /** Применяет правки к файлу; без правок файл не трогается. */
+  private static int apply(Path objectMdo, List<Change> changes, EClass eClass) throws IOException {
+    if (changes.isEmpty()) {
+      return 0;
+    }
+    String xml = Files.readString(objectMdo, StandardCharsets.UTF_8);
+    try {
+      Files.writeString(objectMdo, apply(xml, changes, eClass), StandardCharsets.UTF_8);
+    } catch (XMLStreamException error) {
+      throw new IOException("Не удалось разобрать файл объекта: " + objectMdo, error);
+    }
+    return changes.size();
   }
 
   /**
@@ -352,7 +386,9 @@ public final class EdtObjectWriter {
     }
     for (EEnumLiteral literal : type.getELiterals()) {
       if (EdtPropertyValues.constantName(literal.getName()).equals(value)) {
-        return literal.getName();
+        // В файл идёт литерал схемы: у режимов совместимости он не совпадает с
+        // именем константы
+        return literal.getLiteral();
       }
     }
     throw new IllegalArgumentException("Свойство " + name + " не принимает значение " + value);

@@ -27,6 +27,7 @@ import java.util.Locale;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EEnum;
+import org.eclipse.emf.ecore.EEnumLiteral;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
 import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
@@ -118,10 +119,20 @@ final class EdtPropertyValues {
     return feature instanceof EAttribute attribute ? attribute.getDefaultValue() : null;
   }
 
-  /** Значение перечислимого свойства в написании общего контракта. */
+  /**
+   * Значение перечислимого свойства в написании общего контракта.
+   *
+   * В файле стоит литерал схемы, и он не всегда совпадает с именем константы:
+   * режим совместимости записан как {@code 8.3.24}, а зовётся {@code Version8_3_24}.
+   */
   private static String enumConstant(EStructuralFeature feature, String value) {
-    if (feature == null || !(feature.getEType() instanceof EEnum) || value.isEmpty()) {
+    if (feature == null || !(feature.getEType() instanceof EEnum type) || value.isEmpty()) {
       return value;
+    }
+    for (EEnumLiteral literal : type.getELiterals()) {
+      if (literal.getLiteral().equals(value) || literal.getName().equals(value)) {
+        return constantName(literal.getName());
+      }
     }
     return constantName(value);
   }

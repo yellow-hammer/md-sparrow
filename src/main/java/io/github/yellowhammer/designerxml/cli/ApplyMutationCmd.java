@@ -54,6 +54,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import io.github.yellowhammer.edt.EdtLayout;
+import io.github.yellowhammer.edt.EdtConfigurationProperties;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtMutationRouter;
 import io.github.yellowhammer.edt.EdtObjectWriter;
@@ -117,6 +118,12 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
   }
 
+  /** Правки, которые умеем и вне состава объекта. */
+  private static final java.util.Set<String> EDT_WRITES = java.util.Set.of(
+    "cf-md-object-set",
+    "cf-configuration-properties-set",
+    "cf-role-rights-set");
+
   /**
    * Правит состав объекта в формате 1С:EDT.
    *
@@ -149,7 +156,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
    */
   private static void refuseEdtWrite(CliParams p) {
     boolean edt = EdtLayout.isObjectFile(p.objectXml) || EdtLayout.isObjectFile(p.configurationXml);
-    if (edt && !"cf-md-object-set".equals(p.op) && !EdtMutationRouter.handles(p.op)) {
+    if (edt && !EDT_WRITES.contains(p.op) && !EdtMutationRouter.handles(p.op)) {
       throw new IllegalArgumentException(
         "Правка \"" + p.op + "\" в формате 1С:EDT пока не поддержана.");
     }
@@ -541,7 +548,12 @@ final class ApplyMutationCmd implements Callable<Integer> {
       }
       case "cf-configuration-properties-set": {
         ConfigurationPropertiesDto dto = parsePayload(p, ConfigurationPropertiesDto.class);
-        ConfigurationPropertiesEdit.write(p.reqPath(p.configurationXml, "configurationXml"), p.version(), dto);
+        java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        if (EdtLayout.isObjectFile(configuration)) {
+          EdtConfigurationProperties.write(configuration, dto, EdtModel.bundled());
+        } else {
+          ConfigurationPropertiesEdit.write(configuration, p.version(), dto);
+        }
         return "OK";
       }
       case "init-empty-cf": {

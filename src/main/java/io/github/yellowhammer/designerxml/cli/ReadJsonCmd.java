@@ -46,8 +46,11 @@ import io.github.yellowhammer.designerxml.cf.FormContentRead;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
+import io.github.yellowhammer.edt.EdtConfigurationLists;
+import io.github.yellowhammer.edt.EdtConfigurationProperties;
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtModel;
+import io.github.yellowhammer.edt.EdtObjectOpen;
 import io.github.yellowhammer.edt.EdtObjectProperties;
 import io.github.yellowhammer.edt.EdtObjectStructure;
 import io.github.yellowhammer.edt.EdtPropertyEnums;
@@ -121,9 +124,43 @@ final class ReadJsonCmd implements Callable<Integer> {
    *
    * @return JSON для stdout
    */
+  /**
+   * Что умеем читать в формате 1С:EDT.
+   *
+   * Остальное - формы, схемы компоновки, правила поставки и внешние обработки:
+   * это отдельные форматы, и молчать о них нельзя, иначе вызывающая программа
+   * получит пустой ответ вместо объяснения.
+   */
+  private static final java.util.Set<String> EDT_OPERATIONS = java.util.Set.of(
+    "project-metadata-tree",
+    "cf-md-graph",
+    "cf-md-object-get",
+    "cf-md-object-structure-get",
+    "cf-md-object-enums",
+    "cf-md-object-open-get",
+    "cf-md-subsystem-tree",
+    "cf-configuration-properties-get",
+    "cf-list-catalogs",
+    "cf-list-child-objects",
+    "cf-list-all-child-objects",
+    "cf-list-ref-types",
+    "cf-role-rights-get",
+    "cf-support-object-get",
+    "cf-enum-labels");
+
+  /** Отказывает в чтении того, чего в формате 1С:EDT ещё не умеем. */
+  private static void refuseEdtRead(CliParams p) {
+    boolean edt = EdtLayout.isObjectFile(p.objectXml) || EdtLayout.isObjectFile(p.configurationXml);
+    if (edt && !EDT_OPERATIONS.contains(p.op)) {
+      throw new IllegalArgumentException(
+        "Чтение \"" + p.op + "\" в формате 1С:EDT пока не поддержано.");
+    }
+  }
+
   private static String dispatch(CliParams p) throws Exception {
     // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
     SupportRules.setEnforced(!p.ignoreSupport);
+    refuseEdtRead(p);
     Gson gson = new GsonBuilder().disableHtmlEscaping().create();
     switch (p.op) {
       case "cf-md-object-get": {
@@ -159,10 +196,11 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(dto);
       }
       case "cf-md-object-open-get": {
-        MdObjectOpen.Target target = MdObjectOpen.resolve(
-          p.req(p.type, "type"),
-          p.reqPath(p.projectRoot, "projectRoot"),
-          p.req(p.objectXml, "objectXml"));
+        java.nio.file.Path root = p.reqPath(p.projectRoot, "projectRoot");
+        String objectPath = p.req(p.objectXml, "objectXml");
+        MdObjectOpen.Target target = EdtLayout.isObjectFile(objectPath)
+          ? EdtObjectOpen.resolve(root, p.req(p.type, "type"), root.resolve(objectPath))
+          : MdObjectOpen.resolve(p.req(p.type, "type"), root, objectPath);
         if (target == null) {
           throw new IllegalArgumentException("для этого объекта нечего открывать");
         }
@@ -173,7 +211,10 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(dto);
       }
       case "cf-configuration-properties-get": {
-        ConfigurationPropertiesDto dto = ConfigurationPropertiesEdit.read(p.reqPath(p.configurationXml, "configurationXml"), p.version());
+        java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        ConfigurationPropertiesDto dto = EdtLayout.isObjectFile(configuration)
+          ? EdtConfigurationProperties.read(configuration, EdtModel.bundled())
+          : ConfigurationPropertiesEdit.read(configuration, p.version());
         return gson.toJson(dto);
       }
       case "cf-catalog-form-get": {
@@ -258,16 +299,23 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(ExchangePlanContentFile.read(p.reqPath(p.objectXml, "objectXml")));
       }
       case "cf-list-ref-types": {
-        return gson.toJson(ConfigurationRefTypeLister.listRefTypes(
-          p.reqPath(p.configurationXml, "configurationXml"), p.version()));
+        java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        return gson.toJson(EdtLayout.isObjectFile(configuration)
+          ? EdtConfigurationLists.refTypes(configuration, EdtModel.bundled())
+          : ConfigurationRefTypeLister.listRefTypes(configuration, p.version()));
       }
       case "cf-list-all-child-objects": {
-        return gson.toJson(ConfigurationChildObjectLister.listAll(
-          p.reqPath(p.configurationXml, "configurationXml"), p.version()));
+        java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        return gson.toJson(EdtLayout.isObjectFile(configuration)
+          ? EdtConfigurationLists.all(configuration, EdtModel.bundled())
+          : ConfigurationChildObjectLister.listAll(configuration, p.version()));
       }
       case "cf-list-child-objects": {
-        var names = ConfigurationChildObjectLister.listNames(
-          p.reqPath(p.configurationXml, "configurationXml"), p.version(), p.req(p.tag, "tag"));
+        java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        String childTag = p.req(p.tag, "tag");
+        var names = EdtLayout.isObjectFile(configuration)
+          ? EdtConfigurationLists.names(configuration, EdtModel.bundled(), childTag)
+          : ConfigurationChildObjectLister.listNames(configuration, p.version(), childTag);
         return ConfigurationCatalogLister.toJsonArray(names);
       }
       case "cf-validate-dump": {
@@ -275,13 +323,17 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(findings);
       }
       case "cf-list-catalogs": {
-        var names = ConfigurationCatalogLister.listCatalogNames(
-          p.reqPath(p.configurationXml, "configurationXml"), p.version());
+        java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        var names = EdtLayout.isObjectFile(configuration)
+          ? EdtConfigurationLists.names(configuration, EdtModel.bundled(), "Catalog")
+          : ConfigurationCatalogLister.listCatalogNames(configuration, p.version());
         return ConfigurationCatalogLister.toJsonArray(names);
       }
       case "cf-md-subsystem-tree": {
-        var nodes = SubsystemTreeBuilder.build(
-          p.reqPath(p.configurationXml, "configurationXml"), p.version());
+        java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        var nodes = EdtLayout.isObjectFile(configuration)
+          ? EdtConfigurationLists.subsystems(configuration, EdtModel.bundled())
+          : SubsystemTreeBuilder.build(configuration, p.version());
         return gson.toJson(nodes);
       }
       case "project-metadata-tree": {
