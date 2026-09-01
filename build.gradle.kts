@@ -333,6 +333,11 @@ tasks.test {
         "fixtures.ssl31.root",
         layout.projectDirectory.dir("fixtures/ssl31").asFile.absolutePath,
     )
+    // Та же конфигурация в формате EDT: сверка поведения на двух раскладках
+    systemProperty(
+        "fixtures.ssl31edt.root",
+        layout.projectDirectory.dir("fixtures/ssl31-edt").asFile.absolutePath,
+    )
     systemProperty(
         "samples.root",
         layout.projectDirectory.dir("fixtures/samples-1c-platform").asFile.absolutePath,
