@@ -43,7 +43,8 @@ version = "0.5.6"
 // Корень XSD: каталог submodule `resources/namespace-forest/` (см. .gitmodules, gradle.properties `xsd.root`).
 val xsdRootPath = (findProperty("xsd.root") as String?) ?: "resources/namespace-forest"
 val xsdRootDir = layout.projectDirectory.dir(xsdRootPath)
-val schemasDir = xsdRootDir.dir("schemas")
+// XSD выгрузки конфигуратора: schemas/designer/<версия формата>
+val schemasDir = xsdRootDir.dir("schemas/designer")
 
 // Пространства имён 1С → имя файла xsd и сегмент Java-пакета.
 // Состав каталога версии может отличаться: берём только те схемы, что там лежат.

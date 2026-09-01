@@ -157,7 +157,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     System.exit(exit);
   }
 
-  @Command(name = "validate", description = "Проверить XML по XSD (корень resources/namespace-forest + каталог schemas/…).")
+  @Command(name = "validate", description = "Проверить XML по XSD (корень resources/namespace-forest + каталог schemas/designer/…).")
   static final class ValidateCmd implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к .xml")
     Path xml;

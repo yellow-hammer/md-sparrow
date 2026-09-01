@@ -251,7 +251,7 @@ public final class DesignerXml {
    *
    * @param xmlPath путь к проверяемому {@code .xml}
    * @param version версия схем (подкаталог в {@code xsdRoot})
-   * @param xsdRoot корень submodule {@code resources/namespace-forest} (родитель {@code schemas/…})
+   * @param xsdRoot корень submodule {@code resources/namespace-forest} (родитель {@code schemas/designer/…})
    * @throws Exception ошибки XSD/API валидации или I/O ({@link XmlValidator})
    */
   public static void validate(Path xmlPath, SchemaVersion version, Path xsdRoot) throws Exception {
