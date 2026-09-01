@@ -54,6 +54,8 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import io.github.yellowhammer.edt.EdtLayout;
+import io.github.yellowhammer.edt.EdtModel;
+import io.github.yellowhammer.edt.EdtObjectWriter;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -114,15 +116,20 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
   }
 
+  /** Операции над исходниками EDT, которые уже умеем. */
+  private static final java.util.Set<String> EDT_OPERATIONS = java.util.Set.of("cf-md-object-set");
+
   /**
-   * Отказывает в правке исходников 1С:EDT.
+   * Отказывает в правках, которых для формата 1С:EDT ещё нет.
    *
-   * Читать формат мы уже умеем, а писать пока нет: без внятного отказа правка
-   * ушла бы в разбор выгрузки конфигуратора и упала бы там на первом же теге.
+   * Без внятного отказа правка ушла бы в разбор выгрузки конфигуратора и упала
+   * бы там на первом же теге.
    */
   private static void refuseEdtWrite(CliParams p) {
-    if (EdtLayout.isObjectFile(p.objectXml) || EdtLayout.isObjectFile(p.configurationXml)) {
-      throw new IllegalArgumentException("Правка исходников в формате 1С:EDT пока не поддержана.");
+    boolean edt = EdtLayout.isObjectFile(p.objectXml) || EdtLayout.isObjectFile(p.configurationXml);
+    if (edt && !EDT_OPERATIONS.contains(p.op)) {
+      throw new IllegalArgumentException(
+        "Правка \"" + p.op + "\" в формате 1С:EDT пока не поддержана.");
     }
   }
 
@@ -489,7 +496,12 @@ final class ApplyMutationCmd implements Callable<Integer> {
 
       case "cf-md-object-set": {
         MdObjectPropertiesDto dto = parsePayload(p, MdObjectPropertiesDto.class);
-        MdObjectPropertiesEdit.writeDto(p.reqPath(p.objectXml, "objectXml"), p.version(), dto);
+        java.nio.file.Path objectFile = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(objectFile)) {
+          EdtObjectWriter.writeDto(objectFile, dto, EdtModel.bundled());
+        } else {
+          MdObjectPropertiesEdit.writeDto(objectFile, p.version(), dto);
+        }
         return "OK";
       }
       case "external-artifact-properties-set": {
