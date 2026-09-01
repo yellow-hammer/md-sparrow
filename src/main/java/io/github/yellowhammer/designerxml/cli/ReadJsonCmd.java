@@ -50,6 +50,7 @@ import io.github.yellowhammer.edt.EdtConfigurationLists;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
 import io.github.yellowhammer.edt.EdtExchangePlanContent;
 import io.github.yellowhammer.edt.EdtFormContent;
+import io.github.yellowhammer.edt.EdtFormItemProperties;
 import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtModel;
@@ -152,6 +153,10 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-md-subsystem-command-interface-get",
     "external-artifact-properties-get",
     "cf-form-content-get",
+    "cf-form-item-properties",
+    "cf-form-standard-commands",
+    "cf-dcs-info",
+    "cf-dcs-validate",
     "cf-support-object-get",
     "cf-enum-labels");
 
@@ -234,7 +239,10 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(dto);
       }
       case "cf-form-item-properties": {
-        return gson.toJson(FormItemPropertyDictionary.forVersion(p.version()));
+        // Без версии формата палитру спрашивают для формы EDT: свойства у неё свои
+        return gson.toJson(p.schemaVersion == null || p.schemaVersion.isBlank()
+          ? EdtFormItemProperties.all(EdtModel.bundled())
+          : FormItemPropertyDictionary.forVersion(p.version()));
       }
       case "cf-form-standard-commands": {
         return gson.toJson(StandardCommandLabels.dto());

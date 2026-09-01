@@ -75,7 +75,12 @@ fun edtMetadataSchemas(ecoreDir: File): List<File> {
         }
     }
 
-    val roots = listOf("g5.1c.ru.v8.dt.metadata.mdclass.ecore", "g5.1c.ru.v8.dt.metadata.mdclass.extension.ecore")
+    val roots = listOf(
+        "g5.1c.ru.v8.dt.metadata.mdclass.ecore",
+        "g5.1c.ru.v8.dt.metadata.mdclass.extension.ecore",
+        // Управляемая форма: по ней панель знает свойства элементов
+        "g5.1c.ru.v8.dt.form.ecore",
+    )
     val chosen = linkedSetOf<File>()
     val queue = ArrayDeque(roots.mapNotNull { byName[it] })
     while (queue.isNotEmpty()) {
