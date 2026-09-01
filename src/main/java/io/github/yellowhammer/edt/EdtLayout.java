@@ -92,6 +92,19 @@ public final class EdtLayout {
   }
 
   /**
+   * Файл управляемой формы в формате EDT.
+   *
+   * Форма лежит своим файлом рядом с описанием: {@code Form.form} вместо
+   * {@code Ext/Form.xml}.
+   *
+   * @param path путь к файлу
+   * @return {@code true} у файла {@code .form}
+   */
+  public static boolean isFormFile(String path) {
+    return path != null && path.endsWith(".form");
+  }
+
+  /**
    * Файл схемы компоновки в формате EDT.
    *
    * Сама схема у обоих форматов одна и та же, различается только имя файла:

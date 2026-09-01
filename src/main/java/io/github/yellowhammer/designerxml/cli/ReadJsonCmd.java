@@ -49,6 +49,7 @@ import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.edt.EdtConfigurationLists;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
 import io.github.yellowhammer.edt.EdtExchangePlanContent;
+import io.github.yellowhammer.edt.EdtFormContent;
 import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtModel;
@@ -150,12 +151,15 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-md-exchange-plan-content-get",
     "cf-md-subsystem-command-interface-get",
     "external-artifact-properties-get",
+    "cf-form-content-get",
     "cf-support-object-get",
     "cf-enum-labels");
 
   /** Отказывает в чтении того, чего в формате 1С:EDT ещё не умеем. */
   private static void refuseEdtRead(CliParams p) {
-    boolean edt = EdtLayout.isObjectFile(p.objectXml) || EdtLayout.isObjectFile(p.configurationXml);
+    boolean edt = EdtLayout.isObjectFile(p.objectXml)
+      || EdtLayout.isObjectFile(p.configurationXml)
+      || EdtLayout.isFormFile(p.formXml);
     if (edt && !EDT_OPERATIONS.contains(p.op)) {
       throw new IllegalArgumentException(
         "Чтение \"" + p.op + "\" в формате 1С:EDT пока не поддержано.");
@@ -236,7 +240,10 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(StandardCommandLabels.dto());
       }
       case "cf-form-content-get": {
-        FormContentDto dto = FormContentRead.read(p.reqPath(p.formXml, "formXml"), p.version());
+        java.nio.file.Path form = p.reqPath(p.formXml, "formXml");
+        FormContentDto dto = EdtLayout.isFormFile(p.formXml)
+          ? EdtFormContent.read(form)
+          : FormContentRead.read(form, p.version());
         return gson.toJson(dto);
       }
       case "cf-role-rights-get": {
