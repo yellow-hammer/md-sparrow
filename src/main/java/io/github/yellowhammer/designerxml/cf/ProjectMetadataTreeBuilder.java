@@ -6,6 +6,8 @@
 package io.github.yellowhammer.designerxml.cf;
 
 import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.edt.EdtLayout;
+import io.github.yellowhammer.edt.EdtProjectMetadataTree;
 
 import jakarta.xml.bind.JAXBException;
 
@@ -45,7 +47,13 @@ public final class ProjectMetadataTreeBuilder {
     Path mainCf = dirs.cfPath(normalized);
     Path mainCfg = mainCf.resolve(CfLayout.CONFIGURATION_XML);
     if (!Files.isRegularFile(mainCfg)) {
-      throw new IOException("Не найден файл основной выгрузки: " + mainCfg);
+      // Формат исходников виден по самим файлам: спрашивать его у клиента
+      // значило бы просить IDE знать про раскладки обоих форматов
+      if (!EdtLayout.projects(normalized).isEmpty()) {
+        return EdtProjectMetadataTree.build(normalized);
+      }
+      throw new IOException("Не найдены исходники конфигурации: ни выгрузка конфигуратора " + mainCfg
+        + ", ни проект 1С:EDT в " + normalized);
     }
     String ver = MetaDataObjectHeadReader.readMetaDataObjectVersion(mainCfg);
     SchemaVersion mainSchema = SupportedSchemaVersions.requireSupported(ver);

@@ -53,6 +53,8 @@ import jakarta.xml.bind.JAXBException;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
+import io.github.yellowhammer.edt.EdtLayout;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
@@ -112,6 +114,18 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
   }
 
+  /**
+   * Отказывает в правке исходников 1С:EDT.
+   *
+   * Читать формат мы уже умеем, а писать пока нет: без внятного отказа правка
+   * ушла бы в разбор выгрузки конфигуратора и упала бы там на первом же теге.
+   */
+  private static void refuseEdtWrite(CliParams p) {
+    if (EdtLayout.isObjectFile(p.objectXml) || EdtLayout.isObjectFile(p.configurationXml)) {
+      throw new IllegalArgumentException("Правка исходников в формате 1С:EDT пока не поддержана.");
+    }
+  }
+
   /** Режимы правки существующего элемента: у цели есть своё правило поддержки. */
   private static final java.util.Map<String, String> ELEMENT_TARGET_BY_MODE = java.util.Map.of(
     "rename", "oldName",
@@ -159,6 +173,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
   private static String dispatch(CliParams p) throws IOException, JAXBException {
     // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
     SupportRules.setEnforced(!p.ignoreSupport);
+    refuseEdtWrite(p);
     refuseLockedElement(p);
     switch (p.op) {
       case "cf-md-object-delete":
