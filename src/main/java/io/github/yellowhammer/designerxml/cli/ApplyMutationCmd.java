@@ -55,6 +55,7 @@ import picocli.CommandLine.Option;
 
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtModel;
+import io.github.yellowhammer.edt.EdtMutationRouter;
 import io.github.yellowhammer.edt.EdtObjectWriter;
 
 import java.io.IOException;
@@ -116,8 +117,29 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
   }
 
-  /** Операции над исходниками EDT, которые уже умеем. */
-  private static final java.util.Set<String> EDT_OPERATIONS = java.util.Set.of("cf-md-object-set");
+  /**
+   * Правит состав объекта в формате 1С:EDT.
+   *
+   * @return выполнена ли команда здесь
+   */
+  private static boolean applyEdtMutation(CliParams p) throws IOException {
+    if (!EdtLayout.isObjectFile(p.objectXml) || !EdtMutationRouter.handles(p.op)) {
+      return false;
+    }
+    EdtMutationRouter.apply(
+      p.op,
+      p.reqPath(p.objectXml, "objectXml"),
+      EdtModel.bundled(),
+      new EdtMutationRouter.Arguments(
+        p.name,
+        p.oldName,
+        p.newName,
+        p.sourceName,
+        p.tabularSection,
+        // Порядок узлов приходит списком имён и нужен только перестановке
+        p.op.endsWith("-reorder") ? parseNameList(p) : java.util.List.of()));
+    return true;
+  }
 
   /**
    * Отказывает в правках, которых для формата 1С:EDT ещё нет.
@@ -127,7 +149,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
    */
   private static void refuseEdtWrite(CliParams p) {
     boolean edt = EdtLayout.isObjectFile(p.objectXml) || EdtLayout.isObjectFile(p.configurationXml);
-    if (edt && !EDT_OPERATIONS.contains(p.op)) {
+    if (edt && !"cf-md-object-set".equals(p.op) && !EdtMutationRouter.handles(p.op)) {
       throw new IllegalArgumentException(
         "Правка \"" + p.op + "\" в формате 1С:EDT пока не поддержана.");
     }
@@ -181,6 +203,9 @@ final class ApplyMutationCmd implements Callable<Integer> {
     // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
     SupportRules.setEnforced(!p.ignoreSupport);
     refuseEdtWrite(p);
+    if (applyEdtMutation(p)) {
+      return "OK";
+    }
     refuseLockedElement(p);
     switch (p.op) {
       case "cf-md-object-delete":

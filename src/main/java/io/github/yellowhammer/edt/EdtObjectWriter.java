@@ -82,7 +82,7 @@ public final class EdtObjectWriter {
     EdtObjectReader.EdtNode node = EdtObjectReader.read(objectMdo);
     EClass eClass = model.classOf(node.kind());
     MdObjectPropertiesDto baseline = EdtObjectProperties.readDto(objectMdo, model);
-    List<Change> changes = changes(baseline, dto, node, eClass);
+    List<Change> changes = changes(baseline, dto, node, eClass, model);
     if (changes.isEmpty()) {
       return 0;
     }
@@ -96,8 +96,25 @@ public final class EdtObjectWriter {
     return changes.size();
   }
 
-  /** Изменение одного свойства. */
-  private record Change(String name, String value, boolean localized) {
+  /**
+   * Изменение одного свойства.
+   *
+   * @param node узел, которому свойство принадлежит; {@code null} у самого объекта
+   * @param name имя свойства
+   * @param value новое значение в написании формата
+   * @param localized свойство записано парами язык-значение
+   */
+  private record Change(NodeRef node, String name, String value, boolean localized) {
+  }
+
+  /**
+   * Узел объекта.
+   *
+   * @param feature вид узла: {@code attributes}, {@code tabularSections}
+   * @param name имя узла
+   * @param owner узел-владелец или {@code null}
+   */
+  private record NodeRef(String feature, String name, NodeRef owner) {
   }
 
   /**
@@ -110,15 +127,14 @@ public final class EdtObjectWriter {
       MdObjectPropertiesDto baseline,
       MdObjectPropertiesDto dto,
       EdtObjectReader.EdtNode node,
-      EClass eClass) {
-    refuseCompositionChange(baseline, dto);
-
-    List<Change> changes = new ArrayList<>();
+      EClass eClass,
+      EdtModel model) {
+    List<Change> changes = new ArrayList<>(nodeChanges(baseline, dto, model));
     if (dto.synonymRu != null && !dto.synonymRu.equals(baseline.synonymRu)) {
-      changes.add(new Change("synonym", dto.synonymRu, true));
+      changes.add(new Change(null, "synonym", dto.synonymRu, true));
     }
     if (dto.comment != null && !dto.comment.equals(baseline.comment)) {
-      changes.add(new Change("comment", dto.comment, false));
+      changes.add(new Change(null, "comment", dto.comment, false));
     }
 
     Object bridge = bridge(dto);
@@ -139,45 +155,132 @@ public final class EdtObjectWriter {
   }
 
   /**
-   * Отказывает в правке состава объекта.
+   * Сравнивает узлы объекта с файлом.
    *
-   * Реквизиты, табличные части и значения перечисления правятся своими
-   * операциями, которых для формата EDT ещё нет. Промолчать здесь нельзя: правка
-   * ушла бы в никуда, а панель показала бы её сохранённой.
+   * Состав узлов правится своими командами, поэтому здесь меняются только
+   * свойства уже существующих узлов, а появление или пропажа узла отклоняется:
+   * иначе правка ушла бы в никуда, а панель показала бы её сохранённой.
    */
-  private static void refuseCompositionChange(MdObjectPropertiesDto baseline, MdObjectPropertiesDto dto) {
+  private static List<Change> nodeChanges(
+      MdObjectPropertiesDto baseline,
+      MdObjectPropertiesDto dto,
+      EdtModel model) {
+    List<Change> changes = new ArrayList<>();
     for (Field field : MdObjectPropertiesDto.class.getFields()) {
       if (Modifier.isStatic(field.getModifiers())
           || !field.getGenericType().getTypeName().endsWith("<" + MdNamedPropertyDto.class.getName() + ">")) {
         continue;
       }
-      List<String> wanted = state(field, dto);
-      if (wanted != null && !wanted.equals(state(field, baseline))) {
+      List<MdNamedPropertyDto> wanted = nodes(field, dto);
+      List<MdNamedPropertyDto> written = nodes(field, baseline);
+      if (wanted == null) {
+        continue;
+      }
+      if (written == null || !names(wanted).equals(names(written))) {
         throw new IllegalArgumentException(
-          "Правка состава объекта в формате 1С:EDT пока не поддержана: " + field.getName());
+          "Состав объекта правится своими командами: " + field.getName());
+      }
+      String nodeClass = classOfNode(model, dto.kind, field.getName());
+      for (int index = 0; index < wanted.size(); index++) {
+        NodeRef node = new NodeRef(field.getName(), written.get(index).name, null);
+        changes.addAll(nodeChanges(node, written.get(index), wanted.get(index), model, nodeClass));
       }
     }
+    return changes;
   }
 
-  /** Состояние узлов списка либо {@code null}, если список не прислан. */
-  private static List<String> state(Field field, MdObjectPropertiesDto dto) {
+  /** Изменения свойств одного узла и его собственных узлов. */
+  private static List<Change> nodeChanges(
+      NodeRef ref,
+      MdNamedPropertyDto written,
+      MdNamedPropertyDto wanted,
+      EdtModel model,
+      String nodeClass) {
+    List<Change> changes = new ArrayList<>();
+    if (NODE_STATE.toJson(written).equals(NODE_STATE.toJson(wanted))) {
+      return changes;
+    }
+    for (Field field : MdNamedPropertyDto.class.getFields()) {
+      if (Modifier.isStatic(field.getModifiers())) {
+        continue;
+      }
+      Change change = nodeChange(ref, field, written, wanted, model.classOf(nodeClass));
+      if (change != null) {
+        changes.add(change);
+      }
+    }
+
+    // У табличной части свои реквизиты, и правятся они так же
+    if (wanted.attributes != null && written.attributes != null
+        && names(wanted.attributes).equals(names(written.attributes))) {
+      String attributeClass = classOfNode(model, nodeClass, "attributes");
+      for (int index = 0; index < wanted.attributes.size(); index++) {
+        NodeRef nested = new NodeRef("attributes", written.attributes.get(index).name, ref);
+        changes.addAll(nodeChanges(
+            nested, written.attributes.get(index), wanted.attributes.get(index), model, attributeClass));
+      }
+    }
+    return changes;
+  }
+
+  /** Изменение одного свойства узла либо {@code null}, если оно прежнее. */
+  private static Change nodeChange(
+      NodeRef ref,
+      Field field,
+      MdNamedPropertyDto written,
+      MdNamedPropertyDto wanted,
+      EClass nodeClass) {
+    Object value;
+    Object was;
+    try {
+      value = field.get(wanted);
+      was = field.get(written);
+    } catch (IllegalAccessException error) {
+      throw new IllegalStateException("Не удалось прочитать свойство узла " + field.getName(), error);
+    }
+    if (value == null || Objects.equals(value, was) || field.getType() != String.class) {
+      return null;
+    }
+
+    String name = field.getName();
+    if (name.equals("name")) {
+      throw new IllegalArgumentException("Переименование узла правится своей командой: " + written.name);
+    }
+    if (name.endsWith("Ru")) {
+      return new Change(ref, name.substring(0, name.length() - 2), String.valueOf(value), true);
+    }
+    return new Change(ref, name, literal(nodeClass, name, String.valueOf(value)), false);
+  }
+
+  /**
+   * Класс узла по схеме владельца.
+   *
+   * Реквизит справочника метамодель зовёт CatalogAttribute, и значения его
+   * перечислимых свойств лежат именно там.
+   */
+  private static String classOfNode(EdtModel model, String ownerClass, String feature) {
+    String owner = ownerClass == null ? "" : Character.toUpperCase(ownerClass.charAt(0)) + ownerClass.substring(1);
+    for (EdtModel.Composition item : model.composition(owner)) {
+      if (item.feature().equals(feature)) {
+        return item.objectType();
+      }
+    }
+    return null;
+  }
+
+  /** Узлы списка либо {@code null}, если список не прислан. */
+  private static List<MdNamedPropertyDto> nodes(Field field, MdObjectPropertiesDto dto) {
     try {
       @SuppressWarnings("unchecked")
       List<MdNamedPropertyDto> nodes = (List<MdNamedPropertyDto>) field.get(dto);
-      return nodes == null ? null : nodes.stream().map(EdtObjectWriter::state).toList();
+      return nodes;
     } catch (IllegalAccessException error) {
       throw new IllegalStateException("Не удалось прочитать узлы " + field.getName(), error);
     }
   }
 
-  /**
-   * Состояние узла для сравнения.
-   *
-   * Сравнивается узел целиком, а не одно имя: панель правит и синоним реквизита,
-   * и его свойства, и такая правка тоже не должна пропасть молча.
-   */
-  private static String state(MdNamedPropertyDto node) {
-    return NODE_STATE.toJson(node);
+  private static List<String> names(List<MdNamedPropertyDto> nodes) {
+    return nodes.stream().map(node -> node.name).toList();
   }
 
   /** Изменение поля свойств вида объекта либо {@code null}, если оно прежнее. */
@@ -202,20 +305,20 @@ public final class EdtObjectWriter {
     String name = field.getName();
     Class<?> type = field.getType();
     if (type == boolean.class || type == Boolean.class) {
-      return new Change(name, String.valueOf(value), false);
+      return new Change(null, name, String.valueOf(value), false);
     }
     if (type != String.class) {
       // Списки ссылок и состав объекта правятся своими операциями
       return null;
     }
     if (name.endsWith("Ru")) {
-      return new Change(name.substring(0, name.length() - 2), String.valueOf(value), true);
+      return new Change(null, name.substring(0, name.length() - 2), String.valueOf(value), true);
     }
     // Свойства, которых в файле нет, писать нечем: их значение задаёт схема
     if (eClass != null && eClass.getEStructuralFeature(name) == null && node.list(name).isEmpty()) {
       return null;
     }
-    return new Change(name, literal(eClass, name, String.valueOf(value)), false);
+    return new Change(null, name, literal(eClass, name, String.valueOf(value)), false);
   }
 
   /** Свойства вида объекта: {@code catalog}, {@code document}, {@code register}. */
@@ -277,14 +380,43 @@ public final class EdtObjectWriter {
 
   /** Замена значения или вставка нового свойства. */
   private static Edit edit(String xml, Change change, List<String> order) throws XMLStreamException {
-    EdtObjectRegions.Region region = EdtObjectRegions.property(xml, change.name());
+    EdtObjectRegions.Region owner = nodeRegion(xml, change.node());
+    EdtObjectRegions.Region region = owner == null
+        ? EdtObjectRegions.property(xml, change.name())
+        : first(EdtObjectRegions.nested(xml, owner, change.name()));
     if (region.found()) {
       return new Edit(region.start(), region.end(), element(xml, change, indent(xml, region.start())));
     }
+
     // Новое свойство встаёт целой строкой, с отступом соседей
-    int at = EdtObjectRegions.insertionPoint(xml, order, change.name());
-    String indent = indent(xml, at + INDENT.length());
+    if (owner == null) {
+      int at = EdtObjectRegions.insertionPoint(xml, order, change.name());
+      String indent = indent(xml, at + INDENT.length());
+      return new Edit(at, at, indent + element(xml, change, indent) + eol(xml));
+    }
+    int at = EdtObjectRegions.lineStart(xml, owner.end());
+    String indent = indent(xml, owner.start()) + INDENT;
     return new Edit(at, at, indent + element(xml, change, indent) + eol(xml));
+  }
+
+  /** Границы узла, которому принадлежит свойство; {@code null} у самого объекта. */
+  private static EdtObjectRegions.Region nodeRegion(String xml, NodeRef node) throws XMLStreamException {
+    if (node == null) {
+      return null;
+    }
+    EdtObjectRegions.Region owner = nodeRegion(xml, node.owner());
+    List<EdtObjectRegions.Region> siblings = owner == null
+        ? EdtObjectRegions.properties(xml, node.feature())
+        : EdtObjectRegions.nested(xml, owner, node.feature());
+    EdtObjectRegions.Region region = EdtObjectRegions.byName(xml, siblings, node.name());
+    if (!region.found()) {
+      throw new IllegalArgumentException("Узел не найден: " + node.name());
+    }
+    return region;
+  }
+
+  private static EdtObjectRegions.Region first(List<EdtObjectRegions.Region> regions) {
+    return regions.isEmpty() ? EdtObjectRegions.MISSING : regions.get(0);
   }
 
   /** Разметка свойства: многоязычная строка занимает несколько строк. */

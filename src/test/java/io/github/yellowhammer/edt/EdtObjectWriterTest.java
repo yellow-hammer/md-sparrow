@@ -38,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.yellowhammer.designerxml.cf.MdCatalogPropertiesDto;
+import io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 
 /**
@@ -277,16 +278,63 @@ class EdtObjectWriterTest {
   }
 
   @Test
-  void правкаСвойстваУзлаОтклоняется() throws Exception {
+  void правитСинонимРеквизита() throws Exception {
+    Path file = copyOf("Catalogs/Валюты/Валюты.mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    dto.attributes.get(0).synonymRu = "Курс из Интернета";
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(changedLines(before, after)).containsExactlyInAnyOrder(
+        "<value>Загружается из Интернета</value>", "<value>Курс из Интернета</value>");
+    assertThat(EdtObjectProperties.readDto(file, model).attributes.get(0).synonymRu)
+        .isEqualTo("Курс из Интернета");
+  }
+
+  @Test
+  void правитПеречислимоеСвойствоРеквизита() throws Exception {
+    Path file = copyOf("Catalogs/Валюты/Валюты.mdo");
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    assertThat(dto.attributes.get(0).fullTextSearch).isEqualTo("USE");
+    dto.attributes.get(0).fullTextSearch = "DONT_USE";
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    assertThat(EdtObjectProperties.readDto(file, model).attributes.get(0).fullTextSearch)
+        .isEqualTo("DONT_USE");
+    // Соседние реквизиты не тронуты
+    assertThat(EdtObjectProperties.readDto(file, model).attributes.get(1).fullTextSearch)
+        .isEqualTo(dto.attributes.get(1).fullTextSearch);
+  }
+
+  @Test
+  void правитСвойстваРеквизитаТабличнойЧасти() throws Exception {
+    Path file = copyOf("Catalogs/Валюты/Валюты.mdo");
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    MdNamedPropertyDto attribute = dto.tabularSections.get(0).attributes.get(0);
+    attribute.synonymRu = "Язык записи";
+    attribute.toolTipRu = "Код языка представления";
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    MdNamedPropertyDto written = EdtObjectProperties.readDto(file, model)
+        .tabularSections.get(0).attributes.get(0);
+    assertThat(written.synonymRu).isEqualTo("Язык записи");
+    assertThat(written.toolTipRu).isEqualTo("Код языка представления");
+  }
+
+  @Test
+  void переименованиеУзлаОтклоняется() throws Exception {
     Path file = copyOf("Catalogs/Валюты/Валюты.mdo");
     byte[] before = Files.readAllBytes(file);
 
     MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
-    dto.attributes.get(0).synonymRu = "Другой синоним";
+    dto.attributes.get(0).name = "ДругоеИмя";
 
     assertThatThrownBy(() -> EdtObjectWriter.writeDto(file, dto, model))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("attributes");
+        .isInstanceOf(IllegalArgumentException.class);
     assertThat(Files.readAllBytes(file)).isEqualTo(before);
   }
 

@@ -137,7 +137,8 @@ final class EdtPropertyValues {
     for (int index = 0; index < value.length(); index++) {
       char symbol = value.charAt(index);
       char previous = index > 0 ? value.charAt(index - 1) : 0;
-      boolean startsWord = Character.isUpperCase(symbol) && !Character.isUpperCase(previous);
+      boolean startsWord = Character.isUpperCase(symbol)
+          && !Character.isUpperCase(previous) && previous != '_';
       // Версии режимов совместимости пишутся числами: Version8_3_12
       boolean startsNumber = Character.isDigit(symbol) && Character.isLetter(previous);
       if (index > 0 && (startsWord || startsNumber)) {
