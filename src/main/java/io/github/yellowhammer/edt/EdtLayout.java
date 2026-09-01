@@ -72,6 +72,16 @@ public final class EdtLayout {
   }
 
   /**
+   * Файл объекта в формате EDT.
+   *
+   * @param file проверяемый файл
+   * @return {@code true} у файла {@code .mdo}
+   */
+  public static boolean isObjectFile(Path file) {
+    return file != null && file.getFileName().toString().endsWith(".mdo");
+  }
+
+  /**
    * Файл объекта метаданных.
    *
    * @param sourceRoot каталог {@code src} проекта

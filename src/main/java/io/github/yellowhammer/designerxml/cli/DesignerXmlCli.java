@@ -42,6 +42,10 @@ import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertyEnums;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureRead;
+import io.github.yellowhammer.edt.EdtLayout;
+import io.github.yellowhammer.edt.EdtModel;
+import io.github.yellowhammer.edt.EdtObjectProperties;
+import io.github.yellowhammer.edt.EdtObjectStructure;
 import io.github.yellowhammer.designerxml.cf.ConfigurationCatalogLister;
 import io.github.yellowhammer.designerxml.cf.ConfigurationChildObjectLister;
 import io.github.yellowhammer.designerxml.cf.CfLayout;
@@ -413,16 +417,18 @@ public final class DesignerXmlCli implements Callable<Integer> {
     description = "Вывести JSON свойств объекта метаданных."
   )
   static final class CfMdObjectGetCmd implements Callable<Integer> {
-    @Parameters(index = "0", description = "Путь к MetaDataObject .xml")
+    @Parameters(index = "0", description = "Путь к MetaDataObject .xml или .mdo")
     Path objectXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, description = "Версия формата выгрузки конфигуратора, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
     public Integer call() throws Exception {
       try {
-        MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(objectXml, version);
+        MdObjectPropertiesDto dto = EdtLayout.isObjectFile(objectXml)
+          ? EdtObjectProperties.readDto(objectXml, EdtModel.bundled())
+          : MdObjectPropertiesEdit.readDto(objectXml, requireSchemaVersion(version));
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         System.out.println(gson.toJson(dto));
       } catch (IllegalArgumentException e) {
@@ -434,6 +440,15 @@ public final class DesignerXmlCli implements Callable<Integer> {
       }
       return 0;
     }
+
+  }
+
+  /** Версия нужна только выгрузке конфигуратора: у проекта EDT её место занимают схемы метамодели. */
+  static SchemaVersion requireSchemaVersion(SchemaVersion version) {
+    if (version == null) {
+      throw new IllegalArgumentException("Для выгрузки конфигуратора укажите версию формата: --schema-version");
+    }
+    return version;
   }
 
   @Command(
@@ -457,16 +472,18 @@ public final class DesignerXmlCli implements Callable<Integer> {
     description = "Вывести JSON структуры объекта метаданных."
   )
   static final class CfMdObjectStructureGetCmd implements Callable<Integer> {
-    @Parameters(index = "0", description = "Путь к MetaDataObject .xml")
+    @Parameters(index = "0", description = "Путь к MetaDataObject .xml или .mdo")
     Path objectXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, description = "Версия формата выгрузки конфигуратора, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
     public Integer call() throws Exception {
       try {
-        MdObjectStructureDto dto = MdObjectStructureRead.read(objectXml, version);
+        MdObjectStructureDto dto = EdtLayout.isObjectFile(objectXml)
+          ? EdtObjectStructure.read(objectXml, EdtModel.bundled())
+          : MdObjectStructureRead.read(objectXml, requireSchemaVersion(version));
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         System.out.println(gson.toJson(dto));
       } catch (IllegalArgumentException e) {

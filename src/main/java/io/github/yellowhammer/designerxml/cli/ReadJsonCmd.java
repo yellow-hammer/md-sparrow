@@ -46,6 +46,10 @@ import io.github.yellowhammer.designerxml.cf.FormContentRead;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
+import io.github.yellowhammer.edt.EdtLayout;
+import io.github.yellowhammer.edt.EdtModel;
+import io.github.yellowhammer.edt.EdtObjectProperties;
+import io.github.yellowhammer.edt.EdtObjectStructure;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertyEnums;
 import io.github.yellowhammer.designerxml.cf.MdObjectOpen;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureDto;
@@ -122,7 +126,11 @@ final class ReadJsonCmd implements Callable<Integer> {
     Gson gson = new GsonBuilder().disableHtmlEscaping().create();
     switch (p.op) {
       case "cf-md-object-get": {
-        MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(p.reqPath(p.objectXml, "objectXml"), p.version());
+        java.nio.file.Path objectFile = p.reqPath(p.objectXml, "objectXml");
+        // Формат виден по файлу: у проекта EDT свой объект и своя версия схем
+        MdObjectPropertiesDto dto = EdtLayout.isObjectFile(objectFile)
+          ? EdtObjectProperties.readDto(objectFile, EdtModel.bundled())
+          : MdObjectPropertiesEdit.readDto(objectFile, p.version());
         return gson.toJson(dto);
       }
       case "cf-enum-labels": {
@@ -140,7 +148,10 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(MdObjectPropertyEnums.forVersion(p.version()));
       }
       case "cf-md-object-structure-get": {
-        MdObjectStructureDto dto = MdObjectStructureRead.read(p.reqPath(p.objectXml, "objectXml"), p.version());
+        java.nio.file.Path structureFile = p.reqPath(p.objectXml, "objectXml");
+        MdObjectStructureDto dto = EdtLayout.isObjectFile(structureFile)
+          ? EdtObjectStructure.read(structureFile, EdtModel.bundled())
+          : MdObjectStructureRead.read(structureFile, p.version());
         return gson.toJson(dto);
       }
       case "cf-md-object-open-get": {
