@@ -96,7 +96,7 @@ public final class EdtConfigurationLists {
       }
       List<String> types = new ArrayList<>();
       for (String name : names) {
-        types.add(suffix.getValue() + "." + name);
+        types.add("cfg:" + suffix.getValue() + "." + name);
       }
       refs.put(suffix.getKey(), types);
     }

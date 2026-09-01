@@ -78,7 +78,8 @@ class EdtChildMutationsTest {
     assertThat(names(dto.attributes)).endsWith("НовыйРеквизит");
     MdNamedPropertyDto added = dto.attributes.get(dto.attributes.size() - 1);
     assertThat(added.synonymRu).isEqualTo("НовыйРеквизит");
-    assertThat(added.type.types).containsExactly("String");
+    assertThat(added.type.types).containsExactly("xs:string");
+    assertThat(added.type.stringQualifiers.length).isEqualTo("10");
     // Идентификатор узла платформа требует у каждого
     assertThat(Files.readString(file, StandardCharsets.UTF_8))
         .containsPattern("<attributes uuid=\"[0-9a-f-]{36}\">\\s+<name>НовыйРеквизит</name>");
