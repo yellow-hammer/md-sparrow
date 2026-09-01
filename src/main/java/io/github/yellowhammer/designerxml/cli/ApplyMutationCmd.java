@@ -59,6 +59,7 @@ import io.github.yellowhammer.edt.EdtExchangePlanContent;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtMutationRouter;
 import io.github.yellowhammer.edt.EdtObjectMutations;
+import io.github.yellowhammer.edt.EdtObjectProperties;
 import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
 import io.github.yellowhammer.edt.EdtObjectWriter;
 
@@ -134,7 +135,8 @@ final class ApplyMutationCmd implements Callable<Integer> {
     "cf-md-subsystem-command-placement-set",
     "cf-md-subsystem-command-order-set",
     "cf-md-subsystem-subsystems-order-set",
-    "cf-md-subsystem-groups-order-set");
+    "cf-md-subsystem-groups-order-set",
+    "external-artifact-properties-set");
 
   /**
    * Правит состав объекта в формате 1С:EDT.
@@ -624,7 +626,12 @@ final class ApplyMutationCmd implements Callable<Integer> {
       }
       case "external-artifact-properties-set": {
         ExternalArtifactPropertiesDto dto = parsePayload(p, ExternalArtifactPropertiesDto.class);
-        ExternalArtifactPropertiesEdit.write(p.reqPath(p.objectXml, "objectXml"), p.version(), dto);
+        java.nio.file.Path artifact = p.reqPath(p.objectXml, "objectXml");
+        if (EdtLayout.isObjectFile(artifact)) {
+          EdtObjectProperties.writeExternalDto(artifact, dto, EdtModel.bundled());
+        } else {
+          ExternalArtifactPropertiesEdit.write(artifact, p.version(), dto);
+        }
         return "OK";
       }
       case "cf-form-item-properties-set": {

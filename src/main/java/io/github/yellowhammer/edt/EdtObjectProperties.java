@@ -31,6 +31,7 @@ import java.util.Map;
 
 import org.eclipse.emf.ecore.EClass;
 
+import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
@@ -107,6 +108,47 @@ public final class EdtObjectProperties {
         }
       }
     }
+  }
+
+  /**
+   * Читает свойства внешнего отчёта или обработки.
+   *
+   * Внешний артефакт в EDT описан таким же файлом, как объект конфигурации,
+   * поэтому и читается так же.
+   *
+   * @param objectMdo файл объекта
+   * @param model метамодель EDT
+   * @return вид, имя, синоним и комментарий
+   * @throws IOException если файл не читается
+   */
+  public static ExternalArtifactPropertiesDto readExternalDto(Path objectMdo, EdtModel model)
+      throws IOException {
+    MdObjectPropertiesDto object = readDto(objectMdo, model);
+    ExternalArtifactPropertiesDto dto = new ExternalArtifactPropertiesDto();
+    dto.kind = object.kind;
+    dto.name = object.internalName;
+    dto.synonymRu = object.synonymRu;
+    dto.comment = object.comment;
+    return dto;
+  }
+
+  /**
+   * Записывает свойства внешнего отчёта или обработки.
+   *
+   * @param objectMdo файл объекта
+   * @param dto свойства целиком
+   * @param model метамодель EDT
+   * @throws IOException если файл не читается или не пишется
+   */
+  public static void writeExternalDto(Path objectMdo, ExternalArtifactPropertiesDto dto, EdtModel model)
+      throws IOException {
+    MdObjectPropertiesDto object = readDto(objectMdo, model);
+    if (dto.name != null && !dto.name.equals(object.internalName)) {
+      throw new IllegalArgumentException("Переименование внешнего объекта правится своей командой.");
+    }
+    object.synonymRu = dto.synonymRu;
+    object.comment = dto.comment;
+    EdtObjectWriter.writeDto(objectMdo, object, model);
   }
 
   /**

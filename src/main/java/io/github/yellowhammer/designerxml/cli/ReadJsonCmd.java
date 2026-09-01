@@ -149,6 +149,7 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-role-rights-get",
     "cf-md-exchange-plan-content-get",
     "cf-md-subsystem-command-interface-get",
+    "external-artifact-properties-get",
     "cf-support-object-get",
     "cf-enum-labels");
 
@@ -211,7 +212,10 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(target);
       }
       case "external-artifact-properties-get": {
-        ExternalArtifactPropertiesDto dto = ExternalArtifactPropertiesEdit.read(p.reqPath(p.objectXml, "objectXml"), p.version());
+        java.nio.file.Path artifact = p.reqPath(p.objectXml, "objectXml");
+        ExternalArtifactPropertiesDto dto = EdtLayout.isObjectFile(artifact)
+          ? EdtObjectProperties.readExternalDto(artifact, EdtModel.bundled())
+          : ExternalArtifactPropertiesEdit.read(artifact, p.version());
         return gson.toJson(dto);
       }
       case "cf-configuration-properties-get": {
