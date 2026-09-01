@@ -57,6 +57,7 @@ import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtMutationRouter;
+import io.github.yellowhammer.edt.EdtObjectMutations;
 import io.github.yellowhammer.edt.EdtObjectWriter;
 
 import java.io.IOException;
@@ -122,7 +123,10 @@ final class ApplyMutationCmd implements Callable<Integer> {
   private static final java.util.Set<String> EDT_WRITES = java.util.Set.of(
     "cf-md-object-set",
     "cf-configuration-properties-set",
-    "cf-role-rights-set");
+    "cf-role-rights-set",
+    "cf-md-object-rename",
+    "cf-md-object-delete",
+    "cf-md-object-duplicate");
 
   /**
    * Правит состав объекта в формате 1С:EDT.
@@ -130,7 +134,42 @@ final class ApplyMutationCmd implements Callable<Integer> {
    * @return выполнена ли команда здесь
    */
   private static boolean applyEdtMutation(CliParams p) throws IOException {
-    if (!EdtLayout.isObjectFile(p.objectXml) || !EdtMutationRouter.handles(p.op)) {
+    if (!EdtLayout.isObjectFile(p.objectXml)) {
+      return false;
+    }
+    // Объект в EDT - это каталог целиком, поэтому у операций над ним свой код
+    switch (p.op) {
+      case "cf-md-object-rename" -> {
+        EdtObjectMutations.rename(
+          p.reqPath(p.configurationXml, "configurationXml"),
+          p.reqPath(p.objectXml, "objectXml"),
+          p.req(p.tag, "tag"),
+          p.req(p.oldName, "oldName"),
+          p.req(p.newName, "newName"));
+        return true;
+      }
+      case "cf-md-object-delete" -> {
+        EdtObjectMutations.delete(
+          p.reqPath(p.configurationXml, "configurationXml"),
+          p.reqPath(p.objectXml, "objectXml"),
+          p.req(p.tag, "tag"),
+          p.req(p.name, "name"));
+        return true;
+      }
+      case "cf-md-object-duplicate" -> {
+        EdtObjectMutations.duplicate(
+          p.reqPath(p.configurationXml, "configurationXml"),
+          p.reqPath(p.objectXml, "objectXml"),
+          p.req(p.tag, "tag"),
+          p.req(p.sourceName, "sourceName"),
+          p.req(p.newName, "newName"));
+        return true;
+      }
+      default -> {
+        // Остальное правит общий разбор команд состава
+      }
+    }
+    if (!EdtMutationRouter.handles(p.op)) {
       return false;
     }
     EdtMutationRouter.apply(
