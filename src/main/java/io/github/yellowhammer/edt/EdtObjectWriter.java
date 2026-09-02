@@ -43,6 +43,7 @@ import com.google.gson.Gson;
 
 import io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
+import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
 
 /**
  * Точечная запись свойств объекта 1С:EDT.
@@ -82,7 +83,7 @@ public final class EdtObjectWriter {
     EdtObjectReader.EdtNode node = EdtObjectReader.read(objectMdo);
     EClass eClass = model.classOf(node.kind());
     MdObjectPropertiesDto baseline = EdtObjectProperties.readDto(objectMdo, model);
-    return apply(objectMdo, changes(baseline, dto, node, eClass, model), eClass);
+    return apply(objectMdo, changes(baseline, dto, node, eClass, model), eClass, model);
   }
 
   /**
@@ -92,8 +93,13 @@ public final class EdtObjectWriter {
    * @param name имя свойства
    * @param value новое значение в написании формата
    * @param localized свойство записано парами язык-значение
+   * @param type описание типа, если свойство - тип; иначе {@code null}
    */
-  private record Change(NodeRef node, String name, String value, boolean localized) {
+  private record Change(NodeRef node, String name, String value, boolean localized, MdTypeDescriptionDto type) {
+
+    Change(NodeRef node, String name, String value, boolean localized) {
+      this(node, name, value, localized, null);
+    }
   }
 
   /**
@@ -134,17 +140,18 @@ public final class EdtObjectWriter {
         changes.add(change);
       }
     }
-    return apply(objectMdo, changes, eClass);
+    return apply(objectMdo, changes, eClass, model);
   }
 
   /** Применяет правки к файлу; без правок файл не трогается. */
-  private static int apply(Path objectMdo, List<Change> changes, EClass eClass) throws IOException {
+  private static int apply(Path objectMdo, List<Change> changes, EClass eClass, EdtModel model)
+      throws IOException {
     if (changes.isEmpty()) {
       return 0;
     }
     String xml = Files.readString(objectMdo, StandardCharsets.UTF_8);
     try {
-      Files.writeString(objectMdo, apply(xml, changes, eClass), StandardCharsets.UTF_8);
+      Files.writeString(objectMdo, apply(xml, changes, eClass, model), StandardCharsets.UTF_8);
     } catch (XMLStreamException error) {
       throw new IOException("Не удалось разобрать файл объекта: " + objectMdo, error);
     }
@@ -272,7 +279,13 @@ public final class EdtObjectWriter {
     } catch (IllegalAccessException error) {
       throw new IllegalStateException("Не удалось прочитать свойство узла " + field.getName(), error);
     }
-    if (value == null || Objects.equals(value, was) || field.getType() != String.class) {
+    if (value == null || Objects.equals(value, was)) {
+      return null;
+    }
+    if (value instanceof MdTypeDescriptionDto description) {
+      return typeChange(ref, field.getName(), description, was);
+    }
+    if (field.getType() != String.class) {
       return null;
     }
 
@@ -341,6 +354,9 @@ public final class EdtObjectWriter {
     if (type == boolean.class || type == Boolean.class) {
       return new Change(null, name, String.valueOf(value), false);
     }
+    if (value instanceof MdTypeDescriptionDto description) {
+      return typeChange(null, name, description, was);
+    }
     if (type != String.class) {
       // Списки ссылок и состав объекта правятся своими операциями
       return null;
@@ -353,6 +369,18 @@ public final class EdtObjectWriter {
       return null;
     }
     return new Change(null, name, literal(eClass, name, String.valueOf(value)), false);
+  }
+
+  /**
+   * Изменение описания типа либо {@code null}, если оно прежнее.
+   *
+   * Описания сравниваются по значениям: контракт присылает их целиком.
+   */
+  private static Change typeChange(NodeRef node, String name, MdTypeDescriptionDto wanted, Object written) {
+    if (NODE_STATE.toJson(wanted).equals(NODE_STATE.toJson(written))) {
+      return null;
+    }
+    return new Change(node, name, null, false, wanted);
   }
 
   /** Свойства вида объекта: {@code catalog}, {@code document}, {@code register}. */
@@ -395,11 +423,12 @@ public final class EdtObjectWriter {
   }
 
   /** Применяет правки к тексту файла, начиная с конца: смещения посчитаны по исходному тексту. */
-  private static String apply(String xml, List<Change> changes, EClass eClass) throws XMLStreamException {
+  private static String apply(String xml, List<Change> changes, EClass eClass, EdtModel model)
+      throws XMLStreamException {
     List<String> order = order(eClass);
     List<Edit> edits = new ArrayList<>();
     for (Change change : changes) {
-      edits.add(edit(xml, change, order));
+      edits.add(edit(xml, change, order, model));
     }
     edits.sort(Comparator.comparingInt(Edit::start).reversed());
 
@@ -415,24 +444,25 @@ public final class EdtObjectWriter {
   }
 
   /** Замена значения или вставка нового свойства. */
-  private static Edit edit(String xml, Change change, List<String> order) throws XMLStreamException {
+  private static Edit edit(String xml, Change change, List<String> order, EdtModel model)
+      throws XMLStreamException {
     EdtObjectRegions.Region owner = nodeRegion(xml, change.node());
     EdtObjectRegions.Region region = owner == null
         ? EdtObjectRegions.property(xml, change.name())
         : first(EdtObjectRegions.nested(xml, owner, change.name()));
     if (region.found()) {
-      return new Edit(region.start(), region.end(), element(xml, change, indent(xml, region.start())));
+      return new Edit(region.start(), region.end(), element(xml, change, indent(xml, region.start()), model));
     }
 
     // Новое свойство встаёт целой строкой, с отступом соседей
     if (owner == null) {
       int at = EdtObjectRegions.insertionPoint(xml, order, change.name());
       String indent = indent(xml, at + INDENT.length());
-      return new Edit(at, at, indent + element(xml, change, indent) + eol(xml));
+      return new Edit(at, at, indent + element(xml, change, indent, model) + eol(xml));
     }
     int at = EdtObjectRegions.lineStart(xml, owner.end());
     String indent = indent(xml, owner.start()) + INDENT;
-    return new Edit(at, at, indent + element(xml, change, indent) + eol(xml));
+    return new Edit(at, at, indent + element(xml, change, indent, model) + eol(xml));
   }
 
   /** Границы узла, которому принадлежит свойство; {@code null} у самого объекта. */
@@ -455,8 +485,11 @@ public final class EdtObjectWriter {
     return regions.isEmpty() ? EdtObjectRegions.MISSING : regions.get(0);
   }
 
-  /** Разметка свойства: многоязычная строка занимает несколько строк. */
-  private static String element(String xml, Change change, String indent) {
+  /** Разметка свойства: многоязычная строка и описание типа занимают несколько строк. */
+  private static String element(String xml, Change change, String indent, EdtModel model) {
+    if (change.type() != null) {
+      return EdtTypeDescription.render(change.type(), change.name(), model, indent, eol(xml));
+    }
     String value = escape(change.value());
     if (!change.localized()) {
       return "<%s>%s</%s>".formatted(change.name(), value, change.name());

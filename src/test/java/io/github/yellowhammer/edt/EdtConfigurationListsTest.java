@@ -77,16 +77,17 @@ class EdtConfigurationListsTest {
   }
 
   @Test
-  void ссылочныеТипыБезПрефиксаПространстваИмён() throws Exception {
+  void ссылочныеТипыСовпадаютСКонфигуратором() throws Exception {
     Map<String, List<String>> refs = EdtConfigurationLists.refTypes(edtConfiguration, model);
     Map<String, List<String>> designer =
         ConfigurationRefTypeLister.listRefTypes(designerConfiguration, SchemaVersion.V2_21);
 
     assertThat(refs.keySet()).isEqualTo(designer.keySet());
-    // Тип в файле EDT записан без пространства имён, и панель сверяет его с ним же
-    assertThat(refs.get("Catalog")).contains("CatalogRef.Валюты").allSatisfy(
-        type -> assertThat(type).doesNotStartWith("cfg:"));
-    assertThat(refs.get("Catalog")).hasSameSizeAs(designer.get("Catalog"));
+    // Описание типа приходит в записи конфигуратора, и список должен совпадать с ним
+    assertThat(refs.get("Catalog")).contains("cfg:CatalogRef.Валюты");
+    for (String kind : designer.keySet()) {
+      assertThat(refs.get(kind)).as(kind).containsExactlyInAnyOrderElementsOf(designer.get(kind));
+    }
   }
 
   @Test

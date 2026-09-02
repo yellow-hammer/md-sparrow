@@ -81,7 +81,7 @@ public final class EdtObjectProperties {
     dto.contentRefs = EdtPropertyValues.list(node, "content");
 
     fillChildren(dto, node, model);
-    fillBridge(dto, node, eClass);
+    fillBridge(dto, node, eClass, model);
     return dto;
   }
 
@@ -158,7 +158,7 @@ public final class EdtObjectProperties {
    * {@code document}. Поля там названы так же, как свойства в файле EDT, и
    * заполняются по имени.
    */
-  private static void fillBridge(MdObjectPropertiesDto dto, EdtNode node, EClass eClass) {
+  private static void fillBridge(MdObjectPropertiesDto dto, EdtNode node, EClass eClass, EdtModel model) {
     String fieldName = BRIDGE_FIELDS.getOrDefault(dto.kind, dto.kind);
     Field field;
     try {
@@ -170,7 +170,7 @@ public final class EdtObjectProperties {
 
     try {
       Object bridge = field.getType().getDeclaredConstructor().newInstance();
-      fillFields(bridge, node, eClass);
+      fillFields(bridge, node, eClass, model);
       field.set(dto, bridge);
     } catch (ReflectiveOperationException error) {
       throw new IllegalStateException("Не удалось заполнить свойства вида " + dto.kind, error);
@@ -178,7 +178,8 @@ public final class EdtObjectProperties {
   }
 
   /** Значения полей по именам свойств схемы. */
-  private static void fillFields(Object target, EdtNode node, EClass eClass) throws IllegalAccessException {
+  private static void fillFields(Object target, EdtNode node, EClass eClass, EdtModel model)
+      throws IllegalAccessException {
     for (Field field : target.getClass().getFields()) {
       if (Modifier.isStatic(field.getModifiers()) || SKIPPED.contains(field.getName())) {
         continue;
@@ -189,6 +190,11 @@ public final class EdtObjectProperties {
         field.set(target, EdtPropertyValues.flag(node, eClass, name));
       } else if (type == List.class && field.getGenericType().getTypeName().endsWith("<java.lang.String>")) {
         field.set(target, EdtPropertyValues.list(node, name));
+      } else if (type == MdTypeDescriptionDto.class) {
+        MdTypeDescriptionDto description = EdtTypeDescription.read(node, name, model);
+        // Тип без узла в файле пуст, как у общей команды без параметра; у конфигуратора это пустой элемент
+        boolean declared = eClass != null && eClass.getEStructuralFeature(name) != null;
+        field.set(target, description == null && declared ? new MdTypeDescriptionDto() : description);
       } else if (type == String.class) {
         // Синоним, подсказка и пояснение записаны парами язык-значение
         field.set(target, name.endsWith("Ru")
@@ -209,7 +215,7 @@ public final class EdtObjectProperties {
     EClass eClass = model.classOf(item.objectType());
     List<MdNamedPropertyDto> children = new ArrayList<>();
     for (EdtNode child : nodes) {
-      MdNamedPropertyDto dto = namedProperty(child, eClass);
+      MdNamedPropertyDto dto = namedProperty(child, eClass, model);
       // У табличной части свои реквизиты
       for (EdtModel.Composition nested : model.composition(item.objectType())) {
         if (nested.feature().equals("attributes")) {
@@ -222,29 +228,17 @@ public final class EdtObjectProperties {
   }
 
   /** Реквизит, измерение или команда: имя, синоним и свойства из схемы. */
-  private static MdNamedPropertyDto namedProperty(EdtNode node, EClass eClass) {
+  private static MdNamedPropertyDto namedProperty(EdtNode node, EClass eClass, EdtModel model) {
     MdNamedPropertyDto dto = new MdNamedPropertyDto();
     try {
-      fillFields(dto, node, eClass);
+      fillFields(dto, node, eClass, model);
     } catch (IllegalAccessException error) {
       throw new IllegalStateException("Не удалось прочитать узел " + node.kind(), error);
     }
     dto.name = node.name();
     dto.synonymRu = EdtPropertyValues.russian(node, "synonym");
     dto.toolTipRu = EdtPropertyValues.russian(node, "toolTip");
-    dto.type = typeDescription(node);
-    return dto;
-  }
-
-  /** Тип значения: EDT записывает его именами платформы, без пространств имён. */
-  private static MdTypeDescriptionDto typeDescription(EdtNode node) {
-    List<EdtNode> types = node.list("type");
-    if (types.isEmpty()) {
-      return null;
-    }
-    MdTypeDescriptionDto dto = new MdTypeDescriptionDto();
-    dto.types = EdtPropertyValues.list(types.get(0), "types");
-    dto.typeSets = EdtPropertyValues.list(types.get(0), "typeSet");
+    dto.type = EdtTypeDescription.read(node, "type", model);
     return dto;
   }
 

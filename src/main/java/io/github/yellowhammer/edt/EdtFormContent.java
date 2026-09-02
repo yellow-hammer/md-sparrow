@@ -55,19 +55,20 @@ public final class EdtFormContent {
    * Читает содержимое формы.
    *
    * @param formFile файл {@code Form.form}
+   * @param model метамодель EDT
    * @return элементы, реквизиты, команды, параметры и события формы
    * @throws IOException если файл не читается
    */
-  public static FormContentDto read(Path formFile) throws IOException {
+  public static FormContentDto read(Path formFile, EdtModel model) throws IOException {
     EdtNode form = EdtObjectReader.read(formFile);
 
     FormContentDto dto = new FormContentDto();
     dto.title = EdtPropertyValues.russian(form, "title");
     dto.properties = scalars(form);
     dto.items = items(form);
-    dto.attributes = attributes(form);
+    dto.attributes = attributes(form, model);
     dto.commands = commands(form);
-    dto.parameters = parameters(form);
+    dto.parameters = parameters(form, model);
     dto.events = events(form);
     return dto;
   }
@@ -154,12 +155,12 @@ public final class EdtFormContent {
   }
 
   /** Реквизиты формы. */
-  private static List<FormAttributeDto> attributes(EdtNode form) {
+  private static List<FormAttributeDto> attributes(EdtNode form, EdtModel model) {
     List<FormAttributeDto> attributes = new ArrayList<>();
     for (EdtNode node : form.list("attributes")) {
       FormAttributeDto attribute = new FormAttributeDto();
       attribute.name = node.name();
-      attribute.type = type(node);
+      attribute.type = type(node, model);
       attribute.main = Boolean.parseBoolean(node.property("main"));
       // У динамического списка основная таблица лежит в описании его вида
       attribute.mainTable = node.list("extInfo").stream()
@@ -186,12 +187,12 @@ public final class EdtFormContent {
   }
 
   /** Параметры формы. */
-  private static List<FormParameterDto> parameters(EdtNode form) {
+  private static List<FormParameterDto> parameters(EdtNode form, EdtModel model) {
     List<FormParameterDto> parameters = new ArrayList<>();
     for (EdtNode node : form.list("parameters")) {
       FormParameterDto parameter = new FormParameterDto();
       parameter.name = node.name();
-      parameter.type = type(node);
+      parameter.type = type(node, model);
       parameters.add(parameter);
     }
     return parameters;
@@ -215,19 +216,13 @@ public final class EdtFormContent {
   }
 
   /**
-   * Тип значения: EDT записывает его именами платформы.
+   * Тип значения в записи контракта.
    *
    * У реквизита формы тип назван {@code valueType}, у остальных узлов -
    * {@code type}.
    */
-  private static MdTypeDescriptionDto type(EdtNode node) {
-    List<EdtNode> types = node.list("valueType").isEmpty() ? node.list("type") : node.list("valueType");
-    if (types.isEmpty()) {
-      return null;
-    }
-    MdTypeDescriptionDto dto = new MdTypeDescriptionDto();
-    dto.types = EdtPropertyValues.list(types.get(0), "types");
-    dto.typeSets = EdtPropertyValues.list(types.get(0), "typeSet");
-    return dto;
+  private static MdTypeDescriptionDto type(EdtNode node, EdtModel model) {
+    String feature = node.list("valueType").isEmpty() ? "type" : "valueType";
+    return EdtTypeDescription.read(node, feature, model);
   }
 }

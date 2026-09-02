@@ -250,7 +250,7 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "cf-form-content-get": {
         java.nio.file.Path form = p.reqPath(p.formXml, "formXml");
         FormContentDto dto = EdtLayout.isFormFile(p.formXml)
-          ? EdtFormContent.read(form)
+          ? EdtFormContent.read(form, EdtModel.bundled())
           : FormContentRead.read(form, p.version());
         return gson.toJson(dto);
       }

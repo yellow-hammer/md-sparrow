@@ -342,10 +342,39 @@ application {
 }
 
 // Эталоны (submodule samples-1c-platform) → ресурсы jar для scaffold по golden.
+/**
+ * Схемы выгрузки конфигуратора самой свежей версии: по ним имя типа из файла EDT
+ * получает пространство имён записи конфигуратора.
+ */
+val prepareDesignerTypeSchemas = tasks.register("prepareDesignerTypeSchemas") {
+    val version = discoverVersions().lastOrNull()
+    val target = layout.buildDirectory.dir("generated/designer-schemas")
+    inputs.dir(schemasDir).withPropertyName("схемы конфигуратора")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        if (version == null) {
+            throw GradleException("Схемы конфигуратора не найдены: $schemasDir. Обновите submodule namespace-forest.")
+        }
+        val schemas = schemasDir.dir(version).asFile
+            .listFiles { file: File -> file.isFile && file.name.endsWith(".xsd") }
+            ?.sortedBy { it.name }
+            ?: emptyList()
+        schemas.forEach { it.copyTo(output.resolve(it.name), overwrite = true) }
+        output.resolve("index.txt").writeText(schemas.joinToString("\n") { it.name } + "\n")
+    }
+}
+
 tasks.named<Copy>("processResources") {
     // Метамодель EDT: edt-schemas/<файлы схем>
     from(prepareEdtSchemas) {
         into("edt-schemas")
+    }
+    // Схемы конфигуратора: designer-schemas/<файлы схем>
+    from(prepareDesignerTypeSchemas) {
+        into("designer-schemas")
     }
     // Голые объекты конфигурации: golden/<формат>/<подкаталог>/…
     from("fixtures/samples-1c-platform/snapshots") {

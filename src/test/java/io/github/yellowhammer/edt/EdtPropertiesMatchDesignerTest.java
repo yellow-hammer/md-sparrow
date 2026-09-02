@@ -23,10 +23,13 @@ package io.github.yellowhammer.edt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import com.google.gson.Gson;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -37,6 +40,7 @@ import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureRead;
+import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
 
 /**
  * Свойства объекта в двух форматах сверяются между собой.
@@ -53,7 +57,15 @@ class EdtPropertiesMatchDesignerTest {
       "Documents", "Documents",
       "Enums", "Enums",
       "InformationRegisters", "InformationRegisters",
-      "ChartsOfCharacteristicTypes", "ChartsOfCharacteristicTypes");
+      "ChartsOfCharacteristicTypes", "ChartsOfCharacteristicTypes",
+      "Constants", "Constants",
+      "SessionParameters", "SessionParameters",
+      "CommonAttributes", "CommonAttributes",
+      "EventSubscriptions", "EventSubscriptions",
+      "CommonCommands", "CommonCommands");
+
+  /** Описания типов сравниваются по значениям. */
+  private static final Gson STATE = new Gson();
 
   /** Свойства узлов, записанные в обоих форматах одинаково. */
   private static final List<String> NODE_PROPERTIES =
@@ -79,6 +91,7 @@ class EdtPropertiesMatchDesignerTest {
   /** Значения свойств узла, которые сверяются между форматами. */
   private static String nodeState(MdNamedPropertyDto node) {
     StringBuilder state = new StringBuilder(node.name);
+    state.append("|type=").append(STATE.toJson(node.type));
     for (String property : NODE_PROPERTIES) {
       try {
         Object value = MdNamedPropertyDto.class.getField(property).get(node);
@@ -113,6 +126,7 @@ class EdtPropertiesMatchDesignerTest {
           compare(mismatches, name, "вид", edt.kind, designer.kind);
           compare(mismatches, name, "имя", edt.internalName, designer.internalName);
           compare(mismatches, name, "синоним", edt.synonymRu, designer.synonymRu);
+          compare(mismatches, name, "типы объекта", objectTypes(edt), objectTypes(designer));
           compare(mismatches, name, "реквизиты", names(edt.attributes), names(designer.attributes));
           compare(mismatches, name, "табличные части",
               names(edt.tabularSections), names(designer.tabularSections));
@@ -176,6 +190,23 @@ class EdtPropertiesMatchDesignerTest {
 
     assertThat(checked).as("сверено объектов").isGreaterThan(200);
     assertThat(mismatches).as("расхождения строения").isEmpty();
+  }
+
+  /** Описания типов в свойствах вида объекта: тип константы, источник подписки. */
+  private static Map<String, String> objectTypes(MdObjectPropertiesDto dto) throws ReflectiveOperationException {
+    Map<String, String> types = new java.util.TreeMap<>();
+    for (Field field : MdObjectPropertiesDto.class.getFields()) {
+      Object bridge = field.get(dto);
+      if (bridge == null || !field.getType().getSimpleName().endsWith("PropertiesDto")) {
+        continue;
+      }
+      for (Field property : bridge.getClass().getFields()) {
+        if (property.getType() == MdTypeDescriptionDto.class) {
+          types.put(property.getName(), STATE.toJson(property.get(bridge)));
+        }
+      }
+    }
+    return types;
   }
 
   private static void compare(List<String> mismatches, String object, String what, Object edt, Object designer) {

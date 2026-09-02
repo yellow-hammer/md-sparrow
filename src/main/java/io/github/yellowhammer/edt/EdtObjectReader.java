@@ -160,8 +160,10 @@ public final class EdtObjectReader {
       this.attributes = attributes;
     }
 
+    /** Текст листа хранится как записан: пробел в конце синонима тоже значение. */
     private EdtNode build() {
-      return new EdtNode(kind, text.toString().trim(), Map.copyOf(attributes), List.copyOf(children));
+      String value = children.isEmpty() ? text.toString() : text.toString().trim();
+      return new EdtNode(kind, value, Map.copyOf(attributes), List.copyOf(children));
     }
   }
 

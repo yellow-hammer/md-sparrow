@@ -48,9 +48,11 @@ class EdtFormContentTest {
 
   private static Path edtSource;
   private static Path designerCf;
+  private static EdtModel model;
 
   @BeforeAll
-  static void locate() {
+  static void locate() throws Exception {
+    model = EdtModel.bundled();
     edtSource = Path.of(System.getProperty("fixtures.ssl31edt.root"), "ssl31", "src");
     designerCf = Path.of(System.getProperty("fixtures.ssl31.root"), "src", "cf");
     assertThat(edtSource).exists();
@@ -69,8 +71,7 @@ class EdtFormContentTest {
 
   @Test
   void составФормыСовпадаетСВыгрузкойКонфигуратора() throws Exception {
-    FormContentDto edt = EdtFormContent.read(
-        edtSource.resolve("Catalogs/Валюты/Forms/ФормаСписка/Form.form"));
+    FormContentDto edt = EdtFormContent.read(edtSource.resolve("Catalogs/Валюты/Forms/ФормаСписка/Form.form"), model);
     FormContentDto designer = FormContentRead.read(
         designerCf.resolve("Catalogs/Валюты/Forms/ФормаСписка/Ext/Form.xml"), SchemaVersion.V2_21);
 
@@ -85,8 +86,7 @@ class EdtFormContentTest {
 
   @Test
   void видЭлементаБерётсяИзРазметки() throws Exception {
-    FormContentDto edt = EdtFormContent.read(
-        edtSource.resolve("Catalogs/Валюты/Forms/ФормаСписка/Form.form"));
+    FormContentDto edt = EdtFormContent.read(edtSource.resolve("Catalogs/Валюты/Forms/ФормаСписка/Form.form"), model);
 
     assertThat(edt.items).extracting(item -> item.type).contains("UsualGroup");
     assertThat(names(edt.items)).contains("Валюты", "ВалютыКонтекстноеМеню");
@@ -97,8 +97,7 @@ class EdtFormContentTest {
 
   @Test
   void реквизитФормыНесётТипИОсновнуюТаблицу() throws Exception {
-    FormContentDto edt = EdtFormContent.read(
-        edtSource.resolve("Catalogs/Валюты/Forms/ФормаСписка/Form.form"));
+    FormContentDto edt = EdtFormContent.read(edtSource.resolve("Catalogs/Валюты/Forms/ФормаСписка/Form.form"), model);
 
     assertThat(edt.attributes).hasSize(1);
     assertThat(edt.attributes.get(0).name).isEqualTo("Список");
@@ -117,7 +116,7 @@ class EdtFormContentTest {
     List<String> broken = new ArrayList<>();
     int items = 0;
     for (Path form : forms) {
-      FormContentDto dto = EdtFormContent.read(form);
+      FormContentDto dto = EdtFormContent.read(form, model);
       if (dto.items.isEmpty() && dto.attributes.isEmpty()) {
         broken.add(form.toString());
       }
@@ -135,7 +134,7 @@ class EdtFormContentTest {
       return;
     }
 
-    FormContentDto edt = EdtFormContent.read(common);
+    FormContentDto edt = EdtFormContent.read(common, model);
     FormContentDto designer = FormContentRead.read(
         designerCf.resolve("CommonForms/_ДемоМоиНастройки/Ext/Form.xml"), SchemaVersion.V2_21);
 

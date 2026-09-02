@@ -40,6 +40,7 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.yellowhammer.designerxml.cf.MdCatalogPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
+import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
 
 /**
  * Точечная запись свойств объекта 1С:EDT.
@@ -348,5 +349,62 @@ class EdtObjectWriterTest {
     assertThatThrownBy(() -> EdtObjectWriter.writeDto(file, dto, model))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("defaultPresentation");
+  }
+
+  @Test
+  void правитТипКонстантыОднойСтрокой() throws Exception {
+    String constant = "_ДемоИмяКонфигурацииВОбменеСБиблиотекойСтандартныхПодсистем";
+    Path file = copyOf("Constants/" + constant + "/" + constant + ".mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    assertThat(dto.constant.type.types).containsExactly("xs:string");
+    assertThat(dto.constant.type.stringQualifiers.length).isEqualTo("15");
+    dto.constant.type.stringQualifiers.length = "20";
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(changedLines(before, after)).containsExactlyInAnyOrder("<length>15</length>", "<length>20</length>");
+    assertThat(EdtObjectProperties.readDto(file, model).constant.type.stringQualifiers.length).isEqualTo("20");
+  }
+
+  @Test
+  void правитТипРеквизитаЦелымОписанием() throws Exception {
+    Path file = copyOf("Catalogs/Валюты/Валюты.mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    MdNamedPropertyDto attribute = dto.attributes.get(1);
+    assertThat(attribute.name).isEqualTo("НаименованиеПолное");
+    MdTypeDescriptionDto type = new MdTypeDescriptionDto();
+    type.types.add("xs:decimal");
+    type.numberQualifiers = new MdTypeDescriptionDto.MdNumberQualifiersDto();
+    type.numberQualifiers.digits = "10";
+    type.numberQualifiers.fractionDigits = "2";
+    type.numberQualifiers.allowedSign = "NONNEGATIVE";
+    attribute.type = type;
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    // Описание строки занимало шесть строк, описание числа занимает восемь
+    assertThat(after.lines().count()).isEqualTo(before.lines().count() + 2);
+    MdObjectPropertiesDto written = EdtObjectProperties.readDto(file, model);
+    assertThat(written.attributes.get(1).type.types).containsExactly("xs:decimal");
+    assertThat(written.attributes.get(1).type.numberQualifiers.allowedSign).isEqualTo("NONNEGATIVE");
+    assertThat(written.attributes.get(1).type.numberQualifiers.fractionDigits).isEqualTo("2");
+    // Соседние реквизиты не тронуты
+    assertThat(written.attributes.get(0).type.types).containsExactly("xs:boolean");
+    assertThat(written.attributes.get(2).type).usingRecursiveComparison().isEqualTo(dto.attributes.get(2).type);
+  }
+
+  @Test
+  void прежнийТипФайлНеМеняет() throws Exception {
+    Path file = copyOf("Catalogs/Валюты/Валюты.mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    assertThat(EdtObjectWriter.writeDto(file, dto, model)).isZero();
+
+    assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo(before);
   }
 }
