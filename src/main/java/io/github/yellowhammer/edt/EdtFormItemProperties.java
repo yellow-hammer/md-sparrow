@@ -111,17 +111,17 @@ public final class EdtFormItemProperties {
         // Украшение схема зовёт по существу: Label и Picture, а панель -
         // LabelDecoration и PictureDecoration
         String name = kinds.getValue().equals("Decoration") ? kind + "Decoration" : kind;
-        dictionary.put(name, properties(item, extInfo(form, kind)));
+        dictionary.put(name, properties(name, item, extInfo(form, kind)));
       }
     }
     for (String kind : SINGLE_KINDS) {
       if (form.getEClassifier(kind) instanceof EClass single) {
-        dictionary.put(kind, properties(single, extInfo(form, kind)));
+        dictionary.put(kind, properties(kind, single, extInfo(form, kind)));
       }
     }
     // Свойства самой формы панель показывает так же, как свойства элемента
     if (form.getEClassifier("Form") instanceof EClass formClass) {
-      dictionary.put("Form", properties(formClass, null));
+      dictionary.put("Form", properties("Form", formClass, null));
     }
     ALIASES.forEach((kind, alias) -> {
       List<FormItemPropertyDto> properties = dictionary.get(kind);
@@ -167,7 +167,14 @@ public final class EdtFormItemProperties {
   }
 
   /** Свойства элемента: общие у класса, особенные у описания вида. */
-  private static List<FormItemPropertyDto> properties(EClass item, EClass extInfo) {
+  /**
+   * Свойства вида элемента в записи конфигуратора.
+   *
+   * Служебные признаки модели EDT схема помечает временными, а свойств, которых
+   * у конфигуратора нет, панель не показывает: у неё нет для них ни подписей,
+   * ни значений.
+   */
+  private static List<FormItemPropertyDto> properties(String kind, EClass item, EClass extInfo) {
     List<FormItemPropertyDto> properties = new ArrayList<>();
     java.util.Set<String> seen = new java.util.LinkedHashSet<>();
     for (EClass source : extInfo == null ? List.of(item) : List.of(item, extInfo)) {
@@ -175,10 +182,14 @@ public final class EdtFormItemProperties {
         // Заголовок и подсказка записаны парами язык-значение, а панель правит
         // их одной строкой
         boolean localized = feature.getEType().getName().equals(LOCAL_STRING);
-        if ((feature.isMany() && !localized) || isStructure(feature) || !seen.add(feature.getName())) {
+        if ((feature.isMany() && !localized) || feature.isTransient() || isStructure(feature)
+            || !seen.add(feature.getName())) {
           continue;
         }
-        properties.add(property(feature));
+        FormItemPropertyDto designer = EdtFormPropertyNames.property(kind, feature.getName());
+        if (designer != null) {
+          properties.add(property(feature, designer));
+        }
       }
     }
     return properties;
@@ -192,20 +203,22 @@ public final class EdtFormItemProperties {
   }
 
   /** Описание одного свойства: вид значения и допустимые варианты. */
-  private static FormItemPropertyDto property(EStructuralFeature feature) {
+  /** Свойство метамодели EDT под именем и значениями конфигуратора. */
+  private static FormItemPropertyDto property(EStructuralFeature feature, FormItemPropertyDto designer) {
     FormItemPropertyDto dto = new FormItemPropertyDto();
-    dto.name = feature.getName();
+    dto.name = designer.name;
+    dto.attribute = designer.attribute;
     dto.kind = kindOfValue(feature);
     if (feature.getEType() instanceof EEnum type) {
       List<String> values = new ArrayList<>();
       for (EEnumLiteral literal : type.getELiterals()) {
-        values.add(literal.getLiteral());
+        values.add(EdtFormPropertyNames.value(designer, literal.getLiteral()));
       }
       dto.values = values;
     }
     Object fallback = feature instanceof EAttribute attribute ? attribute.getDefaultValue() : null;
     if (fallback != null) {
-      dto.defaultValue = String.valueOf(fallback);
+      dto.defaultValue = EdtFormPropertyNames.value(designer, String.valueOf(fallback));
     }
     return dto;
   }

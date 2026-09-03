@@ -26,11 +26,18 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.emf.ecore.EAttribute;
+import org.eclipse.emf.ecore.EClass;
+import org.eclipse.emf.ecore.EEnumLiteral;
+import org.eclipse.emf.ecore.EStructuralFeature;
+
 import io.github.yellowhammer.designerxml.cf.FormAttributeDto;
 import io.github.yellowhammer.designerxml.cf.FormCommandDto;
 import io.github.yellowhammer.designerxml.cf.FormContentDto;
 import io.github.yellowhammer.designerxml.cf.FormEventDto;
 import io.github.yellowhammer.designerxml.cf.FormItemDto;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyDictionary;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyDictionary.FormItemPropertyDto;
 import io.github.yellowhammer.designerxml.cf.FormParameterDto;
 import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
 import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
@@ -46,7 +53,15 @@ import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
 public final class EdtFormContent {
 
   /** Префикс вида элемента: {@code form:FormField} - это поле. */
-  private static final String TYPE_PREFIX = "form:Form";
+  private static final String TYPE_PREFIX = "form:";
+
+  /** Вид элемента, у которого свой вид записан отдельным свойством: поле, группа, дополнение. */
+  private static final String KIND_PROPERTY = "type";
+
+  /** Украшение схема зовёт по существу, конфигуратор - с видом: Label и LabelDecoration. */
+  private static final String DECORATION = "Decoration";
+
+  private static final String FORM_NAMESPACE = "http://g5.1c.ru/v8/dt/form";
 
   private EdtFormContent() {
   }
@@ -64,8 +79,8 @@ public final class EdtFormContent {
 
     FormContentDto dto = new FormContentDto();
     dto.title = EdtPropertyValues.russian(form, "title");
-    dto.properties = scalars(form);
-    dto.items = items(form);
+    dto.properties = scalars(form, FormItemPropertyDictionary.FORM_KIND);
+    dto.items = items(form, model);
     dto.attributes = attributes(form, model);
     dto.commands = commands(form);
     dto.parameters = parameters(form, model);
@@ -73,12 +88,21 @@ public final class EdtFormContent {
     return dto;
   }
 
-  /** Свойства формы: всё, что записано простым значением. */
-  private static java.util.Map<String, String> scalars(EdtNode form) {
+  /**
+   * Свойства, записанные простым значением, под именами конфигуратора.
+   *
+   * Свойств, которых у конфигуратора нет, панель не показывает, поэтому и
+   * читать их незачем.
+   */
+  private static java.util.Map<String, String> scalars(EdtNode node, String kind) {
     java.util.Map<String, String> properties = new java.util.LinkedHashMap<>();
-    for (EdtNode child : form.children()) {
-      if (child.children().isEmpty() && !child.value().isEmpty()) {
-        properties.putIfAbsent(child.kind(), child.value());
+    for (EdtNode child : node.children()) {
+      if (!child.children().isEmpty() || child.value().isEmpty()) {
+        continue;
+      }
+      FormItemPropertyDto designer = EdtFormPropertyNames.property(kind, child.kind());
+      if (designer != null) {
+        properties.putIfAbsent(designer.name, EdtFormPropertyNames.value(designer, child.value()));
       }
     }
     return properties;
@@ -101,20 +125,20 @@ public final class EdtFormContent {
       "searchControlAddition");
 
   /** Элементы формы вместе с вложенными. */
-  private static List<FormItemDto> items(EdtNode owner) {
+  private static List<FormItemDto> items(EdtNode owner, EdtModel model) {
     List<FormItemDto> items = new ArrayList<>();
     for (String node : ITEM_NODES) {
       for (EdtNode child : owner.list(node)) {
-        items.add(item(child));
+        items.add(item(child, node, model));
       }
     }
     return items;
   }
 
   /** Один элемент формы. */
-  private static FormItemDto item(EdtNode node) {
+  private static FormItemDto item(EdtNode node, String container, EdtModel model) {
     FormItemDto item = new FormItemDto();
-    item.type = typeOf(node);
+    item.type = kindOf(node, container, model);
     item.name = node.name();
     item.id = node.property("id");
     item.title = EdtPropertyValues.russian(node, "title");
@@ -127,9 +151,9 @@ public final class EdtFormContent {
     item.enabled = flag(node, "enabled");
     item.readOnly = flag(node, "readOnly");
     item.width = node.property("width");
-    item.properties = scalars(node);
+    item.properties = scalars(node, item.type);
     item.events = events(node);
-    item.items = items(node);
+    item.items = items(node, model);
     return item;
   }
 
@@ -139,13 +163,33 @@ public final class EdtFormContent {
    * У поля он записан вместе с видом поля: {@code form:FormField} и
    * {@code InputField} рядом. Панель показывает вид поля, если он есть.
    */
-  private static String typeOf(EdtNode node) {
-    String kind = node.attributes().getOrDefault("xsi:type", "");
-    String type = node.property("type");
-    if (!type.isEmpty()) {
-      return type;
+  private static String kindOf(EdtNode node, String container, EdtModel model) {
+    // Прикреплённые элементы конфигуратор зовёт по узлу: контекстное меню, подсказка
+    if (!container.equals("items")) {
+      return EdtFormPropertyNames.capitalize(container);
     }
-    return kind.startsWith(TYPE_PREFIX) ? kind.substring(TYPE_PREFIX.length()) : kind;
+    String xsi = node.attributes().getOrDefault("xsi:type", "");
+    String kind = xsi.startsWith(TYPE_PREFIX) ? xsi.substring(TYPE_PREFIX.length()) : xsi;
+    if (EdtFormPropertyNames.knownKind(kind)) {
+      return kind;
+    }
+    // У поля, группы, украшения и дополнения свой вид записан свойством, а
+    // незаписанный вид схема подразумевает первым
+    String type = node.property(KIND_PROPERTY);
+    if (type.isEmpty()) {
+      type = defaultKind(kind, model);
+    }
+    return kind.equals(DECORATION) ? type + DECORATION : type;
+  }
+
+  /** Вид элемента, который схема подразумевает без записи. */
+  private static String defaultKind(String kind, EdtModel model) {
+    EClass eClass = model.packageOf(FORM_NAMESPACE) == null
+        ? null
+        : model.packageOf(FORM_NAMESPACE).getEClassifier(kind) instanceof EClass found ? found : null;
+    EStructuralFeature feature = eClass == null ? null : eClass.getEStructuralFeature(KIND_PROPERTY);
+    Object fallback = feature instanceof EAttribute attribute ? attribute.getDefaultValue() : null;
+    return fallback instanceof EEnumLiteral literal ? literal.getLiteral() : kind;
   }
 
   /** Логическое свойство: у формы они записаны словами. */

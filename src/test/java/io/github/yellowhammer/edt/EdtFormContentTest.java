@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
@@ -35,6 +36,8 @@ import org.junit.jupiter.api.Test;
 
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.cf.FormContentDto;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyDictionary.FormItemPropertyDto;
+import io.github.yellowhammer.designerxml.cf.FormItemPropertyDictionary;
 import io.github.yellowhammer.designerxml.cf.FormContentRead;
 import io.github.yellowhammer.designerxml.cf.FormItemDto;
 
@@ -49,10 +52,12 @@ class EdtFormContentTest {
   private static Path edtSource;
   private static Path designerCf;
   private static EdtModel model;
+  private static Map<String, List<FormItemPropertyDto>> dictionary;
 
   @BeforeAll
   static void locate() throws Exception {
     model = EdtModel.bundled();
+    dictionary = FormItemPropertyDictionary.forVersion(SchemaVersion.V2_21);
     edtSource = Path.of(System.getProperty("fixtures.ssl31edt.root"), "ssl31", "src");
     designerCf = Path.of(System.getProperty("fixtures.ssl31.root"), "src", "cf");
     assertThat(edtSource).exists();
@@ -82,6 +87,49 @@ class EdtFormContentTest {
         .isEqualTo(designer.commands.stream().map(command -> command.name).toList());
     assertThat(edt.events).extracting(event -> event.name)
         .containsExactlyInAnyOrderElementsOf(designer.events.stream().map(event -> event.name).toList());
+  }
+
+  @Test
+  void видыИСвойстваЭлементовКакУКонфигуратора() throws Exception {
+    for (String[] form : new String[][] {
+        {"Catalogs/Валюты/Forms/ФормаСписка/Form.form", "Catalogs/Валюты/Forms/ФормаСписка/Ext/Form.xml"},
+        {"CommonForms/_ДемоМоиНастройки/Form.form", "CommonForms/_ДемоМоиНастройки/Ext/Form.xml"}}) {
+      FormContentDto edt = EdtFormContent.read(edtSource.resolve(form[0]), model);
+      FormContentDto designer = FormContentRead.read(designerCf.resolve(form[1]), SchemaVersion.V2_21);
+      Map<String, FormItemDto> written = new java.util.HashMap<>();
+      collect(designer.items, written);
+      List<FormItemDto> items = new ArrayList<>();
+      collect(edt.items, items);
+
+      for (FormItemDto item : items) {
+        FormItemDto other = written.get(item.name);
+        assertThat(other).as(form[0] + ": " + item.name).isNotNull();
+        assertThat(item.type).as(form[0] + ": вид " + item.name).isEqualTo(other.type);
+        // Свойства названы как у конфигуратора, а совпадающие ещё и записаны тем же значением
+        for (Map.Entry<String, String> property : item.properties.entrySet()) {
+          assertThat(FormItemPropertyDictionary.find(dictionary, item.type, property.getKey()))
+              .as(item.name + "." + property.getKey()).isPresent();
+          String designerValue = other.properties.get(property.getKey());
+          if (designerValue != null) {
+            assertThat(property.getValue()).as(item.name + "." + property.getKey()).isEqualTo(designerValue);
+          }
+        }
+      }
+    }
+  }
+
+  private static void collect(List<FormItemDto> items, Map<String, FormItemDto> out) {
+    for (FormItemDto item : items) {
+      out.put(item.name, item);
+      collect(item.items, out);
+    }
+  }
+
+  private static void collect(List<FormItemDto> items, List<FormItemDto> out) {
+    for (FormItemDto item : items) {
+      out.add(item);
+      collect(item.items, out);
+    }
   }
 
   @Test

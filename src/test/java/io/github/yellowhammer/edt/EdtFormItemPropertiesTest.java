@@ -65,21 +65,37 @@ class EdtFormItemPropertiesTest {
   }
 
   @Test
-  void свойстваПоляСовпадаютПоИменам() {
-    TreeSet<String> fromEdt = names(edt.get("InputField"));
-    TreeSet<String> fromDesigner = names(designer.get("InputField"));
+  void свойстваПоляВЗаписиКонфигуратора() {
+    List<String> fromEdt = edt.get("InputField").stream().map(property -> property.name).toList();
+    List<String> fromDesigner = designer.get("InputField").stream().map(property -> property.name).toList();
 
-    assertThat(fromEdt).contains("name", "title", "visible", "enabled", "readonly", "datapath");
-    // Свойства называются одинаково: расходится немногое, и это видно числом
+    // Элементы XML конфигуратора с заглавной, атрибуты со строчной
+    assertThat(fromEdt).contains("name", "id", "Title", "Visible", "Enabled", "ReadOnly", "DataPath");
+    assertThat(fromDesigner).containsAll(fromEdt);
     assertThat(fromEdt).hasSizeGreaterThan(100);
-    long common = fromDesigner.stream().filter(fromEdt::contains).count();
-    assertThat(common).isGreaterThan(fromDesigner.size() / 5L * 4L);
+  }
+
+  @Test
+  void служебныеПризнакиМоделиНеПоказываются() {
+    for (String kind : List.of("InputField", "Page", "UsualGroup", "Form")) {
+      List<String> names = edt.get(kind).stream().map(property -> property.name.toLowerCase(java.util.Locale.ROOT)).toList();
+      assertThat(names).as(kind).doesNotContain("origin", "positionchanged", "adopted", "unchanged", "extinfo");
+    }
+  }
+
+  @Test
+  void значенияПеречисленийВНаписанииКонфигуратора() {
+    FormItemPropertyDto scroll = designer.get("Form").stream()
+        .filter(property -> property.name.equals("VerticalScroll")).findFirst().orElseThrow();
+    FormItemPropertyDto fromEdt = edt.get("Form").stream()
+        .filter(property -> property.name.equals("VerticalScroll")).findFirst().orElseThrow();
+    assertThat(fromEdt.values).containsExactlyInAnyOrderElementsOf(scroll.values);
   }
 
   @Test
   void перечислимыеСвойстваНесутЗначения() {
     FormItemPropertyDto titleLocation = edt.get("InputField").stream()
-        .filter(property -> property.name.equals("titleLocation"))
+        .filter(property -> property.name.equals("TitleLocation"))
         .findFirst()
         .orElseThrow();
 
