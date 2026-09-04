@@ -21,12 +21,12 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
-final class CatalogNameConstraints {
+public final class CatalogNameConstraints {
 
   private CatalogNameConstraints() {
   }
 
-  static void check(String catalogName) {
+  public static void check(String catalogName) {
     if (catalogName == null || catalogName.isEmpty()) {
       throw new IllegalArgumentException("catalog name required");
     }

@@ -80,6 +80,8 @@ fun edtMetadataSchemas(ecoreDir: File): List<File> {
         "g5.1c.ru.v8.dt.metadata.mdclass.extension.ecore",
         // Управляемая форма: по ней панель знает свойства элементов
         "g5.1c.ru.v8.dt.form.ecore",
+        // Поставка: режимы поддержки объектов в Configuration.distr
+        "g5.1c.ru.v8.dt.distribution.model.ecore",
     )
     val chosen = linkedSetOf<File>()
     val queue = ArrayDeque(roots.mapNotNull { byName[it] })

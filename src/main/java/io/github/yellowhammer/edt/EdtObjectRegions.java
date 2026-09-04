@@ -70,6 +70,75 @@ public final class EdtObjectRegions {
   /** Ненайденный участок. */
   public static final Region MISSING = new Region(-1, -1);
 
+  /**
+   * Дочерний элемент узла.
+   *
+   * @param name имя элемента
+   * @param region его границы
+   */
+  public record Child(String name, Region region) {
+  }
+
+  /**
+   * Прямые дочерние элементы узла по порядку в файле.
+   *
+   * @param xml содержимое файла
+   * @param parent границы узла
+   * @return элементы с именами и границами
+   * @throws XMLStreamException если файл не разбирается
+   */
+  public static List<Child> children(String xml, Region parent) throws XMLStreamException {
+    List<Child> children = new ArrayList<>();
+    XMLStreamReader reader = reader(xml);
+    try {
+      int current = 0;
+      int wanted = -1;
+      while (reader.hasNext()) {
+        int event = reader.next();
+        if (event == XMLStreamConstants.START_ELEMENT) {
+          current++;
+          int start = offset(reader);
+          if (wanted < 0 && start == parent.start()) {
+            wanted = current + 1;
+            continue;
+          }
+          if (current == wanted) {
+            String name = reader.getLocalName();
+            int end = start < 0 ? -1 : skipElement(xml, reader);
+            if (end > start && new Region(start, end).inside(parent)) {
+              children.add(new Child(name, new Region(start, end)));
+            }
+            current--;
+          }
+        } else if (event == XMLStreamConstants.END_ELEMENT) {
+          current--;
+          if (wanted >= 0 && current < wanted - 1) {
+            break;
+          }
+        }
+      }
+    } finally {
+      reader.close();
+    }
+    return children;
+  }
+
+  /**
+   * Начало строки с закрывающим тегом узла: сюда встаёт новый дочерний элемент.
+   *
+   * @param xml содержимое файла
+   * @param node границы узла с отдельным закрывающим тегом
+   */
+  public static int closingTagLine(String xml, Region node) {
+    int closing = xml.lastIndexOf("</", node.end());
+    return lineStart(xml, Math.max(closing, node.start()));
+  }
+
+  /** Записан ли узел одним пустым тегом: {@code <extInfo .../>}. */
+  public static boolean emptyTag(String xml, Region node) {
+    return xml.startsWith("/>", node.end() - 2);
+  }
+
   /** Весь файл: узлы ищутся по всей его глубине первого уровня. */
   private static final Region ANYWHERE = new Region(0, Integer.MAX_VALUE);
 

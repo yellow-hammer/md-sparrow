@@ -25,8 +25,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import io.github.yellowhammer.designerxml.cf.ChildObjectEntry;
+import io.github.yellowhammer.designerxml.cf.SupportRules;
 import io.github.yellowhammer.designerxml.cf.MetadataTreeTagGroups;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
 
@@ -85,8 +87,14 @@ public final class EdtProjectMetadataTree {
 
     Path sourceRoot = project.resolve(EdtLayout.SOURCE_DIR);
     List<ChildObjectEntry> entries = EdtConfigurationReader.listChildObjects(configurationMdo, model);
+    // Правила поддержки у проекта EDT лежат в файле поставки рядом с описанием конфигурации
+    EdtSupportRules.Rules support = SupportRules.isEnforced()
+        ? EdtSupportRules.read(configurationMdo)
+        : new EdtSupportRules.Rules();
+    // Язык и прочие объекты без своего файла описаны узлами конфигурации: их идентификаторы там же
+    Map<String, String> inlineUuids = inlineUuids(configuration, model);
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = mapGroups(
-        workspaceRoot, sourceRoot, MetadataTreeTagGroups.buildGroups(entries), isExtension);
+        workspaceRoot, sourceRoot, MetadataTreeTagGroups.buildGroups(entries), isExtension, support, inlineUuids);
 
     String name = configuration.name();
     return new ProjectMetadataTreeDto.MetadataSourceDto(
@@ -97,9 +105,9 @@ public final class EdtProjectMetadataTree {
         relative(workspaceRoot, sourceRoot),
         "",
         true,
-        null,
-        false,
-        null,
+        support.isEmpty() ? null : support.effectiveState(configuration.uuid()),
+        support.editingEnabled && !support.isEmpty(),
+        support.isEmpty() ? null : support.generationId,
         groups);
   }
 
@@ -107,7 +115,9 @@ public final class EdtProjectMetadataTree {
       Path workspaceRoot,
       Path sourceRoot,
       List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads,
-      boolean readBelonging) throws IOException {
+      boolean readBelonging,
+      EdtSupportRules.Rules support,
+      Map<String, String> inlineUuids) throws IOException {
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = new ArrayList<>();
     for (MetadataTreeTagGroups.MetadataTreeGroupPayload payload : payloads) {
       List<ProjectMetadataTreeDto.MetadataSubgroupDto> subgroups = new ArrayList<>();
@@ -116,13 +126,13 @@ public final class EdtProjectMetadataTree {
             subgroup.id(),
             subgroup.label(),
             subgroup.iconHint(),
-            items(workspaceRoot, sourceRoot, subgroup.items(), readBelonging)));
+            items(workspaceRoot, sourceRoot, subgroup.items(), readBelonging, support, inlineUuids)));
       }
       groups.add(new ProjectMetadataTreeDto.MetadataGroupDto(
           payload.id(),
           payload.label(),
           payload.iconHint(),
-          items(workspaceRoot, sourceRoot, payload.items(), readBelonging),
+          items(workspaceRoot, sourceRoot, payload.items(), readBelonging, support, inlineUuids),
           subgroups));
     }
     return groups;
@@ -132,7 +142,9 @@ public final class EdtProjectMetadataTree {
       Path workspaceRoot,
       Path sourceRoot,
       List<MetadataTreeTagGroups.MetadataTreeItemPayload> payloads,
-      boolean readBelonging) throws IOException {
+      boolean readBelonging,
+      EdtSupportRules.Rules support,
+      Map<String, String> inlineUuids) throws IOException {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (MetadataTreeTagGroups.MetadataTreeItemPayload payload : payloads) {
       Path objectMdo = EdtLayout.objectMdo(sourceRoot, payload.objectType(), payload.name()).orElse(null);
@@ -142,10 +154,36 @@ public final class EdtProjectMetadataTree {
           payload.name(),
           relativePath,
           readBelonging ? belonging(objectMdo) : null,
-          null,
+          supportState(objectMdo, support, inlineUuids.get(payload.objectType() + "." + payload.name())),
           EdtObjectOpen.resolve(workspaceRoot, payload.objectType(), objectMdo)));
     }
     return items;
+  }
+
+  /** Состояние поддержки объекта по идентификатору из шапки его описания либо из узла конфигурации. */
+  private static String supportState(Path objectMdo, EdtSupportRules.Rules support, String inlineUuid)
+      throws IOException {
+    if (support.isEmpty()) {
+      return null;
+    }
+    String uuid = objectMdo == null ? inlineUuid : EdtSupportRules.rootUuid(objectMdo);
+    return uuid == null ? null : support.effectiveState(uuid);
+  }
+
+  /** Идентификаторы объектов, записанных узлами описания конфигурации: вид.имя. */
+  private static Map<String, String> inlineUuids(EdtObjectReader.EdtNode configuration, EdtModel model) {
+    Map<String, String> uuids = new java.util.HashMap<>();
+    for (EdtModel.Composition item : model.composition("Configuration")) {
+      if (!item.inline()) {
+        continue;
+      }
+      for (EdtObjectReader.EdtNode node : configuration.list(item.feature())) {
+        if (!node.uuid().isEmpty()) {
+          uuids.put(item.objectType() + "." + node.name(), node.uuid());
+        }
+      }
+    }
+    return uuids;
   }
 
   /**

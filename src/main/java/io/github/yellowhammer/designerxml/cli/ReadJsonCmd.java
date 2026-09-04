@@ -54,6 +54,7 @@ import io.github.yellowhammer.edt.EdtFormItemProperties;
 import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtModel;
+import io.github.yellowhammer.edt.EdtSupportRules;
 import io.github.yellowhammer.edt.EdtObjectOpen;
 import io.github.yellowhammer.edt.EdtObjectProperties;
 import io.github.yellowhammer.edt.EdtObjectStructure;
@@ -158,6 +159,8 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-dcs-info",
     "cf-dcs-validate",
     "cf-support-object-get",
+    "cf-support-get",
+    "cf-support-object-states",
     "cf-enum-labels");
 
   /** Отказывает в чтении того, чего в формате 1С:EDT ещё не умеем. */
@@ -171,11 +174,74 @@ final class ReadJsonCmd implements Callable<Integer> {
     }
   }
 
+  /**
+   * Правила поддержки проекта EDT: тот же ответ, что у выгрузки, из файла поставки.
+   *
+   * @return ответ либо {@code null}, если операция не о поддержке или файлы не в проекте EDT
+   */
+  private static String readEdtSupport(CliParams p, Gson gson) throws IOException {
+    switch (p.op) {
+      case "cf-support-get" -> {
+        java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        if (!EdtLayout.isObjectFile(configuration)) {
+          return null;
+        }
+        EdtSupportRules.Rules rules = EdtSupportRules.read(configuration);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("vendor", rules.vendor);
+        out.put("version", rules.version);
+        out.put("name", rules.name);
+        out.put("rulesEnabled", rules.editingEnabled);
+        out.put("vendorPayloadPresent", !rules.isEmpty());
+        out.put("editingEnabled", rules.editingEnabled);
+        out.put("configurationState", rules.configurationState());
+        out.put("rootState", EdtSupportRules.objectState(configuration));
+        out.put("generationId", rules.generationId);
+        out.put("objectCount", rules.modeByUuid.size());
+        return gson.toJson(out);
+      }
+      case "cf-support-object-states" -> {
+        java.nio.file.Path file = p.reqPath(p.objectXml, "objectXml");
+        return EdtSupportRules.sourceRoot(file) == null ? null : gson.toJson(EdtSupportRules.statesForObject(file));
+      }
+      case "cf-support-object-get" -> {
+        java.nio.file.Path file = p.reqPath(p.objectXml, "objectXml");
+        if (EdtSupportRules.sourceRoot(file) == null) {
+          return null;
+        }
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        try {
+          EdtSupportRules.ensureEditable(file);
+          out.put("editable", true);
+        } catch (IllegalStateException e) {
+          out.put("editable", false);
+          out.put("reason", e.getMessage());
+        }
+        EdtSupportRules.Rules rules = EdtSupportRules.read(file);
+        out.put("state", EdtSupportRules.objectState(file));
+        if (!rules.isEmpty()) {
+          out.put("vendor", rules.vendor);
+          out.put("version", rules.version);
+          out.put("configurationState", rules.configurationState());
+          out.put("generationId", rules.generationId);
+        }
+        return gson.toJson(out);
+      }
+      default -> {
+        return null;
+      }
+    }
+  }
+
   private static String dispatch(CliParams p) throws Exception {
     // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
     SupportRules.setEnforced(!p.ignoreSupport);
     refuseEdtRead(p);
     Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+    String edtSupport = readEdtSupport(p, gson);
+    if (edtSupport != null) {
+      return edtSupport;
+    }
     switch (p.op) {
       case "cf-md-object-get": {
         java.nio.file.Path objectFile = p.reqPath(p.objectXml, "objectXml");

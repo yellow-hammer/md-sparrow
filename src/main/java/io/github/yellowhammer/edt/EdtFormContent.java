@@ -75,8 +75,16 @@ public final class EdtFormContent {
    * @throws IOException если файл не читается
    */
   public static FormContentDto read(Path formFile, EdtModel model) throws IOException {
-    EdtNode form = EdtObjectReader.read(formFile);
+    return read(EdtObjectReader.read(formFile), model);
+  }
 
+  /**
+   * Читает содержимое формы из уже разобранной разметки.
+   *
+   * @param form корневой узел файла формы
+   * @param model метамодель EDT
+   */
+  public static FormContentDto read(EdtNode form, EdtModel model) {
     FormContentDto dto = new FormContentDto();
     dto.title = EdtPropertyValues.russian(form, "title");
     dto.properties = scalars(form, FormItemPropertyDictionary.FORM_KIND);
@@ -96,6 +104,15 @@ public final class EdtFormContent {
    */
   private static java.util.Map<String, String> scalars(EdtNode node, String kind) {
     java.util.Map<String, String> properties = new java.util.LinkedHashMap<>();
+    collectScalars(node, kind, properties);
+    // Свойства вида элемента лежат в его описании, а конфигуратор пишет их вровень с остальными
+    for (EdtNode info : node.list(EXT_INFO)) {
+      collectScalars(info, kind, properties);
+    }
+    return properties;
+  }
+
+  private static void collectScalars(EdtNode node, String kind, java.util.Map<String, String> properties) {
     for (EdtNode child : node.children()) {
       if (!child.children().isEmpty() || child.value().isEmpty()) {
         continue;
@@ -105,8 +122,10 @@ public final class EdtFormContent {
         properties.putIfAbsent(designer.name, EdtFormPropertyNames.value(designer, child.value()));
       }
     }
-    return properties;
   }
+
+  /** Описание вида элемента: свойства, которые есть только у поля ввода, группы, украшения. */
+  static final String EXT_INFO = "extInfo";
 
   /**
    * Служебные элементы, которые лежат своими узлами.
@@ -114,7 +133,7 @@ public final class EdtFormContent {
    * Подсказка, контекстное меню и командная панель - такие же элементы формы,
    * как поля и группы: конфигуратор перечисляет их вместе с остальными.
    */
-  private static final List<String> ITEM_NODES = List.of(
+  static final List<String> ITEM_NODES = List.of(
       "items",
       "autoCommandBar",
       "commandBar",
@@ -163,7 +182,7 @@ public final class EdtFormContent {
    * У поля он записан вместе с видом поля: {@code form:FormField} и
    * {@code InputField} рядом. Панель показывает вид поля, если он есть.
    */
-  private static String kindOf(EdtNode node, String container, EdtModel model) {
+  static String kindOf(EdtNode node, String container, EdtModel model) {
     // Прикреплённые элементы конфигуратор зовёт по узлу: контекстное меню, подсказка
     if (!container.equals("items")) {
       return EdtFormPropertyNames.capitalize(container);

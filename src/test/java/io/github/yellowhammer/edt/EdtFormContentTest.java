@@ -96,6 +96,7 @@ class EdtFormContentTest {
         {"CommonForms/_ДемоМоиНастройки/Form.form", "CommonForms/_ДемоМоиНастройки/Ext/Form.xml"}}) {
       FormContentDto edt = EdtFormContent.read(edtSource.resolve(form[0]), model);
       FormContentDto designer = FormContentRead.read(designerCf.resolve(form[1]), SchemaVersion.V2_21);
+      String designerXml = java.nio.file.Files.readString(designerCf.resolve(form[1]));
       Map<String, FormItemDto> written = new java.util.HashMap<>();
       collect(designer.items, written);
       List<FormItemDto> items = new ArrayList<>();
@@ -105,17 +106,33 @@ class EdtFormContentTest {
         FormItemDto other = written.get(item.name);
         assertThat(other).as(form[0] + ": " + item.name).isNotNull();
         assertThat(item.type).as(form[0] + ": вид " + item.name).isEqualTo(other.type);
-        // Свойства названы как у конфигуратора, а совпадающие ещё и записаны тем же значением
+        // Свойства названы как у конфигуратора, а записанные в обеих выгрузках ещё и совпадают
+        // значением: незаписанное свойство разбор выгрузки отдаёт умолчанием своего класса
         for (Map.Entry<String, String> property : item.properties.entrySet()) {
           assertThat(FormItemPropertyDictionary.find(dictionary, item.type, property.getKey()))
               .as(item.name + "." + property.getKey()).isPresent();
           String designerValue = other.properties.get(property.getKey());
-          if (designerValue != null) {
+          if (designerValue != null && writtenInDesigner(designerXml, other, property.getKey())) {
             assertThat(property.getValue()).as(item.name + "." + property.getKey()).isEqualTo(designerValue);
           }
         }
       }
     }
+  }
+
+  /** Записано ли свойство в выгрузке у самого элемента, а не подразумевается умолчанием. */
+  private static boolean writtenInDesigner(String designerXml, FormItemDto item, String property) {
+    int start = designerXml.indexOf("name=\"" + item.name + "\" id=\"" + item.id + "\"");
+    if (start < 0) {
+      return false;
+    }
+    int end = designerXml.indexOf("<ChildItems>", start);
+    int closing = designerXml.indexOf("</" + item.type + ">", start);
+    if (end < 0 || (closing >= 0 && closing < end)) {
+      end = closing;
+    }
+    String block = end < 0 ? designerXml.substring(start) : designerXml.substring(start, end);
+    return block.contains("<" + property + ">");
   }
 
   private static void collect(List<FormItemDto> items, Map<String, FormItemDto> out) {

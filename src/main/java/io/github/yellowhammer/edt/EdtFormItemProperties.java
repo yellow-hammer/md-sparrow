@@ -138,7 +138,7 @@ public final class EdtFormItemProperties {
    * Имена расходятся с видами: у радиокнопок вид {@code RadioButtonField}, а
    * описание - {@code RadioButtonsFieldExtInfo}, поэтому подбирается ближайшее.
    */
-  private static EClass extInfo(EPackage form, String kind) {
+  static EClass extInfo(EPackage form, String kind) {
     String exact = kind + "ExtInfo";
     if (form.getEClassifier(exact) instanceof EClass found) {
       return found;
