@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -47,10 +48,10 @@ public final class ProjectMetadataTreeBuilder {
       throw new IOException("Не найден файл основной выгрузки: " + mainCfg);
     }
     String ver = MetaDataObjectHeadReader.readMetaDataObjectVersion(mainCfg);
-    SupportedSchemaVersions.requireSupported(ver);
+    SchemaVersion mainSchema = SupportedSchemaVersions.requireSupported(ver);
     String verFlag = MetaDataObjectHeadReader.toSchemaVersionFlag(ver);
     List<ProjectMetadataTreeDto.MetadataSourceDto> sources = new ArrayList<>();
-    sources.add(buildMainSource(normalized, mainCf, mainCfg));
+    sources.add(buildMainSource(normalized, mainCf, mainCfg, ver, mainSchema));
     Path cfeRoot = dirs.cfePath(normalized);
     if (Files.isDirectory(cfeRoot)) {
       try (var stream = Files.list(cfeRoot)) {
@@ -79,9 +80,11 @@ public final class ProjectMetadataTreeBuilder {
   private static ProjectMetadataTreeDto.MetadataSourceDto buildMainSource(
     Path projectRoot,
     Path cfRoot,
-    Path configurationXml
+    Path configurationXml,
+    String schemaVersion,
+    SchemaVersion schema
   ) throws IOException {
-    List<ChildObjectEntry> entries = loadChildObjects(configurationXml);
+    List<ChildObjectEntry> entries = loadChildObjects(configurationXml, schema);
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
       MetadataTreeTagGroups.buildGroups(entries);
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
@@ -109,6 +112,8 @@ public final class ProjectMetadataTreeBuilder {
       MAIN_LABEL,
       cfgRel,
       rootRel,
+      schemaVersion,
+      true,
       support,
       supportEditingEnabled,
       supportGeneration,
@@ -122,33 +127,62 @@ public final class ProjectMetadataTreeBuilder {
     Path configurationXml
   ) throws IOException {
     String id = extensionRoot.getFileName().toString();
-    String label;
-    try {
-      label = ConfigurationObjectNameReader.readName(configurationXml);
-    } catch (XMLStreamException e) {
-      throw new IOException("Не удалось прочитать имя выгрузки расширения.", e);
+    String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
+    String rootRel = projectRoot.relativize(extensionRoot).toString().replace('\\', '/');
+    String schemaVersion = MetaDataObjectHeadReader.readMetaDataObjectVersion(configurationXml);
+    Optional<SchemaVersion> schema = SchemaVersion.byVersionAttribute(schemaVersion);
+    if (schema.isEmpty()) {
+      // Формат выгрузки не читается: источник без состава
+      return new ProjectMetadataTreeDto.MetadataSourceDto(
+        "extension",
+        id,
+        extensionLabel(configurationXml, id, false),
+        cfgRel,
+        rootRel,
+        schemaVersion,
+        false,
+        null,
+        false,
+        null,
+        List.of()
+      );
     }
-    if (label.isEmpty()) {
-      label = id;
-    }
-    List<ChildObjectEntry> entries = loadChildObjects(configurationXml);
+    List<ChildObjectEntry> entries = loadChildObjects(configurationXml, schema.get());
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
       MetadataTreeTagGroups.buildGroups(entries);
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
       mapGroups(projectRoot, extensionRoot, payloads, true, null);
-    String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
-    String rootRel = projectRoot.relativize(extensionRoot).toString().replace('\\', '/');
     return new ProjectMetadataTreeDto.MetadataSourceDto(
       "extension",
       id,
-      label,
+      extensionLabel(configurationXml, id, true),
       cfgRel,
       rootRel,
+      schemaVersion,
+      true,
       null,
       false,
       null,
       groups
     );
+  }
+
+  /**
+   * Имя расширения из {@code Configuration/Properties/Name}; без имени - каталог.
+   *
+   * @param strict нечитаемый файл - ошибка; иначе именем остаётся каталог
+   */
+  private static String extensionLabel(Path configurationXml, String id, boolean strict) throws IOException {
+    String label;
+    try {
+      label = ConfigurationObjectNameReader.readName(configurationXml);
+    } catch (XMLStreamException e) {
+      if (strict) {
+        throw new IOException("Не удалось прочитать имя выгрузки расширения.", e);
+      }
+      label = "";
+    }
+    return label.isEmpty() ? id : label;
   }
 
   /** Принадлежность объекта; пусто у основной конфигурации и у объектов без своего файла. */
@@ -159,11 +193,10 @@ public final class ProjectMetadataTreeBuilder {
     return ObjectBelongingReader.read(projectRoot.resolve(relativePath));
   }
 
-  private static List<ChildObjectEntry> loadChildObjects(Path configurationXml) throws IOException {
-    String ver = MetaDataObjectHeadReader.readMetaDataObjectVersion(configurationXml);
-    SchemaVersion sv = SupportedSchemaVersions.requireSupported(ver);
+  private static List<ChildObjectEntry> loadChildObjects(Path configurationXml, SchemaVersion schema)
+    throws IOException {
     try {
-      return ConfigurationChildObjectsExtractor.readChildObjects(configurationXml, sv);
+      return ConfigurationChildObjectsExtractor.readChildObjects(configurationXml, schema);
     } catch (JAXBException e) {
       throw new IOException(
         "Не удалось разобрать Configuration.xml для дерева метаданных. Проверьте формат выгрузки.",
@@ -291,6 +324,8 @@ public final class ProjectMetadataTreeBuilder {
       "Внешние отчёты",
       "",
       rootRelativePath,
+      "",
+      true,
       null,
       false,
       null,
@@ -316,6 +351,8 @@ public final class ProjectMetadataTreeBuilder {
       "Внешние обработки",
       "",
       rootRelativePath,
+      "",
+      true,
       null,
       false,
       null,

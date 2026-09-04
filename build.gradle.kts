@@ -342,6 +342,11 @@ tasks.test {
         "samples.root",
         layout.projectDirectory.dir("fixtures/samples-1c-platform").asFile.absolutePath,
     )
+    // Расширение чужого формата рядом с читаемыми: только Configuration.xml
+    systemProperty(
+        "fixtures.unsupportedExtension.root",
+        layout.projectDirectory.dir("fixtures/unsupported-extension").asFile.absolutePath,
+    )
 }
 
 tasks.check {

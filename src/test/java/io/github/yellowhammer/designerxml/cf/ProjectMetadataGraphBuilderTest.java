@@ -43,6 +43,15 @@ class ProjectMetadataGraphBuilderTest {
   }
 
   @Test
+  void graphSkipsExtensionOfUnsupportedFormat() throws Exception {
+    ProjectMetadataGraphDto dto = ProjectMetadataGraphBuilder.build(UnsupportedExtensionFixture.projectRoot());
+
+    assertThat(dto.nodes()).anyMatch(node -> UnsupportedExtensionFixture.NEW_EXTENSION_DIR.equals(node.sourceId()));
+    assertThat(dto.nodes()).noneMatch(node -> UnsupportedExtensionFixture.OLD_EXTENSION_DIR.equals(node.sourceId()));
+    assertThat(dto.nodes()).noneMatch(node -> "Style".equals(node.objectType()));
+  }
+
+  @Test
   void graphHeaderMatchesTreeHeader() {
     assertThat(graph.projectRoot()).isNotBlank();
     assertThat(graph.mainSchemaVersion()).isNotBlank();
