@@ -59,7 +59,12 @@ import io.github.yellowhammer.edt.EdtExchangePlanContent;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtMutationRouter;
 import io.github.yellowhammer.edt.EdtObjectMutations;
+import io.github.yellowhammer.edt.EdtBorrow;
+import io.github.yellowhammer.edt.EdtExtensionScaffold;
+import io.github.yellowhammer.edt.EdtExternalArtifacts;
+import io.github.yellowhammer.edt.EdtFormItemPropertyEdit;
 import io.github.yellowhammer.edt.EdtObjectScaffold;
+import io.github.yellowhammer.edt.EdtSupportRules;
 import io.github.yellowhammer.edt.EdtObjectProperties;
 import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
 import io.github.yellowhammer.edt.EdtObjectWriter;
@@ -140,7 +145,17 @@ final class ApplyMutationCmd implements Callable<Integer> {
     "external-artifact-properties-set",
     "add-md-object",
     "cf-form-add",
-    "cf-md-form-delete");
+    "cf-md-form-delete",
+    "cf-form-item-properties-set",
+    "init-empty-cfe",
+    "cfe-borrow-object",
+    "external-artifact-add",
+    "external-artifact-rename",
+    "external-artifact-duplicate",
+    "external-artifact-delete",
+    "cf-support-object-mode-set",
+    "cf-support-element-mode-set",
+    "cf-support-remove");
 
   /**
    * Правит проект 1С:EDT: состав конфигурации, объект, его формы и узлы.
@@ -158,8 +173,75 @@ final class ApplyMutationCmd implements Callable<Integer> {
       EdtObjectScaffold.add(configuration, EdtModel.bundled(), kind, name);
       return name;
     }
+    if ("cf-form-item-properties-set".equals(p.op) && EdtLayout.isFormFile(p.formXml)) {
+      FormItemPropertyChangeDto[] changes = parsePayload(p, FormItemPropertyChangeDto[].class);
+      EdtFormItemPropertyEdit.apply(
+        p.reqPath(p.formXml, "formXml"), EdtModel.bundled(), java.util.Arrays.asList(changes));
+      return "OK";
+    }
+    // Расширение и внешний объект заводятся рядом с проектом расширяемой конфигурации
+    if ("init-empty-cfe".equals(p.op) && EdtLayout.isObjectFile(p.mainConfigurationXml)) {
+      EmptyCfeScaffold.Purpose purpose = p.purpose == null || p.purpose.isBlank()
+        ? EmptyCfeScaffold.Purpose.CUSTOMIZATION
+        : EmptyCfeScaffold.Purpose.fromCliName(p.purpose);
+      EdtExtensionScaffold.create(
+        Path.of(p.mainConfigurationXml),
+        p.reqPath(p.targetCfeRoot, "targetCfeRoot"),
+        p.req(p.name, "name"),
+        p.synonymRu,
+        p.namePrefix,
+        purpose,
+        EdtModel.bundled());
+      return "OK";
+    }
+    if ("external-artifact-add".equals(p.op) && EdtLayout.isObjectFile(p.mainConfigurationXml)) {
+      return EdtExternalArtifacts.create(
+        p.reqPath(p.artifactsRoot, "artifactsRoot"),
+        Path.of(p.mainConfigurationXml),
+        p.req(p.name, "name"),
+        ExternalArtifactKind.fromCli(p.req(p.kind, "kind"))).toString();
+    }
+    if ("cf-support-remove".equals(p.op) && EdtLayout.isObjectFile(p.configurationXml)) {
+      EdtSupportRules.removeSupport(Path.of(p.configurationXml), p.expectedGeneration);
+      return "OK";
+    }
+    // Субъект поддержки бывает и формой, и модулем: формат виден по проекту вокруг файла
+    boolean inEdtProject = p.objectXml != null && !p.objectXml.isBlank()
+      && EdtSupportRules.sourceRoot(Path.of(p.objectXml)) != null;
+    if ("cf-support-object-mode-set".equals(p.op) && inEdtProject) {
+      EdtSupportRules.setModeForFile(
+        Path.of(p.objectXml), supportMode(p), "children".equals(p.tag), p.expectedGeneration);
+      return "OK";
+    }
+    if ("cf-support-element-mode-set".equals(p.op) && inEdtProject) {
+      EdtSupportRules.setModeForElement(
+        Path.of(p.objectXml), p.req(p.tag, "tag"), supportMode(p), p.expectedGeneration);
+      return "OK";
+    }
     if (!EdtLayout.isObjectFile(p.objectXml)) {
       return null;
+    }
+    refuseLockedEdt(p);
+    switch (p.op) {
+      case "cfe-borrow-object" -> {
+        return EdtBorrow.borrowObject(
+          p.reqPath(p.objectXml, "objectXml"),
+          p.reqPath(p.configurationXml, "configurationXml"),
+          EdtModel.bundled()).toString();
+      }
+      case "external-artifact-rename" -> {
+        return EdtExternalArtifacts.rename(p.reqPath(p.objectXml, "objectXml"), p.req(p.newName, "newName")).toString();
+      }
+      case "external-artifact-duplicate" -> {
+        return EdtExternalArtifacts.duplicate(p.reqPath(p.objectXml, "objectXml"), p.req(p.newName, "newName")).toString();
+      }
+      case "external-artifact-delete" -> {
+        EdtExternalArtifacts.delete(p.reqPath(p.objectXml, "objectXml"));
+        return "OK";
+      }
+      default -> {
+        // Остальные операции над объектом разбираются ниже
+      }
     }
     // Объект в EDT - это каталог целиком, поэтому у операций над ним свой код
     switch (p.op) {
@@ -220,6 +302,37 @@ final class ApplyMutationCmd implements Callable<Integer> {
   }
 
   /**
+   * Отказывает в правке объекта или элемента проекта EDT, которые заперты поставщиком.
+   *
+   * Заимствование читает объект, а не правит его, поэтому запрет его не касается.
+   */
+  private static void refuseLockedEdt(CliParams p) throws IOException {
+    if ("cfe-borrow-object".equals(p.op)) {
+      return;
+    }
+    Path objectMdo = Path.of(p.objectXml);
+    EdtSupportRules.ensureEditable(objectMdo);
+    if (!p.op.startsWith("cf-md-")) {
+      return;
+    }
+    int lastDash = p.op.lastIndexOf('-');
+    String field = lastDash < 0 ? null : ELEMENT_TARGET_BY_MODE.get(p.op.substring(lastDash + 1));
+    if (field == null) {
+      return;
+    }
+    String name = switch (field) {
+      case "oldName" -> p.oldName;
+      case "sourceName" -> p.sourceName;
+      default -> p.name;
+    };
+    if (name == null || name.isBlank()) {
+      return;
+    }
+    String path = p.tabularSection == null || p.tabularSection.isBlank() ? name : p.tabularSection + "/" + name;
+    EdtSupportRules.ensureElementEditable(objectMdo, "element:" + p.op.substring(0, lastDash) + ":" + path);
+  }
+
+  /**
    * Отказывает в правках, которых для формата 1С:EDT ещё нет.
    *
    * Без внятного отказа правка ушла бы в разбор выгрузки конфигуратора и упала
@@ -230,6 +343,16 @@ final class ApplyMutationCmd implements Callable<Integer> {
     if (edt && !EDT_WRITES.contains(p.op) && !EdtMutationRouter.handles(p.op)) {
       throw new IllegalArgumentException(
         "Правка \"" + p.op + "\" в формате 1С:EDT пока не поддержана.");
+    }
+  }
+
+  /** Режим поддержки из name: 0 запретить, 1 разрешить, 2 снять с поддержки. */
+  private static int supportMode(CliParams p) {
+    String raw = p.req(p.name, "name");
+    try {
+      return Integer.parseInt(raw.trim());
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Режим поддержки должен быть числом 0, 1 или 2, а не \"" + raw + "\".");
     }
   }
 
@@ -286,6 +409,10 @@ final class ApplyMutationCmd implements Callable<Integer> {
       return edt;
     }
     refuseLockedElement(p);
+    // Остальные правки объекта проекта EDT идут общим разбором: запрет поставщика проверяется здесь
+    if (p.objectXml != null && !p.objectXml.isBlank() && EdtSupportRules.sourceRoot(Path.of(p.objectXml)) != null) {
+      EdtSupportRules.ensureEditable(Path.of(p.objectXml));
+    }
     switch (p.op) {
       case "cf-md-object-delete":
         CfMdObjectMutations.delete(
@@ -396,7 +523,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
         // tag = "children" распространяет режим на подчинённые объекту субъекты
         SupportRules.setModeForFile(
           p.reqPath(p.objectXml, "objectXml"),
-          Integer.parseInt(p.req(p.name, "name")),
+          supportMode(p),
           "children".equals(p.tag),
           p.expectedGeneration);
         return "OK";
@@ -407,7 +534,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
         SupportRules.setModeForElement(
           p.reqPath(p.objectXml, "objectXml"),
           p.req(p.tag, "tag"),
-          Integer.parseInt(p.req(p.name, "name")),
+          supportMode(p),
           p.expectedGeneration);
         return "OK";
       }

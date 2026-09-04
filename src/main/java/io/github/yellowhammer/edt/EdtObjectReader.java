@@ -105,11 +105,28 @@ public final class EdtObjectReader {
    * @throws IOException если файл не читается или повреждён
    */
   public static EdtNode read(Path objectMdo) throws IOException {
+    try (InputStream stream = Files.newInputStream(objectMdo)) {
+      return read(stream, objectMdo.toString());
+    }
+  }
+
+  /**
+   * Разбирает содержимое объекта, уже прочитанное в строку.
+   *
+   * @param xml содержимое файла
+   * @return корневой узел
+   * @throws IOException если разметка повреждена
+   */
+  public static EdtNode parse(String xml) throws IOException {
+    return read(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "<строка>");
+  }
+
+  private static EdtNode read(InputStream stream, String source) throws IOException {
     XMLInputFactory factory = XMLInputFactory.newFactory();
     factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
     factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
 
-    try (InputStream stream = Files.newInputStream(objectMdo)) {
+    try {
       XMLStreamReader reader = factory.createXMLStreamReader(stream);
       Deque<Element> open = new ArrayDeque<>();
       EdtNode root = null;
@@ -139,11 +156,11 @@ public final class EdtObjectReader {
       reader.close();
 
       if (root == null) {
-        throw new IOException("Файл объекта пуст: " + objectMdo);
+        throw new IOException("Файл объекта пуст: " + source);
       }
       return root;
     } catch (XMLStreamException error) {
-      throw new IOException("Не удалось прочитать объект: " + objectMdo, error);
+      throw new IOException("Не удалось прочитать объект: " + source, error);
     }
   }
 

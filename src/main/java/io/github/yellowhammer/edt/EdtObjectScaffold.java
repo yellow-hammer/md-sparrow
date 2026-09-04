@@ -185,7 +185,7 @@ public final class EdtObjectScaffold {
   }
 
   /** Каталог исходников проекта: описание конфигурации лежит в его подкаталоге. */
-  private static Path sourceRoot(Path configurationMdo) {
+  static Path sourceRoot(Path configurationMdo) {
     Path directory = configurationMdo.getParent();
     if (!Files.isRegularFile(configurationMdo) || directory == null
         || !CONFIGURATION.equals(directory.getFileName().toString()) || directory.getParent() == null) {
@@ -218,7 +218,7 @@ public final class EdtObjectScaffold {
    * Встаёт за последней ссылкой того же вида, а если вид в составе ещё не
    * встречался, на место, которое отводит ему схема.
    */
-  private static void appendReference(Path configurationMdo, EdtModel model, String objectType, String name)
+  static void appendReference(Path configurationMdo, EdtModel model, String objectType, String name)
       throws IOException {
     String feature = null;
     for (EdtModel.Composition item : model.composition(CONFIGURATION)) {
@@ -261,8 +261,17 @@ public final class EdtObjectScaffold {
    * эталона получает свой новый: по ним платформа отличает объекты и типы.
    */
   static String parametrize(String golden, String protoName, String name) {
+    return freshUuids(renamed(golden, protoName, name));
+  }
+
+  /** Имя эталона заменяется целым словом: похожие имена остаются нетронутыми. */
+  static String renamed(String golden, String protoName, String name) {
     Pattern token = Pattern.compile("(?<![\\p{L}\\p{N}_])" + Pattern.quote(protoName) + "(?![\\p{L}\\p{N}_])");
-    String renamed = token.matcher(golden).replaceAll(Matcher.quoteReplacement(escape(name)));
+    return token.matcher(golden).replaceAll(Matcher.quoteReplacement(escape(name)));
+  }
+
+  /** Каждый идентификатор получает свой новый; одинаковые в тексте остаются одинаковыми. */
+  static String freshUuids(String renamed) {
     Map<String, String> fresh = new HashMap<>();
     Matcher uuids = UUID_TOKEN.matcher(renamed);
     StringBuilder out = new StringBuilder();
@@ -275,7 +284,7 @@ public final class EdtObjectScaffold {
   }
 
   /** Эталон из сборки: файл, который 1С:EDT записала при импорте пустой выгрузки. */
-  private static String golden(String resource) throws IOException {
+  static String golden(String resource) throws IOException {
     try (InputStream stream = EdtObjectScaffold.class.getResourceAsStream(GOLDEN + resource)) {
       if (stream == null) {
         throw new IOException("В сборке нет эталона объекта EDT: " + resource);
