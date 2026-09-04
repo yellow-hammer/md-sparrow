@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Catalog xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="cd49a1e4-8879-3462-8ae2-faed6503a983">
+  <producedTypes>
+    <objectType typeId="95bf26ae-33c6-3df6-a124-fe18cc006383" valueTypeId="f2d8a5b7-e0ce-3cdd-8350-1e05c770af49"/>
+    <refType typeId="5e7b46e0-55a0-3cab-9a33-225a2b6b168f" valueTypeId="057a72a7-483f-3d63-b6e4-e01194879147"/>
+    <selectionType typeId="789c10e3-9c33-343d-aa54-b58d2e015f76" valueTypeId="b0c99896-c2fe-37c5-9c42-961d9447cf85"/>
+    <listType typeId="9c3bc7c1-1c1f-3187-9033-31bbc4feb4a0" valueTypeId="56218f11-088e-36bb-828e-3664a79fe2fe"/>
+    <managerType typeId="ff409843-fbe7-3ff0-af01-537ff9fa0980" valueTypeId="dbbce3a9-e062-34da-ac95-a4284660d326"/>
+  </producedTypes>
+  <name>Справочник1</name>
+  <synonym>
+    <key>ru</key>
+    <value>Справочник1</value>
+  </synonym>
+  <useStandardCommands>true</useStandardCommands>
+  <inputByString>Catalog.Справочник1.StandardAttribute.Description</inputByString>
+  <inputByString>Catalog.Справочник1.StandardAttribute.Code</inputByString>
+  <fullTextSearchOnInputByString>DontUse</fullTextSearchOnInputByString>
+  <createOnInput>Use</createOnInput>
+  <dataLockControlMode>Managed</dataLockControlMode>
+  <fullTextSearch>Use</fullTextSearch>
+  <objectPresentation>
+    <key>ru</key>
+    <value>Справочник1</value>
+  </objectPresentation>
+  <extendedObjectPresentation>
+    <key>ru</key>
+    <value>Справочник1</value>
+  </extendedObjectPresentation>
+  <listPresentation>
+    <key>ru</key>
+    <value>Справочник1</value>
+  </listPresentation>
+  <extendedListPresentation>
+    <key>ru</key>
+    <value>Справочник1</value>
+  </extendedListPresentation>
+  <explanation>
+    <key>ru</key>
+    <value>Справочник1</value>
+  </explanation>
+  <levelCount>2</levelCount>
+  <foldersOnTop>true</foldersOnTop>
+  <codeLength>9</codeLength>
+  <descriptionLength>25</descriptionLength>
+  <codeType>String</codeType>
+  <codeAllowedLength>Variable</codeAllowedLength>
+  <checkUnique>true</checkUnique>
+  <autonumbering>true</autonumbering>
+  <defaultPresentation>AsDescription</defaultPresentation>
+  <editType>InDialog</editType>
+  <choiceMode>BothWays</choiceMode>
+</mdclass:Catalog>

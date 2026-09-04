@@ -59,6 +59,7 @@ import io.github.yellowhammer.edt.EdtExchangePlanContent;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtMutationRouter;
 import io.github.yellowhammer.edt.EdtObjectMutations;
+import io.github.yellowhammer.edt.EdtObjectScaffold;
 import io.github.yellowhammer.edt.EdtObjectProperties;
 import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
 import io.github.yellowhammer.edt.EdtObjectWriter;
@@ -136,19 +137,40 @@ final class ApplyMutationCmd implements Callable<Integer> {
     "cf-md-subsystem-command-order-set",
     "cf-md-subsystem-subsystems-order-set",
     "cf-md-subsystem-groups-order-set",
-    "external-artifact-properties-set");
+    "external-artifact-properties-set",
+    "add-md-object",
+    "cf-form-add",
+    "cf-md-form-delete");
 
   /**
-   * Правит состав объекта в формате 1С:EDT.
+   * Правит проект 1С:EDT: состав конфигурации, объект, его формы и узлы.
    *
-   * @return выполнена ли команда здесь
+   * @return ответ команды либо {@code null}, если файлы не в формате EDT
    */
-  private static boolean applyEdtMutation(CliParams p) throws IOException {
+  private static String applyEdtMutation(CliParams p) throws IOException {
+    if ("add-md-object".equals(p.op) && EdtLayout.isObjectFile(p.configurationXml)) {
+      MdObjectAddType kind = MdObjectAddType.fromCliName(p.req(p.type, "type"));
+      java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+      if (p.autoName) {
+        return EdtObjectScaffold.addWithNextAvailableName(configuration, EdtModel.bundled(), kind);
+      }
+      String name = p.req(p.name, "name");
+      EdtObjectScaffold.add(configuration, EdtModel.bundled(), kind, name);
+      return name;
+    }
     if (!EdtLayout.isObjectFile(p.objectXml)) {
-      return false;
+      return null;
     }
     // Объект в EDT - это каталог целиком, поэтому у операций над ним свой код
     switch (p.op) {
+      case "cf-form-add" -> {
+        EdtObjectScaffold.addForm(p.reqPath(p.objectXml, "objectXml"), EdtModel.bundled(), p.req(p.name, "name"));
+        return "OK";
+      }
+      case "cf-md-form-delete" -> {
+        EdtObjectScaffold.deleteForm(p.reqPath(p.objectXml, "objectXml"), p.req(p.name, "name"));
+        return "OK";
+      }
       case "cf-md-object-rename" -> {
         EdtObjectMutations.rename(
           p.reqPath(p.configurationXml, "configurationXml"),
@@ -156,7 +178,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.tag, "tag"),
           p.req(p.oldName, "oldName"),
           p.req(p.newName, "newName"));
-        return true;
+        return "OK";
       }
       case "cf-md-object-delete" -> {
         EdtObjectMutations.delete(
@@ -164,7 +186,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.reqPath(p.objectXml, "objectXml"),
           p.req(p.tag, "tag"),
           p.req(p.name, "name"));
-        return true;
+        return "OK";
       }
       case "cf-md-object-duplicate" -> {
         EdtObjectMutations.duplicate(
@@ -173,14 +195,14 @@ final class ApplyMutationCmd implements Callable<Integer> {
           p.req(p.tag, "tag"),
           p.req(p.sourceName, "sourceName"),
           p.req(p.newName, "newName"));
-        return true;
+        return "OK";
       }
       default -> {
         // Остальное правит общий разбор команд состава
       }
     }
     if (!EdtMutationRouter.handles(p.op)) {
-      return false;
+      return null;
     }
     EdtMutationRouter.apply(
       p.op,
@@ -194,7 +216,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
         p.tabularSection,
         // Порядок узлов приходит списком имён и нужен только перестановке
         p.op.endsWith("-reorder") ? parseNameList(p) : java.util.List.of()));
-    return true;
+    return "OK";
   }
 
   /**
@@ -259,8 +281,9 @@ final class ApplyMutationCmd implements Callable<Integer> {
     // Правила поддержки учитываются, пока вызывающая программа не сказала иначе
     SupportRules.setEnforced(!p.ignoreSupport);
     refuseEdtWrite(p);
-    if (applyEdtMutation(p)) {
-      return "OK";
+    String edt = applyEdtMutation(p);
+    if (edt != null) {
+      return edt;
     }
     refuseLockedElement(p);
     switch (p.op) {
