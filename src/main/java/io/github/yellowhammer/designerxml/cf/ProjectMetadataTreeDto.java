@@ -33,6 +33,10 @@ public record ProjectMetadataTreeDto(
     String configurationXmlRelativePath,
     /** Каталог выгрузки ({@code src/cf} или {@code src/cfe/…}) относительно корня проекта. */
     String metadataRootRelativePath,
+    /** Значение {@code MetaDataObject/@version} источника; у внешних отчётов и обработок пусто. */
+    String schemaVersion,
+    /** Формат выгрузки читается библиотекой; у расширения чужого формата {@code false} и пустой состав. */
+    boolean schemaSupported,
     /**
      * Правило поддержки самого корня конфигурации: {@code locked} - не
      * редактируется, {@code editable} - редактируется с сохранением поддержки,

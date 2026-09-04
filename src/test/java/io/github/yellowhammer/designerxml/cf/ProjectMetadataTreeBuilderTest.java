@@ -93,6 +93,43 @@ class ProjectMetadataTreeBuilderTest {
   }
 
   @Test
+  void extensionOfUnsupportedFormatStaysInTreeWithoutContent() throws Exception {
+    var dto = ProjectMetadataTreeBuilder.build(UnsupportedExtensionFixture.projectRoot());
+
+    var main = dto.sources().stream().filter(s -> "main".equals(s.kind())).findFirst().orElseThrow();
+    assertThat(main.schemaSupported()).isTrue();
+    assertThat(main.schemaVersion()).isEqualTo(dto.mainSchemaVersion());
+
+    var old = sourceById(dto, UnsupportedExtensionFixture.OLD_EXTENSION_DIR);
+    assertThat(old.kind()).isEqualTo("extension");
+    assertThat(old.label()).isEqualTo(UnsupportedExtensionFixture.OLD_EXTENSION_NAME);
+    assertThat(old.schemaVersion()).isEqualTo(UnsupportedExtensionFixture.OLD_EXTENSION_VERSION);
+    assertThat(old.schemaSupported()).isFalse();
+    assertThat(old.groups()).isEmpty();
+    assertThat(old.configurationXmlRelativePath()).isEqualTo("src/cfe/Old/Configuration.xml");
+    assertThat(old.metadataRootRelativePath()).isEqualTo("src/cfe/Old");
+
+    var fresh = sourceById(dto, UnsupportedExtensionFixture.NEW_EXTENSION_DIR);
+    assertThat(fresh.label()).isEqualTo(UnsupportedExtensionFixture.NEW_EXTENSION_NAME);
+    assertThat(fresh.schemaSupported()).isTrue();
+    assertThat(fresh.schemaVersion()).isEqualTo(dto.mainSchemaVersion());
+    assertThat(fresh.groups()).isNotEmpty();
+  }
+
+  @Test
+  void unsupportedMainConfigurationStillFails() {
+    Path project = UnsupportedExtensionFixture.projectRoot();
+
+    assertThatThrownBy(() -> ProjectMetadataTreeBuilder.build(project, UnsupportedExtensionFixture.oldExtensionAsMain()))
+      .isInstanceOf(IOException.class)
+      .hasMessageContaining(UnsupportedExtensionFixture.OLD_EXTENSION_VERSION);
+  }
+
+  private static ProjectMetadataTreeDto.MetadataSourceDto sourceById(ProjectMetadataTreeDto dto, String id) {
+    return dto.sources().stream().filter(s -> id.equals(s.id())).findFirst().orElseThrow();
+  }
+
+  @Test
   void emptyChildObjectsStillHasAllMetadataGroups() throws Exception {
     var groups = MetadataTreeTagGroups.buildGroups(List.of());
     assertThat(groups).hasSameSizeAs(MetadataTreeTagGroups.orderedGroups());

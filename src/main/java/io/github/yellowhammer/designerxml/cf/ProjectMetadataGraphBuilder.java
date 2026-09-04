@@ -67,6 +67,10 @@ public final class ProjectMetadataGraphBuilder {
     Map<String, List<String>> subsystemKeysByTarget = new LinkedHashMap<>();
     Map<EdgeKey, MutableEdge> edges = new LinkedHashMap<>();
     for (ProjectMetadataTreeDto.MetadataSourceDto source : tree.sources()) {
+      // Источник без состава графу ничего не добавляет
+      if (!source.schemaSupported()) {
+        continue;
+      }
       collectSource(normalized, source, nodes, edges, subsystemKeysByTarget);
     }
     for (Map.Entry<String, List<String>> entry : subsystemKeysByTarget.entrySet()) {
