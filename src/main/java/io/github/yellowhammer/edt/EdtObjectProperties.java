@@ -55,7 +55,7 @@ public final class EdtObjectProperties {
       "dataProcessor", "report");
 
   /** Свойства, которых в формате EDT нет: конфигуратор пишет их сырым XML. */
-  private static final List<String> SKIPPED = List.of("standardAttributesXml", "characteristicsXml");
+  private static final List<String> SKIPPED = List.of("standardAttributesXml", "characteristicsXml", "extendable");
 
   private EdtObjectProperties() {
   }
@@ -80,6 +80,8 @@ public final class EdtObjectProperties {
     dto.nestedSubsystems = EdtPropertyValues.list(node, "subsystems");
     dto.contentRefs = EdtPropertyValues.list(node, "content");
 
+    dto.objectBelonging = blankToNull(node.property("objectBelonging"));
+    dto.propertyStates = extensionStates(node);
     fillChildren(dto, node, model);
     fillBridge(dto, node, eClass, model);
     return dto;
@@ -239,10 +241,37 @@ public final class EdtObjectProperties {
     dto.synonymRu = EdtPropertyValues.russian(node, "synonym");
     dto.toolTipRu = EdtPropertyValues.russian(node, "toolTip");
     dto.type = EdtTypeDescription.read(node, "type", model);
+    dto.objectBelonging = blankToNull(node.property("objectBelonging"));
+    dto.propertyStates = extensionStates(node);
     return dto;
   }
 
   /** Вид объекта в терминах контракта: {@code Catalog} - {@code catalog}. */
+  /**
+   * Состояния свойств заимствованного узла из его блока {@code extension}:
+   * {@code Checked} контролируется, {@code Extended} изменено расширением.
+   * Описание типа, дополненного расширением, лежит там же узлом и состоянием не считается.
+   */
+  private static java.util.Map<String, String> extensionStates(EdtNode node) {
+    // У своего узла расширения состояний нет: его свойства целиком его
+    if (!"Adopted".equals(node.property("objectBelonging"))) {
+      return null;
+    }
+    java.util.Map<String, String> states = new java.util.LinkedHashMap<>();
+    for (EdtNode extension : node.list("extension")) {
+      for (EdtNode state : extension.children()) {
+        if (state.children().isEmpty() && !state.value().isEmpty()) {
+          states.put(state.kind(), state.value());
+        }
+      }
+    }
+    return states.isEmpty() ? null : states;
+  }
+
+  private static String blankToNull(String value) {
+    return value == null || value.isBlank() ? null : value;
+  }
+
   private static String decapitalize(String kind) {
     return kind.isEmpty() ? kind : Character.toLowerCase(kind.charAt(0)) + kind.substring(1);
   }

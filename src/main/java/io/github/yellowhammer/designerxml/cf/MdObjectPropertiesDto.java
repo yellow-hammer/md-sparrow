@@ -28,6 +28,19 @@ public final class MdObjectPropertiesDto {
   public String internalName;
   public String synonymRu;
   public String comment;
+  /** Принадлежность в расширении: {@code Adopted} у заимствованного объекта, иначе пусто. */
+  public String objectBelonging;
+  /**
+   * Состояния свойств заимствованного объекта по именам метамодели EDT:
+   * {@code Checked} контролируется, {@code Extended} изменено расширением.
+   */
+  public java.util.Map<String, String> propertyStates;
+  /**
+   * Свойства, которые расширение контролирует или меняет у заимствованного объекта, под
+   * именами метамодели EDT; у своего объекта пусто. Остальные свойства принадлежат
+   * расширяемой конфигурации и в расширении не правятся.
+   */
+  public List<String> extendable;
   public List<MdNamedPropertyDto> attributes;
   public List<MdNamedPropertyDto> tabularSections;
   /** Значения перечисления (только для kind=enum). */
