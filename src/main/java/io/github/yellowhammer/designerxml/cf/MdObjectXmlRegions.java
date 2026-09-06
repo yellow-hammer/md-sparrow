@@ -49,6 +49,11 @@ public final class MdObjectXmlRegions {
     return findDirectChildRegion(xml, containerLocal, "Properties");
   }
 
+  /** Границы узла объекта: {@code Catalog}, {@code CommonModule} под корнем файла. */
+  public static Region findObjectRegion(String xml, String containerLocal) throws XMLStreamException {
+    return findDirectChildRegion(xml, "MetaDataObject", containerLocal);
+  }
+
   /**
    * Находит границы первого прямого дочернего {@code ChildObjects} под указанным контейнером.
    */

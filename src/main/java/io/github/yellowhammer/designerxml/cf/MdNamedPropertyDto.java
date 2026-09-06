@@ -21,6 +21,12 @@ public final class MdNamedPropertyDto {
   public String name;
   public String synonymRu;
   public String comment;
+  /** Принадлежность в расширении: {@code Adopted} у заимствованного узла, иначе пусто. */
+  public String objectBelonging;
+  /** Состояния свойств заимствованного узла, как у объекта. */
+  public java.util.Map<String, String> propertyStates;
+  /** Свойства, которые расширение контролирует или меняет у заимствованного узла. */
+  public java.util.List<String> extendable;
   public MdTypeDescriptionDto type;
   /** Подсказка на русском. */
   public String toolTipRu;

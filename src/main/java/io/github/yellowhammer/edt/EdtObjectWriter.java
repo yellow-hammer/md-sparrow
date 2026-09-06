@@ -30,7 +30,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.stream.XMLStreamException;
 
@@ -56,6 +62,15 @@ public final class EdtObjectWriter {
 
   /** Отступ уровня в файлах EDT. */
   private static final String INDENT = "  ";
+
+  /** Принадлежность заимствованного узла. */
+  private static final String ADOPTED = "Adopted";
+  /** Состояние свойства, изменённого расширением. */
+  private static final String EXTENDED = "Extended";
+  /** Блок состояний заимствованного узла. */
+  private static final String EXTENSION = "extension";
+  /** Класс расширения в открывающем теге блока. */
+  private static final Pattern EXTENSION_TYPE = Pattern.compile("xsi:type=\"[^\":]*:(\\w+)\"");
 
   /** Сравнение узлов идёт по значениям, а не по ссылкам. */
   private static final Gson NODE_STATE = new Gson();
@@ -430,6 +445,7 @@ public final class EdtObjectWriter {
     for (Change change : changes) {
       edits.add(edit(xml, change, order, model));
     }
+    edits.addAll(stateEdits(xml, changes, model));
     edits.sort(Comparator.comparingInt(Edit::start).reversed());
 
     StringBuilder text = new StringBuilder(xml);
@@ -463,6 +479,132 @@ public final class EdtObjectWriter {
     int at = EdtObjectRegions.lineStart(xml, owner.end());
     String indent = indent(xml, owner.start()) + INDENT;
     return new Edit(at, at, indent + element(xml, change, indent, model) + eol(xml));
+  }
+
+  /**
+   * Состояние «изменено» у свойств заимствованных узлов.
+   *
+   * Заимствованный узел держит состояния своих свойств в блоке {@code extension}
+   * класса расширения: изменённое свойство получает там {@code Extended}, как
+   * пишет сама EDT. Свои узлы расширения состояний не имеют. Правка блока одна
+   * на узел, сколько бы свойств у него ни менялось.
+   */
+  private static List<Edit> stateEdits(String xml, List<Change> changes, EdtModel model)
+      throws XMLStreamException {
+    EdtObjectReader.EdtNode root;
+    try {
+      root = EdtObjectReader.parse(xml);
+    } catch (IOException error) {
+      throw new XMLStreamException(error);
+    }
+    Map<NodeRef, Set<String>> byNode = new LinkedHashMap<>();
+    for (Change change : changes) {
+      EdtObjectReader.EdtNode node = nodeOf(root, change.node());
+      if (node == null || !ADOPTED.equals(node.property("objectBelonging"))) {
+        continue;
+      }
+      if (change.type() != null) {
+        throw new IllegalArgumentException(
+            "Тип заимствованного реквизита правится в расширяемой конфигурации: " + change.node().name());
+      }
+      byNode.computeIfAbsent(change.node(), key -> new LinkedHashSet<>()).add(change.name());
+    }
+    List<Edit> edits = new ArrayList<>();
+    for (Map.Entry<NodeRef, Set<String>> entry : byNode.entrySet()) {
+      Edit edit = stateEdit(xml, entry.getKey(), entry.getValue(), model);
+      if (edit != null) {
+        edits.add(edit);
+      }
+    }
+    return edits;
+  }
+
+  /** Узел файла по ссылке; {@code null}, если такого нет. */
+  private static EdtObjectReader.EdtNode nodeOf(EdtObjectReader.EdtNode root, NodeRef ref) {
+    if (ref == null) {
+      return root;
+    }
+    EdtObjectReader.EdtNode owner = nodeOf(root, ref.owner());
+    if (owner == null) {
+      return null;
+    }
+    for (EdtObjectReader.EdtNode child : owner.list(ref.feature())) {
+      if (child.name().equals(ref.name())) {
+        return child;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Блок {@code extension} узла с состояниями изменённых свойств.
+   *
+   * Состояния идут в порядке класса расширения, прежние записи блока остаются
+   * как были; свойство, которого класс расширения не знает, состояния не имеет.
+   */
+  private static Edit stateEdit(String xml, NodeRef ref, Set<String> features, EdtModel model)
+      throws XMLStreamException {
+    EdtObjectRegions.Region owner = nodeRegion(xml, ref);
+    EdtObjectRegions.Region block = owner == null
+        ? EdtObjectRegions.property(xml, EXTENSION)
+        : first(EdtObjectRegions.nested(xml, owner, EXTENSION));
+    if (!block.found()) {
+      throw new IllegalStateException(
+          "У заимствованного узла нет блока extension: " + (ref == null ? "объект" : ref.name()));
+    }
+    String text = xml.substring(block.start(), block.end());
+    Matcher type = EXTENSION_TYPE.matcher(text);
+    List<String> order = order(type.find() ? model.classOf(type.group(1)) : null);
+    for (String feature : features) {
+      if (!feature.equals("comment") && !order.contains(feature)) {
+        throw new IllegalArgumentException(
+            "Свойство " + feature + " заимствованного узла принадлежит расширяемой конфигурации.");
+      }
+    }
+    Set<String> states = new LinkedHashSet<>();
+    for (String feature : order) {
+      if (features.contains(feature)) {
+        states.add(feature);
+      }
+    }
+    if (states.isEmpty()) {
+      return null;
+    }
+
+    List<EdtObjectRegions.Child> written = EdtObjectRegions.emptyTag(xml, block)
+        ? List.of()
+        : EdtObjectRegions.children(xml, block);
+    String eol = eol(xml);
+    String indent = indent(xml, block.start());
+    String inner = indent + INDENT;
+    int open = text.indexOf('>');
+    StringBuilder out = new StringBuilder(text.substring(0, open).stripTrailing());
+    if (out.charAt(out.length() - 1) == '/') {
+      out.setLength(out.length() - 1);
+    }
+    out.append('>').append(eol);
+    Set<String> placed = new LinkedHashSet<>();
+    for (String feature : order) {
+      if (states.contains(feature)) {
+        out.append(inner).append('<').append(feature).append('>').append(EXTENDED)
+            .append("</").append(feature).append('>').append(eol);
+        placed.add(feature);
+        continue;
+      }
+      for (EdtObjectRegions.Child child : written) {
+        if (child.name().equals(feature)) {
+          out.append(inner).append(xml, child.region().start(), child.region().end()).append(eol);
+          placed.add(feature);
+        }
+      }
+    }
+    for (EdtObjectRegions.Child child : written) {
+      if (!placed.contains(child.name())) {
+        out.append(inner).append(xml, child.region().start(), child.region().end()).append(eol);
+      }
+    }
+    out.append(indent).append("</").append(EXTENSION).append('>');
+    return new Edit(block.start(), block.end(), out.toString());
   }
 
   /** Границы узла, которому принадлежит свойство; {@code null} у самого объекта. */

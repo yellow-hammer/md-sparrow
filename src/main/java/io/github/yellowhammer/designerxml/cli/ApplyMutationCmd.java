@@ -56,6 +56,7 @@ import picocli.CommandLine.Option;
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
 import io.github.yellowhammer.edt.EdtExchangePlanContent;
+import io.github.yellowhammer.edt.EdtExtensionFeatures;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtMutationRouter;
 import io.github.yellowhammer.edt.EdtObjectMutations;
@@ -770,7 +771,8 @@ final class ApplyMutationCmd implements Callable<Integer> {
         if (EdtLayout.isObjectFile(objectFile)) {
           EdtObjectWriter.writeDto(objectFile, dto, EdtModel.bundled());
         } else {
-          MdObjectPropertiesEdit.writeDto(objectFile, p.version(), dto);
+          MdObjectPropertiesEdit.writeDto(
+            objectFile, p.version(), dto, EdtExtensionFeatures.byDesignerContainer(EdtModel.bundled(), dto.kind));
         }
         return "OK";
       }

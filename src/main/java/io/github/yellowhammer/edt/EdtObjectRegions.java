@@ -296,9 +296,11 @@ public final class EdtObjectRegions {
   /**
    * Место, куда встаёт новое свойство.
    *
-   * Порядок свойств в файле повторяет порядок схемы, поэтому новое встаёт перед
-   * первым из тех, что схема ставит после него. Если таких в файле нет, свойство
-   * идёт последним, перед закрывающим тегом объекта.
+   * Новое свойство встаёт за последним из записанных, которые схема ставит перед
+   * ним: EDT пишет порождаемые типы раньше имени, хотя схема ставит их позже, и
+   * опора на последующие свойства ставила бы синоним выше порождаемых типов. Без
+   * предшественников место перед первым последующим, а без тех перед закрывающим
+   * тегом объекта.
    *
    * @param xml содержимое файла
    * @param order имена свойств в порядке схемы
@@ -308,13 +310,26 @@ public final class EdtObjectRegions {
    */
   public static int insertionPoint(String xml, List<String> order, String name) throws XMLStreamException {
     int place = order.indexOf(name);
+    String before = null;
+    String after = null;
     for (String written : propertyNames(xml)) {
       int writtenPlace = order.indexOf(written);
-      if (place >= 0 && writtenPlace > place) {
-        Region region = property(xml, written);
-        if (region.found()) {
-          return lineStart(xml, region.start());
-        }
+      if (place >= 0 && writtenPlace >= 0 && writtenPlace < place) {
+        before = written;
+      } else if (place >= 0 && writtenPlace > place && after == null) {
+        after = written;
+      }
+    }
+    if (before != null) {
+      List<Region> written = properties(xml, before);
+      int end = written.get(written.size() - 1).end();
+      int eol = xml.indexOf('\n', end);
+      return eol < 0 ? end : eol + 1;
+    }
+    if (after != null) {
+      Region region = property(xml, after);
+      if (region.found()) {
+        return lineStart(xml, region.start());
       }
     }
     return closingTagStart(xml);

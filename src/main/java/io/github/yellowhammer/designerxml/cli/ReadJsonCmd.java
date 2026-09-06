@@ -53,6 +53,8 @@ import io.github.yellowhammer.edt.EdtFormContent;
 import io.github.yellowhammer.edt.EdtFormItemProperties;
 import io.github.yellowhammer.edt.EdtSubsystemCommandInterface;
 import io.github.yellowhammer.edt.EdtLayout;
+import io.github.yellowhammer.designerxml.cf.AdoptedStates;
+import io.github.yellowhammer.edt.EdtExtensionFeatures;
 import io.github.yellowhammer.edt.EdtModel;
 import io.github.yellowhammer.edt.EdtSupportRules;
 import io.github.yellowhammer.edt.EdtObjectOpen;
@@ -249,6 +251,9 @@ final class ReadJsonCmd implements Callable<Integer> {
         MdObjectPropertiesDto dto = EdtLayout.isObjectFile(objectFile)
           ? EdtObjectProperties.readDto(objectFile, EdtModel.bundled())
           : MdObjectPropertiesEdit.readDto(objectFile, p.version());
+        if (AdoptedStates.ADOPTED.equals(dto.objectBelonging)) {
+          EdtExtensionFeatures.apply(dto, EdtModel.bundled());
+        }
         return gson.toJson(dto);
       }
       case "cf-enum-labels": {
