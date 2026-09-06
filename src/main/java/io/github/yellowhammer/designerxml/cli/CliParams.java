@@ -24,6 +24,7 @@ package io.github.yellowhammer.designerxml.cli;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.edt.EdtLayout;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -120,6 +121,12 @@ final class CliParams {
   }
 
   SchemaVersion version() {
+    // Схему компоновки описывает одна и та же модель во всех версиях формата, а
+    // у проекта 1С:EDT версии выгрузки нет вовсе
+    if ((schemaVersion == null || schemaVersion.isBlank()) && EdtLayout.isSchemaFile(objectXml)) {
+      SchemaVersion[] all = SchemaVersion.values();
+      return all[all.length - 1];
+    }
     String v = req(schemaVersion, "schemaVersion");
     try {
       return SchemaVersion.valueOf(v);

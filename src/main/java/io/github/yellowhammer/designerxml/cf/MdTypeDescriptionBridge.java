@@ -33,6 +33,9 @@ public final class MdTypeDescriptionBridge {
     NS_BY_PREFIX.put("xs", "http://www.w3.org/2001/XMLSchema");
     NS_BY_PREFIX.put("cfg", "http://v8.1c.ru/8.1/data/enterprise/current-config");
     NS_BY_PREFIX.put("v8", "http://v8.1c.ru/8.1/data/core");
+    NS_BY_PREFIX.put("v8ui", "http://v8.1c.ru/8.1/data/ui");
+    NS_BY_PREFIX.put("dcsset", "http://v8.1c.ru/8.1/data-composition-system/settings");
+    NS_BY_PREFIX.put("dcscor", "http://v8.1c.ru/8.1/data-composition-system/core");
     NS_BY_PREFIX.put("xen", "http://v8.1c.ru/8.3/xcf/enums");
     NS_BY_PREFIX.put("app", "http://v8.1c.ru/8.2/managed-application/core");
     NS_BY_PREFIX.put("style", "http://v8.1c.ru/8.1/data/ui/style");
@@ -181,6 +184,16 @@ public final class MdTypeDescriptionBridge {
   /** Пространство имён префикса; пусто, если префикс неизвестен. */
   static String namespaceForPrefix(String prefix) {
     return NS_BY_PREFIX.getOrDefault(prefix, "");
+  }
+
+  /**
+   * Префикс, которым конфигуратор пишет типы пространства имён.
+   *
+   * @param namespace пространство имён схемы
+   * @return префикс либо пустая строка, если пространство неизвестно
+   */
+  public static String prefixOfNamespace(String namespace) {
+    return prefixForNamespace(namespace, null);
   }
 
   private static String prefixForNamespace(String namespace, String parsedPrefix) {

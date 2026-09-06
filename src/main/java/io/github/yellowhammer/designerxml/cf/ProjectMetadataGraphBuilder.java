@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import io.github.yellowhammer.edt.EdtLayout;
+import io.github.yellowhammer.edt.EdtObjectGraph;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -138,11 +140,14 @@ public final class ProjectMetadataGraphBuilder {
     try (var walk = Files.walk(subsystemsRoot)) {
       var files = walk
         .filter(Files::isRegularFile)
-        .filter(p -> p.getFileName().toString().endsWith(".xml"))
+        .filter(p -> p.getFileName().toString().endsWith(".xml")
+          || EdtLayout.isObjectFile(p.getFileName().toString()))
+        // В Ext лежат командный интерфейс и справка подсистемы, а не подсистемы
+        .filter(p -> p.getParent() == null || !"Ext".equals(p.getParent().getFileName().toString()))
         .toList();
       for (Path xml : files) {
         String fileName = xml.getFileName().toString();
-        String name = fileName.substring(0, fileName.length() - 4);
+        String name = fileName.substring(0, fileName.lastIndexOf('.'));
         String key = "Subsystem." + name;
         if (nodes.containsKey(key)) {
           continue;
@@ -170,7 +175,10 @@ public final class ProjectMetadataGraphBuilder {
     String synonym = "";
     boolean partial = !MdObjectGraphExtractor.isSupported(item.objectType());
     if (xml != null && Files.isRegularFile(xml)) {
-      MdObjectGraphExtractor.Inspection inspection = MdObjectGraphExtractor.inspect(xml, item.objectType());
+      // Раскладка видна по файлу: у проекта EDT ссылки лежат в своих элементах
+      MdObjectGraphExtractor.Inspection inspection = EdtLayout.isObjectFile(xml)
+        ? EdtObjectGraph.inspect(xml, item.objectType())
+        : MdObjectGraphExtractor.inspect(xml, item.objectType());
       synonym = inspection.synonymRu();
       partial = inspection.partial();
       for (MdObjectGraphExtractor.OutEdge edge : inspection.edges()) {
@@ -185,12 +193,14 @@ public final class ProjectMetadataGraphBuilder {
       }
     }
     if ("Role".equals(item.objectType())) {
-      Path rightsXml = projectRoot
+      Path roleDir = projectRoot
         .resolve(source.metadataRootRelativePath())
         .resolve("Roles")
-        .resolve(item.name())
-        .resolve("Ext")
-        .resolve("Rights.xml");
+        .resolve(item.name());
+      // Формат прав общий, различается место файла
+      Path rightsXml = xml != null && EdtLayout.isObjectFile(xml)
+        ? roleDir.resolve("Rights.rights")
+        : roleDir.resolve("Ext").resolve("Rights.xml");
       for (MdObjectGraphExtractor.OutEdge edge : RoleRightsGraphReader.readEdges(rightsXml)) {
         addEdge(edges, key, edge.targetKey(), edge.kind(), edge.via());
       }

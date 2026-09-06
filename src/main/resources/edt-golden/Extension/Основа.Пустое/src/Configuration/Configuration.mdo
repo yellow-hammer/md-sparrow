@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" xmlns:mdclassExtension="http://g5.1c.ru/v8/dt/metadata/mdclass/extension" uuid="bcdb69cc-4695-3422-bda9-d6da8075f29b">
+  <name>Пустое</name>
+  <synonym>
+    <key>ru</key>
+    <value>Пустое расширение</value>
+  </synonym>
+  <objectBelonging>Adopted</objectBelonging>
+  <extension xsi:type="mdclassExtension:ConfigurationExtension">
+    <interfaceCompatibilityMode>Checked</interfaceCompatibilityMode>
+    <defaultRoles>Extended</defaultRoles>
+  </extension>
+  <containedObjects classId="9cd510cd-abfc-11d4-9434-004095e12fc7" objectId="19b201a6-44f6-3e3b-bc19-228d9aa6d81b"/>
+  <containedObjects classId="9fcd25a0-4822-11d4-9414-008048da11f9" objectId="22099621-2b44-3048-8589-72df52b03471"/>
+  <containedObjects classId="e3687481-0a87-462c-a166-9f34594f9bba" objectId="87cd973b-e66f-3a4d-a9ce-cdbc16f9462e"/>
+  <containedObjects classId="9de14907-ec23-4a07-96f0-85521cb6b53b" objectId="1fb0385b-6df3-34bd-b300-faae1816a1a4"/>
+  <containedObjects classId="51f2d5d8-ea4d-4064-8892-82951750031e" objectId="3e8a64de-1543-35c7-92af-06533863f30e"/>
+  <containedObjects classId="e68182ea-4237-4383-967f-90c1e3370bc7" objectId="a56d6c13-a829-3ca9-9fa2-95cf32e30648"/>
+  <containedObjects classId="fb282519-d103-4dd3-bc12-cb271d631dfc" objectId="56ad73bd-4fe2-3db0-ac1d-c2895710057b"/>
+  <keepMappingToExtendedConfigurationObjectsByIDs>true</keepMappingToExtendedConfigurationObjectsByIDs>
+  <namePrefix>пр_</namePrefix>
+  <configurationExtensionCompatibilityMode>8.3.12</configurationExtensionCompatibilityMode>
+  <configurationExtensionPurpose>Customization</configurationExtensionPurpose>
+  <scriptVariant>Russian</scriptVariant>
+  <defaultRoles>Role.ОсновнаяРоль</defaultRoles>
+  <roles>Role.ОсновнаяРоль</roles>
+</mdclass:Configuration>

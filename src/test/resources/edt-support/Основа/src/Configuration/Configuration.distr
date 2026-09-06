@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<distributionSupport:DistributionSupport xmlns:distributionSupport="http://g5.1c.ru/v8/dt/distribution/model" version="6" fileState="Normal" updateAvailable="true">
+  <parentConfigurationInfos id="1107d13c-1e87-4995-b7f7-31cf6e041a7a" storeMode="Self" configRelease="3.1.11.392" providerName="Фирма &quot;1С&quot;" configName="БиблиотекаСтандартныхПодсистемДемо" configVersion="01936e1c-5239-4e87-830b-2cd13eaecdd5">
+    <rules existingIdenticalObjectsWithFreeModeKeepMode="true" existingIdenticalObjectsWithWarningModeKeepMode="true" existingDifferentObjectsWithFreeModeKeepMode="true" existingDifferentObjectsWithFreeMode="ChangesAllowed" existingDifferentObjectsWithWarningModeKeepMode="true" existingDifferentObjectsWithWarningMode="ChangesAllowed"/>
+    <supportLanguages/>
+    <items userId="52d07c58-1dda-3b60-9326-189638c6e170" parentId="52d07c58-1dda-3b60-9326-189638c6e170" userMode="ChangesAllowed" used="true"/>
+    <items userId="22e935ae-eb3d-33cc-ae76-22a1fe5052f5" parentId="22e935ae-eb3d-33cc-ae76-22a1fe5052f5" userMode="ChangesAllowed" used="true"/>
+    <items userId="2c8340e2-2881-36b3-b66b-6522cb798476" parentId="2c8340e2-2881-36b3-b66b-6522cb798476" userMode="ChangesAllowed" used="true"/>
+    <items userId="f6202dd8-c31b-3248-a848-18053cf8817e" parentId="f6202dd8-c31b-3248-a848-18053cf8817e" userMode="ChangesAllowed" used="true"/>
+    <items userId="0737b461-bfcb-3d27-ab56-961446261355" parentId="0737b461-bfcb-3d27-ab56-961446261355" userMode="ChangesNotAllowed" used="true"/>
+  </parentConfigurationInfos>
+</distributionSupport:DistributionSupport>

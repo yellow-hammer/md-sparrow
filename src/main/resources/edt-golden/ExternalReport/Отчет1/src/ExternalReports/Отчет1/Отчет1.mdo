@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:ExternalReport xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="27df1745-cfc1-3ea0-92ee-081d3481c008">
+  <producedTypes>
+    <objectType typeId="7b70e29f-57d1-373f-ba48-28aa36bf06ad" valueTypeId="5bf4a40c-1ff6-3076-a378-865875fe125c"/>
+  </producedTypes>
+  <name>Отчет1</name>
+  <containedObjects classId="e41aff26-25cf-4bb6-b6c1-3f478a75f374" objectId="9907421b-d921-3257-ade3-bbbbb637b63b"/>
+</mdclass:ExternalReport>

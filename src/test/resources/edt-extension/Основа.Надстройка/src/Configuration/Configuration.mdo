@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" xmlns:mdclassExtension="http://g5.1c.ru/v8/dt/metadata/mdclass/extension" uuid="66042581-cfa6-3e0e-bc0c-a38c5b7cfc3f">
+  <name>Надстройка</name>
+  <synonym>
+    <key>ru</key>
+    <value>Надстройка</value>
+  </synonym>
+  <objectBelonging>Adopted</objectBelonging>
+  <extension xsi:type="mdclassExtension:ConfigurationExtension">
+    <interfaceCompatibilityMode>Checked</interfaceCompatibilityMode>
+    <defaultRoles>Extended</defaultRoles>
+  </extension>
+  <containedObjects classId="9cd510cd-abfc-11d4-9434-004095e12fc7" objectId="2523ae05-c737-30eb-9be8-ab3f5296b7b9"/>
+  <containedObjects classId="9fcd25a0-4822-11d4-9414-008048da11f9" objectId="b0e86a6f-f139-3e41-bc63-3e886b4b1932"/>
+  <containedObjects classId="e3687481-0a87-462c-a166-9f34594f9bba" objectId="44da895d-8590-3305-b66e-b52a3d0ae9ce"/>
+  <containedObjects classId="9de14907-ec23-4a07-96f0-85521cb6b53b" objectId="456ad7d2-764d-34b9-9da6-4ce6c4df372e"/>
+  <containedObjects classId="51f2d5d8-ea4d-4064-8892-82951750031e" objectId="25ac9b45-4b67-3b18-97de-040c52cc244a"/>
+  <containedObjects classId="e68182ea-4237-4383-967f-90c1e3370bc7" objectId="36dd09df-f782-37bc-8fe6-793cc82cc539"/>
+  <containedObjects classId="fb282519-d103-4dd3-bc12-cb271d631dfc" objectId="1d2f923a-0146-316c-82fe-67b92df0009d"/>
+  <keepMappingToExtendedConfigurationObjectsByIDs>true</keepMappingToExtendedConfigurationObjectsByIDs>
+  <namePrefix>нс_</namePrefix>
+  <configurationExtensionCompatibilityMode>8.3.12</configurationExtensionCompatibilityMode>
+  <configurationExtensionPurpose>Customization</configurationExtensionPurpose>
+  <scriptVariant>Russian</scriptVariant>
+  <defaultRoles>Role.ОсновнаяРоль</defaultRoles>
+  <roles>Role.ОсновнаяРоль</roles>
+  <commonModules>CommonModule.ОбщийМодуль</commonModules>
+  <catalogs>Catalog.Товары</catalogs>
+  <documents>Document.Заказ</documents>
+</mdclass:Configuration>

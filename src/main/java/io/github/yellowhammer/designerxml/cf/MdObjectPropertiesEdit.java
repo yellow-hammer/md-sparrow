@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -124,11 +125,7 @@ public final class MdObjectPropertiesEdit {
     if (!Files.isRegularFile(objectXml)) {
       throw new IllegalArgumentException("file not found: " + objectXml);
     }
-    Object root = DesignerXml.read(objectXml, version);
-    if (!(root instanceof JAXBElement<?> je)) {
-      throw new IllegalArgumentException("expected JAXBElement root");
-    }
-    return readFromRoot(je, version);
+    return readDto(Files.readAllBytes(objectXml), version);
   }
 
   /**
@@ -139,10 +136,23 @@ public final class MdObjectPropertiesEdit {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    return readFromRoot(je, version);
+    MdObjectPropertiesDto dto = readFromRoot(je, version);
+    // Принадлежность и состояния свойств заимствованного объекта лежат вне модели JAXB
+    AdoptedStates.apply(dto, utf8Xml);
+    return dto;
   }
 
   public static void writeDto(Path objectXml, SchemaVersion version, MdObjectPropertiesDto dto)
+    throws IOException, JAXBException {
+    writeDto(objectXml, version, dto, null);
+  }
+
+  /**
+   * @param extendable правимые свойства заимствованных узлов по элементам выгрузки, см.
+   *     {@code EdtExtensionFeatures.byDesignerContainer}; {@code null}, если проверка не нужна
+   */
+  public static void writeDto(
+    Path objectXml, SchemaVersion version, MdObjectPropertiesDto dto, Map<String, List<String>> extendable)
     throws IOException, JAXBException {
     if (dto == null || dto.kind == null || dto.internalName == null || dto.internalName.isEmpty()) {
       throw new IllegalArgumentException("kind and internalName required");
@@ -181,11 +191,18 @@ public final class MdObjectPropertiesEdit {
     String xml = Files.readString(objectXml, StandardCharsets.UTF_8);
     String container = MdObjectPropertiesGranularPatch.containerLocalForKind(dto.kind);
     if (!container.isEmpty()) {
-      Optional<byte[]> granular = MdObjectPropertiesGranularPatch.tryApply(xml, container, version, baseline, dto);
+      Optional<byte[]> granular =
+        MdObjectPropertiesGranularPatch.tryApply(xml, container, version, baseline, dto, extendable);
       if (granular.isPresent()) {
         Files.write(objectXml, granular.get());
         return;
       }
+    }
+    if (AdoptedStates.ADOPTED.equals(baseline.objectBelonging)) {
+      // Пересборка через JAXB потеряла бы состояния свойств в InternalInfo
+      throw new IllegalStateException("Заимствованный объект правится только точечно: "
+        + MdObjectPropertiesGranularPatch.describeFirstUnpatchableChange(xml, container, baseline, dto)
+          .orElse("причина не определена"));
     }
     Object root = DesignerXml.read(objectXml, version);
     if (!(root instanceof JAXBElement<?> je)) {
