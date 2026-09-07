@@ -438,13 +438,13 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "project-metadata-tree": {
         ProjectMetadataTreeDto dto = ProjectMetadataTreeBuilder.build(
           p.reqPath(p.projectRoot, "projectRoot"),
-          ProjectSourceDirs.fromNullable(p.cfDir, p.cfeDir, p.epfDir, p.erfDir));
+          ProjectSourceDirs.fromNullable(p.cfDir, p.cfeDir, p.epfDir, p.erfDir, p.cfeDirs, p.epfDirs, p.erfDirs));
         return gson.toJson(dto);
       }
       case "cf-md-graph": {
         ProjectMetadataGraphDto dto = ProjectMetadataGraphBuilder.build(
           p.reqPath(p.projectRoot, "projectRoot"),
-          ProjectSourceDirs.fromNullable(p.cfDir, p.cfeDir, p.epfDir, p.erfDir));
+          ProjectSourceDirs.fromNullable(p.cfDir, p.cfeDir, p.epfDir, p.erfDir, p.cfeDirs, p.epfDirs, p.erfDirs));
         return gson.toJson(dto);
       }
       default:

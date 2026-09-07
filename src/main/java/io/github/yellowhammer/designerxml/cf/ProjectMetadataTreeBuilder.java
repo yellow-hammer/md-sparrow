@@ -19,7 +19,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Собирает {@link ProjectMetadataTreeDto} по каталогу проекта без {@code ConfigDumpInfo.xml}.
@@ -49,6 +48,14 @@ public final class ProjectMetadataTreeBuilder {
     if (!Files.isRegularFile(mainCfg)) {
       // Формат исходников виден по самим файлам: спрашивать его у клиента
       // значило бы просить IDE знать про раскладки обоих форматов
+      if (EdtLayout.isProject(mainCf)) {
+        // Проект конфигурации задан явно: расширения берутся из заданных каталогов,
+        // а без них из общего каталога расширений
+        List<Path> projects = new ArrayList<>();
+        projects.add(mainCf);
+        dirs.extensionDirs(normalized).stream().filter(EdtLayout::isProject).forEach(projects::add);
+        return EdtProjectMetadataTree.build(normalized, projects);
+      }
       if (!EdtLayout.projects(normalized).isEmpty()) {
         return EdtProjectMetadataTree.build(normalized);
       }
@@ -60,16 +67,10 @@ public final class ProjectMetadataTreeBuilder {
     String verFlag = MetaDataObjectHeadReader.toSchemaVersionFlag(ver);
     List<ProjectMetadataTreeDto.MetadataSourceDto> sources = new ArrayList<>();
     sources.add(buildMainSource(normalized, mainCf, mainCfg, ver, mainSchema));
-    Path cfeRoot = dirs.cfePath(normalized);
-    if (Files.isDirectory(cfeRoot)) {
-      try (var stream = Files.list(cfeRoot)) {
-        List<Path> extDirs = stream.filter(Files::isDirectory).sorted().collect(Collectors.toList());
-        for (Path extDir : extDirs) {
-          Path extCfg = extDir.resolve(CfLayout.CONFIGURATION_XML);
-          if (Files.isRegularFile(extCfg)) {
-            sources.add(buildExtensionSource(normalized, extDir, extCfg));
-          }
-        }
+    for (Path extDir : dirs.extensionDirs(normalized)) {
+      Path extCfg = extDir.resolve(CfLayout.CONFIGURATION_XML);
+      if (Files.isRegularFile(extCfg)) {
+        sources.add(buildExtensionSource(normalized, extDir, extCfg));
       }
     }
     appendExternalArtifactSources(normalized, dirs, sources);
@@ -303,13 +304,17 @@ public final class ProjectMetadataTreeBuilder {
     ProjectSourceDirs dirs,
     List<ProjectMetadataTreeDto.MetadataSourceDto> sources
   ) throws IOException {
-    List<ExternalArtifactLister.ExternalArtifactEntry> erf =
-      ExternalArtifactLister.listArtifacts(projectRoot, dirs.erfPath(projectRoot));
+    List<Path> erfDirs = dirs.explicitErfDirs(projectRoot);
+    List<ExternalArtifactLister.ExternalArtifactEntry> erf = erfDirs == null
+      ? ExternalArtifactLister.listArtifacts(projectRoot, dirs.erfPath(projectRoot))
+      : ExternalArtifactLister.artifactsAt(projectRoot, erfDirs);
     if (!erf.isEmpty()) {
       sources.add(buildExternalErfSource(erf, relativeOrAbsolute(projectRoot, dirs.erfPath(projectRoot))));
     }
-    List<ExternalArtifactLister.ExternalArtifactEntry> epf =
-      ExternalArtifactLister.listArtifacts(projectRoot, dirs.epfPath(projectRoot));
+    List<Path> epfDirs = dirs.explicitEpfDirs(projectRoot);
+    List<ExternalArtifactLister.ExternalArtifactEntry> epf = epfDirs == null
+      ? ExternalArtifactLister.listArtifacts(projectRoot, dirs.epfPath(projectRoot))
+      : ExternalArtifactLister.artifactsAt(projectRoot, epfDirs);
     if (!epf.isEmpty()) {
       sources.add(buildExternalEpfSource(epf, relativeOrAbsolute(projectRoot, dirs.epfPath(projectRoot))));
     }

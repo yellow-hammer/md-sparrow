@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
+import io.github.yellowhammer.designerxml.cf.ProjectSourceDirs;
 
 /** Дерево метаданных рабочей области 1С:EDT. */
 class EdtProjectMetadataTreeTest {
@@ -141,5 +142,25 @@ class EdtProjectMetadataTreeTest {
     assertThat(catalogs).isNotEmpty();
     assertThat(catalogs).extracting(ProjectMetadataTreeDto.MetadataItemDto::objectBelonging)
         .contains("Adopted");
+  }
+  @Test
+  void explicitConfigurationWithoutExtensionsStaysEdt() throws Exception {
+    Path root = Path.of("src/test/resources/edt-extension");
+    ProjectSourceDirs dirs = ProjectSourceDirs.fromNullable("Основа", null, null, null, List.of(), null, null);
+
+    ProjectMetadataTreeDto dto = ProjectMetadataTreeBuilder.build(root, dirs);
+
+    assertThat(dto.sources()).extracting(ProjectMetadataTreeDto.MetadataSourceDto::kind).containsExactly("main");
+  }
+
+  @Test
+  void explicitProjectsReplaceDiscovery() throws Exception {
+    Path root = Path.of("src/test/resources/edt-extension");
+    ProjectSourceDirs dirs = ProjectSourceDirs.fromNullable("Основа", null, null, null, List.of("Основа.Надстройка"), null, null);
+
+    ProjectMetadataTreeDto dto = ProjectMetadataTreeBuilder.build(root, dirs);
+
+    assertThat(dto.sources()).extracting(ProjectMetadataTreeDto.MetadataSourceDto::kind).containsExactly("main", "extension");
+    assertThat(dto.sources().get(1).metadataRootRelativePath()).startsWith("Основа.Надстройка");
   }
 }

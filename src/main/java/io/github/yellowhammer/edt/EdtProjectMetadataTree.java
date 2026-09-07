@@ -56,7 +56,20 @@ public final class EdtProjectMetadataTree {
    */
   public static ProjectMetadataTreeDto build(Path workspaceRoot) throws IOException {
     Path root = workspaceRoot.toAbsolutePath().normalize();
-    List<Path> projects = EdtLayout.projects(root);
+    return build(root, EdtLayout.projects(root));
+  }
+
+  /**
+   * Собирает дерево метаданных из заданных проектов: конфигурация и её расширения,
+   * где бы в рабочей области они ни лежали.
+   *
+   * @param workspaceRoot корень рабочей области
+   * @param projects каталоги проектов EDT
+   * @return дерево источников: конфигурация и её расширения
+   * @throws IOException если проекты не читаются
+   */
+  public static ProjectMetadataTreeDto build(Path workspaceRoot, List<Path> projects) throws IOException {
+    Path root = workspaceRoot.toAbsolutePath().normalize();
     if (projects.isEmpty()) {
       throw new IOException("В рабочей области нет проектов 1С:EDT: " + root);
     }

@@ -74,6 +74,10 @@ final class CliParams {
   String cfeDir;
   String epfDir;
   String erfDir;
+  /** Точные каталоги расширений и внешних объектов: заменяют перечисление подкаталогов. */
+  java.util.List<String> cfeDirs;
+  java.util.List<String> epfDirs;
+  java.util.List<String> erfDirs;
   String tag;
   String name;
   String oldName;
