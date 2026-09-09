@@ -43,7 +43,7 @@ class FormScaffoldTest {
     assertThat(Files.isRegularFile(forms.resolve("НоваяФорма").resolve("Ext").resolve("Form.xml"))).isTrue();
 
     MdObjectStructureDto structure = MdObjectStructureRead.read(objectXml, SchemaVersion.V2_20);
-    assertThat(structure.forms).contains("НоваяФорма");
+    assertThat(structure.forms).extracting(form -> form.name).contains("НоваяФорма");
     MdObjectPropertiesDto descriptor = MdObjectPropertiesEdit.readDto(
       forms.resolve("НоваяФорма.xml"), SchemaVersion.V2_20);
     assertThat(descriptor.kind).isEqualTo("form");

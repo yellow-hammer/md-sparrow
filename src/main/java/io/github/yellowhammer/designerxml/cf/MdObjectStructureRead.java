@@ -91,7 +91,9 @@ public final class MdObjectStructureRead {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    return readFromRoot(je);
+    MdObjectStructureDto dto = readFromRoot(je);
+    fillChildContent(dto, objectXml);
+    return dto;
   }
 
   public static MdObjectStructureDto read(byte[] utf8Xml, SchemaVersion version) throws JAXBException {
@@ -145,7 +147,9 @@ public final class MdObjectStructureRead {
       dto.tabularSections.add(tsDto);
     }
 
-    dto.forms.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getForm"))));
+    for (String name : readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getForm")))) {
+      dto.forms.add(new MdObjectStructureDto.MdFormDto(name, "", ""));
+    }
     List<Object> commands = listOrEmpty(invokeNoArgOrNull(childObjects, "getCommand"));
     dto.commands.addAll(readStringItems(commands));
     for (Object command : commands) {
@@ -156,7 +160,9 @@ public final class MdObjectStructureRead {
         dto.commandSynonyms.put(name, synonym);
       }
     }
-    dto.templates.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getTemplate"))));
+    for (String name : readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getTemplate")))) {
+      dto.templates.add(new MdObjectStructureDto.MdTemplateDto(name, "", "", false));
+    }
     dto.values.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getEnumValue"))));
     dto.columns.addAll(readNamedItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getColumn")), dto.childSynonyms));
     dto.accountingFlags.addAll(readNamedItems(
@@ -261,6 +267,37 @@ public final class MdObjectStructureRead {
       }
     }
     return out;
+  }
+
+  /**
+   * Вид макета и файл его содержимого.
+   *
+   * <p>Вид записан в описании макета рядом с объектом, а содержимое лежит своим
+   * файлом: у выгрузки конфигуратора это {@code Ext/Template.xml} либо
+   * {@code Ext/Template.bin} у двоичных видов.
+   */
+  private static void fillChildContent(MdObjectStructureDto dto, Path objectXml) {
+    String stem = objectXml.getFileName().toString().replaceFirst("[.][Xx][Mm][Ll]$", "");
+    Path objectDir = objectXml.resolveSibling(stem);
+    Path templatesDir = objectDir.resolve("Templates");
+    for (MdObjectStructureDto.MdTemplateDto template : dto.templates) {
+      template.templateType = UnknownEnumValues.constantName(
+        XmlElementTextReader.read(templatesDir.resolve(template.name + ".xml"), "TemplateType"));
+      Path content = ChildContentFile.fileIn(templatesDir.resolve(template.name), "Template");
+      if (content != null) {
+        template.contentFile = objectDir.relativize(content).toString().replace('\\', '/');
+        template.binaryContent = ChildContentFile.isBinary(content);
+      }
+    }
+    Path formsDir = objectDir.resolve("Forms");
+    for (MdObjectStructureDto.MdFormDto form : dto.forms) {
+      form.formType = UnknownEnumValues.constantName(
+        XmlElementTextReader.read(formsDir.resolve(form.name + ".xml"), "FormType"));
+      Path content = ChildContentFile.fileIn(formsDir.resolve(form.name), "Form");
+      if (content != null) {
+        form.contentFile = objectDir.relativize(content).toString().replace('\\', '/');
+      }
+    }
   }
 
   private static List<String> readStringItems(List<Object> raw) {

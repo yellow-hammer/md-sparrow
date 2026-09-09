@@ -164,6 +164,27 @@ class MdObjectStructureAndMutationsTest {
   }
 
   @Test
+  void readStructure_template_hasTypeAndContentFile() throws Exception {
+    MdObjectStructureDto dto = MdObjectStructureRead.read(sampleCatalogWithTemplateXml(), SchemaVersion.V2_20);
+
+    MdObjectStructureDto.MdTemplateDto template = dto.templates.get(0);
+    assertThat(template.templateType).isNotEmpty();
+    // Содержимое любого вида выгрузка держит в одном месте, вид отличает только описание
+    assertThat(template.contentFile).isEqualTo("Templates/" + template.name + "/Ext/Template.xml");
+    assertThat(template.binaryContent).isFalse();
+  }
+
+  @Test
+  void readStructure_form_hasTypeAndContentFile() throws Exception {
+    MdObjectStructureDto dto = MdObjectStructureRead.read(sampleDocumentXml(), SchemaVersion.V2_20);
+
+    assertThat(dto.forms).isNotEmpty().allSatisfy(form -> {
+      assertThat(form.formType).isEqualTo("MANAGED");
+      assertThat(form.contentFile).isEqualTo("Forms/" + form.name + "/Ext/Form.xml");
+    });
+  }
+
+  @Test
   void addAttribute_isGranular() throws Exception {
     Path copy = copyToTemp(sampleDocumentXml());
     String before = Files.readString(copy, StandardCharsets.UTF_8);
@@ -307,6 +328,16 @@ class MdObjectStructureAndMutationsTest {
       .resolve("epf")
       .resolve("_ДемоВводНаОснованииОприходованийТоваров")
       .resolve("_ДемоВводНаОснованииОприходованийТоваров.xml");
+  }
+
+  /** Справочник со схемой компоновки в макетах: у макета есть и вид, и файл содержимого. */
+  private static Path sampleCatalogWithTemplateXml() {
+    String fixturesRoot = System.getProperty("fixtures.ssl31.root");
+    return Path.of(fixturesRoot)
+      .resolve("src")
+      .resolve("cf")
+      .resolve("Catalogs")
+      .resolve("_ДемоМестаХранения.xml");
   }
 
   private static Path sampleExternalReportXml() {

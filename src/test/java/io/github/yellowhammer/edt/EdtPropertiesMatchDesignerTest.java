@@ -170,9 +170,15 @@ class EdtPropertiesMatchDesignerTest {
           checked++;
 
           compare(mismatches, name, "вид", edt.kind, designer.kind);
-          compare(mismatches, name, "формы", edt.forms, designer.forms);
+          // Имя файла содержимого у форматов своё, а имя и вид формы обязаны совпадать
+          compare(mismatches, name, "формы",
+              edt.forms.stream().map(item -> item.name + ": " + item.formType).toList(),
+              designer.forms.stream().map(item -> item.name + ": " + item.formType).toList());
           compare(mismatches, name, "команды", edt.commands, designer.commands);
-          compare(mismatches, name, "макеты", edt.templates, designer.templates);
+          // Имя файла содержимого у форматов своё, а имя и вид макета обязаны совпадать
+          compare(mismatches, name, "макеты",
+              edt.templates.stream().map(item -> item.name + ": " + item.templateType).toList(),
+              designer.templates.stream().map(item -> item.name + ": " + item.templateType).toList());
           compare(mismatches, name, "значения", edt.values, designer.values);
           compare(mismatches, name, "стандартные реквизиты",
               List.copyOf(edt.standardAttributes), List.copyOf(designer.standardAttributes));

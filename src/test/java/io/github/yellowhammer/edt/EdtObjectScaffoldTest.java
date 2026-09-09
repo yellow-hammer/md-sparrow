@@ -192,7 +192,7 @@ class EdtObjectScaffoldTest {
     Path form = root.resolve("Catalogs/Валюты/Forms/ФормаПроверки/Form.form");
     assertThat(form).exists();
     MdObjectStructureDto structure = EdtObjectStructure.read(mdo, model);
-    assertThat(structure.forms).contains("ФормаПроверки");
+    assertThat(structure.forms).extracting(item -> item.name).contains("ФормаПроверки");
     // Разметка формы читается тем же кодом, что у форм проекта: у пустой формы одна командная панель
     assertThat(EdtFormContent.read(form, model).items).extracting(item -> item.type).containsExactly("AutoCommandBar");
     String added = Files.readString(mdo, StandardCharsets.UTF_8);
@@ -217,7 +217,8 @@ class EdtObjectScaffoldTest {
 
     String xml = Files.readString(mdo, StandardCharsets.UTF_8);
     assertThat(xml.indexOf("<forms uuid=")).isGreaterThan(xml.indexOf("<choiceMode>"));
-    assertThat(EdtObjectStructure.read(mdo, model).forms).containsExactly("ФормаСписка");
+    assertThat(EdtObjectStructure.read(mdo, model).forms)
+      .extracting(form -> form.name).containsExactly("ФормаСписка");
   }
 
   @Test

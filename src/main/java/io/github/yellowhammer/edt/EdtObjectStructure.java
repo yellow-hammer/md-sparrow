@@ -33,6 +33,9 @@ import java.util.Map;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureDto;
 import io.github.yellowhammer.designerxml.cf.StandardAttributeLabels;
 import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
+import io.github.yellowhammer.designerxml.cf.ChildContentFile;
+import org.eclipse.emf.ecore.EClass;
+
 import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
 
 /**
@@ -73,7 +76,60 @@ public final class EdtObjectStructure {
     dto.childSynonyms = childSynonyms(node, model);
 
     fillLists(dto, node);
+    fillTemplates(dto, node, objectMdo, model);
+    fillForms(dto, node, objectMdo, model);
     return dto;
+  }
+
+  /**
+   * Формы объекта: вид из описания владельца, содержимое своим файлом рядом.
+   */
+  private static void fillForms(
+      MdObjectStructureDto dto, EdtNode node, Path objectMdo, EdtModel model) {
+    // Вид по умолчанию в файле не записан, его знает только схема
+    EClass formClass = model.classOf("BasicForm");
+    Path formsDir = objectMdo.resolveSibling("Forms");
+    for (EdtNode form : node.list("forms")) {
+      String name = form.name();
+      if (name.isEmpty()) {
+        continue;
+      }
+      MdObjectStructureDto.MdFormDto item = new MdObjectStructureDto.MdFormDto(
+          name, EdtPropertyValues.text(form, formClass, "formType"), "");
+      Path content = ChildContentFile.fileIn(formsDir.resolve(name), "Form");
+      if (content != null) {
+        item.contentFile = objectMdo.getParent().relativize(content).toString().replace('\\', '/');
+      }
+      dto.forms.add(item);
+    }
+  }
+
+  /**
+   * Макеты объекта: вид из описания владельца, содержимое своим файлом рядом.
+   *
+   * Списком строк макеты не обходятся: у каждого вида своё имя файла содержимого,
+   * а рефлексия по {@code List<String>} такое поле не заполняет.
+   */
+  private static void fillTemplates(
+      MdObjectStructureDto dto, EdtNode node, Path objectMdo, EdtModel model) {
+    // Вид по умолчанию в файле не записан, его знает только схема
+    EClass templateClass = model.classOf("BasicTemplate");
+    Path templatesDir = objectMdo.resolveSibling("Templates");
+    for (EdtNode template : node.list("templates")) {
+      String name = template.name();
+      if (name.isEmpty()) {
+        continue;
+      }
+      String type = EdtPropertyValues.text(template, templateClass, "templateType");
+      MdObjectStructureDto.MdTemplateDto item =
+        new MdObjectStructureDto.MdTemplateDto(name, type, "", false);
+      Path content = ChildContentFile.fileIn(templatesDir.resolve(name), "Template");
+      if (content != null) {
+        item.contentFile = objectMdo.getParent().relativize(content).toString().replace('\\', '/');
+        item.binaryContent = ChildContentFile.isBinary(content);
+      }
+      dto.templates.add(item);
+    }
   }
 
   /**

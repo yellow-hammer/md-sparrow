@@ -17,9 +17,11 @@ public final class MdObjectStructureDto {
   public String internalName;
   public List<MdNodeDto> attributes;
   public List<MdTabularSectionDto> tabularSections;
-  public List<String> forms;
+  /** Формы объекта: вид и файл содержимого нужны, чтобы знать, чем форму открывать. */
+  public List<MdFormDto> forms;
   public List<String> commands;
-  public List<String> templates;
+  /** Макеты объекта: вид и файл содержимого нужны, чтобы знать, чем макет открывать. */
+  public List<MdTemplateDto> templates;
   public List<String> values;
   public List<String> columns;
   public List<String> accountingFlags;
@@ -82,6 +84,58 @@ public final class MdObjectStructureDto {
     this.tables = new ArrayList<>();
     this.cubes = new ArrayList<>();
     this.functions = new ArrayList<>();
+  }
+
+  /**
+   * Форма объекта.
+   *
+   * <p>Управляемую форму расширение показывает и правит, обычная хранится в
+   * своём файле, который читает только платформа. Вид отличает одно от другого,
+   * а имя файла берётся с диска.
+   */
+  public static final class MdFormDto {
+    public String name;
+    /** Вид формы именем константы модели: {@code MANAGED} либо {@code ORDINARY}. */
+    public String formType;
+    /** Файл содержимого от каталога объекта; пусто, если файла рядом нет. */
+    public String contentFile;
+
+    public MdFormDto() {
+    }
+
+    public MdFormDto(String name, String formType, String contentFile) {
+      this.name = name;
+      this.formType = formType;
+      this.contentFile = contentFile;
+    }
+  }
+
+  /**
+   * Макет объекта.
+   *
+   * <p>Содержимое лежит своим файлом рядом с макетом, и его имя зависит от вида:
+   * табличный документ, схема компоновки и текст пишутся в разные файлы, а часть
+   * видов хранится двоично. Имя файла не вычисляется по виду, а берётся с диска:
+   * так работают и виды, которых мы ещё не видели.
+   */
+  public static final class MdTemplateDto {
+    public String name;
+    /** Вид макета именем константы модели: {@code SPREADSHEET_DOCUMENT}, {@code DATA_COMPOSITION_SCHEMA}. */
+    public String templateType;
+    /** Файл содержимого от каталога объекта; пусто, если файла рядом нет. */
+    public String contentFile;
+    /** Содержимое двоичное: показывать его нечем. */
+    public boolean binaryContent;
+
+    public MdTemplateDto() {
+    }
+
+    public MdTemplateDto(String name, String templateType, String contentFile, boolean binaryContent) {
+      this.name = name;
+      this.templateType = templateType;
+      this.contentFile = contentFile;
+      this.binaryContent = binaryContent;
+    }
   }
 
   public static final class MdNodeDto {
