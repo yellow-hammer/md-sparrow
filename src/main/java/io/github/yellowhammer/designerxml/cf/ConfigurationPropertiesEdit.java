@@ -230,7 +230,8 @@ public final class ConfigurationPropertiesEdit {
     }
     for (Object v : JaxbReflect.<Object>list(fixedArray, "getValue")) {
       if (v != null) {
-        out.add(v.toString());
+        // Контракт несёт имена констант, а toString перечисления отдаёт литерал файла
+        out.add(v instanceof Enum<?> constant ? constant.name() : v.toString());
       }
     }
     return out;

@@ -49,4 +49,29 @@ class ConfigurationPropertiesEditTest {
     assertThat(after.vendor).isEqualTo("Тестовый поставщик");
     assertThat(after.version).isEqualTo("9.9.9");
   }
+
+  @Test
+  void usePurposes_readAsConstantNames_matchOptions() throws Exception {
+    Path cfg = Ssl31SubmodulePaths.configurationXml();
+
+    ConfigurationPropertiesDto dto = ConfigurationPropertiesEdit.read(cfg, SchemaVersion.V2_20);
+
+    // Панель отмечает варианты по совпадению значения со списком: написание одно
+    assertThat(dto.usePurposeOptions).contains("PLATFORM_APPLICATION");
+    assertThat(dto.usePurposes).isSubsetOf(dto.usePurposeOptions);
+  }
+
+  @Test
+  void usePurposes_writtenByConstantName() throws Exception {
+    Path cfg = Ssl31SubmodulePaths.configurationXml();
+    Path copy = tempDir.resolve("Configuration.xml");
+    Files.copy(cfg, copy);
+
+    ConfigurationPropertiesDto dto = ConfigurationPropertiesEdit.read(copy, SchemaVersion.V2_20);
+    dto.usePurposes = java.util.List.of("PLATFORM_APPLICATION", "MOBILE_PLATFORM_APPLICATION");
+    ConfigurationPropertiesEdit.write(copy, SchemaVersion.V2_20, dto);
+
+    ConfigurationPropertiesDto after = ConfigurationPropertiesEdit.read(copy, SchemaVersion.V2_20);
+    assertThat(after.usePurposes).containsExactly("PLATFORM_APPLICATION", "MOBILE_PLATFORM_APPLICATION");
+  }
 }

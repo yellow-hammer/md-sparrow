@@ -120,6 +120,29 @@ class EdtConfigurationListsTest {
     assertThat(edt.scriptVariant).isEqualTo(designer.scriptVariant);
     assertThat(edt.compatibilityMode).isEqualTo(designer.compatibilityMode);
     assertThat(edt.usePurposeOptions).contains("PERSONAL_COMPUTER", "MOBILE_DEVICE");
+    // Панель отмечает варианты по совпадению значения со списком: написание одно
+    assertThat(edt.usePurposes).isSubsetOf(edt.usePurposeOptions);
+  }
+
+  @Test
+  void назначениеИспользованияПравится(@org.junit.jupiter.api.io.TempDir Path workDir) throws Exception {
+    Path copy = workDir.resolve("Configuration.mdo");
+    java.nio.file.Files.copy(edtConfiguration, copy);
+
+    ConfigurationPropertiesDto dto = EdtConfigurationProperties.read(copy, model);
+    dto.usePurposes = List.of("PERSONAL_COMPUTER", "MOBILE_DEVICE");
+    assertThat(EdtConfigurationProperties.write(copy, dto, model)).isEqualTo(1);
+
+    ConfigurationPropertiesDto after = EdtConfigurationProperties.read(copy, model);
+    assertThat(after.usePurposes).containsExactly("PERSONAL_COMPUTER", "MOBILE_DEVICE");
+    assertThat(java.nio.file.Files.readString(copy, java.nio.charset.StandardCharsets.UTF_8))
+        .contains("<usePurposes>PersonalComputer</usePurposes>")
+        .contains("<usePurposes>MobileDevice</usePurposes>");
+
+    ConfigurationPropertiesDto single = EdtConfigurationProperties.read(copy, model);
+    single.usePurposes = List.of("PERSONAL_COMPUTER");
+    assertThat(EdtConfigurationProperties.write(copy, single, model)).isEqualTo(1);
+    assertThat(EdtConfigurationProperties.read(copy, model).usePurposes).containsExactly("PERSONAL_COMPUTER");
   }
 
   @Test

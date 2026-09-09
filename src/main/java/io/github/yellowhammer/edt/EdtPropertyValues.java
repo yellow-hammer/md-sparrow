@@ -108,6 +108,18 @@ final class EdtPropertyValues {
     return node.list(name).stream().map(EdtNode::value).filter(value -> !value.isEmpty()).toList();
   }
 
+  /**
+   * Значения свойства-списка в написании контракта.
+   *
+   * @param node узел объекта
+   * @param eClass класс объекта в метамодели
+   * @param name имя свойства
+   * @return значения в порядке файла, перечислимые именами констант
+   */
+  static List<String> list(EdtNode node, EClass eClass, String name) {
+    return list(node, name).stream().map(value -> enumConstant(feature(eClass, name), value)).toList();
+  }
+
   /** Свойство класса или {@code null}, если такого в схеме нет. */
   private static EStructuralFeature feature(EClass eClass, String name) {
     return eClass == null ? null : eClass.getEStructuralFeature(name);
@@ -144,19 +156,6 @@ final class EdtPropertyValues {
    * @return {@code DONT_USE} для {@code DontUse}
    */
   static String constantName(String value) {
-    StringBuilder constant = new StringBuilder();
-    for (int index = 0; index < value.length(); index++) {
-      char symbol = value.charAt(index);
-      char previous = index > 0 ? value.charAt(index - 1) : 0;
-      boolean startsWord = Character.isUpperCase(symbol)
-          && !Character.isUpperCase(previous) && previous != '_';
-      // Версии режимов совместимости пишутся числами: Version8_3_12
-      boolean startsNumber = Character.isDigit(symbol) && Character.isLetter(previous);
-      if (index > 0 && (startsWord || startsNumber)) {
-        constant.append('_');
-      }
-      constant.append(Character.toUpperCase(symbol));
-    }
-    return constant.toString().toUpperCase(Locale.ROOT);
+    return io.github.yellowhammer.designerxml.cf.UnknownEnumValues.constantName(value);
   }
 }

@@ -98,7 +98,7 @@ public final class EdtConfigurationProperties {
       return null;
     }
     if (field.getType() == List.class) {
-      return EdtPropertyValues.list(node, name);
+      return EdtPropertyValues.list(node, eClass, name);
     }
     if (field.getType() != String.class) {
       return null;

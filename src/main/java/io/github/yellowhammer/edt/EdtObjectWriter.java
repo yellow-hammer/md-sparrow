@@ -110,10 +110,20 @@ public final class EdtObjectWriter {
    * @param localized свойство записано парами язык-значение
    * @param type описание типа, если свойство - тип; иначе {@code null}
    */
-  private record Change(NodeRef node, String name, String value, boolean localized, MdTypeDescriptionDto type) {
+  private record Change(
+      NodeRef node,
+      String name,
+      String value,
+      boolean localized,
+      MdTypeDescriptionDto type,
+      List<String> values) {
 
     Change(NodeRef node, String name, String value, boolean localized) {
-      this(node, name, value, localized, null);
+      this(node, name, value, localized, null, null);
+    }
+
+    Change(NodeRef node, String name, String value, boolean localized, MdTypeDescriptionDto type) {
+      this(node, name, value, localized, type, null);
     }
   }
 
@@ -372,6 +382,9 @@ public final class EdtObjectWriter {
     if (value instanceof MdTypeDescriptionDto description) {
       return typeChange(null, name, description, was);
     }
+    if (value instanceof List<?> items) {
+      return listChange(name, items, eClass);
+    }
     if (type != String.class) {
       // Списки ссылок и состав объекта правятся своими операциями
       return null;
@@ -384,6 +397,24 @@ public final class EdtObjectWriter {
       return null;
     }
     return new Change(null, name, literal(eClass, name, String.valueOf(value)), false);
+  }
+
+  /**
+   * Изменение свойства-списка перечислимых значений.
+   *
+   * Списки ссылок и состав объекта правятся своими операциями, поэтому здесь
+   * только перечисления схемы: назначение использования конфигурации.
+   */
+  private static Change listChange(String name, List<?> items, EClass eClass) {
+    EStructuralFeature feature = eClass == null ? null : eClass.getEStructuralFeature(name);
+    if (feature == null || !(feature.getEType() instanceof EEnum)) {
+      return null;
+    }
+    List<String> values = new ArrayList<>();
+    for (Object item : items) {
+      values.add(literal(eClass, name, String.valueOf(item)));
+    }
+    return new Change(null, name, "", false, null, values);
   }
 
   /**
@@ -462,6 +493,9 @@ public final class EdtObjectWriter {
   /** Замена значения или вставка нового свойства. */
   private static Edit edit(String xml, Change change, List<String> order, EdtModel model)
       throws XMLStreamException {
+    if (change.values() != null) {
+      return listEdit(xml, change, order);
+    }
     EdtObjectRegions.Region owner = nodeRegion(xml, change.node());
     EdtObjectRegions.Region region = owner == null
         ? EdtObjectRegions.property(xml, change.name())
@@ -479,6 +513,43 @@ public final class EdtObjectWriter {
     int at = EdtObjectRegions.lineStart(xml, owner.end());
     String indent = indent(xml, owner.start()) + INDENT;
     return new Edit(at, at, indent + element(xml, change, indent, model) + eol(xml));
+  }
+
+  /**
+   * Правка свойства-списка: все прежние значения уходят, новые встают на их место.
+   */
+  private static Edit listEdit(String xml, Change change, List<String> order) throws XMLStreamException {
+    List<EdtObjectRegions.Region> regions = EdtObjectRegions.properties(xml, change.name());
+    String eol = eol(xml);
+    if (regions.isEmpty()) {
+      if (change.values().isEmpty()) {
+        return new Edit(0, 0, "");
+      }
+      int at = EdtObjectRegions.insertionPoint(xml, order, change.name());
+      String indent = indent(xml, at + INDENT.length());
+      return new Edit(at, at, indent + elements(change, indent, eol) + eol);
+    }
+    int start = regions.get(0).start();
+    int end = regions.get(regions.size() - 1).end();
+    if (change.values().isEmpty()) {
+      // Пустой список: строки свойства уходят целиком, вместе с отступом и переводом строки
+      int lineStart = EdtObjectRegions.lineStart(xml, start);
+      int lineEnd = Math.min(xml.length(), end + eol.length());
+      return new Edit(lineStart, lineEnd, "");
+    }
+    return new Edit(start, end, elements(change, indent(xml, start), eol));
+  }
+
+  /** Значения списка строками файла. */
+  private static String elements(Change change, String indent, String eol) {
+    StringBuilder text = new StringBuilder();
+    for (String value : change.values()) {
+      if (text.length() > 0) {
+        text.append(eol).append(indent);
+      }
+      text.append("<%s>%s</%s>".formatted(change.name(), escape(value), change.name()));
+    }
+    return text.toString();
   }
 
   /**
