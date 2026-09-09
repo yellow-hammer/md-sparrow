@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.20">
+	<Role uuid="9a2f0c1e-0b3d-4a7c-8f11-2d5e6b7c8a90">
+		<Properties>
+			<Name>РольСОграничением</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Роль с ограничением</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment/>
+		</Properties>
+	</Role>
+</MetaDataObject>

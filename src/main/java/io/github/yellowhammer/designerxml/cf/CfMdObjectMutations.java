@@ -21,6 +21,10 @@ import java.util.stream.Stream;
  */
 public final class CfMdObjectMutations {
 
+  /** Описание объекта: только у таких файлов копии выдаются новые идентификаторы. */
+  private static final Pattern METADATA_OBJECT_ROOT = Pattern.compile(
+    "\\A[\\uFEFF\\s]*(?:<\\?[^>]*\\?>\\s*)?<(?:[\\w.-]+:)?MetaDataObject[\\s>]");
+
   private CfMdObjectMutations() {
   }
 
@@ -28,7 +32,7 @@ public final class CfMdObjectMutations {
     throws IOException {
     validateInputs(configurationXml, objectXml, xmlTag, objectName);
     ConfigurationChildObjectMutator.remove(configurationXml, xmlTag, objectName);
-    deleteRoleExtIfExists(objectXml, xmlTag, objectName);
+    deleteContentIfExists(objectXml, objectName);
     Files.deleteIfExists(objectXml);
   }
 
@@ -51,7 +55,7 @@ public final class CfMdObjectMutations {
     String source = Files.readString(objectXml, StandardCharsets.UTF_8);
     String renamed = replaceObjectName(source, oldName, newName);
     Files.writeString(targetXml, renamed, StandardCharsets.UTF_8);
-    moveRoleExtIfExists(objectXml, xmlTag, oldName, newName);
+    moveContentIfExists(objectXml, oldName, newName);
     Files.deleteIfExists(objectXml);
     ConfigurationChildObjectMutator.rename(configurationXml, xmlTag, oldName, newName);
   }
@@ -73,7 +77,7 @@ public final class CfMdObjectMutations {
     String renamed = replaceObjectName(source, sourceName, newName);
     String remapped = DistinctUuidRewrite.remap(renamed);
     Files.writeString(targetXml, remapped, StandardCharsets.UTF_8);
-    copyRoleExtIfExists(objectXml, xmlTag, sourceName, newName);
+    copyContentIfExists(objectXml, sourceName, newName);
     ConfigurationChildObjectAppender.append(configurationXml, xmlTag, newName);
   }
 
@@ -105,54 +109,66 @@ public final class CfMdObjectMutations {
     return matcher.replaceFirst(replacement);
   }
 
-  private static boolean isRoleTag(String xmlTag) {
-    return "Role".equals(xmlTag);
-  }
-
-  private static void deleteRoleExtIfExists(Path objectXml, String xmlTag, String roleName) throws IOException {
-    if (!isRoleTag(xmlTag)) {
-      return;
-    }
-    Path roleDir = objectXml.getParent().resolve(roleName);
-    if (Files.isDirectory(roleDir)) {
-      deleteRecursively(roleDir);
+  /**
+   * Каталог содержимого объекта: формы, макеты, команды, модули и права лежат
+   * рядом с описанием, в каталоге с тем же именем. Каталога может не быть.
+   */
+  private static void deleteContentIfExists(Path objectXml, String objectName) throws IOException {
+    Path content = objectXml.getParent().resolve(objectName);
+    if (Files.isDirectory(content)) {
+      deleteRecursively(content);
     }
   }
 
-  private static void moveRoleExtIfExists(Path objectXml, String xmlTag, String oldName, String newName)
-    throws IOException {
-    if (!isRoleTag(xmlTag)) {
+  private static void moveContentIfExists(Path objectXml, String oldName, String newName) throws IOException {
+    Path source = objectXml.getParent().resolve(oldName);
+    if (!Files.isDirectory(source)) {
       return;
     }
-    Path srcDir = objectXml.getParent().resolve(oldName);
-    if (!Files.isDirectory(srcDir)) {
-      return;
-    }
-    Path dstDir = objectXml.getParent().resolve(newName);
-    if (Files.exists(dstDir)) {
-      throw new IllegalArgumentException("role ext dir already exists: " + dstDir);
+    Path target = objectXml.getParent().resolve(newName);
+    if (Files.exists(target)) {
+      throw new IllegalArgumentException("object content dir already exists: " + target);
     }
     try {
-      Files.move(srcDir, dstDir, StandardCopyOption.ATOMIC_MOVE);
+      Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
     } catch (AtomicMoveNotSupportedException e) {
-      Files.move(srcDir, dstDir);
+      Files.move(source, target);
     }
   }
 
-  private static void copyRoleExtIfExists(Path objectXml, String xmlTag, String sourceName, String newName)
-    throws IOException {
-    if (!isRoleTag(xmlTag)) {
+  private static void copyContentIfExists(Path objectXml, String sourceName, String newName) throws IOException {
+    Path source = objectXml.getParent().resolve(sourceName);
+    if (!Files.isDirectory(source)) {
       return;
     }
-    Path srcDir = objectXml.getParent().resolve(sourceName);
-    if (!Files.isDirectory(srcDir)) {
-      return;
+    Path target = objectXml.getParent().resolve(newName);
+    if (Files.exists(target)) {
+      throw new IllegalArgumentException("object content dir already exists: " + target);
     }
-    Path dstDir = objectXml.getParent().resolve(newName);
-    if (Files.exists(dstDir)) {
-      throw new IllegalArgumentException("role ext dir already exists: " + dstDir);
+    copyRecursively(source, target);
+    remapContentUuids(target);
+  }
+
+  /**
+   * Собственные идентификаторы вложенных описаний копии.
+   *
+   * Формы, макеты и команды это отдельные объекты со своими uuid, и копия не
+   * должна повторять исходные. Содержимое формы и прав идентификаторов объекта
+   * не несёт, поэтому правятся только описания.
+   */
+  private static void remapContentUuids(Path directory) throws IOException {
+    try (Stream<Path> stream = Files.walk(directory)) {
+      for (Path file : stream.filter(Files::isRegularFile).toList()) {
+        if (!file.getFileName().toString().endsWith(".xml")) {
+          continue;
+        }
+        String xml = Files.readString(file, StandardCharsets.UTF_8);
+        if (!METADATA_OBJECT_ROOT.matcher(xml).find()) {
+          continue;
+        }
+        Files.writeString(file, DistinctUuidRewrite.remap(xml), StandardCharsets.UTF_8);
+      }
     }
-    copyRecursively(srcDir, dstDir);
   }
 
   private static void deleteRecursively(Path path) throws IOException {

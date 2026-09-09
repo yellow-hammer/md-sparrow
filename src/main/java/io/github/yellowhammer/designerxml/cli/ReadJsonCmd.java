@@ -343,6 +343,8 @@ final class ReadJsonCmd implements Callable<Integer> {
         out.put("name", rules.name);
         out.put("rulesEnabled", rules.rulesEnabled);
         out.put("vendorPayloadPresent", rules.vendorPayloadPresent);
+        // Файл правил есть, но не разобран: условия поставки неизвестны, правка закрыта
+        out.put("unreadable", rules.unreadable);
         out.put("editingEnabled", rules.editingEnabled());
         out.put("configurationState", rules.configurationState());
         // правило самого корня: им конфигурация закрыта или открыта для правки
