@@ -727,7 +727,10 @@ public final class MdObjectPropertiesEdit {
         readEnumValues(objectNode, dto);
       }
       case "constant" -> MdConstantPropertiesBridge.read(props, dto);
-      case "report", "dataProcessor" -> MdReportPropertiesBridge.read(props, dto);
+      case "report", "dataProcessor" -> {
+        MdReportPropertiesBridge.read(props, dto);
+        readCatalogLikeChildren(objectNode, dto);
+      }
       case "documentJournal" -> MdDocumentJournalPropertiesBridge.read(version, props, dto);
       case "chartOfCalculationTypes" -> {
         MdChartOfCalculationTypesPropertiesBridge.read(version, props, dto);
@@ -943,6 +946,7 @@ public final class MdObjectPropertiesEdit {
     }
     if (isReportKind(dto.kind) && dto.report != null) {
       MdReportPropertiesBridge.apply(props, dto);
+      applyAttrs(JaxbReflect.get(objectNode, "getChildObjects"), dto);
       return;
     }
     if ("documentJournal".equals(dto.kind) && dto.documentJournal != null) {

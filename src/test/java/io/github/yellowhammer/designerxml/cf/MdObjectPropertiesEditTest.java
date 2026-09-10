@@ -38,6 +38,25 @@ class MdObjectPropertiesEditTest {
   }
 
   @Test
+  void реквизитыОтчётаЧитаютсяИПравятся() throws Exception {
+    Path source = Path.of(Ssl31SubmodulePaths.projectRoot().toString(),
+      "src", "cf", "Reports", "ЗависимостиПодсистем.xml");
+    Path object = tempDir.resolve("ЗависимостиПодсистем.xml");
+    java.nio.file.Files.copy(source, object);
+
+    MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(object, SchemaVersion.V2_20);
+    assertThat(dto.kind).isEqualTo("report");
+    assertThat(dto.attributes).as("реквизиты отчёта").isNotEmpty();
+
+    dto.attributes.get(0).synonym = "Подпись реквизита";
+    MdObjectPropertiesEdit.writeDto(object, SchemaVersion.V2_20, dto);
+
+    MdObjectPropertiesDto written = MdObjectPropertiesEdit.readDto(object, SchemaVersion.V2_20);
+    assertThat(written.attributes.get(0).synonym).isEqualTo("Подпись реквизита");
+    assertThat(written.attributes).hasSameSizeAs(dto.attributes);
+  }
+
+  @Test
   void readDto_catalog_fromSsl31() throws Exception {
     Path any = Ssl31SubmodulePaths.anyCatalogObjectXml();
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(any, SchemaVersion.V2_20);
