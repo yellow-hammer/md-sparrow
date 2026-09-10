@@ -18,7 +18,8 @@ public final class MdCommonCommandPropertiesDto {
   public String extendedConfigurationObject;
   public String group;
   public String representation;
-  public String toolTipRu;
+  @LocalString
+  public String toolTip;
   public String shortcut;
   public String commandModule;
   public boolean includeHelpInContents;

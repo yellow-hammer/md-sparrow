@@ -114,7 +114,7 @@ class EdtConfigurationListsTest {
         ConfigurationPropertiesEdit.read(designerConfiguration, SchemaVersion.V2_21);
 
     assertThat(edt.name).isEqualTo(designer.name);
-    assertThat(edt.synonymRu).isEqualTo(designer.synonymRu);
+    assertThat(edt.synonym).isEqualTo(designer.synonym);
     assertThat(edt.vendor).isEqualTo(designer.vendor);
     assertThat(edt.version).isEqualTo(designer.version);
     assertThat(edt.scriptVariant).isEqualTo(designer.scriptVariant);

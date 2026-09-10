@@ -215,27 +215,27 @@ public final class MdCatalogPropertiesGranularSerial {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
         "FullTextSearch", enumTextElement("FullTextSearch", nz(i.fullTextSearch))));
     }
-    if (!Objects.equals(b.objectPresentationRu, i.objectPresentationRu)) {
+    if (!Objects.equals(b.objectPresentation, i.objectPresentation)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "ObjectPresentation", localStringRuElement("ObjectPresentation", i.objectPresentationRu)));
+        "ObjectPresentation", localStringElement("ObjectPresentation", i.objectPresentation)));
     }
-    if (!Objects.equals(b.extendedObjectPresentationRu, i.extendedObjectPresentationRu)) {
+    if (!Objects.equals(b.extendedObjectPresentation, i.extendedObjectPresentation)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
         "ExtendedObjectPresentation",
-        localStringRuElement("ExtendedObjectPresentation", i.extendedObjectPresentationRu)));
+        localStringElement("ExtendedObjectPresentation", i.extendedObjectPresentation)));
     }
-    if (!Objects.equals(b.listPresentationRu, i.listPresentationRu)) {
+    if (!Objects.equals(b.listPresentation, i.listPresentation)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "ListPresentation", localStringRuElement("ListPresentation", i.listPresentationRu)));
+        "ListPresentation", localStringElement("ListPresentation", i.listPresentation)));
     }
-    if (!Objects.equals(b.extendedListPresentationRu, i.extendedListPresentationRu)) {
+    if (!Objects.equals(b.extendedListPresentation, i.extendedListPresentation)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
         "ExtendedListPresentation",
-        localStringRuElement("ExtendedListPresentation", i.extendedListPresentationRu)));
+        localStringElement("ExtendedListPresentation", i.extendedListPresentation)));
     }
-    if (!Objects.equals(b.explanationRu, i.explanationRu)) {
+    if (!Objects.equals(b.explanation, i.explanation)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
-        "Explanation", localStringRuElement("Explanation", i.explanationRu)));
+        "Explanation", localStringElement("Explanation", i.explanation)));
     }
     if (!Objects.equals(b.createOnInput, i.createOnInput)) {
       out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
@@ -314,25 +314,25 @@ public final class MdCatalogPropertiesGranularSerial {
     return "<Comment>" + escapeXml(c) + "</Comment>";
   }
 
-  static String synonymElementRu(String ru) {
-    String t = ru == null ? "" : ru;
+  static String synonymElement(String text) {
+    String t = text == null ? "" : text;
     return "<Synonym>"
       + "<v8:item>"
-      + "<v8:lang>ru</v8:lang>"
+      + "<v8:lang>" + ConfigurationLanguage.current() + "</v8:lang>"
       + "<v8:content>" + escapeXml(t) + "</v8:content>"
       + "</v8:item>"
       + "</Synonym>";
   }
 
-  static String localStringRuElement(String localName, String ru) {
-    String t = ru == null ? "" : ru;
+  static String localStringElement(String localName, String text) {
+    String t = text == null ? "" : text;
     if (t.isEmpty()) {
-      // Пустое представление платформа пишет пустым элементом, без ru-строки
+      // Пустое представление платформа пишет пустым элементом, без строки языка
       return "<" + localName + "/>";
     }
     return "<" + localName + ">"
       + "<v8:item>"
-      + "<v8:lang>ru</v8:lang>"
+      + "<v8:lang>" + ConfigurationLanguage.current() + "</v8:lang>"
       + "<v8:content>" + escapeXml(t) + "</v8:content>"
       + "</v8:item>"
       + "</" + localName + ">";

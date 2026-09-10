@@ -692,7 +692,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     String configurationName;
 
     @Option(names = "--synonym-ru", description = "Синоним ru; по умолчанию пусто")
-    String synonymRu;
+    String synonym;
 
     @Option(names = "--vendor", description = "Поставщик; по умолчанию пусто")
     String vendor;
@@ -708,7 +708,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
             ? CfLayout.DEFAULT_CONFIGURATION_NAME
             : configurationName;
         io.github.yellowhammer.designerxml.cf.EmptyCfScaffold.writeEmptyTree(
-          targetCfRoot, name, synonymRu, vendor, appVersion, version);
+          targetCfRoot, name, synonym, vendor, appVersion, version);
       } catch (IllegalArgumentException e) {
         System.err.println(e.getMessage());
         return 2;
@@ -760,7 +760,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     Path mainConfigurationXml;
 
     @Option(names = "--synonym-ru", description = "Синоним ru; по умолчанию имя расширения")
-    String synonymRu;
+    String synonym;
 
     @Override
     public Integer call() throws Exception {
@@ -771,12 +771,12 @@ public final class DesignerXmlCli implements Callable<Integer> {
             : io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold.Purpose.fromCliName(purpose);
         if (mainConfigurationXml != null) {
           io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
-            targetCfeRoot, extensionName, synonymRu, namePrefix, purposeValue, mainConfigurationXml, version);
+            targetCfeRoot, extensionName, synonym, namePrefix, purposeValue, mainConfigurationXml, version);
         } else {
           io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold.writeEmptyTree(
             targetCfeRoot,
             extensionName,
-            synonymRu,
+            synonym,
             namePrefix,
             purposeValue,
             compatibilityMode,

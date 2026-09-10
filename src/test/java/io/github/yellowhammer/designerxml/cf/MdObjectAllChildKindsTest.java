@@ -81,7 +81,7 @@ class MdObjectAllChildKindsTest {
     MdObjectPropertiesDto dto = read("src/cf/Catalogs/_ДемоБанковскиеСчета/Forms/РеквизитыБанка.xml");
     assertThat(dto.kind).isEqualTo("form");
     assertThat(dto.internalName).isEqualTo("РеквизитыБанка");
-    assertThat(dto.synonymRu).isEqualTo("Реквизиты банка");
+    assertThat(dto.synonym).isEqualTo("Реквизиты банка");
   }
 
   @Test
@@ -90,7 +90,7 @@ class MdObjectAllChildKindsTest {
       read("src/cf/Catalogs/_ДемоМестаХранения/Templates/ДополнительныеДанныеПечати.xml");
     assertThat(dto.kind).isEqualTo("template");
     assertThat(dto.internalName).isEqualTo("ДополнительныеДанныеПечати");
-    assertThat(dto.synonymRu).isEqualTo("Дополнительные данные печати");
+    assertThat(dto.synonym).isEqualTo("Дополнительные данные печати");
   }
 
   @Test
@@ -166,11 +166,11 @@ class MdObjectAllChildKindsTest {
       java.nio.file.Path copy = tempDir.resolve(src.getFileName());
       java.nio.file.Files.copy(src, copy, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
       MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
-      dto.synonymRu = "Новый синоним";
+      dto.synonym = "Новый синоним";
       dto.comment = "Новый комментарий";
       MdObjectPropertiesEdit.writeDto(copy, SchemaVersion.V2_20, dto);
       MdObjectPropertiesDto after = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
-      assertThat(after.synonymRu).as(relative).isEqualTo("Новый синоним");
+      assertThat(after.synonym).as(relative).isEqualTo("Новый синоним");
       assertThat(after.comment).as(relative).isEqualTo("Новый комментарий");
     }
   }

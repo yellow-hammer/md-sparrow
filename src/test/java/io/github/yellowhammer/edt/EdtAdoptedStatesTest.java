@@ -160,7 +160,7 @@ class EdtAdoptedStatesTest {
     assertThat(dto.objectBelonging).isEqualTo("Adopted");
     assertThat(dto.propertyStates).isNull();
 
-    dto.synonymRu = "Товары из расширения";
+    dto.synonym = "Товары из расширения";
     EdtObjectWriter.writeDto(catalog, dto, model);
 
     assertThat(text(catalog)).contains("""
@@ -176,7 +176,7 @@ class EdtAdoptedStatesTest {
         </mdclass:Catalog>
         """);
     MdObjectPropertiesDto written = EdtObjectProperties.readDto(catalog, model);
-    assertThat(written.synonymRu).isEqualTo("Товары из расширения");
+    assertThat(written.synonym).isEqualTo("Товары из расширения");
     assertThat(written.propertyStates).isEqualTo(Map.of("synonym", "Extended"));
   }
 
@@ -186,7 +186,7 @@ class EdtAdoptedStatesTest {
     MdObjectPropertiesDto dto = EdtObjectProperties.readDto(register, model);
     assertThat(dto.propertyStates).containsEntry("writeMode", "Checked").containsEntry("recordSetModule", "Extended");
 
-    dto.synonymRu = "Заведующие из расширения";
+    dto.synonym = "Заведующие из расширения";
     dto.register.writeMode = "RECORDER_SUBORDINATE";
     EdtObjectWriter.writeDto(register, dto, model);
 

@@ -89,11 +89,11 @@ public final class MdCatalogPropertiesBridge {
     addFields(c.dataLockFields, JaxbReflect.getOptional(p, "getDataLockFields"));
     c.dataLockControlMode = en(p, "getDataLockControlMode");
     c.fullTextSearch = en(p, "getFullTextSearch");
-    c.objectPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getObjectPresentation"));
-    c.extendedObjectPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedObjectPresentation"));
-    c.listPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getListPresentation"));
-    c.extendedListPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
-    c.explanationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExplanation"));
+    c.objectPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getObjectPresentation"));
+    c.extendedObjectPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedObjectPresentation"));
+    c.listPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getListPresentation"));
+    c.extendedListPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
+    c.explanation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExplanation"));
     c.createOnInput = en(p, "getCreateOnInput");
     c.choiceHistoryOnInput = en(p, "getChoiceHistoryOnInput");
     c.dataHistory = en(p, "getDataHistory");
@@ -115,8 +115,8 @@ public final class MdCatalogPropertiesBridge {
     if (!dto.internalName.equals(JaxbReflect.getStringOptional(p, "getName"))) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getSynonym"), syn);
+    String syn = dto.synonym == null ? "" : dto.synonym;
+    LocalStringSync.setOrPut(JaxbReflect.getOptional(p, "getSynonym"), syn);
     JaxbReflect.setOptional(p, "setComment", dto.comment == null ? "" : dto.comment);
     JaxbReflect.setEnumOrKeep(p, "setObjectBelonging", c.objectBelonging);
     JaxbReflect.setOptional(p, "setExtendedConfigurationObject", nullIfBlankUuid(c.extendedConfigurationObject));
@@ -179,11 +179,11 @@ public final class MdCatalogPropertiesBridge {
     setFields(JaxbReflect.getOptional(p, "getDataLockFields"), c.dataLockFields);
     JaxbReflect.setEnumOrKeep(p, "setDataLockControlMode", c.dataLockControlMode);
     JaxbReflect.setEnumOrKeep(p, "setFullTextSearch", c.fullTextSearch);
-    ensureAndSetRu(p, "getObjectPresentation", "setObjectPresentation", c.objectPresentationRu);
-    ensureAndSetRu(p, "getExtendedObjectPresentation", "setExtendedObjectPresentation", c.extendedObjectPresentationRu);
-    ensureAndSetRu(p, "getListPresentation", "setListPresentation", c.listPresentationRu);
-    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", c.extendedListPresentationRu);
-    ensureAndSetRu(p, "getExplanation", "setExplanation", c.explanationRu);
+    ensureAndSetRu(p, "getObjectPresentation", "setObjectPresentation", c.objectPresentation);
+    ensureAndSetRu(p, "getExtendedObjectPresentation", "setExtendedObjectPresentation", c.extendedObjectPresentation);
+    ensureAndSetRu(p, "getListPresentation", "setListPresentation", c.listPresentation);
+    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", c.extendedListPresentation);
+    ensureAndSetRu(p, "getExplanation", "setExplanation", c.explanation);
     JaxbReflect.setEnumOrKeep(p, "setCreateOnInput", c.createOnInput);
     JaxbReflect.setEnumOrKeep(p, "setChoiceHistoryOnInput", c.choiceHistoryOnInput);
     JaxbReflect.setEnumOrKeep(p, "setDataHistory", c.dataHistory);
@@ -195,7 +195,7 @@ public final class MdCatalogPropertiesBridge {
 
   private static void ensureAndSetRu(Object p, String getter, String setter, String ru) {
     Object ls = JaxbReflect.ensureOptional(p, getter, setter);
-    LocalStringSync.setOrPutRu(ls, ru == null ? "" : ru);
+    LocalStringSync.setOrPut(ls, ru == null ? "" : ru);
   }
 
   private static String en(Object p, String getter) {

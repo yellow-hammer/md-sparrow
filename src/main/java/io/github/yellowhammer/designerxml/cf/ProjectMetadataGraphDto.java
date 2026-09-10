@@ -52,7 +52,7 @@ public record ProjectMetadataGraphDto(
     String objectType,
     String name,
     /** Синоним на русском, если есть. */
-    String synonymRu,
+    String synonym,
     /** Источник: {@code main}, имя расширения {@code <name>}, {@code external-erf}, {@code external-epf}. */
     String sourceId,
     /** Путь к XML относительно корня проекта; пусто, если объект без отдельного файла. */

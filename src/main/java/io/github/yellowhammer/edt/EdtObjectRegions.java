@@ -199,6 +199,33 @@ public final class EdtObjectRegions {
   }
 
   /**
+   * Границы многоязычной строки на нужном языке: у каждого языка свой элемент.
+   *
+   * @param xml содержимое файла
+   * @param regions границы одноимённых элементов свойства
+   * @param code код языка
+   * @return границы элемента или {@link #MISSING}
+   * @throws XMLStreamException если файл не разбирается
+   */
+  public static Region byKey(String xml, List<Region> regions, String code) throws XMLStreamException {
+    for (Region region : regions) {
+      Region key = childRegion(xml, region, "key");
+      if (key.found() && code.equals(text(xml, key))) {
+        return region;
+      }
+    }
+    return MISSING;
+  }
+
+  /** Текст простого элемента без его тегов. */
+  public static String text(String xml, Region element) {
+    String text = xml.substring(element.start(), element.end());
+    int open = text.indexOf('>');
+    int close = text.lastIndexOf("</");
+    return open < 0 || close < open ? "" : text.substring(open + 1, close);
+  }
+
+  /**
    * Имена узлов в порядке файла.
    *
    * @param xml содержимое файла
@@ -226,6 +253,19 @@ public final class EdtObjectRegions {
    * @throws XMLStreamException если файл не разбирается
    */
   public static Region nameRegion(String xml, Region node) throws XMLStreamException {
+    return childRegion(xml, node, "name");
+  }
+
+  /**
+   * Границы дочернего элемента узла.
+   *
+   * @param xml содержимое файла
+   * @param node границы узла
+   * @param localName имя дочернего элемента: {@code key} и {@code value} у многоязычной строки
+   * @return границы элемента или {@link #MISSING}
+   * @throws XMLStreamException если файл не разбирается
+   */
+  public static Region childRegion(String xml, Region node, String localName) throws XMLStreamException {
     XMLStreamReader reader = reader(xml);
     try {
       while (reader.hasNext()) {
@@ -239,7 +279,7 @@ public final class EdtObjectRegions {
         if (start >= node.end()) {
           return MISSING;
         }
-        if (reader.getLocalName().equals("name")) {
+        if (reader.getLocalName().equals(localName)) {
           int end = skipElement(xml, reader);
           if (end > start) {
             return new Region(start, end);
@@ -258,10 +298,7 @@ public final class EdtObjectRegions {
     if (!name.found()) {
       return null;
     }
-    String element = xml.substring(name.start(), name.end());
-    int open = element.indexOf('>');
-    int close = element.lastIndexOf("</");
-    return open < 0 || close < open ? "" : element.substring(open + 1, close);
+    return text(xml, name);
   }
 
   /**

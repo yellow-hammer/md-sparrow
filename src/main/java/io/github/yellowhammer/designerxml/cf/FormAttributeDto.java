@@ -15,7 +15,7 @@ public final class FormAttributeDto {
 
   public String name;
 
-  /** Заголовок (ru). */
+  /** Заголовок на языке конфигурации. */
   public String title;
 
   public MdTypeDescriptionDto type;

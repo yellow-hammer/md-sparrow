@@ -38,12 +38,29 @@ public final class ConfigurationPropertiesEdit {
 
   public static ConfigurationPropertiesDto read(Path configurationXml, SchemaVersion schemaVersion)
     throws JAXBException, IOException {
-    return fill(properties(DesignerXml.read(configurationXml, schemaVersion)), configurationXml, schemaVersion);
+    return ConfigurationLanguage.with(configurationXml, () -> readInLanguage(configurationXml, schemaVersion));
+  }
+
+  private static ConfigurationPropertiesDto readInLanguage(Path configurationXml, SchemaVersion schemaVersion)
+    throws JAXBException, IOException {
+    ConfigurationPropertiesDto out =
+      fill(properties(DesignerXml.read(configurationXml, schemaVersion)), configurationXml, schemaVersion);
+    out.languageCode = ConfigurationLanguage.current();
+    out.localStringProperties = LocalStringProperties.forResponse();
+    return out;
   }
 
   public static void write(Path configurationXml, SchemaVersion schemaVersion, ConfigurationPropertiesDto dto)
     throws JAXBException, IOException {
-    ConfigurationPropertiesDto baseline = read(configurationXml, schemaVersion);
+    ConfigurationLanguage.with(configurationXml, () -> {
+      writeInLanguage(configurationXml, schemaVersion, dto);
+      return null;
+    });
+  }
+
+  private static void writeInLanguage(Path configurationXml, SchemaVersion schemaVersion,
+    ConfigurationPropertiesDto dto) throws JAXBException, IOException {
+    ConfigurationPropertiesDto baseline = readInLanguage(configurationXml, schemaVersion);
     ConfigurationPropertiesDto incoming = normalizeIncoming(dto, baseline);
     if (equalsDto(baseline, incoming)) {
       return;
@@ -52,7 +69,7 @@ public final class ConfigurationPropertiesEdit {
     Object root = DesignerXml.read(configurationXml, schemaVersion);
     Object p = properties(root);
     JaxbReflect.setOptional(p, "setName", nvl(incoming.name));
-    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getSynonym"), nvl(incoming.synonymRu));
+    LocalStringSync.setOrPut(JaxbReflect.getOptional(p, "getSynonym"), nvl(incoming.synonym));
     JaxbReflect.setOptional(p, "setComment", nvl(incoming.comment));
     JaxbReflect.setEnumOrKeep(p, "setDefaultRunMode", incoming.defaultRunMode);
     applyUsePurposes(schemaVersion, p, incoming.usePurposes);
@@ -64,13 +81,13 @@ public final class ConfigurationPropertiesEdit {
     JaxbReflect.setOptional(p, "setManagedApplicationModule", nvl(incoming.managedApplicationModule));
     JaxbReflect.setOptional(p, "setSessionModule", nvl(incoming.sessionModule));
     JaxbReflect.setOptional(p, "setExternalConnectionModule", nvl(incoming.externalConnectionModule));
-    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getBriefInformation"), nvl(incoming.briefInformationRu));
-    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getDetailedInformation"), nvl(incoming.detailedInformationRu));
-    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getCopyright"), nvl(incoming.copyrightRu));
-    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getVendorInformationAddress"),
-      nvl(incoming.vendorInformationAddressRu));
-    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getConfigurationInformationAddress"),
-      nvl(incoming.configurationInformationAddressRu));
+    LocalStringSync.setOrPut(JaxbReflect.getOptional(p, "getBriefInformation"), nvl(incoming.briefInformation));
+    LocalStringSync.setOrPut(JaxbReflect.getOptional(p, "getDetailedInformation"), nvl(incoming.detailedInformation));
+    LocalStringSync.setOrPut(JaxbReflect.getOptional(p, "getCopyright"), nvl(incoming.copyright));
+    LocalStringSync.setOrPut(JaxbReflect.getOptional(p, "getVendorInformationAddress"),
+      nvl(incoming.vendorInformationAddress));
+    LocalStringSync.setOrPut(JaxbReflect.getOptional(p, "getConfigurationInformationAddress"),
+      nvl(incoming.configurationInformationAddress));
     JaxbReflect.setOptional(p, "setVendor", nvl(incoming.vendor));
     JaxbReflect.setOptional(p, "setVersion", nvl(incoming.version));
     JaxbReflect.setOptional(p, "setUpdateCatalogAddress", nvl(incoming.updateCatalogAddress));
@@ -128,7 +145,7 @@ public final class ConfigurationPropertiesEdit {
   private static ConfigurationPropertiesDto fill(Object p, EnumValue enumValue, SchemaVersion version) {
     var out = new ConfigurationPropertiesDto();
     out.name = nvl(JaxbReflect.getStringOptional(p, "getName"));
-    out.synonymRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getSynonym"));
+    out.synonym = LocalStringSync.first(JaxbReflect.getOptional(p, "getSynonym"));
     out.comment = nvl(JaxbReflect.getStringOptional(p, "getComment"));
     out.defaultRunMode = JaxbReflect.enumNameOptional(p, "getDefaultRunMode");
     out.usePurposes = enumListToNames(JaxbReflect.getOptional(p, "getUsePurposes"));
@@ -141,12 +158,12 @@ public final class ConfigurationPropertiesEdit {
     out.managedApplicationModule = nvl(JaxbReflect.getStringOptional(p, "getManagedApplicationModule"));
     out.sessionModule = nvl(JaxbReflect.getStringOptional(p, "getSessionModule"));
     out.externalConnectionModule = nvl(JaxbReflect.getStringOptional(p, "getExternalConnectionModule"));
-    out.briefInformationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getBriefInformation"));
-    out.detailedInformationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getDetailedInformation"));
-    out.copyrightRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getCopyright"));
-    out.vendorInformationAddressRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getVendorInformationAddress"));
-    out.configurationInformationAddressRu =
-      LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getConfigurationInformationAddress"));
+    out.briefInformation = LocalStringSync.first(JaxbReflect.getOptional(p, "getBriefInformation"));
+    out.detailedInformation = LocalStringSync.first(JaxbReflect.getOptional(p, "getDetailedInformation"));
+    out.copyright = LocalStringSync.first(JaxbReflect.getOptional(p, "getCopyright"));
+    out.vendorInformationAddress = LocalStringSync.first(JaxbReflect.getOptional(p, "getVendorInformationAddress"));
+    out.configurationInformationAddress =
+      LocalStringSync.first(JaxbReflect.getOptional(p, "getConfigurationInformationAddress"));
     out.vendor = nvl(JaxbReflect.getStringOptional(p, "getVendor"));
     out.version = nvl(JaxbReflect.getStringOptional(p, "getVersion"));
     out.updateCatalogAddress = nvl(JaxbReflect.getStringOptional(p, "getUpdateCatalogAddress"));
@@ -272,7 +289,7 @@ public final class ConfigurationPropertiesEdit {
       baseline = new ConfigurationPropertiesDto();
     }
     out.name = nvl(out.name);
-    out.synonymRu = nvl(out.synonymRu);
+    out.synonym = nvl(out.synonym);
     out.comment = nvl(out.comment);
     out.defaultRunMode = nvl(out.defaultRunMode);
     out.usePurposes = safeTrimmedList(out.usePurposes);
@@ -281,11 +298,11 @@ public final class ConfigurationPropertiesEdit {
     out.managedApplicationModule = nvl(out.managedApplicationModule);
     out.sessionModule = nvl(out.sessionModule);
     out.externalConnectionModule = nvl(out.externalConnectionModule);
-    out.briefInformationRu = nvl(out.briefInformationRu);
-    out.detailedInformationRu = nvl(out.detailedInformationRu);
-    out.copyrightRu = nvl(out.copyrightRu);
-    out.vendorInformationAddressRu = nvl(out.vendorInformationAddressRu);
-    out.configurationInformationAddressRu = nvl(out.configurationInformationAddressRu);
+    out.briefInformation = nvl(out.briefInformation);
+    out.detailedInformation = nvl(out.detailedInformation);
+    out.copyright = nvl(out.copyright);
+    out.vendorInformationAddress = nvl(out.vendorInformationAddress);
+    out.configurationInformationAddress = nvl(out.configurationInformationAddress);
     out.vendor = nvl(out.vendor);
     out.version = nvl(out.version);
     out.updateCatalogAddress = nvl(out.updateCatalogAddress);
@@ -327,7 +344,7 @@ public final class ConfigurationPropertiesEdit {
     if (!nvl(baseline.name).equals(nvl(incoming.name))) {
       tags.add("Name");
     }
-    if (!nvl(baseline.synonymRu).equals(nvl(incoming.synonymRu))) {
+    if (!nvl(baseline.synonym).equals(nvl(incoming.synonym))) {
       tags.add("Synonym");
     }
     if (!nvl(baseline.comment).equals(nvl(incoming.comment))) {
@@ -354,19 +371,19 @@ public final class ConfigurationPropertiesEdit {
     if (!nvl(baseline.externalConnectionModule).equals(nvl(incoming.externalConnectionModule))) {
       tags.add("ExternalConnectionModule");
     }
-    if (!nvl(baseline.briefInformationRu).equals(nvl(incoming.briefInformationRu))) {
+    if (!nvl(baseline.briefInformation).equals(nvl(incoming.briefInformation))) {
       tags.add("BriefInformation");
     }
-    if (!nvl(baseline.detailedInformationRu).equals(nvl(incoming.detailedInformationRu))) {
+    if (!nvl(baseline.detailedInformation).equals(nvl(incoming.detailedInformation))) {
       tags.add("DetailedInformation");
     }
-    if (!nvl(baseline.copyrightRu).equals(nvl(incoming.copyrightRu))) {
+    if (!nvl(baseline.copyright).equals(nvl(incoming.copyright))) {
       tags.add("Copyright");
     }
-    if (!nvl(baseline.vendorInformationAddressRu).equals(nvl(incoming.vendorInformationAddressRu))) {
+    if (!nvl(baseline.vendorInformationAddress).equals(nvl(incoming.vendorInformationAddress))) {
       tags.add("VendorInformationAddress");
     }
-    if (!nvl(baseline.configurationInformationAddressRu).equals(nvl(incoming.configurationInformationAddressRu))) {
+    if (!nvl(baseline.configurationInformationAddress).equals(nvl(incoming.configurationInformationAddress))) {
       tags.add("ConfigurationInformationAddress");
     }
     if (!nvl(baseline.vendor).equals(nvl(incoming.vendor))) {
@@ -408,7 +425,7 @@ public final class ConfigurationPropertiesEdit {
       return false;
     }
     return nvl(left.name).equals(nvl(right.name))
-      && nvl(left.synonymRu).equals(nvl(right.synonymRu))
+      && nvl(left.synonym).equals(nvl(right.synonym))
       && nvl(left.comment).equals(nvl(right.comment))
       && nvl(left.defaultRunMode).equals(nvl(right.defaultRunMode))
       && safeTrimmedList(left.usePurposes).equals(safeTrimmedList(right.usePurposes))
@@ -417,11 +434,11 @@ public final class ConfigurationPropertiesEdit {
       && nvl(left.managedApplicationModule).equals(nvl(right.managedApplicationModule))
       && nvl(left.sessionModule).equals(nvl(right.sessionModule))
       && nvl(left.externalConnectionModule).equals(nvl(right.externalConnectionModule))
-      && nvl(left.briefInformationRu).equals(nvl(right.briefInformationRu))
-      && nvl(left.detailedInformationRu).equals(nvl(right.detailedInformationRu))
-      && nvl(left.copyrightRu).equals(nvl(right.copyrightRu))
-      && nvl(left.vendorInformationAddressRu).equals(nvl(right.vendorInformationAddressRu))
-      && nvl(left.configurationInformationAddressRu).equals(nvl(right.configurationInformationAddressRu))
+      && nvl(left.briefInformation).equals(nvl(right.briefInformation))
+      && nvl(left.detailedInformation).equals(nvl(right.detailedInformation))
+      && nvl(left.copyright).equals(nvl(right.copyright))
+      && nvl(left.vendorInformationAddress).equals(nvl(right.vendorInformationAddress))
+      && nvl(left.configurationInformationAddress).equals(nvl(right.configurationInformationAddress))
       && nvl(left.vendor).equals(nvl(right.vendor))
       && nvl(left.version).equals(nvl(right.version))
       && nvl(left.updateCatalogAddress).equals(nvl(right.updateCatalogAddress))

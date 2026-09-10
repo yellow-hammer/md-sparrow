@@ -33,7 +33,7 @@ public final class MdObjectStructureDto {
   /** Стандартные реквизиты объекта: платформа задаёт их сама, файл перечисляет с настройками. */
   public List<String> standardAttributes;
   /**
-   * Синонимы стандартных реквизитов: имя -> синоним (ru).
+   * Синонимы стандартных реквизитов: имя -> синоним на языке конфигурации.
    *
    * <p>Платформа показывает на форме синоним, а не имя, и у стандартного реквизита его переопределяют
    * не реже, чем у обычного: {@code Code} у справочника валют - «Цифровой код». Без переопределения
@@ -41,13 +41,13 @@ public final class MdObjectStructureDto {
    */
   public java.util.Map<String, String> standardAttributeSynonyms;
   /**
-   * Синонимы команд объекта: имя -> синоним (ru).
+   * Синонимы команд объекта: имя -> синоним на языке конфигурации.
    *
    * <p>Кнопку без заголовка платформа подписывает синонимом команды, на которую та ссылается.
    */
   public java.util.Map<String, String> commandSynonyms;
   /**
-   * Синонимы полей данных: имя -> синоним (ru).
+   * Синонимы полей данных: имя -> синоним на языке конфигурации.
    *
    * <p>Измерения, ресурсы, признаки учёта и прочие узлы, которые в списках лежат одними именами.
    * Нужны колонкам динамического списка: его поля идут по именам основной таблицы.
@@ -140,7 +140,8 @@ public final class MdObjectStructureDto {
 
   public static final class MdNodeDto {
     public String name;
-    public String synonymRu;
+    @LocalString
+    public String synonym;
     public String comment;
     /**
      * Тип значения реквизита.
@@ -153,21 +154,22 @@ public final class MdObjectStructureDto {
     public MdNodeDto() {
     }
 
-    public MdNodeDto(String name, String synonymRu, String comment) {
+    public MdNodeDto(String name, String synonym, String comment) {
       this.name = name;
-      this.synonymRu = synonymRu;
+      this.synonym = synonym;
       this.comment = comment;
     }
   }
 
   public static final class MdTabularSectionDto {
     public String name;
-    public String synonymRu;
+    @LocalString
+    public String synonym;
     public String comment;
     public List<MdNodeDto> attributes;
     /** Стандартные реквизиты табличной части: у любой из них есть {@code LineNumber}. */
     public List<String> standardAttributes;
-    /** Синонимы стандартных реквизитов табличной части: имя -> синоним (ru). */
+    /** Синонимы стандартных реквизитов табличной части: имя -> синоним на языке конфигурации. */
     public java.util.Map<String, String> standardAttributeSynonyms;
 
     public MdTabularSectionDto() {

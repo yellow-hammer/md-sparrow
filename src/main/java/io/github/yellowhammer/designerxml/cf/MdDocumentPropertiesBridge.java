@@ -69,11 +69,11 @@ public final class MdDocumentPropertiesBridge {
     addFields(d.dataLockFields, JaxbReflect.getOptional(p, "getDataLockFields"));
     d.dataLockControlMode = en(p, "getDataLockControlMode");
     d.fullTextSearch = en(p, "getFullTextSearch");
-    d.objectPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getObjectPresentation"));
-    d.extendedObjectPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedObjectPresentation"));
-    d.listPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getListPresentation"));
-    d.extendedListPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
-    d.explanationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExplanation"));
+    d.objectPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getObjectPresentation"));
+    d.extendedObjectPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedObjectPresentation"));
+    d.listPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getListPresentation"));
+    d.extendedListPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
+    d.explanation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExplanation"));
     d.dataHistory = en(p, "getDataHistory");
     d.updateDataHistoryImmediatelyAfterWrite = JaxbReflect.getBooleanOptional(p, "isUpdateDataHistoryImmediatelyAfterWrite");
     d.executeAfterWriteDataHistoryVersionProcessing =
@@ -93,8 +93,8 @@ public final class MdDocumentPropertiesBridge {
     if (!dto.internalName.equals(JaxbReflect.getStringOptional(p, "getName"))) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(p, "getSynonym"), syn);
+    String syn = dto.synonym == null ? "" : dto.synonym;
+    LocalStringSync.setOrPut(JaxbReflect.getOptional(p, "getSynonym"), syn);
     JaxbReflect.setOptional(p, "setComment", dto.comment == null ? "" : dto.comment);
     JaxbReflect.setEnumOrKeep(p, "setObjectBelonging", d.objectBelonging);
     JaxbReflect.setOptional(p, "setExtendedConfigurationObject", nullIfBlankUuid(d.extendedConfigurationObject));
@@ -150,11 +150,11 @@ public final class MdDocumentPropertiesBridge {
     setFields(JaxbReflect.getOptional(p, "getDataLockFields"), d.dataLockFields);
     JaxbReflect.setEnumOrKeep(p, "setDataLockControlMode", d.dataLockControlMode);
     JaxbReflect.setEnumOrKeep(p, "setFullTextSearch", d.fullTextSearch);
-    ensureAndSetRu(p, "getObjectPresentation", "setObjectPresentation", d.objectPresentationRu);
-    ensureAndSetRu(p, "getExtendedObjectPresentation", "setExtendedObjectPresentation", d.extendedObjectPresentationRu);
-    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentationRu);
-    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentationRu);
-    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanationRu);
+    ensureAndSetRu(p, "getObjectPresentation", "setObjectPresentation", d.objectPresentation);
+    ensureAndSetRu(p, "getExtendedObjectPresentation", "setExtendedObjectPresentation", d.extendedObjectPresentation);
+    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentation);
+    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentation);
+    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanation);
     JaxbReflect.setEnumOrKeep(p, "setDataHistory", d.dataHistory);
     JaxbReflect.setOptional(p, "setUpdateDataHistoryImmediatelyAfterWrite", d.updateDataHistoryImmediatelyAfterWrite);
     JaxbReflect.setOptional(p, "setExecuteAfterWriteDataHistoryVersionProcessing",
@@ -164,7 +164,7 @@ public final class MdDocumentPropertiesBridge {
 
   private static void ensureAndSetRu(Object p, String getter, String setter, String ru) {
     Object ls = JaxbReflect.ensureOptional(p, getter, setter);
-    LocalStringSync.setOrPutRu(ls, ru == null ? "" : ru);
+    LocalStringSync.setOrPut(ls, ru == null ? "" : ru);
   }
 
   private static String nullIfBlankUuid(String s) {

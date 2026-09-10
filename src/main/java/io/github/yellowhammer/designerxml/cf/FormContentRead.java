@@ -222,7 +222,7 @@ public final class FormContentRead {
     // Заголовок подсказки и надписи - наследник строки на языках, поэтому смотрим всю цепочку.
     for (Class<?> c = value.getClass(); c != null; c = c.getSuperclass()) {
       if ("LocalStringType".equals(c.getSimpleName())) {
-        String ru = LocalStringSync.firstRu(value);
+        String ru = LocalStringSync.first(value);
         return ru == null || ru.isEmpty() ? null : ru;
       }
     }
@@ -256,7 +256,7 @@ public final class FormContentRead {
       return null;
     }
     Object value = JaxbReflect.getOptional(entry, "getValue");
-    String ru = value == null ? null : LocalStringSync.firstRu(JaxbReflect.getOptional(value, "getPresentation"));
+    String ru = value == null ? null : LocalStringSync.first(JaxbReflect.getOptional(value, "getPresentation"));
     if (ru != null && !ru.isEmpty()) {
       return ru;
     }
@@ -275,7 +275,7 @@ public final class FormContentRead {
 
   /** Заголовок ru; пустой не отдаём, чтобы в модели не было пустых строк вместо «не задано». */
   private static String titleText(Object owner) {
-    String title = LocalStringSync.firstRu(JaxbReflect.getOptional(owner, "getTitle"));
+    String title = LocalStringSync.first(JaxbReflect.getOptional(owner, "getTitle"));
     return title == null || title.isEmpty() ? null : title;
   }
 

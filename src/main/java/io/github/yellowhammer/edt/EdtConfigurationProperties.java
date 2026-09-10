@@ -21,6 +21,10 @@
  */
 package io.github.yellowhammer.edt;
 
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
+import io.github.yellowhammer.designerxml.cf.LocalString;
+import io.github.yellowhammer.designerxml.cf.LocalStringProperties;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -54,6 +58,15 @@ public final class EdtConfigurationProperties {
    * @throws IOException если файл не читается
    */
   public static ConfigurationPropertiesDto read(Path configurationMdo, EdtModel model) throws IOException {
+    try {
+      return ConfigurationLanguage.with(configurationMdo, () -> readInLanguage(configurationMdo, model));
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static ConfigurationPropertiesDto readInLanguage(Path configurationMdo, EdtModel model)
+      throws IOException {
     EdtObjectReader.EdtNode node = EdtObjectReader.read(configurationMdo);
     EClass eClass = model.classOf(node.kind());
 
@@ -72,6 +85,8 @@ public final class EdtConfigurationProperties {
       }
     }
     dto.usePurposeOptions = options(eClass, "usePurposes");
+    dto.languageCode = ConfigurationLanguage.current();
+    dto.localStringProperties = LocalStringProperties.forResponse();
     return dto;
   }
 
@@ -94,7 +109,9 @@ public final class EdtConfigurationProperties {
   /** Значение поля контракта по свойству схемы. */
   private static Object value(Field field, EdtObjectReader.EdtNode node, EClass eClass) {
     String name = field.getName();
-    if (name.equals("usePurposeOptions")) {
+    // Служебные поля ответа: их заполняет само чтение, в файле их нет
+    if (name.equals("usePurposeOptions") || name.equals("languageCode")
+        || name.equals("localStringProperties")) {
       return null;
     }
     if (field.getType() == List.class) {
@@ -104,8 +121,8 @@ public final class EdtConfigurationProperties {
       return null;
     }
     // Краткая информация, авторские права и адреса записаны парами язык-значение
-    return name.endsWith("Ru")
-        ? EdtPropertyValues.russian(node, name.substring(0, name.length() - 2))
+    return field.isAnnotationPresent(LocalString.class)
+        ? EdtPropertyValues.localized(node, name)
         : EdtPropertyValues.text(node, eClass, name);
   }
 

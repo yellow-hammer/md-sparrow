@@ -66,7 +66,7 @@ class AdoptedStatesPatchTest {
     assertThat(dto.objectBelonging).isEqualTo(AdoptedStates.ADOPTED);
     assertThat(dto.propertyStates).isNull();
 
-    dto.synonymRu = "Группы доступа партнёров из расширения";
+    dto.synonym = "Группы доступа партнёров из расширения";
     MdObjectPropertiesEdit.writeDto(catalog, SchemaVersion.V2_21, dto);
 
     String xml = text(catalog);
@@ -86,7 +86,7 @@ class AdoptedStatesPatchTest {
     // Синоним расширение только переопределяет: платформа не держит для него записи состояния
     assertThat(xml).doesNotContain("PropertyState");
     MdObjectPropertiesDto written = MdObjectPropertiesEdit.readDto(catalog, SchemaVersion.V2_21);
-    assertThat(written.synonymRu).isEqualTo("Группы доступа партнёров из расширения");
+    assertThat(written.synonym).isEqualTo("Группы доступа партнёров из расширения");
     assertThat(written.propertyStates).isEqualTo(Map.of("synonym", AdoptedStates.EXTENDED));
   }
 

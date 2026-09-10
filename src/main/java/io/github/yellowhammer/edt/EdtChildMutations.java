@@ -35,6 +35,7 @@ import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
 import io.github.yellowhammer.edt.EdtObjectRegions.Region;
 
 /**
@@ -258,6 +259,17 @@ public final class EdtChildMutations {
   }
 
   private static void editAll(Path objectMdo, MultiEdit change) throws IOException {
+    try {
+      ConfigurationLanguage.with(objectMdo, () -> {
+        editAllInLanguage(objectMdo, change);
+        return null;
+      });
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static void editAllInLanguage(Path objectMdo, MultiEdit change) throws IOException {
     if (!Files.isRegularFile(objectMdo)) {
       throw new IllegalArgumentException("Файл объекта не найден: " + objectMdo);
     }
@@ -363,7 +375,8 @@ public final class EdtChildMutations {
     node.append(producedTypes(model, kind, indent, eol));
     node.append(indent).append(INDENT).append("<name>").append(escape(name)).append("</name>").append(eol);
     node.append(indent).append(INDENT).append("<synonym>").append(eol);
-    node.append(indent).append(INDENT).append(INDENT).append("<key>ru</key>").append(eol);
+    node.append(indent).append(INDENT).append(INDENT)
+        .append("<key>").append(ConfigurationLanguage.current()).append("</key>").append(eol);
     node.append(indent).append(INDENT).append(INDENT).append("<value>").append(escape(name)).append("</value>")
         .append(eol);
     node.append(indent).append(INDENT).append("</synonym>").append(eol);

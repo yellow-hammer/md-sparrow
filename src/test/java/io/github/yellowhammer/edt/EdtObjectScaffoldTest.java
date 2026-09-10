@@ -107,7 +107,7 @@ class EdtObjectScaffoldTest {
     MdObjectPropertiesDto dto = EdtObjectProperties.readDto(mdo, model);
     assertThat(dto.kind).isEqualTo("catalog");
     assertThat(dto.internalName).isEqualTo("Справочник1");
-    assertThat(dto.synonymRu).isEqualTo("Справочник1");
+    assertThat(dto.synonym).isEqualTo("Справочник1");
     assertThat(names(root, "Catalog")).contains("Валюты", "Справочник1");
     // Второй объект того же вида получает следующий номер
     assertThat(EdtObjectScaffold.addWithNextAvailableName(configuration(root), model, MdObjectAddType.CATALOG))

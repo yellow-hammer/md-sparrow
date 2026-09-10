@@ -91,9 +91,11 @@ public final class MdObjectStructureRead {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    MdObjectStructureDto dto = readFromRoot(je);
-    fillChildContent(dto, objectXml);
-    return dto;
+    return ConfigurationLanguage.with(objectXml, () -> {
+      MdObjectStructureDto dto = readFromRoot(je);
+      fillChildContent(dto, objectXml);
+      return dto;
+    });
   }
 
   public static MdObjectStructureDto read(byte[] utf8Xml, SchemaVersion version) throws JAXBException {
@@ -133,7 +135,7 @@ public final class MdObjectStructureRead {
       MdObjectStructureDto.MdTabularSectionDto tsDto = new MdObjectStructureDto.MdTabularSectionDto();
       Object tsProps = invokeNoArg(ts, "getProperties");
       tsDto.name = safeString(invokeNoArgOrNull(tsProps, "getName"));
-      tsDto.synonymRu = readLocalStringRu(invokeNoArgOrNull(tsProps, "getSynonym"));
+      tsDto.synonym = readLocalStringRu(invokeNoArgOrNull(tsProps, "getSynonym"));
       tsDto.comment = safeString(invokeNoArgOrNull(tsProps, "getComment"));
       tsDto.standardAttributeSynonyms.putAll(StandardAttributeLabels.ofTabularSection());
       readStandardAttributes(tsProps, tsDto.standardAttributes, tsDto.standardAttributeSynonyms);
@@ -155,7 +157,7 @@ public final class MdObjectStructureRead {
     for (Object command : commands) {
       String name = extractItemName(command);
       Object properties = invokeNoArgOrNull(command, "getProperties");
-      String synonym = properties == null ? "" : LocalStringSync.firstRu(invokeNoArgOrNull(properties, "getSynonym"));
+      String synonym = properties == null ? "" : LocalStringSync.first(invokeNoArgOrNull(properties, "getSynonym"));
       if (!name.isBlank() && synonym != null && !synonym.isEmpty()) {
         dto.commandSynonyms.put(name, synonym);
       }
@@ -204,7 +206,7 @@ public final class MdObjectStructureRead {
         continue;
       }
       names.add(name);
-      String synonym = LocalStringSync.firstRu(invokeNoArgOrNull(item, "getSynonym"));
+      String synonym = LocalStringSync.first(invokeNoArgOrNull(item, "getSynonym"));
       if (synonym != null && !synonym.isEmpty()) {
         synonyms.put(name, synonym);
       }
@@ -238,7 +240,7 @@ public final class MdObjectStructureRead {
     List<Object> items = listOrEmpty(invokeNoArgOrNull(localString, "getItem"));
     for (Object item : items) {
       String lang = safeString(invokeNoArgOrNull(item, "getLang"));
-      if ("ru".equals(lang)) {
+      if (ConfigurationLanguage.current().equals(lang)) {
         return safeString(invokeNoArgOrNull(item, "getContent"));
       }
     }
@@ -261,7 +263,7 @@ public final class MdObjectStructureRead {
       }
       out.add(name);
       Object properties = invokeNoArgOrNull(item, "getProperties");
-      String synonym = properties == null ? "" : LocalStringSync.firstRu(invokeNoArgOrNull(properties, "getSynonym"));
+      String synonym = properties == null ? "" : LocalStringSync.first(invokeNoArgOrNull(properties, "getSynonym"));
       if (synonym != null && !synonym.isEmpty()) {
         synonyms.put(name, synonym);
       }

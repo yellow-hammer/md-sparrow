@@ -345,7 +345,7 @@ public final class MdObjectChildMutations {
         + "\t\t<Name>" + escapeXml(newName) + "</Name>\n"
         + "\t\t<Synonym>\n"
         + "\t\t\t<v8:item>\n"
-        + "\t\t\t\t<v8:lang>ru</v8:lang>\n"
+        + "\t\t\t\t<v8:lang>" + ConfigurationLanguage.current() + "</v8:lang>\n"
         + "\t\t\t\t<v8:content>" + escapeXml(newName) + "</v8:content>\n"
         + "\t\t\t</v8:item>\n"
         + "\t\t</Synonym>\n"
@@ -786,6 +786,15 @@ public final class MdObjectChildMutations {
       throw new IllegalArgumentException("file not found: " + objectXml);
     }
     SupportRules.ensureEditable(objectXml);
+    // Подпись нового узла пишется на языке этой конфигурации
+    ConfigurationLanguage.with(objectXml, () -> {
+      mutateInLanguage(objectXml, version, mutator);
+      return null;
+    });
+  }
+
+  private static void mutateInLanguage(Path objectXml, SchemaVersion version, XmlMutator mutator)
+    throws IOException, JAXBException {
     MdObjectStructureDto structure = MdObjectStructureRead.read(objectXml, version);
     String containerLocal = MdObjectPropertiesGranularPatch.containerLocalForKind(structure.kind);
     if (containerLocal == null || containerLocal.isBlank()) {
@@ -1170,8 +1179,8 @@ public final class MdObjectChildMutations {
     return left + right;
   }
 
-  private static String buildAttributeSnippet(String name, String synonymRu, String comment) {
-    return buildNamedChildSnippet("Attribute", name, synonymRu, comment, true);
+  private static String buildAttributeSnippet(String name, String synonym, String comment) {
+    return buildNamedChildSnippet("Attribute", name, synonym, comment, true);
   }
 
   /**
@@ -1195,7 +1204,7 @@ public final class MdObjectChildMutations {
       + "\t\t<Name>" + escapeXml(name) + "</Name>\n"
       + "\t\t<Synonym>\n"
       + "\t\t\t<v8:item>\n"
-      + "\t\t\t\t<v8:lang>ru</v8:lang>\n"
+      + "\t\t\t\t<v8:lang>" + ConfigurationLanguage.current() + "</v8:lang>\n"
       + "\t\t\t\t<v8:content>" + escapeXml(name) + "</v8:content>\n"
       + "\t\t\t</v8:item>\n"
       + "\t\t</Synonym>\n"
@@ -1213,9 +1222,9 @@ public final class MdObjectChildMutations {
       + "</Command>";
   }
 
-  private static String buildEnumValueSnippet(String name, String synonymRu, String comment) {
+  private static String buildEnumValueSnippet(String name, String synonym, String comment) {
     // У значения перечисления типа нет.
-    return buildNamedChildSnippet("EnumValue", name, synonymRu, comment, false);
+    return buildNamedChildSnippet("EnumValue", name, synonym, comment, false);
   }
 
   /**
@@ -1226,7 +1235,7 @@ public final class MdObjectChildMutations {
   private static String buildNamedChildSnippet(
     String childLocal,
     String name,
-    String synonymRu,
+    String synonym,
     String comment,
     boolean withType
   ) {
@@ -1235,8 +1244,8 @@ public final class MdObjectChildMutations {
       + "\t\t<Name>" + escapeXml(name) + "</Name>\n"
       + "\t\t<Synonym>\n"
       + "\t\t\t<v8:item>\n"
-      + "\t\t\t\t<v8:lang>ru</v8:lang>\n"
-      + "\t\t\t\t<v8:content>" + escapeXml(synonymRu) + "</v8:content>\n"
+      + "\t\t\t\t<v8:lang>" + ConfigurationLanguage.current() + "</v8:lang>\n"
+      + "\t\t\t\t<v8:content>" + escapeXml(synonym) + "</v8:content>\n"
       + "\t\t\t</v8:item>\n"
       + "\t\t</Synonym>\n"
       + (comment == null || comment.isBlank()
@@ -1251,7 +1260,7 @@ public final class MdObjectChildMutations {
     String containerLocal,
     String ownerName,
     String name,
-    String synonymRu,
+    String synonym,
     String comment
   ) {
     return "<TabularSection uuid=\"" + UUID.randomUUID() + "\">\n"
@@ -1271,8 +1280,8 @@ public final class MdObjectChildMutations {
       + "\t\t<Name>" + escapeXml(name) + "</Name>\n"
       + "\t\t<Synonym>\n"
       + "\t\t\t<v8:item>\n"
-      + "\t\t\t\t<v8:lang>ru</v8:lang>\n"
-      + "\t\t\t\t<v8:content>" + escapeXml(synonymRu) + "</v8:content>\n"
+      + "\t\t\t\t<v8:lang>" + ConfigurationLanguage.current() + "</v8:lang>\n"
+      + "\t\t\t\t<v8:content>" + escapeXml(synonym) + "</v8:content>\n"
       + "\t\t\t</v8:item>\n"
       + "\t\t</Synonym>\n"
       + (comment == null || comment.isBlank()

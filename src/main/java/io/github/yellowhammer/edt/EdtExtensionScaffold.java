@@ -33,6 +33,7 @@ import org.eclipse.emf.ecore.EEnum;
 import org.eclipse.emf.ecore.EEnumLiteral;
 
 import io.github.yellowhammer.designerxml.cf.CatalogNameConstraints;
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
 import io.github.yellowhammer.designerxml.cf.EmptyCfeScaffold.Purpose;
 
 /**
@@ -57,7 +58,10 @@ public final class EdtExtensionScaffold {
       "src/Configuration/Configuration.mdo",
       "src/Roles/ОсновнаяРоль/ОсновнаяРоль.mdo");
 
-  private static final Pattern SYNONYM = Pattern.compile("(<synonym>\\s*<key>ru</key>\\s*<value>)[^<]*(</value>)");
+  /** Подпись расширения: язык у неё тот, на котором написана расширяемая конфигурация. */
+  private static final Pattern SYNONYM_KEY = Pattern.compile("(<synonym>\\s*<key>)[^<]*(</key>)");
+  private static final Pattern SYNONYM_VALUE = Pattern.compile(
+    "(<synonym>\\s*<key>[^<]*</key>\\s*<value>)[^<]*(</value>)");
   private static final Pattern NAME_PREFIX = Pattern.compile("<namePrefix>[^<]*</namePrefix>");
   private static final Pattern EXTENSION_COMPATIBILITY = Pattern.compile(
       "<configurationExtensionCompatibilityMode>[^<]*</configurationExtensionCompatibilityMode>");
@@ -75,13 +79,13 @@ public final class EdtExtensionScaffold {
    * @param baseConfigurationMdo описание расширяемой конфигурации
    * @param targetProjectDir каталог нового проекта; его ещё не должно быть
    * @param name имя расширения
-   * @param synonymRu синоним; пустой заменяется именем
+   * @param synonym синоним; пустой заменяется именем
    * @param namePrefix префикс имён новых объектов; пустой не записывается
    * @param purpose назначение расширения
    * @param model метамодель EDT
    * @throws IOException если файлы не читаются или не пишутся
    */
-  public static void create(Path baseConfigurationMdo, Path targetProjectDir, String name, String synonymRu,
+  public static void create(Path baseConfigurationMdo, Path targetProjectDir, String name, String synonym,
       String namePrefix, Purpose purpose, EdtModel model) throws IOException {
     CatalogNameConstraints.check(name);
     if (Files.exists(targetProjectDir)) {
@@ -92,7 +96,8 @@ public final class EdtExtensionScaffold {
       throw new IllegalArgumentException("Расширяемая конфигурация лежит не в проекте EDT: " + baseConfigurationMdo);
     }
     String baseName = projectName(baseProject);
-    String synonym = synonymRu == null || synonymRu.isBlank() ? name : synonymRu.trim();
+    String label = synonym == null || synonym.isBlank() ? name : synonym.trim();
+    String language = ConfigurationLanguage.codeOf(baseConfigurationMdo);
     String compatibility = compatibilityMode(baseConfigurationMdo);
     String runtime = runtimeVersion(baseProject);
 
@@ -103,7 +108,7 @@ public final class EdtExtensionScaffold {
       if (file.endsWith("PROJECT.PMF") && runtime != null) {
         text = RUNTIME_VERSION.matcher(text).replaceFirst("Runtime-Version: " + Matcher.quoteReplacement(runtime));
       } else if (file.endsWith("Configuration.mdo")) {
-        text = configuration(text, name, synonym, namePrefix, purpose, compatibility, model);
+        text = configuration(text, name, label, namePrefix, purpose, compatibility, language, model);
       }
       text = EdtObjectScaffold.freshUuids(text);
       Path target = targetProjectDir.resolve(file);
@@ -114,9 +119,12 @@ public final class EdtExtensionScaffold {
 
   /** Описание расширения под именем, синонимом, префиксом, назначением и режимом совместимости. */
   private static String configuration(String golden, String name, String synonym, String namePrefix,
-      Purpose purpose, String compatibility, EdtModel model) {
+      Purpose purpose, String compatibility, String language, EdtModel model) {
     String text = golden.replace("<name>" + PROTO_NAME + "</name>", "<name>" + escape(name) + "</name>");
-    text = SYNONYM.matcher(text).replaceFirst("$1" + Matcher.quoteReplacement(escape(synonym)) + "$2");
+    // Меняется только текст: отступы эталона остаются как есть
+    text = SYNONYM_KEY.matcher(text).replaceFirst("$1" + Matcher.quoteReplacement(language) + "$2");
+    text = SYNONYM_VALUE.matcher(text).replaceFirst(
+      "$1" + Matcher.quoteReplacement(escape(synonym)) + "$2");
     text = namePrefix == null || namePrefix.isBlank()
         ? text.replaceAll("(?m)^[ \\t]*<namePrefix>[^<]*</namePrefix>\\r?\\n", "")
         : NAME_PREFIX.matcher(text).replaceFirst(

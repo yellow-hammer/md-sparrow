@@ -25,7 +25,7 @@ class ConfigurationPropertiesEditTest {
     Path cfg = Ssl31SubmodulePaths.configurationXml();
     ConfigurationPropertiesDto dto = ConfigurationPropertiesEdit.read(cfg, SchemaVersion.V2_20);
     assertThat(dto.name).isNotBlank();
-    assertThat(dto.synonymRu).isNotNull();
+    assertThat(dto.synonym).isNotNull();
     assertThat(dto.defaultRunMode).isNotBlank();
     assertThat(dto.compatibilityMode).isNotNull();
   }

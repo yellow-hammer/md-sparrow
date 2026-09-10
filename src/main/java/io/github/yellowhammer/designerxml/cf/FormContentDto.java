@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public final class FormContentDto {
 
-  /** Заголовок формы (ru). */
+  /** Заголовок формы на языке конфигурации. */
   public String title;
 
   /**

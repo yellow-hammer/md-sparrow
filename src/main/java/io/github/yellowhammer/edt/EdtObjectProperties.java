@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import io.github.yellowhammer.designerxml.cf.LocalString;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -33,6 +35,8 @@ import org.eclipse.emf.ecore.EClass;
 
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto;
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
+import io.github.yellowhammer.designerxml.cf.LocalStringProperties;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
 import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
@@ -69,16 +73,26 @@ public final class EdtObjectProperties {
    * @throws IOException если файл не читается
    */
   public static MdObjectPropertiesDto readDto(Path objectMdo, EdtModel model) throws IOException {
+    try {
+      return ConfigurationLanguage.with(objectMdo, () -> readInLanguage(objectMdo, model));
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static MdObjectPropertiesDto readInLanguage(Path objectMdo, EdtModel model) throws IOException {
     EdtNode node = EdtObjectReader.read(objectMdo);
     EClass eClass = model.classOf(node.kind());
 
     MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
     dto.kind = decapitalize(node.kind());
     dto.internalName = node.name();
-    dto.synonymRu = EdtPropertyValues.russian(node, "synonym");
+    dto.synonym = EdtPropertyValues.localized(node, "synonym");
     dto.comment = node.property("comment");
     dto.nestedSubsystems = EdtPropertyValues.list(node, "subsystems");
     dto.contentRefs = EdtPropertyValues.list(node, "content");
+    dto.languageCode = ConfigurationLanguage.current();
+    dto.localStringProperties = LocalStringProperties.forResponse();
 
     dto.objectBelonging = blankToNull(node.property("objectBelonging"));
     dto.propertyStates = extensionStates(node);
@@ -129,7 +143,7 @@ public final class EdtObjectProperties {
     ExternalArtifactPropertiesDto dto = new ExternalArtifactPropertiesDto();
     dto.kind = object.kind;
     dto.name = object.internalName;
-    dto.synonymRu = object.synonymRu;
+    dto.synonym = object.synonym;
     dto.comment = object.comment;
     return dto;
   }
@@ -148,7 +162,7 @@ public final class EdtObjectProperties {
     if (dto.name != null && !dto.name.equals(object.internalName)) {
       throw new IllegalArgumentException("Переименование внешнего объекта правится своей командой.");
     }
-    object.synonymRu = dto.synonymRu;
+    object.synonym = dto.synonym;
     object.comment = dto.comment;
     EdtObjectWriter.writeDto(objectMdo, object, model);
   }
@@ -199,8 +213,8 @@ public final class EdtObjectProperties {
         field.set(target, description == null && declared ? new MdTypeDescriptionDto() : description);
       } else if (type == String.class) {
         // Синоним, подсказка и пояснение записаны парами язык-значение
-        field.set(target, name.endsWith("Ru")
-            ? EdtPropertyValues.russian(node, name.substring(0, name.length() - 2))
+        field.set(target, field.isAnnotationPresent(LocalString.class)
+            ? EdtPropertyValues.localized(node, name)
             : EdtPropertyValues.text(node, eClass, name));
       }
     }
@@ -238,8 +252,8 @@ public final class EdtObjectProperties {
       throw new IllegalStateException("Не удалось прочитать узел " + node.kind(), error);
     }
     dto.name = node.name();
-    dto.synonymRu = EdtPropertyValues.russian(node, "synonym");
-    dto.toolTipRu = EdtPropertyValues.russian(node, "toolTip");
+    dto.synonym = EdtPropertyValues.localized(node, "synonym");
+    dto.toolTip = EdtPropertyValues.localized(node, "toolTip");
     dto.type = EdtTypeDescription.read(node, "type", model);
     dto.objectBelonging = blankToNull(node.property("objectBelonging"));
     dto.propertyStates = extensionStates(node);

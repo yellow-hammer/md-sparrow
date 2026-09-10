@@ -43,9 +43,9 @@ public final class MdRegisterPropertiesBridge {
     d.managerModule = JaxbReflect.getStringOptional(p, "getManagerModule");
     d.dataLockControlMode = enumName(p, "getDataLockControlMode");
     d.fullTextSearch = enumName(p, "getFullTextSearch");
-    d.listPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getListPresentation"));
-    d.extendedListPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
-    d.explanationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExplanation"));
+    d.listPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getListPresentation"));
+    d.extendedListPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
+    d.explanation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExplanation"));
     d.additionalIndexes = JaxbReflect.getStringOptional(p, "getAdditionalIndexes");
 
     d.editType = enumName(p, "getEditType");
@@ -56,9 +56,9 @@ public final class MdRegisterPropertiesBridge {
     d.mainFilterOnPeriod = JaxbReflect.getBooleanOptional(p, "isMainFilterOnPeriod");
     d.enableTotalsSliceFirst = JaxbReflect.getBooleanOptional(p, "isEnableTotalsSliceFirst");
     d.enableTotalsSliceLast = JaxbReflect.getBooleanOptional(p, "isEnableTotalsSliceLast");
-    d.recordPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getRecordPresentation"));
-    d.extendedRecordPresentationRu =
-      LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedRecordPresentation"));
+    d.recordPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getRecordPresentation"));
+    d.extendedRecordPresentation =
+      LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedRecordPresentation"));
     d.dataHistory = enumName(p, "getDataHistory");
     d.updateDataHistoryImmediatelyAfterWrite =
       JaxbReflect.getBooleanOptional(p, "isUpdateDataHistoryImmediatelyAfterWrite");
@@ -89,9 +89,9 @@ public final class MdRegisterPropertiesBridge {
     JaxbReflect.setOptional(p, "setManagerModule", d.managerModule);
     JaxbReflect.setEnumOrKeep(p, "setDataLockControlMode", d.dataLockControlMode);
     JaxbReflect.setEnumOrKeep(p, "setFullTextSearch", d.fullTextSearch);
-    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentationRu);
-    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentationRu);
-    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanationRu);
+    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentation);
+    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentation);
+    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanation);
     JaxbReflect.setOptional(p, "setAdditionalIndexes", d.additionalIndexes);
 
     JaxbReflect.setEnumOrKeep(p, "setEditType", d.editType);
@@ -102,8 +102,8 @@ public final class MdRegisterPropertiesBridge {
     JaxbReflect.setOptional(p, "setMainFilterOnPeriod", d.mainFilterOnPeriod);
     JaxbReflect.setOptional(p, "setEnableTotalsSliceFirst", d.enableTotalsSliceFirst);
     JaxbReflect.setOptional(p, "setEnableTotalsSliceLast", d.enableTotalsSliceLast);
-    ensureAndSetRu(p, "getRecordPresentation", "setRecordPresentation", d.recordPresentationRu);
-    ensureAndSetRu(p, "getExtendedRecordPresentation", "setExtendedRecordPresentation", d.extendedRecordPresentationRu);
+    ensureAndSetRu(p, "getRecordPresentation", "setRecordPresentation", d.recordPresentation);
+    ensureAndSetRu(p, "getExtendedRecordPresentation", "setExtendedRecordPresentation", d.extendedRecordPresentation);
     JaxbReflect.setEnumOrKeep(p, "setDataHistory", d.dataHistory);
     JaxbReflect.setOptional(p, "setUpdateDataHistoryImmediatelyAfterWrite", d.updateDataHistoryImmediatelyAfterWrite);
     JaxbReflect.setOptional(p, "setExecuteAfterWriteDataHistoryVersionProcessing",

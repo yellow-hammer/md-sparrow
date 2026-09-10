@@ -87,7 +87,7 @@ class EdtExternalArtifactTest {
 
     assertThat(dto.kind).isEqualTo("externalDataProcessor");
     assertThat(dto.name).isEqualTo("ВнешняяОбработка");
-    assertThat(dto.synonymRu).isEqualTo("Внешняя обработка");
+    assertThat(dto.synonym).isEqualTo("Внешняя обработка");
     assertThat(dto.comment).isEqualTo("Проверка");
   }
 
@@ -97,12 +97,12 @@ class EdtExternalArtifactTest {
     String before = Files.readString(file, StandardCharsets.UTF_8);
 
     ExternalArtifactPropertiesDto dto = EdtObjectProperties.readExternalDto(file, model);
-    dto.synonymRu = "Обработка проверки";
+    dto.synonym = "Обработка проверки";
     EdtObjectProperties.writeExternalDto(file, dto, model);
 
     String after = Files.readString(file, StandardCharsets.UTF_8);
     assertThat(after.lines().count()).isEqualTo(before.lines().count());
-    assertThat(EdtObjectProperties.readExternalDto(file, model).synonymRu).isEqualTo("Обработка проверки");
+    assertThat(EdtObjectProperties.readExternalDto(file, model).synonym).isEqualTo("Обработка проверки");
     // Реквизит не тронут
     assertThat(after).contains("<name>Параметр</name>");
   }

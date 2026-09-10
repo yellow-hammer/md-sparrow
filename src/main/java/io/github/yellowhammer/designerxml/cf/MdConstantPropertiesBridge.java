@@ -29,12 +29,12 @@ public final class MdConstantPropertiesBridge {
     d.type = MdTypeDescriptionBridge.read(JaxbReflect.getOptional(p, "getType"));
     d.useStandardCommands = JaxbReflect.getBooleanOptional(p, "isUseStandardCommands");
     d.defaultForm = JaxbReflect.getStringOptional(p, "getDefaultForm");
-    d.extendedPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedPresentation"));
-    d.explanationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExplanation"));
+    d.extendedPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedPresentation"));
+    d.explanation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExplanation"));
     d.passwordMode = JaxbReflect.getBooleanOptional(p, "isPasswordMode");
-    d.formatRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getFormat"));
-    d.editFormatRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getEditFormat"));
-    d.toolTipRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getToolTip"));
+    d.format = LocalStringSync.first(JaxbReflect.getOptional(p, "getFormat"));
+    d.editFormat = LocalStringSync.first(JaxbReflect.getOptional(p, "getEditFormat"));
+    d.toolTip = LocalStringSync.first(JaxbReflect.getOptional(p, "getToolTip"));
     d.markNegatives = JaxbReflect.getBooleanOptional(p, "isMarkNegatives");
     d.mask = JaxbReflect.getStringOptional(p, "getMask");
     d.multiLine = JaxbReflect.getBooleanOptional(p, "isMultiLine");
@@ -68,12 +68,12 @@ public final class MdConstantPropertiesBridge {
     }
     JaxbReflect.setOptional(p, "setUseStandardCommands", d.useStandardCommands);
     JaxbReflect.setOptional(p, "setDefaultForm", d.defaultForm);
-    ensureAndSetRu(p, "getExtendedPresentation", "setExtendedPresentation", d.extendedPresentationRu);
-    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanationRu);
+    ensureAndSetRu(p, "getExtendedPresentation", "setExtendedPresentation", d.extendedPresentation);
+    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanation);
     JaxbReflect.setOptional(p, "setPasswordMode", d.passwordMode);
-    ensureAndSetRu(p, "getFormat", "setFormat", d.formatRu);
-    ensureAndSetRu(p, "getEditFormat", "setEditFormat", d.editFormatRu);
-    ensureAndSetRu(p, "getToolTip", "setToolTip", d.toolTipRu);
+    ensureAndSetRu(p, "getFormat", "setFormat", d.format);
+    ensureAndSetRu(p, "getEditFormat", "setEditFormat", d.editFormat);
+    ensureAndSetRu(p, "getToolTip", "setToolTip", d.toolTip);
     JaxbReflect.setOptional(p, "setMarkNegatives", d.markNegatives);
     JaxbReflect.setOptional(p, "setMask", d.mask);
     JaxbReflect.setOptional(p, "setMultiLine", d.multiLine);

@@ -35,9 +35,9 @@ final class MdSimplePropertiesGranularSerial {
     c.text("AuxiliaryListForm", b.auxiliaryListForm, i.auxiliaryListForm);
     c.text("AuxiliaryChoiceForm", b.auxiliaryChoiceForm, i.auxiliaryChoiceForm);
     c.text("ManagerModule", b.managerModule, i.managerModule);
-    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
-    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ListPresentation", b.listPresentation, i.listPresentation);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentation, i.extendedListPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.enumText("ChoiceHistoryOnInput", b.choiceHistoryOnInput, i.choiceHistoryOnInput);
   }
 
@@ -53,12 +53,12 @@ final class MdSimplePropertiesGranularSerial {
     }
     c.bool("UseStandardCommands", b.useStandardCommands, i.useStandardCommands);
     c.text("DefaultForm", b.defaultForm, i.defaultForm);
-    c.localStringRu("ExtendedPresentation", b.extendedPresentationRu, i.extendedPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ExtendedPresentation", b.extendedPresentation, i.extendedPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.bool("PasswordMode", b.passwordMode, i.passwordMode);
-    c.localStringRu("Format", b.formatRu, i.formatRu);
-    c.localStringRu("EditFormat", b.editFormatRu, i.editFormatRu);
-    c.localStringRu("ToolTip", b.toolTipRu, i.toolTipRu);
+    c.localStringRu("Format", b.format, i.format);
+    c.localStringRu("EditFormat", b.editFormat, i.editFormat);
+    c.localStringRu("ToolTip", b.toolTip, i.toolTip);
     c.bool("MarkNegatives", b.markNegatives, i.markNegatives);
     c.text("Mask", b.mask, i.mask);
     c.bool("MultiLine", b.multiLine, i.multiLine);
@@ -105,11 +105,11 @@ final class MdSimplePropertiesGranularSerial {
     c.bool("EnableTotalsSliceLast", b.enableTotalsSliceLast, i.enableTotalsSliceLast);
     c.bool("EnableTotalsSplitting", b.enableTotalsSplitting, i.enableTotalsSplitting);
     c.text("Aggregates", b.aggregates, i.aggregates);
-    c.localStringRu("RecordPresentation", b.recordPresentationRu, i.recordPresentationRu);
-    c.localStringRu("ExtendedRecordPresentation", b.extendedRecordPresentationRu, i.extendedRecordPresentationRu);
-    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
-    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("RecordPresentation", b.recordPresentation, i.recordPresentation);
+    c.localStringRu("ExtendedRecordPresentation", b.extendedRecordPresentation, i.extendedRecordPresentation);
+    c.localStringRu("ListPresentation", b.listPresentation, i.listPresentation);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentation, i.extendedListPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.enumText("DataHistory", b.dataHistory, i.dataHistory);
     c.bool("UpdateDataHistoryImmediatelyAfterWrite",
       b.updateDataHistoryImmediatelyAfterWrite, i.updateDataHistoryImmediatelyAfterWrite);
@@ -137,8 +137,8 @@ final class MdSimplePropertiesGranularSerial {
     c.text("ObjectModule", b.objectModule, i.objectModule);
     c.text("ManagerModule", b.managerModule, i.managerModule);
     c.bool("IncludeHelpInContents", b.includeHelpInContents, i.includeHelpInContents);
-    c.localStringRu("ExtendedPresentation", b.extendedPresentationRu, i.extendedPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ExtendedPresentation", b.extendedPresentation, i.extendedPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
   }
 
   static void appendChartOfCalculationTypesScalarChanges(
@@ -181,11 +181,11 @@ final class MdSimplePropertiesGranularSerial {
     c.fields("DataLockFields", b.dataLockFields, i.dataLockFields);
     c.enumText("DataLockControlMode", b.dataLockControlMode, i.dataLockControlMode);
     c.enumText("FullTextSearch", b.fullTextSearch, i.fullTextSearch);
-    c.localStringRu("ObjectPresentation", b.objectPresentationRu, i.objectPresentationRu);
-    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentationRu, i.extendedObjectPresentationRu);
-    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
-    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ObjectPresentation", b.objectPresentation, i.objectPresentation);
+    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentation, i.extendedObjectPresentation);
+    c.localStringRu("ListPresentation", b.listPresentation, i.listPresentation);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentation, i.extendedListPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.enumText("DataHistory", b.dataHistory, i.dataHistory);
     c.bool("UpdateDataHistoryImmediatelyAfterWrite",
       b.updateDataHistoryImmediatelyAfterWrite, i.updateDataHistoryImmediatelyAfterWrite);
@@ -237,11 +237,11 @@ final class MdSimplePropertiesGranularSerial {
     c.fields("DataLockFields", b.dataLockFields, i.dataLockFields);
     c.enumText("DataLockControlMode", b.dataLockControlMode, i.dataLockControlMode);
     c.enumText("FullTextSearch", b.fullTextSearch, i.fullTextSearch);
-    c.localStringRu("ObjectPresentation", b.objectPresentationRu, i.objectPresentationRu);
-    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentationRu, i.extendedObjectPresentationRu);
-    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
-    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ObjectPresentation", b.objectPresentation, i.objectPresentation);
+    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentation, i.extendedObjectPresentation);
+    c.localStringRu("ListPresentation", b.listPresentation, i.listPresentation);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentation, i.extendedListPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.enumText("DataHistory", b.dataHistory, i.dataHistory);
     c.bool("UpdateDataHistoryImmediatelyAfterWrite",
       b.updateDataHistoryImmediatelyAfterWrite, i.updateDataHistoryImmediatelyAfterWrite);
@@ -291,11 +291,11 @@ final class MdSimplePropertiesGranularSerial {
     c.enumText("DataLockControlMode", b.dataLockControlMode, i.dataLockControlMode);
     c.bool("IncludeHelpInContents", b.includeHelpInContents, i.includeHelpInContents);
     c.enumText("FullTextSearch", b.fullTextSearch, i.fullTextSearch);
-    c.localStringRu("ObjectPresentation", b.objectPresentationRu, i.objectPresentationRu);
-    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentationRu, i.extendedObjectPresentationRu);
-    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
-    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ObjectPresentation", b.objectPresentation, i.objectPresentation);
+    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentation, i.extendedObjectPresentation);
+    c.localStringRu("ListPresentation", b.listPresentation, i.listPresentation);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentation, i.extendedListPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.enumText("DataHistory", b.dataHistory, i.dataHistory);
     c.bool("UpdateDataHistoryImmediatelyAfterWrite",
       b.updateDataHistoryImmediatelyAfterWrite, i.updateDataHistoryImmediatelyAfterWrite);
@@ -347,11 +347,11 @@ final class MdSimplePropertiesGranularSerial {
     c.fields("DataLockFields", b.dataLockFields, i.dataLockFields);
     c.enumText("DataLockControlMode", b.dataLockControlMode, i.dataLockControlMode);
     c.enumText("FullTextSearch", b.fullTextSearch, i.fullTextSearch);
-    c.localStringRu("ObjectPresentation", b.objectPresentationRu, i.objectPresentationRu);
-    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentationRu, i.extendedObjectPresentationRu);
-    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
-    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ObjectPresentation", b.objectPresentation, i.objectPresentation);
+    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentation, i.extendedObjectPresentation);
+    c.localStringRu("ListPresentation", b.listPresentation, i.listPresentation);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentation, i.extendedListPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.enumText("DataHistory", b.dataHistory, i.dataHistory);
     c.bool("UpdateDataHistoryImmediatelyAfterWrite",
       b.updateDataHistoryImmediatelyAfterWrite, i.updateDataHistoryImmediatelyAfterWrite);
@@ -413,11 +413,11 @@ final class MdSimplePropertiesGranularSerial {
     c.fields("DataLockFields", b.dataLockFields, i.dataLockFields);
     c.enumText("DataLockControlMode", b.dataLockControlMode, i.dataLockControlMode);
     c.enumText("FullTextSearch", b.fullTextSearch, i.fullTextSearch);
-    c.localStringRu("ObjectPresentation", b.objectPresentationRu, i.objectPresentationRu);
-    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentationRu, i.extendedObjectPresentationRu);
-    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
-    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ObjectPresentation", b.objectPresentation, i.objectPresentation);
+    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentation, i.extendedObjectPresentation);
+    c.localStringRu("ListPresentation", b.listPresentation, i.listPresentation);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentation, i.extendedListPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.enumText("DataHistory", b.dataHistory, i.dataHistory);
     c.bool("UpdateDataHistoryImmediatelyAfterWrite",
       b.updateDataHistoryImmediatelyAfterWrite, i.updateDataHistoryImmediatelyAfterWrite);
@@ -466,11 +466,11 @@ final class MdSimplePropertiesGranularSerial {
     c.fields("DataLockFields", b.dataLockFields, i.dataLockFields);
     c.enumText("DataLockControlMode", b.dataLockControlMode, i.dataLockControlMode);
     c.enumText("FullTextSearch", b.fullTextSearch, i.fullTextSearch);
-    c.localStringRu("ObjectPresentation", b.objectPresentationRu, i.objectPresentationRu);
-    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentationRu, i.extendedObjectPresentationRu);
-    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
-    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ObjectPresentation", b.objectPresentation, i.objectPresentation);
+    c.localStringRu("ExtendedObjectPresentation", b.extendedObjectPresentation, i.extendedObjectPresentation);
+    c.localStringRu("ListPresentation", b.listPresentation, i.listPresentation);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentation, i.extendedListPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.enumText("DataHistory", b.dataHistory, i.dataHistory);
     c.bool("UpdateDataHistoryImmediatelyAfterWrite",
       b.updateDataHistoryImmediatelyAfterWrite, i.updateDataHistoryImmediatelyAfterWrite);
@@ -492,9 +492,9 @@ final class MdSimplePropertiesGranularSerial {
     c.text("ManagerModule", b.managerModule, i.managerModule);
     c.bool("IncludeHelpInContents", b.includeHelpInContents, i.includeHelpInContents);
     c.xmlBlob("StandardAttributes", b.standardAttributesXml, i.standardAttributesXml);
-    c.localStringRu("ListPresentation", b.listPresentationRu, i.listPresentationRu);
-    c.localStringRu("ExtendedListPresentation", b.extendedListPresentationRu, i.extendedListPresentationRu);
-    c.localStringRu("Explanation", b.explanationRu, i.explanationRu);
+    c.localStringRu("ListPresentation", b.listPresentation, i.listPresentation);
+    c.localStringRu("ExtendedListPresentation", b.extendedListPresentation, i.extendedListPresentation);
+    c.localStringRu("Explanation", b.explanation, i.explanation);
     c.text("AdditionalIndexes", b.additionalIndexes, i.additionalIndexes);
   }
 
@@ -570,7 +570,7 @@ final class MdSimplePropertiesGranularSerial {
     c.enumText("ObjectBelonging", b.objectBelonging, i.objectBelonging);
     c.text("Group", b.group, i.group);
     c.enumText("Representation", b.representation, i.representation);
-    c.localStringRu("ToolTip", b.toolTipRu, i.toolTipRu);
+    c.localStringRu("ToolTip", b.toolTip, i.toolTip);
     c.text("Shortcut", b.shortcut, i.shortcut);
     c.text("CommandModule", b.commandModule, i.commandModule);
     c.bool("IncludeHelpInContents", b.includeHelpInContents, i.includeHelpInContents);
@@ -598,7 +598,7 @@ final class MdSimplePropertiesGranularSerial {
     c.enumText("Indexing", b.indexing, i.indexing);
     c.enumText("FullTextSearch", b.fullTextSearch, i.fullTextSearch);
     c.enumText("DataHistory", b.dataHistory, i.dataHistory);
-    c.localStringRu("ToolTip", b.toolTipRu, i.toolTipRu);
+    c.localStringRu("ToolTip", b.toolTip, i.toolTip);
     c.bool("PasswordMode", b.passwordMode, i.passwordMode);
     c.bool("MultiLine", b.multiLine, i.multiLine);
     c.text("Mask", b.mask, i.mask);

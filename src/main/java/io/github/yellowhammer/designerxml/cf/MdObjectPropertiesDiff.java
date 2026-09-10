@@ -8,6 +8,8 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -22,7 +24,24 @@ import java.util.Objects;
  */
 public final class MdObjectPropertiesDiff {
 
-  private static final Gson GSON = new GsonBuilder().serializeNulls().create();
+  /** Язык текстов и список многоязычных свойств принадлежат ответу, а не объекту. */
+  private static final ExclusionStrategy SERVICE_FIELDS = new ExclusionStrategy() {
+    @Override
+    public boolean shouldSkipField(FieldAttributes field) {
+      return field.getName().equals("languageCode")
+        || field.getName().equals("localStringProperties");
+    }
+
+    @Override
+    public boolean shouldSkipClass(Class<?> type) {
+      return false;
+    }
+  };
+
+  private static final Gson GSON = new GsonBuilder()
+    .serializeNulls()
+    .setExclusionStrategies(SERVICE_FIELDS)
+    .create();
 
   private MdObjectPropertiesDiff() {
   }
@@ -66,7 +85,7 @@ public final class MdObjectPropertiesDiff {
     }
     if (!Objects.equals(a.kind, b.kind)
       || !Objects.equals(a.internalName, b.internalName)
-      || !Objects.equals(a.synonymRu, b.synonymRu)) {
+      || !Objects.equals(a.synonym, b.synonym)) {
       return false;
     }
     if (!namedListEquals(a.attributes, b.attributes)) {
@@ -135,7 +154,7 @@ public final class MdObjectPropertiesDiff {
     if (!Objects.equals(v.kind, e.kind) || !Objects.equals(v.internalName, e.internalName)) {
       return false;
     }
-    if (!Objects.equals(v.comment, e.comment) || !Objects.equals(v.synonymRu, e.synonymRu)) {
+    if (!Objects.equals(v.comment, e.comment) || !Objects.equals(v.synonym, e.synonym)) {
       return false;
     }
     if (!namedListNamesOnly(v.attributes, e.attributes) || !namedListNamesOnly(v.tabularSections, e.tabularSections)) {
@@ -203,7 +222,7 @@ public final class MdObjectPropertiesDiff {
     }
     if (!Objects.equals(a.kind, b.kind)
       || !Objects.equals(a.internalName, b.internalName)
-      || !Objects.equals(a.synonymRu, b.synonymRu)
+      || !Objects.equals(a.synonym, b.synonym)
       || !Objects.equals(a.comment, b.comment)) {
       return false;
     }
@@ -292,11 +311,11 @@ public final class MdObjectPropertiesDiff {
       && listStringEquals(a.dataLockFields, b.dataLockFields)
       && Objects.equals(a.dataLockControlMode, b.dataLockControlMode)
       && Objects.equals(a.fullTextSearch, b.fullTextSearch)
-      && Objects.equals(a.objectPresentationRu, b.objectPresentationRu)
-      && Objects.equals(a.extendedObjectPresentationRu, b.extendedObjectPresentationRu)
-      && Objects.equals(a.listPresentationRu, b.listPresentationRu)
-      && Objects.equals(a.extendedListPresentationRu, b.extendedListPresentationRu)
-      && Objects.equals(a.explanationRu, b.explanationRu)
+      && Objects.equals(a.objectPresentation, b.objectPresentation)
+      && Objects.equals(a.extendedObjectPresentation, b.extendedObjectPresentation)
+      && Objects.equals(a.listPresentation, b.listPresentation)
+      && Objects.equals(a.extendedListPresentation, b.extendedListPresentation)
+      && Objects.equals(a.explanation, b.explanation)
       && Objects.equals(a.dataHistory, b.dataHistory)
       && a.updateDataHistoryImmediatelyAfterWrite == b.updateDataHistoryImmediatelyAfterWrite
       && a.executeAfterWriteDataHistoryVersionProcessing == b.executeAfterWriteDataHistoryVersionProcessing
@@ -452,7 +471,7 @@ public final class MdObjectPropertiesDiff {
       !namedListEquals(baseline.attributes, incoming.attributes)
         || !namedListEquals(baseline.tabularSections, incoming.tabularSections);
     boolean props =
-      !Objects.equals(baseline.synonymRu, incoming.synonymRu)
+      !Objects.equals(baseline.synonym, incoming.synonym)
         || !Objects.equals(baseline.comment, incoming.comment)
         || !catalogEquals(baseline.catalog, incoming.catalog, false);
     return new ChangeMask(props, child);
@@ -463,7 +482,7 @@ public final class MdObjectPropertiesDiff {
       !namedListEquals(baseline.attributes, incoming.attributes)
         || !namedListEquals(baseline.tabularSections, incoming.tabularSections);
     boolean props =
-      !Objects.equals(baseline.synonymRu, incoming.synonymRu)
+      !Objects.equals(baseline.synonym, incoming.synonym)
         || !Objects.equals(baseline.comment, incoming.comment)
         || !documentEquals(baseline.document, incoming.document, false);
     return new ChangeMask(props, child);
@@ -477,7 +496,7 @@ public final class MdObjectPropertiesDiff {
         || !namedListEquals(baseline.dimensions, incoming.dimensions)
         || !namedListEquals(baseline.resources, incoming.resources);
     boolean props =
-      !Objects.equals(baseline.synonymRu, incoming.synonymRu)
+      !Objects.equals(baseline.synonym, incoming.synonym)
         || !Objects.equals(baseline.comment, incoming.comment)
         || !simpleKindsEqual(baseline, incoming, false);
     return new ChangeMask(props, child);
@@ -513,7 +532,7 @@ public final class MdObjectPropertiesDiff {
   private static ChangeMask subsystemMask(MdObjectPropertiesDto baseline, MdObjectPropertiesDto incoming) {
     boolean child = !listStringEquals(baseline.nestedSubsystems, incoming.nestedSubsystems);
     boolean props =
-      !Objects.equals(baseline.synonymRu, incoming.synonymRu)
+      !Objects.equals(baseline.synonym, incoming.synonym)
         || !Objects.equals(baseline.comment, incoming.comment)
         || !listStringEquals(baseline.contentRefs, incoming.contentRefs);
     return new ChangeMask(props, child);
@@ -579,11 +598,11 @@ public final class MdObjectPropertiesDiff {
       && listStringEquals(a.dataLockFields, b.dataLockFields)
       && Objects.equals(a.dataLockControlMode, b.dataLockControlMode)
       && Objects.equals(a.fullTextSearch, b.fullTextSearch)
-      && Objects.equals(a.objectPresentationRu, b.objectPresentationRu)
-      && Objects.equals(a.extendedObjectPresentationRu, b.extendedObjectPresentationRu)
-      && Objects.equals(a.listPresentationRu, b.listPresentationRu)
-      && Objects.equals(a.extendedListPresentationRu, b.extendedListPresentationRu)
-      && Objects.equals(a.explanationRu, b.explanationRu)
+      && Objects.equals(a.objectPresentation, b.objectPresentation)
+      && Objects.equals(a.extendedObjectPresentation, b.extendedObjectPresentation)
+      && Objects.equals(a.listPresentation, b.listPresentation)
+      && Objects.equals(a.extendedListPresentation, b.extendedListPresentation)
+      && Objects.equals(a.explanation, b.explanation)
       && Objects.equals(a.createOnInput, b.createOnInput)
       && Objects.equals(a.choiceHistoryOnInput, b.choiceHistoryOnInput)
       && Objects.equals(a.dataHistory, b.dataHistory)
@@ -625,7 +644,7 @@ public final class MdObjectPropertiesDiff {
       MdNamedPropertyDto x = a.get(i);
       MdNamedPropertyDto y = b.get(i);
       if (!Objects.equals(x.name, y.name)
-        || !Objects.equals(x.synonymRu, y.synonymRu)
+        || !Objects.equals(x.synonym, y.synonym)
         || !Objects.equals(x.comment, y.comment)
         || !MdFlatDtoSupport.equalsFlat(x.type, y.type, false)
         || !paletteEquals(x, y)
@@ -638,7 +657,7 @@ public final class MdObjectPropertiesDiff {
 
   /** Свойства палитры узла состава: подсказка и перечислимые флаги. */
   private static boolean paletteEquals(MdNamedPropertyDto x, MdNamedPropertyDto y) {
-    return Objects.equals(x.toolTipRu, y.toolTipRu)
+    return Objects.equals(x.toolTip, y.toolTip)
       && Objects.equals(x.fillChecking, y.fillChecking)
       && Objects.equals(x.indexing, y.indexing)
       && Objects.equals(x.fullTextSearch, y.fullTextSearch)

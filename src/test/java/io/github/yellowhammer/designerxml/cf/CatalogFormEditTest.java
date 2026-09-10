@@ -28,7 +28,7 @@ class CatalogFormEditTest {
     Path any = Ssl31SubmodulePaths.anyCatalogObjectXml();
     CatalogFormDto dto = CatalogFormEdit.readDto(any, SchemaVersion.V2_20);
     assertThat(dto.internalName).isNotBlank();
-    assertThat(dto.synonymRu).isNotNull();
+    assertThat(dto.synonym).isNotNull();
     assertThat(dto.comment).isNotNull();
   }
 
@@ -43,7 +43,7 @@ class CatalogFormEditTest {
     CatalogFormDto after = CatalogFormEdit.readDto(copy, SchemaVersion.V2_20);
 
     assertThat(after.internalName).isEqualTo(before.internalName);
-    assertThat(after.synonymRu).isEqualTo(before.synonymRu);
+    assertThat(after.synonym).isEqualTo(before.synonym);
     assertThat(after.comment).isEqualTo(before.comment);
   }
 }

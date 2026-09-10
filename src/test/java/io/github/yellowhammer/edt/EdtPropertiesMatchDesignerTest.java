@@ -125,7 +125,7 @@ class EdtPropertiesMatchDesignerTest {
 
           compare(mismatches, name, "вид", edt.kind, designer.kind);
           compare(mismatches, name, "имя", edt.internalName, designer.internalName);
-          compare(mismatches, name, "синоним", edt.synonymRu, designer.synonymRu);
+          compare(mismatches, name, "синоним", edt.synonym, designer.synonym);
           compare(mismatches, name, "типы объекта", objectTypes(edt), objectTypes(designer));
           compare(mismatches, name, "реквизиты", names(edt.attributes), names(designer.attributes));
           compare(mismatches, name, "табличные части",

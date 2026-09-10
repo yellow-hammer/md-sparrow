@@ -93,6 +93,22 @@ public final class ProjectMetadataTreeBuilder {
     String schemaVersion,
     SchemaVersion schema
   ) throws IOException {
+    // Подписи узлов идут на языке этой конфигурации
+    try {
+      return ConfigurationLanguage.with(configurationXml, () ->
+        buildMainSourceInLanguage(projectRoot, cfRoot, configurationXml, schemaVersion, schema));
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static ProjectMetadataTreeDto.MetadataSourceDto buildMainSourceInLanguage(
+    Path projectRoot,
+    Path cfRoot,
+    Path configurationXml,
+    String schemaVersion,
+    SchemaVersion schema
+  ) throws IOException {
     List<ChildObjectEntry> entries = loadChildObjects(configurationXml, schema);
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
       MetadataTreeTagGroups.buildGroups(entries);

@@ -99,7 +99,7 @@ public final class EdtObjectGraph {
     List<MdObjectGraphExtractor.OutEdge> edges = new ArrayList<>();
     collect(object, objectType.isEmpty() ? object.kind() : objectType, "", edges);
     return new MdObjectGraphExtractor.Inspection(
-        EdtPropertyValues.russian(object, "synonym"), edges, false);
+        EdtPropertyValues.localized(object, "synonym"), edges, false);
   }
 
   /** Обходит узел за узлом: ссылки встречаются на любой глубине. */

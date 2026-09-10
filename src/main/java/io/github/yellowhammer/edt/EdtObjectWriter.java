@@ -21,6 +21,9 @@
  */
 package io.github.yellowhammer.edt;
 
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
+import io.github.yellowhammer.designerxml.cf.LocalString;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -88,6 +91,15 @@ public final class EdtObjectWriter {
    * @throws IOException если файл не читается или не пишется
    */
   public static int writeDto(Path objectMdo, MdObjectPropertiesDto dto, EdtModel model) throws IOException {
+    try {
+      return ConfigurationLanguage.with(objectMdo, () -> writeDtoInLanguage(objectMdo, dto, model));
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static int writeDtoInLanguage(Path objectMdo, MdObjectPropertiesDto dto, EdtModel model)
+      throws IOException {
     if (dto == null || dto.internalName == null || dto.internalName.isEmpty()) {
       throw new IllegalArgumentException("Нужны вид и имя объекта.");
     }
@@ -152,6 +164,15 @@ public final class EdtObjectWriter {
    */
   public static int writeFields(Path objectMdo, Object wanted, Object written, EdtModel model)
       throws IOException {
+    try {
+      return ConfigurationLanguage.with(objectMdo, () -> writeFieldsInLanguage(objectMdo, wanted, written, model));
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static int writeFieldsInLanguage(Path objectMdo, Object wanted, Object written, EdtModel model)
+      throws IOException {
     EdtObjectReader.EdtNode node = EdtObjectReader.read(objectMdo);
     EClass eClass = model.classOf(node.kind());
 
@@ -196,8 +217,8 @@ public final class EdtObjectWriter {
       EClass eClass,
       EdtModel model) {
     List<Change> changes = new ArrayList<>(nodeChanges(baseline, dto, model));
-    if (dto.synonymRu != null && !dto.synonymRu.equals(baseline.synonymRu)) {
-      changes.add(new Change(null, "synonym", dto.synonymRu, true));
+    if (dto.synonym != null && !dto.synonym.equals(baseline.synonym)) {
+      changes.add(new Change(null, "synonym", dto.synonym, true));
     }
     if (dto.comment != null && !dto.comment.equals(baseline.comment)) {
       changes.add(new Change(null, "comment", dto.comment, false));
@@ -318,8 +339,8 @@ public final class EdtObjectWriter {
     if (name.equals("name")) {
       throw new IllegalArgumentException("Переименование узла правится своей командой: " + written.name);
     }
-    if (name.endsWith("Ru")) {
-      return new Change(ref, name.substring(0, name.length() - 2), String.valueOf(value), true);
+    if (field.isAnnotationPresent(LocalString.class)) {
+      return new Change(ref, name, String.valueOf(value), true);
     }
     return new Change(ref, name, literal(nodeClass, name, String.valueOf(value)), false);
   }
@@ -389,8 +410,8 @@ public final class EdtObjectWriter {
       // Списки ссылок и состав объекта правятся своими операциями
       return null;
     }
-    if (name.endsWith("Ru")) {
-      return new Change(null, name.substring(0, name.length() - 2), String.valueOf(value), true);
+    if (field.isAnnotationPresent(LocalString.class)) {
+      return new Change(null, name, String.valueOf(value), true);
     }
     // Свойства, которых в файле нет, писать нечем: их значение задаёт схема
     if (eClass != null && eClass.getEStructuralFeature(name) == null && node.list(name).isEmpty()) {
@@ -497,14 +518,55 @@ public final class EdtObjectWriter {
       return listEdit(xml, change, order);
     }
     EdtObjectRegions.Region owner = nodeRegion(xml, change.node());
-    EdtObjectRegions.Region region = owner == null
-        ? EdtObjectRegions.property(xml, change.name())
-        : first(EdtObjectRegions.nested(xml, owner, change.name()));
+    List<EdtObjectRegions.Region> regions = owner == null
+        ? EdtObjectRegions.properties(xml, change.name())
+        : EdtObjectRegions.nested(xml, owner, change.name());
+    if (change.localized()) {
+      return localizedEdit(xml, change, regions, order, owner, model);
+    }
+    EdtObjectRegions.Region region = first(regions);
     if (region.found()) {
       return new Edit(region.start(), region.end(), element(xml, change, indent(xml, region.start()), model));
     }
 
     // Новое свойство встаёт целой строкой, с отступом соседей
+    if (owner == null) {
+      int at = EdtObjectRegions.insertionPoint(xml, order, change.name());
+      String indent = indent(xml, at + INDENT.length());
+      return new Edit(at, at, indent + element(xml, change, indent, model) + eol(xml));
+    }
+    int at = EdtObjectRegions.lineStart(xml, owner.end());
+    String indent = indent(xml, owner.start()) + INDENT;
+    return new Edit(at, at, indent + element(xml, change, indent, model) + eol(xml));
+  }
+
+  /**
+   * Правка многоязычного свойства: у каждого языка свой элемент.
+   *
+   * Меняется значение на языке конфигурации, тексты на остальных языках остаются
+   * как были. Если этого языка в файле ещё нет, элемент встаёт за одноимёнными.
+   */
+  private static Edit localizedEdit(
+      String xml,
+      Change change,
+      List<EdtObjectRegions.Region> regions,
+      List<String> order,
+      EdtObjectRegions.Region owner,
+      EdtModel model) throws XMLStreamException {
+    EdtObjectRegions.Region mine =
+        EdtObjectRegions.byKey(xml, regions, ConfigurationLanguage.current());
+    if (mine.found()) {
+      EdtObjectRegions.Region value = EdtObjectRegions.childRegion(xml, mine, "value");
+      return value.found()
+          ? new Edit(value.start(), value.end(), "<value>" + escape(change.value()) + "</value>")
+          : new Edit(mine.start(), mine.end(), element(xml, change, indent(xml, mine.start()), model));
+    }
+    if (!regions.isEmpty()) {
+      EdtObjectRegions.Region last = regions.get(regions.size() - 1);
+      String indent = indent(xml, last.start());
+      String added = eol(xml) + indent + element(xml, change, indent, model);
+      return new Edit(last.end(), last.end(), added);
+    }
     if (owner == null) {
       int at = EdtObjectRegions.insertionPoint(xml, order, change.name());
       String indent = indent(xml, at + INDENT.length());
@@ -710,7 +772,8 @@ public final class EdtObjectWriter {
     String eol = eol(xml);
     return new StringBuilder()
         .append("<").append(change.name()).append(">").append(eol)
-        .append(indent).append(INDENT).append("<key>ru</key>").append(eol)
+        .append(indent).append(INDENT)
+        .append("<key>").append(ConfigurationLanguage.current()).append("</key>").append(eol)
         .append(indent).append(INDENT).append("<value>").append(value).append("</value>").append(eol)
         .append(indent).append("</").append(change.name()).append(">")
         .toString();

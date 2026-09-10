@@ -12,7 +12,7 @@ public final class FormCommandDto {
 
   public String name;
 
-  /** Заголовок (ru). */
+  /** Заголовок на языке конфигурации. */
   public String title;
 
   /** Процедура-обработчик команды в модуле формы. */

@@ -30,6 +30,7 @@ import org.eclipse.emf.ecore.EEnum;
 import org.eclipse.emf.ecore.EEnumLiteral;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
 import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
 
 /**
@@ -63,18 +64,18 @@ final class EdtPropertyValues {
   }
 
   /**
-   * Значение многоязычного свойства на русском.
+   * Значение многоязычного свойства на языке конфигурации.
    *
-   * Синоним, подсказка и пояснение записаны парами язык-значение, и панели
-   * нужна русская строка.
+   * Синоним, подсказка и пояснение записаны парами язык-значение, а какой язык
+   * основной, знает сама конфигурация.
    *
    * @param node узел объекта
    * @param name имя свойства
-   * @return строка на русском или пустая
+   * @return строка на языке конфигурации или пустая
    */
-  static String russian(EdtNode node, String name) {
+  static String localized(EdtNode node, String name) {
     for (EdtNode entry : node.list(name)) {
-      if (entry.property("key").equals("ru")) {
+      if (entry.property("key").equals(ConfigurationLanguage.current())) {
         return entry.property("value");
       }
     }

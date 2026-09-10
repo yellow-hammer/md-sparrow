@@ -48,6 +48,14 @@ public final class FormScaffold {
    */
   public static void addForm(Path objectXml, SchemaVersion version, String formName)
     throws IOException, JAXBException {
+    ConfigurationLanguage.with(objectXml, () -> {
+      addFormInLanguage(objectXml, version, formName);
+      return null;
+    });
+  }
+
+  private static void addFormInLanguage(Path objectXml, SchemaVersion version, String formName)
+    throws IOException, JAXBException {
     SupportRules.ensureEditable(objectXml);
     CatalogNameConstraints.check(formName);
     Path descriptor = formDescriptorPath(objectXml, formName);
@@ -89,6 +97,14 @@ public final class FormScaffold {
    */
   public static void compileForm(Path objectXml, SchemaVersion version, String formName, String definitionJson)
     throws IOException, JAXBException {
+    ConfigurationLanguage.with(objectXml, () -> {
+      compileFormInLanguage(objectXml, version, formName, definitionJson);
+      return null;
+    });
+  }
+
+  private static void compileFormInLanguage(Path objectXml, SchemaVersion version, String formName,
+    String definitionJson) throws IOException, JAXBException {
     SupportRules.ensureEditable(objectXml);
     Path descriptor = formDescriptorPath(objectXml, formName);
     if (!Files.exists(descriptor)) {
@@ -102,7 +118,7 @@ public final class FormScaffold {
       String descriptorXml = Files.readString(descriptor, StandardCharsets.UTF_8);
       Files.writeString(
         descriptor,
-        ScaffoldPropertyEdit.setSynonymRu(descriptorXml, definition.synonym),
+        ScaffoldPropertyEdit.setSynonym(descriptorXml, definition.synonym, ConfigurationLanguage.current()),
         StandardCharsets.UTF_8);
     }
   }
@@ -240,7 +256,8 @@ public final class FormScaffold {
   private static void appendTitle(StringBuilder out, String title, String pad, String eol) {
     out.append(pad).append("<Title>").append(eol);
     out.append(pad).append("\t<v8:item>").append(eol);
-    out.append(pad).append("\t\t<v8:lang>ru</v8:lang>").append(eol);
+    out.append(pad).append("\t\t<v8:lang>").append(ConfigurationLanguage.current())
+        .append("</v8:lang>").append(eol);
     out.append(pad).append("\t\t<v8:content>").append(escape(title)).append("</v8:content>").append(eol);
     out.append(pad).append("\t</v8:item>").append(eol);
     out.append(pad).append("</Title>").append(eol);

@@ -46,7 +46,7 @@ final class MdPropertiesGranularChanges {
 
   void localStringRu(String localName, String baseline, String incoming) {
     if (!Objects.equals(baseline, incoming)) {
-      add(localName, MdCatalogPropertiesGranularSerial.localStringRuElement(localName, incoming));
+      add(localName, MdCatalogPropertiesGranularSerial.localStringElement(localName, incoming));
     }
   }
 

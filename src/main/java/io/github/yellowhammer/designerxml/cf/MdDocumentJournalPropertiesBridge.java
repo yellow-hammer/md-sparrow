@@ -36,9 +36,9 @@ public final class MdDocumentJournalPropertiesBridge {
     d.includeHelpInContents = JaxbReflect.getBooleanOptional(p, "isIncludeHelpInContents");
     d.standardAttributesXml = MdPropertiesBridgeSupport.marshalStandardAttributesOrEmpty(
       version, JaxbReflect.getOptional(p, "getStandardAttributes"));
-    d.listPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getListPresentation"));
-    d.extendedListPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
-    d.explanationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExplanation"));
+    d.listPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getListPresentation"));
+    d.extendedListPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
+    d.explanation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExplanation"));
     d.additionalIndexes = JaxbReflect.getStringOptional(p, "getAdditionalIndexes");
     Object registered = JaxbReflect.getOptional(p, "getRegisteredDocuments");
     if (registered != null) {
@@ -61,9 +61,9 @@ public final class MdDocumentJournalPropertiesBridge {
     JaxbReflect.setOptional(p, "setManagerModule", d.managerModule);
     JaxbReflect.setOptional(p, "setIncludeHelpInContents", d.includeHelpInContents);
     applyStandardAttributes(version, p, d);
-    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentationRu);
-    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentationRu);
-    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanationRu);
+    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentation);
+    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentation);
+    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanation);
     JaxbReflect.setOptional(p, "setAdditionalIndexes", d.additionalIndexes);
     MdListTypeRefs.replaceItems(JaxbReflect.getOptional(p, "getRegisteredDocuments"), d.registeredDocuments);
   }

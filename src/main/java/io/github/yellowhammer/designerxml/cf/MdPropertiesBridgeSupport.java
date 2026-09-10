@@ -51,7 +51,7 @@ final class MdPropertiesBridgeSupport {
   /** Создаёт локализованную строку, если её ещё нет, и кладёт русское содержимое. */
   static void ensureAndSetRu(Object properties, String getter, String setter, String ru) {
     Object localString = JaxbReflect.ensureOptional(properties, getter, setter);
-    LocalStringSync.setOrPutRu(localString, ru == null ? "" : ru);
+    LocalStringSync.setOrPut(localString, ru == null ? "" : ru);
   }
 
   static String nullIfBlank(String value) {
@@ -128,9 +128,9 @@ final class MdPropertiesBridgeSupport {
     if (!dto.internalName.equals(JaxbReflect.getStringOptional(properties, "getName"))) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
-    LocalStringSync.setOrPutRu(
+    LocalStringSync.setOrPut(
       JaxbReflect.getOptional(properties, "getSynonym"),
-      dto.synonymRu == null ? "" : dto.synonymRu);
+      dto.synonym == null ? "" : dto.synonym);
     JaxbReflect.setOptional(properties, "setComment", dto.comment == null ? "" : dto.comment);
   }
 }

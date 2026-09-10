@@ -39,6 +39,7 @@ import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
 import io.github.yellowhammer.designerxml.cf.FormItemPropertyChangeDto;
 import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
 import io.github.yellowhammer.edt.EdtObjectRegions.Region;
@@ -71,6 +72,18 @@ public final class EdtFormItemPropertyEdit {
    * @throws IOException если файл не читается или не пишется
    */
   public static void apply(Path formFile, EdtModel model, List<FormItemPropertyChangeDto> changes)
+      throws IOException {
+    try {
+      ConfigurationLanguage.with(formFile, () -> {
+        applyInLanguage(formFile, model, changes);
+        return null;
+      });
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static void applyInLanguage(Path formFile, EdtModel model, List<FormItemPropertyChangeDto> changes)
       throws IOException {
     if (!Files.isRegularFile(formFile)) {
       throw new IllegalArgumentException("Файл формы не найден: " + formFile);
@@ -140,13 +153,29 @@ public final class EdtFormItemPropertyEdit {
       owner = info;
       ownerClass = extInfo;
     }
-    Region current = first(EdtObjectRegions.nested(xml, owner, feature.getName()));
+    List<Region> written = EdtObjectRegions.nested(xml, owner, feature.getName());
+    boolean localized = LOCAL_STRING.equals(feature.getEType().getName());
+    Region current = localized
+        ? EdtObjectRegions.byKey(xml, written, ConfigurationLanguage.current())
+        : first(written);
     if (clearing) {
       return current.found() ? removal(xml, current) : null;
     }
     if (current.found()) {
-      return new Edit(current.start(), current.end(),
-          element(xml, feature, change.value, indentOf(xml, current.start())));
+      Region value = localized
+          ? EdtObjectRegions.childRegion(xml, current, "value")
+          : EdtObjectRegions.MISSING;
+      return value.found()
+          ? new Edit(value.start(), value.end(), "<value>" + escape(change.value) + "</value>")
+          : new Edit(current.start(), current.end(),
+              element(xml, feature, change.value, indentOf(xml, current.start())));
+    }
+    if (localized && !written.isEmpty()) {
+      // Языка ещё нет: запись встаёт за одноимёнными, как их пишет сама 1С:EDT
+      Region last = written.get(written.size() - 1);
+      String indent = indentOf(xml, last.start());
+      return new Edit(last.end(), last.end(),
+          eol(xml) + indent + element(xml, feature, change.value, indent));
     }
     int at = insertionPoint(xml, owner, ownerClass, feature.getName());
     String indent = indentOf(xml, owner.start()) + INDENT;
@@ -284,7 +313,7 @@ public final class EdtFormItemPropertyEdit {
     if (LOCAL_STRING.equals(feature.getEType().getName())) {
       String eol = eol(xml);
       return "<" + name + ">" + eol
-          + indent + INDENT + "<key>ru</key>" + eol
+          + indent + INDENT + "<key>" + ConfigurationLanguage.current() + "</key>" + eol
           + indent + INDENT + "<value>" + escape(value) + "</value>" + eol
           + indent + "</" + name + ">";
     }
@@ -358,7 +387,7 @@ public final class EdtFormItemPropertyEdit {
       }
       String written = written(item, change.property.trim());
       boolean clearing = change.value == null || change.value.isEmpty();
-      if (clearing ? written != null : !sameValue(written, change.value)) {
+      if (clearing ? written != null && !written.isEmpty() : !sameValue(written, change.value)) {
         throw new IllegalStateException(
             "Свойство " + change.property + " записано как " + written + ", а ожидали " + change.value);
       }
@@ -390,7 +419,7 @@ public final class EdtFormItemPropertyEdit {
         if (!child.kind().equalsIgnoreCase(property)) {
           continue;
         }
-        return child.children().isEmpty() ? child.value() : EdtPropertyValues.russian(scope, child.kind());
+        return child.children().isEmpty() ? child.value() : EdtPropertyValues.localized(scope, child.kind());
       }
     }
     return null;

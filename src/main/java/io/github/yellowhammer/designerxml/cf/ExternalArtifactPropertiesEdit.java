@@ -58,7 +58,7 @@ public final class ExternalArtifactPropertiesEdit {
       throw new IllegalArgumentException("unsupported MetaDataObject for external-artifact-properties");
     }
     JaxbReflect.set(props, "setName", nvl(incoming.name));
-    LocalStringSync.setOrPutRu(JaxbReflect.get(props, "getSynonym"), nvl(incoming.synonymRu));
+    LocalStringSync.setOrPut(JaxbReflect.get(props, "getSynonym"), nvl(incoming.synonym));
     JaxbReflect.set(props, "setComment", nvl(incoming.comment));
     Object report = JaxbReflect.get(je.getValue(), "getExternalReport");
     String containerLocal = report != null && JaxbReflect.get(report, "getProperties") != null
@@ -167,7 +167,7 @@ public final class ExternalArtifactPropertiesEdit {
 
   private static void fill(ExternalArtifactPropertiesDto out, Object props) {
     out.name = nvl(JaxbReflect.getString(props, "getName"));
-    out.synonymRu = LocalStringSync.firstRu(JaxbReflect.get(props, "getSynonym"));
+    out.synonym = LocalStringSync.first(JaxbReflect.get(props, "getSynonym"));
     out.comment = nvl(JaxbReflect.getString(props, "getComment"));
   }
 
@@ -178,7 +178,7 @@ public final class ExternalArtifactPropertiesEdit {
     ExternalArtifactPropertiesDto base = baseline == null ? new ExternalArtifactPropertiesDto() : baseline;
     out.kind = nvl(out.kind).isEmpty() ? nvl(base.kind) : out.kind;
     out.name = nvl(out.name);
-    out.synonymRu = nvl(out.synonymRu);
+    out.synonym = nvl(out.synonym);
     out.comment = nvl(out.comment);
     return out;
   }
@@ -192,7 +192,7 @@ public final class ExternalArtifactPropertiesEdit {
     }
     return nvl(left.kind).equals(nvl(right.kind))
       && nvl(left.name).equals(nvl(right.name))
-      && nvl(left.synonymRu).equals(nvl(right.synonymRu))
+      && nvl(left.synonym).equals(nvl(right.synonym))
       && nvl(left.comment).equals(nvl(right.comment));
   }
 
@@ -201,7 +201,7 @@ public final class ExternalArtifactPropertiesEdit {
     if (!nvl(baseline.name).equals(nvl(incoming.name))) {
       tags.add("Name");
     }
-    if (!nvl(baseline.synonymRu).equals(nvl(incoming.synonymRu))) {
+    if (!nvl(baseline.synonym).equals(nvl(incoming.synonym))) {
       tags.add("Synonym");
     }
     if (!nvl(baseline.comment).equals(nvl(incoming.comment))) {

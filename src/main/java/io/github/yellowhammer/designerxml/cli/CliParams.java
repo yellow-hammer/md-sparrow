@@ -88,7 +88,7 @@ final class CliParams {
   String schemaVersion;
   String type;
   String kind;
-  String synonymRu;
+  String synonym;
   boolean synonymEmpty;
   boolean autoName;
   /**

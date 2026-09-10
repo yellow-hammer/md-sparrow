@@ -179,7 +179,7 @@ public final class ProjectMetadataGraphBuilder {
       MdObjectGraphExtractor.Inspection inspection = EdtLayout.isObjectFile(xml)
         ? EdtObjectGraph.inspect(xml, item.objectType())
         : MdObjectGraphExtractor.inspect(xml, item.objectType());
-      synonym = inspection.synonymRu();
+      synonym = inspection.synonym();
       partial = inspection.partial();
       for (MdObjectGraphExtractor.OutEdge edge : inspection.edges()) {
         addEdge(edges, key, edge.targetKey(), edge.kind(), edge.via());
@@ -241,7 +241,7 @@ public final class ProjectMetadataGraphBuilder {
       node.key(),
       node.objectType(),
       node.name(),
-      node.synonymRu(),
+      node.synonym(),
       node.sourceId(),
       node.relativePath(),
       List.copyOf(subsystemKeys),

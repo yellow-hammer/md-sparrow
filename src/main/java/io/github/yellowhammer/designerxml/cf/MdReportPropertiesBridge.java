@@ -36,8 +36,8 @@ public final class MdReportPropertiesBridge {
     d.objectModule = JaxbReflect.getStringOptional(p, "getObjectModule");
     d.managerModule = JaxbReflect.getStringOptional(p, "getManagerModule");
     d.includeHelpInContents = JaxbReflect.getBooleanOptional(p, "isIncludeHelpInContents");
-    d.extendedPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedPresentation"));
-    d.explanationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExplanation"));
+    d.extendedPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedPresentation"));
+    d.explanation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExplanation"));
     d.mainDataCompositionSchema = JaxbReflect.getStringOptional(p, "getMainDataCompositionSchema");
     d.defaultSettingsForm = JaxbReflect.getStringOptional(p, "getDefaultSettingsForm");
     d.auxiliarySettingsForm = JaxbReflect.getStringOptional(p, "getAuxiliarySettingsForm");
@@ -62,8 +62,8 @@ public final class MdReportPropertiesBridge {
     JaxbReflect.setOptional(p, "setObjectModule", d.objectModule);
     JaxbReflect.setOptional(p, "setManagerModule", d.managerModule);
     JaxbReflect.setOptional(p, "setIncludeHelpInContents", d.includeHelpInContents);
-    ensureAndSetRu(p, "getExtendedPresentation", "setExtendedPresentation", d.extendedPresentationRu);
-    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanationRu);
+    ensureAndSetRu(p, "getExtendedPresentation", "setExtendedPresentation", d.extendedPresentation);
+    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanation);
     JaxbReflect.setOptional(p, "setMainDataCompositionSchema", d.mainDataCompositionSchema);
     JaxbReflect.setOptional(p, "setDefaultSettingsForm", d.defaultSettingsForm);
     JaxbReflect.setOptional(p, "setAuxiliarySettingsForm", d.auxiliarySettingsForm);

@@ -59,14 +59,14 @@ class AttributePalettePropertiesTest {
     MdNamedPropertyDto edited = attribute(dto, name);
     edited.indexing = "INDEX";
     edited.fillChecking = "SHOW_ERROR";
-    edited.toolTipRu = "Подсказка из палитры";
+    edited.toolTip = "Подсказка из палитры";
     MdObjectPropertiesEdit.writeDto(xml, SchemaVersion.V2_20, dto);
 
     MdObjectPropertiesDto again = MdObjectPropertiesEdit.readDto(xml, SchemaVersion.V2_20);
     MdNamedPropertyDto saved = attribute(again, name);
     assertThat(saved.indexing).isEqualTo("INDEX");
     assertThat(saved.fillChecking).isEqualTo("SHOW_ERROR");
-    assertThat(saved.toolTipRu).isEqualTo("Подсказка из палитры");
+    assertThat(saved.toolTip).isEqualTo("Подсказка из палитры");
   }
 
   @Test

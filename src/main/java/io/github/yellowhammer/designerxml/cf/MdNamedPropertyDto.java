@@ -19,7 +19,8 @@ package io.github.yellowhammer.designerxml.cf;
 public final class MdNamedPropertyDto {
 
   public String name;
-  public String synonymRu;
+  @LocalString
+  public String synonym;
   public String comment;
   /** Принадлежность в расширении: {@code Adopted} у заимствованного узла, иначе пусто. */
   public String objectBelonging;
@@ -29,7 +30,8 @@ public final class MdNamedPropertyDto {
   public java.util.List<String> extendable;
   public MdTypeDescriptionDto type;
   /** Подсказка на русском. */
-  public String toolTipRu;
+  @LocalString
+  public String toolTip;
   /** Проверка заполнения: {@code DONT_CHECK}, {@code SHOW_ERROR}. */
   public String fillChecking;
   /** Индексирование: {@code DONT_INDEX}, {@code INDEX}, {@code INDEX_WITH_ADDITIONAL_ORDER}. */
@@ -58,9 +60,9 @@ public final class MdNamedPropertyDto {
   public MdNamedPropertyDto() {
   }
 
-  public MdNamedPropertyDto(String name, String synonymRu, String comment) {
+  public MdNamedPropertyDto(String name, String synonym, String comment) {
     this.name = name;
-    this.synonymRu = synonymRu;
+    this.synonym = synonym;
     this.comment = comment;
   }
 }

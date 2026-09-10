@@ -86,7 +86,7 @@ public final class EdtFormContent {
    */
   public static FormContentDto read(EdtNode form, EdtModel model) {
     FormContentDto dto = new FormContentDto();
-    dto.title = EdtPropertyValues.russian(form, "title");
+    dto.title = EdtPropertyValues.localized(form, "title");
     dto.properties = scalars(form, FormItemPropertyDictionary.FORM_KIND);
     dto.items = items(form, model);
     dto.attributes = attributes(form, model);
@@ -160,7 +160,7 @@ public final class EdtFormContent {
     item.type = kindOf(node, container, model);
     item.name = node.name();
     item.id = node.property("id");
-    item.title = EdtPropertyValues.russian(node, "title");
+    item.title = EdtPropertyValues.localized(node, "title");
     item.dataPath = node.property("dataPath");
     item.group = node.property("group");
     item.showTitle = node.property("showTitle");
@@ -242,7 +242,7 @@ public final class EdtFormContent {
     for (EdtNode node : form.list("formCommands")) {
       FormCommandDto command = new FormCommandDto();
       command.name = node.name();
-      command.title = EdtPropertyValues.russian(node, "title");
+      command.title = EdtPropertyValues.localized(node, "title");
       command.action = node.property("action");
       commands.add(command);
     }

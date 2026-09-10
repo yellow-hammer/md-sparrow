@@ -40,7 +40,7 @@ public final class MdObjectPropertiesGranularPatch {
     SchemaVersion version,
     MdObjectPropertiesDto baseline,
     MdObjectPropertiesDto incoming) {
-    return tryApply(xmlUtf8, containerLocal, version, baseline, incoming, null);
+    return tryApply(xmlUtf8, containerLocal, version, baseline, incoming, null, ConfigurationLanguage.FALLBACK);
   }
 
   /**
@@ -54,6 +54,21 @@ public final class MdObjectPropertiesGranularPatch {
     MdObjectPropertiesDto baseline,
     MdObjectPropertiesDto incoming,
     Map<String, List<String>> extendable) {
+    return tryApply(xmlUtf8, containerLocal, version, baseline, incoming, extendable,
+      ConfigurationLanguage.FALLBACK);
+  }
+
+  /**
+   * @param languageCode язык текстов конфигурации: строки остальных языков правка не трогает
+   */
+  public static Optional<byte[]> tryApply(
+    String xmlUtf8,
+    String containerLocal,
+    SchemaVersion version,
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming,
+    Map<String, List<String>> extendable,
+    String languageCode) {
     if (baseline == null || incoming == null || containerLocal == null || containerLocal.isEmpty()) {
       return Optional.empty();
     }
@@ -114,10 +129,13 @@ public final class MdObjectPropertiesGranularPatch {
           reps.add(new XmlGranularPatch.Replacement(place.at(), place.at(), insertion));
           continue;
         }
+        String element = mergedLocalString(
+          xmlUtf8.substring(reg.start(), reg.end()), ch.mdElementLocalName(),
+          ch.replacementElementXml(), languageCode);
         String replacement = XmlGranularPatch.formatReplacementPreservingIndent(
           xmlUtf8,
           reg.start(),
-          XmlGranularPatch.dropRedundantNamespaces(xmlUtf8, ch.replacementElementXml()));
+          XmlGranularPatch.dropRedundantNamespaces(xmlUtf8, element));
         reps.add(new XmlGranularPatch.Replacement(reg.start(), reg.end(), replacement));
       }
       for (Map.Entry<String, Set<String>> entry : extended.entrySet()) {
@@ -286,5 +304,27 @@ public final class MdObjectPropertiesGranularPatch {
       }
     }
     return new MdObjectXmlRegions.Region(-1, -1);
+  }
+
+  /**
+   * Многоязычное свойство: строки остальных языков остаются на месте.
+   *
+   * <p>Правка идёт по одному языку, а элемент в файле держит по строке на язык.
+   * Замена элемента целиком уносила бы текст, написанный на других языках.
+   *
+   * @param existing элемент, как он лежит в файле
+   * @param localName имя элемента
+   * @param replacement элемент, собранный правкой
+   * @return элемент со строками всех языков, либо {@code replacement}, если свойство одноязычное
+   */
+  private static String mergedLocalString(
+      String existing, String localName, String replacement, String languageCode) {
+    if (!LocalStringElement.hasItems(existing) && !LocalStringElement.hasItems(replacement)) {
+      return replacement;
+    }
+    List<LocalStringElement.Item> incoming = LocalStringElement.items(replacement);
+    // Пустой элемент правки снимает строку своего языка, а не весь текст объекта
+    String content = incoming.isEmpty() ? "" : incoming.get(0).content();
+    return LocalStringElement.merge(localName, existing, languageCode, content);
   }
 }

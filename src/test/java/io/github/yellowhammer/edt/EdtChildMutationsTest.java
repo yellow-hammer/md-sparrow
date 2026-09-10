@@ -77,7 +77,7 @@ class EdtChildMutationsTest {
     MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
     assertThat(names(dto.attributes)).endsWith("НовыйРеквизит");
     MdNamedPropertyDto added = dto.attributes.get(dto.attributes.size() - 1);
-    assertThat(added.synonymRu).isEqualTo("НовыйРеквизит");
+    assertThat(added.synonym).isEqualTo("НовыйРеквизит");
     assertThat(added.type.types).containsExactly("xs:string");
     assertThat(added.type.stringQualifiers.length).isEqualTo("10");
     // Идентификатор узла платформа требует у каждого

@@ -27,8 +27,8 @@ public final class MdObjectPropertiesJsonCoalesce {
     if (incoming == null || baseline == null) {
       return;
     }
-    if (incoming.synonymRu == null) {
-      incoming.synonymRu = baseline.synonymRu;
+    if (incoming.synonym == null) {
+      incoming.synonym = baseline.synonym;
     }
     if (incoming.comment == null) {
       incoming.comment = baseline.comment;
@@ -243,11 +243,11 @@ public final class MdObjectPropertiesJsonCoalesce {
     d.dataLockFields = s.dataLockFields == null ? new ArrayList<>() : new ArrayList<>(s.dataLockFields);
     d.dataLockControlMode = s.dataLockControlMode;
     d.fullTextSearch = s.fullTextSearch;
-    d.objectPresentationRu = s.objectPresentationRu;
-    d.extendedObjectPresentationRu = s.extendedObjectPresentationRu;
-    d.listPresentationRu = s.listPresentationRu;
-    d.extendedListPresentationRu = s.extendedListPresentationRu;
-    d.explanationRu = s.explanationRu;
+    d.objectPresentation = s.objectPresentation;
+    d.extendedObjectPresentation = s.extendedObjectPresentation;
+    d.listPresentation = s.listPresentation;
+    d.extendedListPresentation = s.extendedListPresentation;
+    d.explanation = s.explanation;
     d.dataHistory = s.dataHistory;
     d.updateDataHistoryImmediatelyAfterWrite = s.updateDataHistoryImmediatelyAfterWrite;
     d.executeAfterWriteDataHistoryVersionProcessing = s.executeAfterWriteDataHistoryVersionProcessing;
@@ -358,20 +358,20 @@ public final class MdObjectPropertiesJsonCoalesce {
     if (d.fullTextSearch == null) {
       d.fullTextSearch = b.fullTextSearch;
     }
-    if (d.objectPresentationRu == null) {
-      d.objectPresentationRu = b.objectPresentationRu;
+    if (d.objectPresentation == null) {
+      d.objectPresentation = b.objectPresentation;
     }
-    if (d.extendedObjectPresentationRu == null) {
-      d.extendedObjectPresentationRu = b.extendedObjectPresentationRu;
+    if (d.extendedObjectPresentation == null) {
+      d.extendedObjectPresentation = b.extendedObjectPresentation;
     }
-    if (d.listPresentationRu == null) {
-      d.listPresentationRu = b.listPresentationRu;
+    if (d.listPresentation == null) {
+      d.listPresentation = b.listPresentation;
     }
-    if (d.extendedListPresentationRu == null) {
-      d.extendedListPresentationRu = b.extendedListPresentationRu;
+    if (d.extendedListPresentation == null) {
+      d.extendedListPresentation = b.extendedListPresentation;
     }
-    if (d.explanationRu == null) {
-      d.explanationRu = b.explanationRu;
+    if (d.explanation == null) {
+      d.explanation = b.explanation;
     }
     if (d.dataHistory == null) {
       d.dataHistory = b.dataHistory;
@@ -444,11 +444,11 @@ public final class MdObjectPropertiesJsonCoalesce {
     d.dataLockFields = s.dataLockFields == null ? new ArrayList<>() : new ArrayList<>(s.dataLockFields);
     d.dataLockControlMode = s.dataLockControlMode;
     d.fullTextSearch = s.fullTextSearch;
-    d.objectPresentationRu = s.objectPresentationRu;
-    d.extendedObjectPresentationRu = s.extendedObjectPresentationRu;
-    d.listPresentationRu = s.listPresentationRu;
-    d.extendedListPresentationRu = s.extendedListPresentationRu;
-    d.explanationRu = s.explanationRu;
+    d.objectPresentation = s.objectPresentation;
+    d.extendedObjectPresentation = s.extendedObjectPresentation;
+    d.listPresentation = s.listPresentation;
+    d.extendedListPresentation = s.extendedListPresentation;
+    d.explanation = s.explanation;
     d.createOnInput = s.createOnInput;
     d.choiceHistoryOnInput = s.choiceHistoryOnInput;
     d.dataHistory = s.dataHistory;
@@ -467,7 +467,7 @@ public final class MdObjectPropertiesJsonCoalesce {
       if (x == null) {
         continue;
       }
-      MdNamedPropertyDto c = new MdNamedPropertyDto(x.name, x.synonymRu, x.comment);
+      MdNamedPropertyDto c = new MdNamedPropertyDto(x.name, x.synonym, x.comment);
       out.add(c);
     }
     return out;
@@ -579,20 +579,20 @@ public final class MdObjectPropertiesJsonCoalesce {
     if (d.fullTextSearch == null) {
       d.fullTextSearch = b.fullTextSearch;
     }
-    if (d.objectPresentationRu == null) {
-      d.objectPresentationRu = b.objectPresentationRu;
+    if (d.objectPresentation == null) {
+      d.objectPresentation = b.objectPresentation;
     }
-    if (d.extendedObjectPresentationRu == null) {
-      d.extendedObjectPresentationRu = b.extendedObjectPresentationRu;
+    if (d.extendedObjectPresentation == null) {
+      d.extendedObjectPresentation = b.extendedObjectPresentation;
     }
-    if (d.listPresentationRu == null) {
-      d.listPresentationRu = b.listPresentationRu;
+    if (d.listPresentation == null) {
+      d.listPresentation = b.listPresentation;
     }
-    if (d.extendedListPresentationRu == null) {
-      d.extendedListPresentationRu = b.extendedListPresentationRu;
+    if (d.extendedListPresentation == null) {
+      d.extendedListPresentation = b.extendedListPresentation;
     }
-    if (d.explanationRu == null) {
-      d.explanationRu = b.explanationRu;
+    if (d.explanation == null) {
+      d.explanation = b.explanation;
     }
     if (d.createOnInput == null) {
       d.createOnInput = b.createOnInput;

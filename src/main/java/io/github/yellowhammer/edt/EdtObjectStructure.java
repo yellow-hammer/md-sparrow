@@ -34,6 +34,7 @@ import io.github.yellowhammer.designerxml.cf.MdObjectStructureDto;
 import io.github.yellowhammer.designerxml.cf.StandardAttributeLabels;
 import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
 import io.github.yellowhammer.designerxml.cf.ChildContentFile;
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
 import org.eclipse.emf.ecore.EClass;
 
 import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
@@ -61,6 +62,14 @@ public final class EdtObjectStructure {
    * @throws IOException если файл не читается
    */
   public static MdObjectStructureDto read(Path objectMdo, EdtModel model) throws IOException {
+    try {
+      return ConfigurationLanguage.with(objectMdo, () -> readInLanguage(objectMdo, model));
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static MdObjectStructureDto readInLanguage(Path objectMdo, EdtModel model) throws IOException {
     EdtNode node = EdtObjectReader.read(objectMdo);
 
     MdObjectStructureDto dto = new MdObjectStructureDto();
@@ -175,7 +184,7 @@ public final class EdtObjectStructure {
   private static Map<String, String> synonyms(List<EdtNode> nodes) {
     Map<String, String> synonyms = new LinkedHashMap<>();
     for (EdtNode node : nodes) {
-      String synonym = EdtPropertyValues.russian(node, "synonym");
+      String synonym = EdtPropertyValues.localized(node, "synonym");
       if (!node.name().isEmpty() && !synonym.isEmpty()) {
         synonyms.put(node.name(), synonym);
       }
@@ -188,7 +197,7 @@ public final class EdtObjectStructure {
     for (EdtNode child : children) {
       MdObjectStructureDto.MdNodeDto node = new MdObjectStructureDto.MdNodeDto(
           child.name(),
-          EdtPropertyValues.russian(child, "synonym"),
+          EdtPropertyValues.localized(child, "synonym"),
           child.property("comment"));
       node.type = typeDescription(child);
       nodes.add(node);
@@ -201,7 +210,7 @@ public final class EdtObjectStructure {
     for (EdtNode child : node.list("tabularSections")) {
       MdObjectStructureDto.MdTabularSectionDto section = new MdObjectStructureDto.MdTabularSectionDto();
       section.name = child.name();
-      section.synonymRu = EdtPropertyValues.russian(child, "synonym");
+      section.synonym = EdtPropertyValues.localized(child, "synonym");
       section.comment = child.property("comment");
       section.attributes = nodes(child.list("attributes"));
       section.standardAttributes = names(child.list("standardAttributes"));

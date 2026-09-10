@@ -76,7 +76,7 @@ public final class CatalogFormEdit {
   private static CatalogFormDto readDto(JAXBElement<?> je) {
     Object props = catalogProperties(je);
     String name = JaxbReflect.getString(props, "getName");
-    String syn = LocalStringSync.firstRu(JaxbReflect.get(props, "getSynonym"));
+    String syn = LocalStringSync.first(JaxbReflect.get(props, "getSynonym"));
     String comment = JaxbReflect.getString(props, "getComment");
     return new CatalogFormDto(name, syn, comment == null ? "" : comment);
   }
@@ -86,14 +86,14 @@ public final class CatalogFormEdit {
     if (!dto.internalName.equals(JaxbReflect.getString(props, "getName"))) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRu(JaxbReflect.get(props, "getSynonym"), syn);
+    String syn = dto.synonym == null ? "" : dto.synonym;
+    LocalStringSync.setOrPut(JaxbReflect.get(props, "getSynonym"), syn);
     // Поля-представления версионно-вариативны (в старых форматах могут отсутствовать) → tolerant.
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getObjectPresentation"), syn);
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExtendedObjectPresentation"), syn);
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getListPresentation"), syn);
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExtendedListPresentation"), syn);
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExplanation"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getObjectPresentation"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getExtendedObjectPresentation"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getListPresentation"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getExtendedListPresentation"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getExplanation"), syn);
     JaxbReflect.set(props, "setComment", dto.comment == null ? "" : dto.comment);
   }
 

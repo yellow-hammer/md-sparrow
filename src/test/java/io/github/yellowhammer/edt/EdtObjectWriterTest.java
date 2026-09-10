@@ -142,14 +142,14 @@ class EdtObjectWriterTest {
 
     MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
     dto.catalog.hierarchical = true;
-    dto.synonymRu = "Денежные единицы";
+    dto.synonym = "Денежные единицы";
     EdtObjectWriter.writeDto(file, dto, model);
 
     String after = Files.readString(file, StandardCharsets.UTF_8);
     assertThat(eolKinds(after)).containsExactly("LF");
     assertThat(after.lines().filter(line -> line.contains("<hierarchical>")).toList())
         .containsExactly("  <hierarchical>true</hierarchical>");
-    assertThat(EdtObjectProperties.readDto(file, model).synonymRu).isEqualTo("Денежные единицы");
+    assertThat(EdtObjectProperties.readDto(file, model).synonym).isEqualTo("Денежные единицы");
   }
 
   /** Какими переводами строк написан файл. */
@@ -214,13 +214,13 @@ class EdtObjectWriterTest {
     String before = Files.readString(file, StandardCharsets.UTF_8);
 
     MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
-    dto.synonymRu = "Денежные единицы";
+    dto.synonym = "Денежные единицы";
     EdtObjectWriter.writeDto(file, dto, model);
 
     String after = Files.readString(file, StandardCharsets.UTF_8);
     assertThat(changedLines(before, after)).containsExactlyInAnyOrder(
         "<value>Валюты</value>", "<value>Денежные единицы</value>");
-    assertThat(EdtObjectProperties.readDto(file, model).synonymRu).isEqualTo("Денежные единицы");
+    assertThat(EdtObjectProperties.readDto(file, model).synonym).isEqualTo("Денежные единицы");
   }
 
   @Test
@@ -284,13 +284,13 @@ class EdtObjectWriterTest {
     String before = Files.readString(file, StandardCharsets.UTF_8);
 
     MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
-    dto.attributes.get(0).synonymRu = "Курс из Интернета";
+    dto.attributes.get(0).synonym = "Курс из Интернета";
     EdtObjectWriter.writeDto(file, dto, model);
 
     String after = Files.readString(file, StandardCharsets.UTF_8);
     assertThat(changedLines(before, after)).containsExactlyInAnyOrder(
         "<value>Загружается из Интернета</value>", "<value>Курс из Интернета</value>");
-    assertThat(EdtObjectProperties.readDto(file, model).attributes.get(0).synonymRu)
+    assertThat(EdtObjectProperties.readDto(file, model).attributes.get(0).synonym)
         .isEqualTo("Курс из Интернета");
   }
 
@@ -316,14 +316,14 @@ class EdtObjectWriterTest {
 
     MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
     MdNamedPropertyDto attribute = dto.tabularSections.get(0).attributes.get(0);
-    attribute.synonymRu = "Язык записи";
-    attribute.toolTipRu = "Код языка представления";
+    attribute.synonym = "Язык записи";
+    attribute.toolTip = "Код языка представления";
     EdtObjectWriter.writeDto(file, dto, model);
 
     MdNamedPropertyDto written = EdtObjectProperties.readDto(file, model)
         .tabularSections.get(0).attributes.get(0);
-    assertThat(written.synonymRu).isEqualTo("Язык записи");
-    assertThat(written.toolTipRu).isEqualTo("Код языка представления");
+    assertThat(written.synonym).isEqualTo("Язык записи");
+    assertThat(written.toolTip).isEqualTo("Код языка представления");
   }
 
   @Test
@@ -406,5 +406,27 @@ class EdtObjectWriterTest {
     assertThat(EdtObjectWriter.writeDto(file, dto, model)).isZero();
 
     assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo(before);
+  }
+
+  /**
+   * Пакет XDTO из ssl31: единственный объект фикстуры с подписью на двух
+   * языках, так её записала сама 1С:EDT.
+   */
+  @Test
+  void подписьНаДругомЯзыкеПереживаетПравку() throws Exception {
+    Path file = copyOf("XDTOPackages/EnterpriseData_1_20_2/EnterpriseData_1_20_2.mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(before).contains("<key>en</key>", "<key>ru</key>");
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    dto.synonym = "Данные предприятия";
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(after).contains("<value>EnterpriseData 1.19.1</value>", "<value>Данные предприятия</value>");
+    assertThat(after.split("<key>en</key>", -1)).hasSize(2);
+    assertThat(after.split("<key>ru</key>", -1)).hasSize(2);
+    assertThat(EdtObjectProperties.readDto(file, model).synonym).isEqualTo("Данные предприятия");
+    assertThat(after.lines().count()).isEqualTo(before.lines().count());
   }
 }

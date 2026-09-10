@@ -27,9 +27,11 @@ import org.w3c.dom.Element;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -89,6 +91,14 @@ public final class MdObjectGraphExtractor {
    * @return результат с синонимом и списком {@link OutEdge}; для неподдерживаемых типов — пустой список
    */
   public static Inspection inspect(Path objectXml, String objectType) throws IOException {
+    try {
+      return ConfigurationLanguage.with(objectXml, () -> inspectInLanguage(objectXml, objectType));
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static Inspection inspectInLanguage(Path objectXml, String objectType) throws IOException {
     Document doc = XmlGraphReader.parse(objectXml);
     Element metaRoot = XmlGraphReader.findMetadataObjectRoot(doc).orElse(null);
     if (metaRoot == null) {
@@ -100,9 +110,9 @@ public final class MdObjectGraphExtractor {
     }
     Element properties = XmlGraphReader.firstChildLocal(objectNode, "Properties");
     Element childObjects = XmlGraphReader.firstChildLocal(objectNode, "ChildObjects");
-    String synonymRu = readSynonymRu(properties);
+    String synonym = readSynonym(properties);
     if (!isSupported(objectType)) {
-      return new Inspection(synonymRu, List.of(), true);
+      return new Inspection(synonym, List.of(), true);
     }
     List<OutEdge> edges = new ArrayList<>();
     switch (objectType) {
@@ -137,7 +147,7 @@ public final class MdObjectGraphExtractor {
         // рёбра не извлекаются, объект попадёт в граф без исходящих связей.
       }
     }
-    return new Inspection(synonymRu, edges, false);
+    return new Inspection(synonym, edges, false);
   }
 
   private static void extractCatalog(Element properties, Element childObjects, List<OutEdge> edges) {
@@ -523,7 +533,7 @@ public final class MdObjectGraphExtractor {
     return XmlGraphReader.text(nameEl);
   }
 
-  private static String readSynonymRu(Element properties) {
+  private static String readSynonym(Element properties) {
     if (properties == null) {
       return "";
     }
@@ -531,17 +541,16 @@ public final class MdObjectGraphExtractor {
     if (synonym == null) {
       return "";
     }
-    List<Element> items = XmlGraphReader.childrenLocal(synonym, "item");
-    for (Element it : items) {
-      Element lang = XmlGraphReader.firstChildLocal(it, "lang");
-      Element content = XmlGraphReader.firstChildLocal(it, "content");
-      String langText = XmlGraphReader.text(lang);
-      if (langText != null && "ru".equals(langText.toLowerCase(Locale.ROOT))) {
-        String txt = XmlGraphReader.text(content);
-        return txt == null ? "" : txt;
+    Map<String, String> byLanguage = new LinkedHashMap<>();
+    for (Element it : XmlGraphReader.childrenLocal(synonym, "item")) {
+      String lang = XmlGraphReader.text(XmlGraphReader.firstChildLocal(it, "lang"));
+      String content = XmlGraphReader.text(XmlGraphReader.firstChildLocal(it, "content"));
+      if (lang != null) {
+        byLanguage.put(lang.toLowerCase(Locale.ROOT), content == null ? "" : content);
       }
     }
-    return "";
+    String text = LocalStrings.pick(byLanguage);
+    return text == null ? "" : text;
   }
 
   private static String stripPrefix(String prefixed) {
@@ -552,7 +561,7 @@ public final class MdObjectGraphExtractor {
   /**
    * Результат разбора одного объекта: синоним и список исходящих рёбер.
    */
-  public record Inspection(String synonymRu, List<OutEdge> edges, boolean partial) {
+  public record Inspection(String synonym, List<OutEdge> edges, boolean partial) {
   }
 
   /**

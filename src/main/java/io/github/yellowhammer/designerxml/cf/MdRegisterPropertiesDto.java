@@ -30,9 +30,12 @@ public final class MdRegisterPropertiesDto {
   public String managerModule;
   public String dataLockControlMode;
   public String fullTextSearch;
-  public String listPresentationRu;
-  public String extendedListPresentationRu;
-  public String explanationRu;
+  @LocalString
+  public String listPresentation;
+  @LocalString
+  public String extendedListPresentation;
+  @LocalString
+  public String explanation;
   public String additionalIndexes;
 
   // Регистр сведений
@@ -46,8 +49,10 @@ public final class MdRegisterPropertiesDto {
   public boolean mainFilterOnPeriod;
   public boolean enableTotalsSliceFirst;
   public boolean enableTotalsSliceLast;
-  public String recordPresentationRu;
-  public String extendedRecordPresentationRu;
+  @LocalString
+  public String recordPresentation;
+  @LocalString
+  public String extendedRecordPresentation;
   public String dataHistory;
   public boolean updateDataHistoryImmediatelyAfterWrite;
   public boolean executeAfterWriteDataHistoryVersionProcessing;

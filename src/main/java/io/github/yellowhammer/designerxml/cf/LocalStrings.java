@@ -26,10 +26,10 @@ public final class LocalStrings {
    * Значение многоязычной строки.
    *
    * @param byLanguage код языка -> текст, в порядке файла
-   * @return русский текст, иначе первый записанный, иначе пусто
+   * @return текст на языке конфигурации, иначе русский, иначе первый записанный, иначе пусто
    */
   public static String pick(Map<String, String> byLanguage) {
-    return pick(byLanguage, null);
+    return pick(byLanguage, ConfigurationLanguage.current());
   }
 
   /**

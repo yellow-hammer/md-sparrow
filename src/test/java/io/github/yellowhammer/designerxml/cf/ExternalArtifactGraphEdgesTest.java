@@ -50,7 +50,7 @@ class ExternalArtifactGraphEdgesTest {
       MdObjectGraphExtractor.inspect(xml, "ExternalReport");
 
     assertThat(inspection.partial()).isFalse();
-    assertThat(inspection.synonymRu()).isEqualTo("Отчёт по контрагентам");
+    assertThat(inspection.synonym()).isEqualTo("Отчёт по контрагентам");
     assertThat(inspection.edges())
       .extracting(MdObjectGraphExtractor.OutEdge::targetKey)
       .contains("Catalog.Контрагенты");

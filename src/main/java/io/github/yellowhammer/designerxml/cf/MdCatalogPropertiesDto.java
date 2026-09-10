@@ -70,11 +70,16 @@ public final class MdCatalogPropertiesDto {
   public List<String> dataLockFields;
   public String dataLockControlMode;
   public String fullTextSearch;
-  public String objectPresentationRu;
-  public String extendedObjectPresentationRu;
-  public String listPresentationRu;
-  public String extendedListPresentationRu;
-  public String explanationRu;
+  @LocalString
+  public String objectPresentation;
+  @LocalString
+  public String extendedObjectPresentation;
+  @LocalString
+  public String listPresentation;
+  @LocalString
+  public String extendedListPresentation;
+  @LocalString
+  public String explanation;
   public String createOnInput;
   public String choiceHistoryOnInput;
   public String dataHistory;

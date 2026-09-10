@@ -54,7 +54,7 @@ class ApplyMutationCmdTest {
       io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
         objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
     String newSynonym = "Демо: Банковские счета (изменено)";
-    dto.synonymRu = newSynonym;
+    dto.synonym = newSynonym;
     dto.catalog.choiceMode = "QUICK_CHOICE";
     Path params = writeParams(
       "{"
@@ -115,7 +115,7 @@ class ApplyMutationCmdTest {
           "{"
             + "\"kind\":\"catalog\","
             + "\"internalName\":\"_ДемоБанковскиеСчета\","
-            + "\"synonymRu\":\"Демо: Банковские счета (частично)\""
+            + "\"synonym\":\"Демо: Банковские счета (частично)\""
             + "}")
         + "}");
 
@@ -140,7 +140,7 @@ class ApplyMutationCmdTest {
     io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
       io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
         objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
-    dto.synonymRu = "Демо: Банковские счета (префиксы)";
+    dto.synonym = "Демо: Банковские счета (префиксы)";
     dto.catalog.standardAttributesXml = dto.catalog.standardAttributesXml
       .replace("ns9:", "nsTMP:").replace("xmlns:ns9=", "xmlns:nsTMP=");
     Path params = writeParams(
@@ -242,7 +242,7 @@ class ApplyMutationCmdTest {
       io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
         objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
     assertThat(dto.document).as("документ должен читаться гранулярно").isNotNull();
-    dto.synonymRu = "Демо: Заказ покупателя 222";
+    dto.synonym = "Демо: Заказ покупателя 222";
     dto.document.numberLength = "15";
     dto.document.posting = "DENY";
     dto.document.registerRecords = new java.util.ArrayList<>(dto.document.registerRecords);
@@ -276,10 +276,10 @@ class ApplyMutationCmdTest {
       io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
         objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
     assertThat(dto.enumeration).as("перечисление должно читаться гранулярно").isNotNull();
-    dto.synonymRu = "Демо: Статусы заказов 222";
+    dto.synonym = "Демо: Статусы заказов 222";
     dto.enumeration.quickChoice = !dto.enumeration.quickChoice;
     dto.enumeration.choiceMode = "QUICK_CHOICE";
-    dto.enumeration.explanationRu = "Пояснение из теста";
+    dto.enumeration.explanation = "Пояснение из теста";
     Path params = writeParams(
       "{"
         + "\"op\":\"cf-md-object-set\","
@@ -309,7 +309,7 @@ class ApplyMutationCmdTest {
     assertThat(dto.constant).as("константа должна читаться гранулярно").isNotNull();
     dto.constant.passwordMode = !dto.constant.passwordMode;
     dto.constant.fillChecking = "SHOW_ERROR";
-    dto.constant.toolTipRu = "Подсказка из теста";
+    dto.constant.toolTip = "Подсказка из теста";
     Path params = writeParams(
       "{"
         + "\"op\":\"cf-md-object-set\","
@@ -413,7 +413,7 @@ class ApplyMutationCmdTest {
     assertThat(dto.kind).isEqualTo("informationRegister");
     assertThat(dto.register).as("регистр сведений должен читаться гранулярно").isNotNull();
     assertThat(dto.register.writeMode).isEqualTo("INDEPENDENT");
-    dto.synonymRu = "Демо: Графики работы 222";
+    dto.synonym = "Демо: Графики работы 222";
     dto.register.informationRegisterPeriodicity = "DAY";
     dto.register.editType = "BOTH_WAYS";
     dto.register.enableTotalsSliceLast = !dto.register.enableTotalsSliceLast;
@@ -448,7 +448,7 @@ class ApplyMutationCmdTest {
     // Поля регистра сведений у регистра накопления пусты: у вида объекта их просто нет.
     assertThat(dto.register.informationRegisterPeriodicity).isNull();
     dto.register.enableTotalsSplitting = !dto.register.enableTotalsSplitting;
-    dto.register.explanationRu = "Пояснение из теста";
+    dto.register.explanation = "Пояснение из теста";
     Path params = writeParams(
       "{"
         + "\"op\":\"cf-md-object-set\","
@@ -506,8 +506,8 @@ class ApplyMutationCmdTest {
     io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto dto =
       io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit.readDto(
         objectXml, io.github.yellowhammer.designerxml.SchemaVersion.V2_20);
-    dto.dimensions.get(0).synonymRu = "Дата графика";
-    dto.resources.get(0).synonymRu = "Значение графика";
+    dto.dimensions.get(0).synonym = "Дата графика";
+    dto.resources.get(0).synonym = "Значение графика";
     Path params = writeParams(
       "{"
         + "\"op\":\"cf-md-object-set\","

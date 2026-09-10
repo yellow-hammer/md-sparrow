@@ -23,12 +23,17 @@ public final class MdConstantPropertiesDto {
   public MdTypeDescriptionDto type;
   public boolean useStandardCommands;
   public String defaultForm;
-  public String extendedPresentationRu;
-  public String explanationRu;
+  @LocalString
+  public String extendedPresentation;
+  @LocalString
+  public String explanation;
   public boolean passwordMode;
-  public String formatRu;
-  public String editFormatRu;
-  public String toolTipRu;
+  @LocalString
+  public String format;
+  @LocalString
+  public String editFormat;
+  @LocalString
+  public String toolTip;
   public boolean markNegatives;
   public String mask;
   public boolean multiLine;

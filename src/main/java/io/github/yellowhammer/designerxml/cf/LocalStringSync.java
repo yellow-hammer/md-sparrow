@@ -13,25 +13,24 @@ import io.github.yellowhammer.designerxml.reflect.JaxbReflect;
 import java.util.List;
 
 /**
- * Чтение/запись ru-представления у {@code LocalStringType} Designer XML — версионно-нейтрально
+ * Чтение и запись строки на языке конфигурации у {@code LocalStringType} Designer XML — версионно-нейтрально
  * (через {@link JaxbReflect}; структура {@code getItem()/getLang()/getContent()} одинакова во всех версиях).
  */
 public final class LocalStringSync {
-
-  private static final String RU = "ru";
 
   private LocalStringSync() {
   }
 
   /**
-   * Содержимое ru-элемента или {@code ""} (включая {@code null}-аргумент).
+   * Строка на языке конфигурации или {@code ""} (включая {@code null}-аргумент).
    */
-  public static String firstRu(Object localString) {
+  public static String first(Object localString) {
+    String code = ConfigurationLanguage.current();
     if (localString == null) {
       return "";
     }
     for (Object item : JaxbReflect.<Object>list(localString, "getItem")) {
-      if (RU.equals(JaxbReflect.getString(item, "getLang"))) {
+      if (code.equals(JaxbReflect.getString(item, "getLang"))) {
         String c = JaxbReflect.getString(item, "getContent");
         return c == null ? "" : c;
       }
@@ -40,34 +39,36 @@ public final class LocalStringSync {
   }
 
   /**
-   * Устанавливает ru-содержимое; если ru-элемента нет — добавляет его.
+   * Ставит строку на языке конфигурации; если её ещё нет, добавляет.
    */
-  public static void setOrPutRu(Object localString, String content) {
+  public static void setOrPut(Object localString, String content) {
+    String code = ConfigurationLanguage.current();
     if (localString == null) {
       return;
     }
     List<Object> items = JaxbReflect.list(localString, "getItem");
     for (Object item : items) {
-      if (RU.equals(JaxbReflect.getString(item, "getLang"))) {
+      if (code.equals(JaxbReflect.getString(item, "getLang"))) {
         JaxbReflect.set(item, "setContent", content);
         return;
       }
     }
     Object item = JaxbReflect.newInstance(localString.getClass().getPackageName() + ".LocalStringItemType");
-    JaxbReflect.set(item, "setLang", RU);
+    JaxbReflect.set(item, "setLang", code);
     JaxbReflect.set(item, "setContent", content);
     items.add(item);
   }
 
   /**
-   * Обновляет ru-содержимое, только если ru-элемент уже есть (иначе ничего не делает).
+   * Обновляет строку на языке конфигурации, только если она уже есть.
    */
-  public static void replaceRu(Object localString, String content) {
+  public static void replace(Object localString, String content) {
+    String code = ConfigurationLanguage.current();
     if (localString == null) {
       return;
     }
     for (Object item : JaxbReflect.<Object>list(localString, "getItem")) {
-      if (RU.equals(JaxbReflect.getString(item, "getLang"))) {
+      if (code.equals(JaxbReflect.getString(item, "getLang"))) {
         JaxbReflect.set(item, "setContent", content);
         return;
       }

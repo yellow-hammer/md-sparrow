@@ -79,7 +79,10 @@ public final class MdObjectAdd {
       throw new IllegalArgumentException("object file already exists: " + out);
     }
 
-    String text = generateObjectXml(type, name, version, catalogSynonymRu, catalogSynonymEmpty);
+    // Эталон снят на русской конфигурации: подписи нового объекта уезжают в язык этой
+    String text = LocalStringElement.retarget(
+      generateObjectXml(type, name, version, catalogSynonymRu, catalogSynonymEmpty),
+      ConfigurationLanguage.codeOf(configurationXml));
     Files.createDirectories(out.getParent());
     Files.writeString(out, text, StandardCharsets.UTF_8);
     if (type.roleWithExtRights()) {

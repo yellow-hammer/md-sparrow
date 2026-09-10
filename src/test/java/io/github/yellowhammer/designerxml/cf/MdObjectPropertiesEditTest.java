@@ -43,7 +43,7 @@ class MdObjectPropertiesEditTest {
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(any, SchemaVersion.V2_20);
     assertThat(dto.kind).isEqualTo("catalog");
     assertThat(dto.internalName).isNotBlank();
-    assertThat(dto.synonymRu).isNotNull();
+    assertThat(dto.synonym).isNotNull();
     assertThat(dto.comment).isNotNull();
     assertThat(dto.attributes).isNotNull();
     assertThat(dto.tabularSections).isNotNull();
@@ -51,6 +51,27 @@ class MdObjectPropertiesEditTest {
     assertThat(dto.catalog.codeLength).isNotBlank();
     assertThat(dto.catalog.standardAttributesXml).isNotNull();
     assertThat(dto.catalog.characteristicsXml).isNotNull();
+  }
+
+  @Test
+  void writeDto_keepsOtherLanguagesOfLocalString() throws Exception {
+    // Текст на других языках это чужая работа: правка своего языка не должна её уносить
+    Path src = Ssl31SubmodulePaths.anyCatalogObjectXml();
+    Path copy = tempDir.resolve(src.getFileName());
+    Files.copy(src, copy);
+    String withEnglish = Files.readString(copy, StandardCharsets.UTF_8).replaceFirst(
+      "<Synonym>",
+      "<Synonym><v8:item><v8:lang>en</v8:lang><v8:content>Partners</v8:content></v8:item>");
+    Files.writeString(copy, withEnglish, StandardCharsets.UTF_8);
+
+    MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
+    dto.synonym = "Партнёры";
+    MdObjectPropertiesEdit.writeDto(copy, SchemaVersion.V2_20, dto);
+
+    String after = Files.readString(copy, StandardCharsets.UTF_8);
+    assertThat(after).contains("<v8:content>Partners</v8:content>");
+    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).synonym)
+      .isEqualTo("Партнёры");
   }
 
   @Test
@@ -63,10 +84,10 @@ class MdObjectPropertiesEditTest {
     Files.copy(src, copy);
 
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
-    dto.constant.explanationRu = " ";
+    dto.constant.explanation = " ";
     MdObjectPropertiesEdit.writeDto(copy, SchemaVersion.V2_20, dto);
 
-    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).constant.explanationRu).isEqualTo(" ");
+    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).constant.explanation).isEqualTo(" ");
   }
 
   @Test
@@ -81,7 +102,7 @@ class MdObjectPropertiesEditTest {
 
     assertThat(after.kind).isEqualTo(before.kind);
     assertThat(after.internalName).isEqualTo(before.internalName);
-    assertThat(after.synonymRu).isEqualTo(before.synonymRu);
+    assertThat(after.synonym).isEqualTo(before.synonym);
     assertThat(after.comment).isEqualTo(before.comment);
     assertThat(after.attributes.size()).isEqualTo(before.attributes.size());
     assertThat(after.tabularSections.size()).isEqualTo(before.tabularSections.size());
@@ -111,14 +132,14 @@ class MdObjectPropertiesEditTest {
     assertThat(syn.isValid()).isTrue();
 
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
-    dto.synonymRu = "[md-sparrow-test-syn] " + (dto.synonymRu == null ? "" : dto.synonymRu);
+    dto.synonym = "[md-sparrow-test-syn] " + (dto.synonym == null ? "" : dto.synonym);
     MdObjectPropertiesEdit.writeDto(copy, SchemaVersion.V2_20, dto);
 
     String xmlAfter = Files.readString(copy, StandardCharsets.UTF_8);
     int delta = xmlAfter.length() - xmlBefore.length();
     assertThat(xmlAfter.substring(0, syn.start())).isEqualTo(xmlBefore.substring(0, syn.start()));
     assertThat(xmlAfter.substring(syn.end() + delta)).isEqualTo(xmlBefore.substring(syn.end()));
-    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).synonymRu).isEqualTo(dto.synonymRu);
+    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).synonym).isEqualTo(dto.synonym);
   }
 
   @Test
@@ -128,7 +149,7 @@ class MdObjectPropertiesEditTest {
     MdObjectPropertiesDto b = MdObjectPropertiesEdit.readDto(src, SchemaVersion.V2_20);
     MdObjectPropertiesDto i = MdObjectPropertiesEdit.readDto(src, SchemaVersion.V2_20);
     String firstName = i.attributes.get(0).name;
-    i.attributes.get(0).synonymRu = "___granular_attr_test___";
+    i.attributes.get(0).synonym = "___granular_attr_test___";
 
     MdObjectXmlRegions.Region attrSyn =
       MdObjectXmlRegions.findDirectChildOfNamedChildObjectPropertiesRegion(
@@ -149,7 +170,7 @@ class MdObjectPropertiesEditTest {
     String xmlBefore = Files.readString(src, StandardCharsets.UTF_8);
     MdObjectPropertiesDto b = MdObjectPropertiesEdit.readDto(src, SchemaVersion.V2_20);
     MdObjectPropertiesDto i = MdObjectPropertiesEdit.readDto(src, SchemaVersion.V2_20);
-    i.synonymRu = "[indent-guard] " + (i.synonymRu == null ? "" : i.synonymRu);
+    i.synonym = "[indent-guard] " + (i.synonym == null ? "" : i.synonym);
 
     MdObjectXmlRegions.Region syn =
       MdObjectXmlRegions.findDirectChildOfPropertiesRegion(xmlBefore, "Catalog", "Synonym");
@@ -173,8 +194,8 @@ class MdObjectPropertiesEditTest {
     MdObjectPropertiesDto b = MdObjectPropertiesEdit.readDto(src, SchemaVersion.V2_20);
     MdObjectPropertiesDto i = MdObjectPropertiesEdit.readDto(src, SchemaVersion.V2_20);
     assertThat(i.catalog).isNotNull();
-    i.catalog.objectPresentationRu = "[indent-guard-op] "
-      + (i.catalog.objectPresentationRu == null ? "" : i.catalog.objectPresentationRu);
+    i.catalog.objectPresentation = "[indent-guard-op] "
+      + (i.catalog.objectPresentation == null ? "" : i.catalog.objectPresentation);
 
     MdObjectXmlRegions.Region op =
       MdObjectXmlRegions.findDirectChildOfPropertiesRegion(xmlBefore, "Catalog", "ObjectPresentation");
@@ -198,7 +219,7 @@ class MdObjectPropertiesEditTest {
     MdObjectPropertiesDto b = MdObjectPropertiesEdit.readDto(src, SchemaVersion.V2_20);
     MdObjectPropertiesDto i = MdObjectPropertiesEdit.readDto(src, SchemaVersion.V2_20);
     String firstName = i.attributes.get(0).name;
-    i.attributes.get(0).synonymRu = "[indent-guard-attr] " + i.attributes.get(0).synonymRu;
+    i.attributes.get(0).synonym = "[indent-guard-attr] " + i.attributes.get(0).synonym;
 
     MdObjectXmlRegions.Region attrSyn =
       MdObjectXmlRegions.findDirectChildOfNamedChildObjectPropertiesRegion(
@@ -309,11 +330,11 @@ class MdObjectPropertiesEditTest {
       Path objectXml = CfObjectPathResolver.objectXml(cfRoot, type.configurationXmlTag(), name).orElseThrow();
       MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(objectXml, SchemaVersion.V2_20);
       assertThat(dto.kind).isEqualTo(kindToDtoKind(type));
-      dto.synonymRu = "[all-kinds] " + (dto.synonymRu == null ? "" : dto.synonymRu);
+      dto.synonym = "[all-kinds] " + (dto.synonym == null ? "" : dto.synonym);
       dto.comment = "[all-kinds] " + (dto.comment == null ? "" : dto.comment);
       MdObjectPropertiesEdit.writeDto(objectXml, SchemaVersion.V2_20, dto);
       MdObjectPropertiesDto after = MdObjectPropertiesEdit.readDto(objectXml, SchemaVersion.V2_20);
-      assertThat(after.synonymRu).isEqualTo(dto.synonymRu);
+      assertThat(after.synonym).isEqualTo(dto.synonym);
       assertThat(after.comment).isEqualTo(dto.comment);
     }
   }
@@ -376,13 +397,13 @@ class MdObjectPropertiesEditTest {
     Files.copy(src, copy);
 
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
-    String changed = dto.attributes.getFirst().synonymRu + " (изменён)";
-    dto.attributes.getFirst().synonymRu = changed;
+    String changed = dto.attributes.getFirst().synonym + " (изменён)";
+    dto.attributes.getFirst().synonym = changed;
     MdObjectPropertiesEdit.writeDto(copy, SchemaVersion.V2_20, dto);
 
     String xml = Files.readString(copy, StandardCharsets.UTF_8);
     assertThat(xml).doesNotContain("</Synonym>nym");
-    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).attributes.getFirst().synonymRu)
+    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).attributes.getFirst().synonym)
       .isEqualTo(changed);
   }
 
@@ -461,10 +482,10 @@ class MdObjectPropertiesEditTest {
 
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
     assertThat(dto.role).as("блок роли").isNotNull();
-    dto.synonymRu = "Роль из теста";
+    dto.synonym = "Роль из теста";
     MdObjectPropertiesEdit.writeDto(copy, SchemaVersion.V2_20, dto);
 
-    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).synonymRu).isEqualTo("Роль из теста");
+    assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).synonym).isEqualTo("Роль из теста");
   }
 
   /** Копия произвольного объекта выгрузки ssl31 из подкаталога вида. */
@@ -482,17 +503,17 @@ class MdObjectPropertiesEditTest {
     Files.copy(src, copy);
 
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
-    dto.synonymRu = "[report-test] " + (dto.synonymRu == null ? "" : dto.synonymRu);
+    dto.synonym = "[report-test] " + (dto.synonym == null ? "" : dto.synonym);
     dto.report.useStandardCommands = !dto.report.useStandardCommands;
     dto.report.includeHelpInContents = !dto.report.includeHelpInContents;
-    dto.report.explanationRu = "[report-test] пояснение";
+    dto.report.explanation = "[report-test] пояснение";
     MdObjectPropertiesEdit.writeDto(copy, SchemaVersion.V2_20, dto);
 
     MdObjectPropertiesDto after = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
-    assertThat(after.synonymRu).isEqualTo(dto.synonymRu);
+    assertThat(after.synonym).isEqualTo(dto.synonym);
     assertThat(after.report.useStandardCommands).isEqualTo(dto.report.useStandardCommands);
     assertThat(after.report.includeHelpInContents).isEqualTo(dto.report.includeHelpInContents);
-    assertThat(after.report.explanationRu).isEqualTo("[report-test] пояснение");
+    assertThat(after.report.explanation).isEqualTo("[report-test] пояснение");
   }
 
   @Test
@@ -743,7 +764,7 @@ class MdObjectPropertiesEditTest {
     assertThat(after.report.objectModule).isEqualTo(before.report.objectModule);
     assertThat(after.report.managerModule).isEqualTo(before.report.managerModule);
     assertThat(after.report.mainDataCompositionSchema).isEqualTo(before.report.mainDataCompositionSchema);
-    assertThat(after.report.extendedPresentationRu).isEqualTo(before.report.extendedPresentationRu);
+    assertThat(after.report.extendedPresentation).isEqualTo(before.report.extendedPresentation);
   }
 
   @Test

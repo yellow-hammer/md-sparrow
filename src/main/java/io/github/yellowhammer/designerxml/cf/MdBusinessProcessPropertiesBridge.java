@@ -61,12 +61,12 @@ public final class MdBusinessProcessPropertiesBridge {
     d.dataLockControlMode = enumName(p, "getDataLockControlMode");
     d.includeHelpInContents = JaxbReflect.getBooleanOptional(p, "isIncludeHelpInContents");
     d.fullTextSearch = enumName(p, "getFullTextSearch");
-    d.objectPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getObjectPresentation"));
-    d.extendedObjectPresentationRu =
-      LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedObjectPresentation"));
-    d.listPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getListPresentation"));
-    d.extendedListPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
-    d.explanationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExplanation"));
+    d.objectPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getObjectPresentation"));
+    d.extendedObjectPresentation =
+      LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedObjectPresentation"));
+    d.listPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getListPresentation"));
+    d.extendedListPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
+    d.explanation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExplanation"));
     d.dataHistory = enumName(p, "getDataHistory");
     d.updateDataHistoryImmediatelyAfterWrite =
       JaxbReflect.getBooleanOptional(p, "isUpdateDataHistoryImmediatelyAfterWrite");
@@ -116,12 +116,12 @@ public final class MdBusinessProcessPropertiesBridge {
     JaxbReflect.setEnumOrKeep(p, "setDataLockControlMode", d.dataLockControlMode);
     JaxbReflect.setOptional(p, "setIncludeHelpInContents", d.includeHelpInContents);
     JaxbReflect.setEnumOrKeep(p, "setFullTextSearch", d.fullTextSearch);
-    ensureAndSetRu(p, "getObjectPresentation", "setObjectPresentation", d.objectPresentationRu);
+    ensureAndSetRu(p, "getObjectPresentation", "setObjectPresentation", d.objectPresentation);
     ensureAndSetRu(p, "getExtendedObjectPresentation", "setExtendedObjectPresentation",
-      d.extendedObjectPresentationRu);
-    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentationRu);
-    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentationRu);
-    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanationRu);
+      d.extendedObjectPresentation);
+    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentation);
+    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentation);
+    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanation);
     JaxbReflect.setEnumOrKeep(p, "setDataHistory", d.dataHistory);
     JaxbReflect.setOptional(p, "setUpdateDataHistoryImmediatelyAfterWrite", d.updateDataHistoryImmediatelyAfterWrite);
     JaxbReflect.setOptional(p, "setExecuteAfterWriteDataHistoryVersionProcessing",

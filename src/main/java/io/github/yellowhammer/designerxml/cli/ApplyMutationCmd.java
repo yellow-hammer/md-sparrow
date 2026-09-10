@@ -189,7 +189,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
         Path.of(p.mainConfigurationXml),
         p.reqPath(p.targetCfeRoot, "targetCfeRoot"),
         p.req(p.name, "name"),
-        p.synonymRu,
+        p.synonym,
         p.namePrefix,
         purpose,
         EdtModel.bundled());
@@ -804,7 +804,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
       case "init-empty-cf": {
         String cfgName = p.name == null || p.name.isEmpty() ? CfLayout.DEFAULT_CONFIGURATION_NAME : p.name;
         Path target = p.reqPath(p.targetCfRoot, "targetCfRoot");
-        EmptyCfScaffold.writeEmptyTree(target, cfgName, p.synonymRu, null, null, p.version());
+        EmptyCfScaffold.writeEmptyTree(target, cfgName, p.synonym, null, null, p.version());
         return "OK: " + target.toAbsolutePath();
       }
 
@@ -817,7 +817,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
           EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
             target,
             p.req(p.name, "name"),
-            p.synonymRu,
+            p.synonym,
             p.namePrefix,
             purpose,
             Path.of(p.mainConfigurationXml),
@@ -827,7 +827,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
         EmptyCfeScaffold.writeEmptyTree(
           target,
           p.req(p.name, "name"),
-          p.synonymRu,
+          p.synonym,
           p.namePrefix,
           purpose,
           p.compatibilityMode,
@@ -838,22 +838,22 @@ final class ApplyMutationCmd implements Callable<Integer> {
 
       case "add-md-object": {
         MdObjectAddType k = MdObjectAddType.fromCliName(p.req(p.type, "type"));
-        if (k != MdObjectAddType.CATALOG && (p.synonymEmpty || p.synonymRu != null)) {
-          throw new IllegalArgumentException("synonymRu/synonymEmpty поддерживаются только для type CATALOG");
+        if (k != MdObjectAddType.CATALOG && (p.synonymEmpty || p.synonym != null)) {
+          throw new IllegalArgumentException("synonym/synonymEmpty поддерживаются только для type CATALOG");
         }
         if (p.autoName) {
           if (p.name != null && !p.name.isBlank()) {
             throw new IllegalArgumentException("укажите name или autoName, не оба");
           }
           return MdObjectAdd.addWithNextAvailableName(
-            p.reqPath(p.configurationXml, "configurationXml"), p.version(), k, p.synonymRu, p.synonymEmpty);
+            p.reqPath(p.configurationXml, "configurationXml"), p.version(), k, p.synonym, p.synonymEmpty);
         }
         MdObjectAdd.add(
           p.reqPath(p.configurationXml, "configurationXml"),
           p.req(p.name, "name"),
           p.version(),
           k,
-          p.synonymRu,
+          p.synonym,
           p.synonymEmpty);
         return "OK";
       }

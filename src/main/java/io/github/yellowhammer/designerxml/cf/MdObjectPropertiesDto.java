@@ -26,7 +26,17 @@ public final class MdObjectPropertiesDto {
 
   public String kind;
   public String internalName;
-  public String synonymRu;
+  @LocalString
+  public String synonym;
+  /**
+   * Язык, на котором прочитаны и будут записаны тексты.
+   *
+   * <p>Берётся у самой конфигурации. Панели он нужен, чтобы человек видел, на
+   * каком языке правит подпись.
+   */
+  public String languageCode;
+  /** Свойства, за которыми стоит язык: панель подписывает их языком и правит одну строку. */
+  public java.util.List<String> localStringProperties;
   public String comment;
   /** Принадлежность в расширении: {@code Adopted} у заимствованного объекта, иначе пусто. */
   public String objectBelonging;
