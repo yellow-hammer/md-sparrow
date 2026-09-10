@@ -25,9 +25,11 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import io.github.yellowhammer.designerxml.cf.ChildObjectEntry;
+import io.github.yellowhammer.designerxml.cf.LocalStrings;
 import io.github.yellowhammer.designerxml.cf.SupportRules;
 import io.github.yellowhammer.designerxml.cf.MetadataTreeTagGroups;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
@@ -162,25 +164,28 @@ public final class EdtProjectMetadataTree {
     for (MetadataTreeTagGroups.MetadataTreeItemPayload payload : payloads) {
       Path objectMdo = EdtLayout.objectMdo(sourceRoot, payload.objectType(), payload.name()).orElse(null);
       String relativePath = objectMdo == null ? "" : relative(workspaceRoot, objectMdo);
+      // Описание объекта читается один раз: из него и принадлежность, и синоним, и идентификатор
+      EdtObjectReader.EdtNode node = objectMdo == null ? null : EdtObjectReader.read(objectMdo);
       items.add(new ProjectMetadataTreeDto.MetadataItemDto(
           payload.objectType(),
           payload.name(),
           relativePath,
-          readBelonging ? belonging(objectMdo) : null,
-          supportState(objectMdo, support, inlineUuids.get(payload.objectType() + "." + payload.name())),
+          readBelonging ? belonging(node) : null,
+          supportState(node, support, inlineUuids.get(payload.objectType() + "." + payload.name())),
+          synonym(node),
           EdtObjectOpen.resolve(workspaceRoot, payload.objectType(), objectMdo)));
     }
     return items;
   }
 
   /** Состояние поддержки объекта по идентификатору из шапки его описания либо из узла конфигурации. */
-  private static String supportState(Path objectMdo, EdtSupportRules.Rules support, String inlineUuid)
-      throws IOException {
+  private static String supportState(
+      EdtObjectReader.EdtNode node, EdtSupportRules.Rules support, String inlineUuid) {
     if (support.isEmpty()) {
       return null;
     }
-    String uuid = objectMdo == null ? inlineUuid : EdtSupportRules.rootUuid(objectMdo);
-    return uuid == null ? null : support.effectiveState(uuid);
+    String uuid = node == null ? inlineUuid : node.uuid();
+    return uuid == null || uuid.isEmpty() ? null : support.effectiveState(uuid);
   }
 
   /** Идентификаторы объектов, записанных узлами описания конфигурации: вид.имя. */
@@ -205,12 +210,28 @@ public final class EdtProjectMetadataTree {
    * Спрашивается только у расширений: в основной конфигурации все объекты свои,
    * а файл пришлось бы открыть у каждого.
    */
-  private static String belonging(Path objectMdo) throws IOException {
-    if (objectMdo == null) {
+  private static String belonging(EdtObjectReader.EdtNode node) {
+    if (node == null) {
       return null;
     }
-    String belonging = EdtObjectReader.read(objectMdo).property("objectBelonging");
+    String belonging = node.property("objectBelonging");
     return belonging.isEmpty() ? null : belonging;
+  }
+
+  /** Синоним объекта: по нему ищут в дереве. */
+  private static String synonym(EdtObjectReader.EdtNode node) {
+    if (node == null) {
+      return null;
+    }
+    Map<String, String> byLanguage = new LinkedHashMap<>();
+    for (EdtObjectReader.EdtNode entry : node.list("synonym")) {
+      String key = entry.property("key");
+      String value = entry.property("value");
+      if (!key.isEmpty() && !value.isEmpty()) {
+        byLanguage.put(key, value);
+      }
+    }
+    return LocalStrings.pick(byLanguage);
   }
 
   private static String relative(Path workspaceRoot, Path target) {

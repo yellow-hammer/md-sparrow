@@ -267,21 +267,26 @@ public final class ProjectMetadataTreeBuilder {
     boolean readBelonging,
     SupportRules.Rules supportRules
   ) {
+    // Шапка объекта читается один раз: из неё и принадлежность, и синоним, и режим поддержки
+    ObjectHead.Head head = relativePath == null || relativePath.isEmpty()
+        ? ObjectHead.Head.EMPTY
+        : ObjectHead.read(projectRoot.resolve(relativePath));
     return new ProjectMetadataTreeDto.MetadataItemDto(
       objectType,
       name,
       relativePath,
-      belonging(projectRoot, relativePath, readBelonging),
-      supportState(projectRoot, relativePath, supportRules),
+      readBelonging ? head.objectBelonging() : null,
+      supportState(head, supportRules),
+      LocalStrings.pick(head.synonym()),
       MdObjectOpen.resolve(objectType, projectRoot, relativePath));
   }
 
   /** Режим поддержки объекта по правилам поставщика; пусто без правил или записи. */
-  private static String supportState(Path projectRoot, String relativePath, SupportRules.Rules rules) {
-    if (rules == null || rules.isEmpty() || relativePath == null || relativePath.isEmpty()) {
+  private static String supportState(ObjectHead.Head head, SupportRules.Rules rules) {
+    if (rules == null || rules.isEmpty()) {
       return null;
     }
-    return rules.effectiveState(ObjectBelongingReader.readRootUuid(projectRoot.resolve(relativePath)));
+    return rules.effectiveState(head.uuid());
   }
 
   private static String relativePathForItem(
@@ -326,7 +331,7 @@ public final class ProjectMetadataTreeBuilder {
   ) {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
-      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalReport", e.name(), e.relativePath(), null, null, null));
+      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalReport", e.name(), e.relativePath(), null, null, null, null));
     }
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = List.of(
       new ProjectMetadataTreeDto.MetadataGroupDto("content", "", "report", items, List.of())
@@ -353,7 +358,7 @@ public final class ProjectMetadataTreeBuilder {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
       items.add(new ProjectMetadataTreeDto.MetadataItemDto(
-        "ExternalDataProcessor", e.name(), e.relativePath(), null, null, null));
+        "ExternalDataProcessor", e.name(), e.relativePath(), null, null, null, null));
     }
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = List.of(
       new ProjectMetadataTreeDto.MetadataGroupDto("content", "", "run-below", items, List.of())
