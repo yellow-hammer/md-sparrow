@@ -27,7 +27,7 @@ public final class MdCommonCommandPropertiesBridge {
     d.extendedConfigurationObject = nullIfBlank(JaxbReflect.getStringOptional(p, "getExtendedConfigurationObject"));
     d.group = JaxbReflect.getStringOptional(p, "getGroup");
     d.representation = enumName(p, "getRepresentation");
-    d.toolTipRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getToolTip"));
+    d.toolTip = LocalStringSync.first(JaxbReflect.getOptional(p, "getToolTip"));
     d.shortcut = JaxbReflect.getStringOptional(p, "getShortcut");
     d.commandModule = JaxbReflect.getStringOptional(p, "getCommandModule");
     d.includeHelpInContents = JaxbReflect.getBooleanOptional(p, "isIncludeHelpInContents");
@@ -48,7 +48,7 @@ public final class MdCommonCommandPropertiesBridge {
     JaxbReflect.setOptional(p, "setExtendedConfigurationObject", nullIfBlank(d.extendedConfigurationObject));
     JaxbReflect.setOptional(p, "setGroup", d.group);
     JaxbReflect.setEnumOrKeep(p, "setRepresentation", d.representation);
-    MdPropertiesBridgeSupport.ensureAndSetRu(p, "getToolTip", "setToolTip", d.toolTipRu);
+    MdPropertiesBridgeSupport.ensureAndSetRu(p, "getToolTip", "setToolTip", d.toolTip);
     JaxbReflect.setOptional(p, "setShortcut", d.shortcut);
     JaxbReflect.setOptional(p, "setCommandModule", d.commandModule);
     JaxbReflect.setOptional(p, "setncludeHelpInContents", d.includeHelpInContents);

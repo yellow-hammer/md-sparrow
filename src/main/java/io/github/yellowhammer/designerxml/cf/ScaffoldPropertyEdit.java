@@ -63,16 +63,16 @@ final class ScaffoldPropertyEdit {
     return xml.substring(0, anchor.end()) + inserted + xml.substring(anchor.end());
   }
 
-  /** Синоним на русском: заполняет пустой {@code <Synonym/>} или подменяет содержимое. */
-  static String setSynonymRu(String xml, String ru) {
+  /** Синоним: заполняет пустой {@code <Synonym/>} или подменяет содержимое. */
+  static String setSynonym(String xml, String text, String language) {
     Matcher empty = Pattern.compile("([\\t ]*)<Synonym/>").matcher(xml);
     if (empty.find()) {
       String indent = empty.group(1);
       String newline = newline(xml);
       String filled = indent + "<Synonym>" + newline
         + indent + "\t<v8:item>" + newline
-        + indent + "\t\t<v8:lang>ru</v8:lang>" + newline
-        + indent + "\t\t<v8:content>" + escape(ru) + "</v8:content>" + newline
+        + indent + "\t\t<v8:lang>" + language + "</v8:lang>" + newline
+        + indent + "\t\t<v8:content>" + escape(text) + "</v8:content>" + newline
         + indent + "\t</v8:item>" + newline
         + indent + "</Synonym>";
       return xml.substring(0, empty.start()) + filled + xml.substring(empty.end());
@@ -83,7 +83,7 @@ final class ScaffoldPropertyEdit {
     }
     String replaced = m.group().replaceFirst(
       "(<v8:content>).*?(</v8:content>)",
-      "$1" + Matcher.quoteReplacement(escape(ru)) + "$2");
+      "$1" + Matcher.quoteReplacement(escape(text)) + "$2");
     return xml.substring(0, m.start()) + replaced + xml.substring(m.end());
   }
 

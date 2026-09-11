@@ -330,12 +330,12 @@ public final class MdObjectPropertiesLeafDiff {
     for (int idx = 0; idx < b.size(); idx++) {
       MdNamedPropertyDto x = b.get(idx);
       MdNamedPropertyDto y = i.get(idx);
-      if (!Objects.equals(x.synonymRu, y.synonymRu)) {
+      if (!Objects.equals(x.synonym, y.synonym)) {
         out.add(GranularPatchChange.namedChild(
           childContainerLocal,
           y.name,
           "Synonym",
-          MdCatalogPropertiesGranularSerial.synonymElementRu(y.synonymRu)));
+          MdCatalogPropertiesGranularSerial.synonymElement(y.synonym)));
       }
       if (!Objects.equals(x.comment, y.comment)) {
         out.add(GranularPatchChange.namedChild(
@@ -366,9 +366,9 @@ public final class MdObjectPropertiesLeafDiff {
     MdNamedPropertyDto x,
     MdNamedPropertyDto y,
     List<GranularPatchChange> out) {
-    if (!Objects.equals(x.toolTipRu, y.toolTipRu)) {
+    if (!Objects.equals(x.toolTip, y.toolTip)) {
       out.add(GranularPatchChange.namedChild(childContainerLocal, y.name, "ToolTip",
-        MdCatalogPropertiesGranularSerial.localStringRuElement("ToolTip", y.toolTipRu)));
+        MdCatalogPropertiesGranularSerial.localStringElement("ToolTip", y.toolTip)));
     }
     appendNamedChildEnum(childContainerLocal, y.name, "FillChecking", x.fillChecking, y.fillChecking, out);
     appendNamedChildEnum(childContainerLocal, y.name, "Indexing", x.indexing, y.indexing, out);
@@ -407,10 +407,10 @@ public final class MdObjectPropertiesLeafDiff {
       return docLikePropertyChanges(baseline, incoming);
     }
     List<GranularPatchChange> out = new ArrayList<>();
-    if (!Objects.equals(baseline.synonymRu, incoming.synonymRu)) {
+    if (!Objects.equals(baseline.synonym, incoming.synonym)) {
       out.add(GranularPatchChange.objectProperty(
         "Synonym",
-        MdCatalogPropertiesGranularSerial.synonymElementRu(incoming.synonymRu)));
+        MdCatalogPropertiesGranularSerial.synonymElement(incoming.synonym)));
     }
     if (!Objects.equals(baseline.comment, incoming.comment)) {
       out.add(GranularPatchChange.objectProperty(
@@ -515,10 +515,10 @@ public final class MdObjectPropertiesLeafDiff {
     MdObjectPropertiesDto baseline,
     MdObjectPropertiesDto incoming) {
     List<GranularPatchChange> out = new ArrayList<>();
-    if (!Objects.equals(baseline.synonymRu, incoming.synonymRu)) {
+    if (!Objects.equals(baseline.synonym, incoming.synonym)) {
       out.add(GranularPatchChange.objectProperty(
         "Synonym",
-        MdCatalogPropertiesGranularSerial.synonymElementRu(incoming.synonymRu)));
+        MdCatalogPropertiesGranularSerial.synonymElement(incoming.synonym)));
     }
     if (!Objects.equals(baseline.comment, incoming.comment)) {
       out.add(GranularPatchChange.objectProperty(
@@ -532,10 +532,10 @@ public final class MdObjectPropertiesLeafDiff {
     MdObjectPropertiesDto baseline,
     MdObjectPropertiesDto incoming) {
     List<GranularPatchChange> out = new ArrayList<>();
-    if (!Objects.equals(baseline.synonymRu, incoming.synonymRu)) {
+    if (!Objects.equals(baseline.synonym, incoming.synonym)) {
       out.add(GranularPatchChange.objectProperty(
         "Synonym",
-        MdCatalogPropertiesGranularSerial.synonymElementRu(incoming.synonymRu)));
+        MdCatalogPropertiesGranularSerial.synonymElement(incoming.synonym)));
     }
     if (!Objects.equals(baseline.comment, incoming.comment)) {
       out.add(GranularPatchChange.objectProperty(
@@ -560,10 +560,10 @@ public final class MdObjectPropertiesLeafDiff {
       return List.of();
     }
     List<GranularPatchChange> out = new ArrayList<>();
-    if (!Objects.equals(baseline.synonymRu, incoming.synonymRu)) {
+    if (!Objects.equals(baseline.synonym, incoming.synonym)) {
       out.add(GranularPatchChange.objectProperty(
         "Synonym",
-        MdCatalogPropertiesGranularSerial.synonymElementRu(incoming.synonymRu)));
+        MdCatalogPropertiesGranularSerial.synonymElement(incoming.synonym)));
     }
     if (!Objects.equals(baseline.comment, incoming.comment)) {
       out.add(GranularPatchChange.objectProperty(

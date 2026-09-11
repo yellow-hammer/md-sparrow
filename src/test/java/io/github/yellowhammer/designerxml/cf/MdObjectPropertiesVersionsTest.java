@@ -64,12 +64,12 @@ class MdObjectPropertiesVersionsTest {
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(objectXml, version);
     boolean expected = !dto.report.useStandardCommands;
     dto.report.useStandardCommands = expected;
-    dto.synonymRu = "Отчёт формата " + version.metadataObjectVersionAttribute();
+    dto.synonym = "Отчёт формата " + version.metadataObjectVersionAttribute();
     MdObjectPropertiesEdit.writeDto(objectXml, version, dto);
 
     MdObjectPropertiesDto after = MdObjectPropertiesEdit.readDto(objectXml, version);
     assertThat(after.report.useStandardCommands).isEqualTo(expected);
-    assertThat(after.synonymRu).isEqualTo(dto.synonymRu);
+    assertThat(after.synonym).isEqualTo(dto.synonym);
   }
 
   /** Пишет объект из эталона формата и возвращает DTO после записи без изменений. */
@@ -79,7 +79,7 @@ class MdObjectPropertiesVersionsTest {
     MdObjectPropertiesEdit.writeDto(objectXml, version, before);
     MdObjectPropertiesDto after = MdObjectPropertiesEdit.readDto(objectXml, version);
     assertThat(after.internalName).isEqualTo(before.internalName);
-    assertThat(after.synonymRu).isEqualTo(before.synonymRu);
+    assertThat(after.synonym).isEqualTo(before.synonym);
     return after;
   }
 

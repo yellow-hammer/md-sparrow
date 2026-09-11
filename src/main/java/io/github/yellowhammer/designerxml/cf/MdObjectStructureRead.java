@@ -91,7 +91,11 @@ public final class MdObjectStructureRead {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    return readFromRoot(je);
+    return ConfigurationLanguage.with(objectXml, () -> {
+      MdObjectStructureDto dto = readFromRoot(je);
+      fillChildContent(dto, objectXml);
+      return dto;
+    });
   }
 
   public static MdObjectStructureDto read(byte[] utf8Xml, SchemaVersion version) throws JAXBException {
@@ -131,7 +135,7 @@ public final class MdObjectStructureRead {
       MdObjectStructureDto.MdTabularSectionDto tsDto = new MdObjectStructureDto.MdTabularSectionDto();
       Object tsProps = invokeNoArg(ts, "getProperties");
       tsDto.name = safeString(invokeNoArgOrNull(tsProps, "getName"));
-      tsDto.synonymRu = readLocalStringRu(invokeNoArgOrNull(tsProps, "getSynonym"));
+      tsDto.synonym = readLocalStringRu(invokeNoArgOrNull(tsProps, "getSynonym"));
       tsDto.comment = safeString(invokeNoArgOrNull(tsProps, "getComment"));
       tsDto.standardAttributeSynonyms.putAll(StandardAttributeLabels.ofTabularSection());
       readStandardAttributes(tsProps, tsDto.standardAttributes, tsDto.standardAttributeSynonyms);
@@ -145,18 +149,22 @@ public final class MdObjectStructureRead {
       dto.tabularSections.add(tsDto);
     }
 
-    dto.forms.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getForm"))));
+    for (String name : readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getForm")))) {
+      dto.forms.add(new MdObjectStructureDto.MdFormDto(name, "", ""));
+    }
     List<Object> commands = listOrEmpty(invokeNoArgOrNull(childObjects, "getCommand"));
     dto.commands.addAll(readStringItems(commands));
     for (Object command : commands) {
       String name = extractItemName(command);
       Object properties = invokeNoArgOrNull(command, "getProperties");
-      String synonym = properties == null ? "" : LocalStringSync.firstRu(invokeNoArgOrNull(properties, "getSynonym"));
+      String synonym = properties == null ? "" : LocalStringSync.first(invokeNoArgOrNull(properties, "getSynonym"));
       if (!name.isBlank() && synonym != null && !synonym.isEmpty()) {
         dto.commandSynonyms.put(name, synonym);
       }
     }
-    dto.templates.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getTemplate"))));
+    for (String name : readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getTemplate")))) {
+      dto.templates.add(new MdObjectStructureDto.MdTemplateDto(name, "", "", false));
+    }
     dto.values.addAll(readStringItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getEnumValue"))));
     dto.columns.addAll(readNamedItems(listOrEmpty(invokeNoArgOrNull(childObjects, "getColumn")), dto.childSynonyms));
     dto.accountingFlags.addAll(readNamedItems(
@@ -198,7 +206,7 @@ public final class MdObjectStructureRead {
         continue;
       }
       names.add(name);
-      String synonym = LocalStringSync.firstRu(invokeNoArgOrNull(item, "getSynonym"));
+      String synonym = LocalStringSync.first(invokeNoArgOrNull(item, "getSynonym"));
       if (synonym != null && !synonym.isEmpty()) {
         synonyms.put(name, synonym);
       }
@@ -232,7 +240,7 @@ public final class MdObjectStructureRead {
     List<Object> items = listOrEmpty(invokeNoArgOrNull(localString, "getItem"));
     for (Object item : items) {
       String lang = safeString(invokeNoArgOrNull(item, "getLang"));
-      if ("ru".equals(lang)) {
+      if (ConfigurationLanguage.current().equals(lang)) {
         return safeString(invokeNoArgOrNull(item, "getContent"));
       }
     }
@@ -255,12 +263,43 @@ public final class MdObjectStructureRead {
       }
       out.add(name);
       Object properties = invokeNoArgOrNull(item, "getProperties");
-      String synonym = properties == null ? "" : LocalStringSync.firstRu(invokeNoArgOrNull(properties, "getSynonym"));
+      String synonym = properties == null ? "" : LocalStringSync.first(invokeNoArgOrNull(properties, "getSynonym"));
       if (synonym != null && !synonym.isEmpty()) {
         synonyms.put(name, synonym);
       }
     }
     return out;
+  }
+
+  /**
+   * Вид макета и файл его содержимого.
+   *
+   * <p>Вид записан в описании макета рядом с объектом, а содержимое лежит своим
+   * файлом: у выгрузки конфигуратора это {@code Ext/Template.xml} либо
+   * {@code Ext/Template.bin} у двоичных видов.
+   */
+  private static void fillChildContent(MdObjectStructureDto dto, Path objectXml) {
+    String stem = objectXml.getFileName().toString().replaceFirst("[.][Xx][Mm][Ll]$", "");
+    Path objectDir = objectXml.resolveSibling(stem);
+    Path templatesDir = objectDir.resolve("Templates");
+    for (MdObjectStructureDto.MdTemplateDto template : dto.templates) {
+      template.templateType = UnknownEnumValues.constantName(
+        XmlElementTextReader.read(templatesDir.resolve(template.name + ".xml"), "TemplateType"));
+      Path content = ChildContentFile.fileIn(templatesDir.resolve(template.name), "Template");
+      if (content != null) {
+        template.contentFile = objectDir.relativize(content).toString().replace('\\', '/');
+        template.binaryContent = ChildContentFile.isBinary(content);
+      }
+    }
+    Path formsDir = objectDir.resolve("Forms");
+    for (MdObjectStructureDto.MdFormDto form : dto.forms) {
+      form.formType = UnknownEnumValues.constantName(
+        XmlElementTextReader.read(formsDir.resolve(form.name + ".xml"), "FormType"));
+      Path content = ChildContentFile.fileIn(formsDir.resolve(form.name), "Form");
+      if (content != null) {
+        form.contentFile = objectDir.relativize(content).toString().replace('\\', '/');
+      }
+    }
   }
 
   private static List<String> readStringItems(List<Object> raw) {

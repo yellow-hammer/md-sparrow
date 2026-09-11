@@ -46,6 +46,86 @@ val xsdRootDir = layout.projectDirectory.dir(xsdRootPath)
 // XSD выгрузки конфигуратора: schemas/designer/<версия формата>
 val schemasDir = xsdRootDir.dir("schemas/designer")
 
+// Метамодель 1С:EDT: schemas/edt/<версия EDT>/ecore
+val edtSchemasDir = xsdRootDir.dir("schemas/edt")
+
+/** Самая свежая версия схем EDT в хранилище: свойства только добавляются, поэтому старые проекты она описывает тоже. */
+fun latestEdtVersion(): String? =
+    edtSchemasDir.asFile.listFiles { file: File -> file.isDirectory && file.name.matches(Regex("[0-9]{4}[.][0-9]+")) }
+        ?.maxByOrNull { file ->
+            val (year, release) = file.name.split(".").map(String::toInt)
+            year * 100 + release
+        }
+        ?.name
+
+/**
+ * Схемы метамодели метаданных: от классов конфигурации по ссылкам между схемами.
+ *
+ * Метамодель EDT описывает и редактор, и отладчик, и формы - в jar нужна только
+ * та её часть, без которой не прочитать метаданные.
+ */
+fun edtMetadataSchemas(ecoreDir: File): List<File> {
+    val files = ecoreDir.listFiles { file: File -> file.name.endsWith(".ecore") }?.toList() ?: emptyList()
+    val byName = files.associateBy { it.name }
+    val byNamespace = mutableMapOf<String, File>()
+    val texts = files.associateWith { it.readText() }
+    texts.forEach { (file, text) ->
+        Regex("nsURI=\"([^\"]+)\"").findAll(text).forEach { match ->
+            byNamespace.putIfAbsent(match.groupValues[1], file)
+        }
+    }
+
+    val roots = listOf(
+        "g5.1c.ru.v8.dt.metadata.mdclass.ecore",
+        "g5.1c.ru.v8.dt.metadata.mdclass.extension.ecore",
+        // Управляемая форма: по ней панель знает свойства элементов
+        "g5.1c.ru.v8.dt.form.ecore",
+        // Поставка: режимы поддержки объектов в Configuration.distr
+        "g5.1c.ru.v8.dt.distribution.model.ecore",
+    )
+    val chosen = linkedSetOf<File>()
+    val queue = ArrayDeque(roots.mapNotNull { byName[it] })
+    while (queue.isNotEmpty()) {
+        val file = queue.removeFirst()
+        if (!chosen.add(file)) {
+            continue
+        }
+        // Схемы ссылаются друг на друга и по пространству имён, и по имени файла
+        Regex("href=\"([^\"#]+)#").findAll(texts.getValue(file)).forEach { match ->
+            val target = match.groupValues[1]
+            val dependency = byNamespace[target] ?: byName[target]
+            if (dependency != null && dependency !in chosen) {
+                queue.addLast(dependency)
+            }
+        }
+    }
+    return chosen.toList()
+}
+
+val prepareEdtSchemas = tasks.register("prepareEdtSchemas") {
+    val version = latestEdtVersion()
+    val ecoreDir = version?.let { edtSchemasDir.dir("$it/ecore").asFile }
+    val target = layout.buildDirectory.dir("generated/edt-schemas")
+    inputs.dir(edtSchemasDir).withPropertyName("схемы EDT")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        if (ecoreDir == null || !ecoreDir.isDirectory) {
+            throw GradleException("Схемы EDT не найдены: $edtSchemasDir. Обновите submodule namespace-forest.")
+        }
+        val schemas = edtMetadataSchemas(ecoreDir)
+        if (schemas.isEmpty()) {
+            throw GradleException("В $ecoreDir нет схем метаданных EDT.")
+        }
+        schemas.forEach { it.copyTo(output.resolve(it.name), overwrite = true) }
+        // Каталог ресурсов из jar не перечислить: список файлов и версия лежат рядом
+        output.resolve("index.txt").writeText(schemas.joinToString("\n") { it.name } + "\n")
+        output.resolve("version.txt").writeText("$version\n")
+    }
+}
+
 // Пространства имён 1С → имя файла xsd и сегмент Java-пакета.
 // Состав каталога версии может отличаться: берём только те схемы, что там лежат.
 data class Ns(val uri: String, val file: String, val pkg: String)
@@ -189,6 +269,12 @@ dependencies {
     implementation("com.google.code.gson:gson:2.14.0")
     implementation("com.fasterxml.woodstox:woodstox-core:7.1.0")
 
+    // Модель формата EDT читается динамически по .ecore из хранилища схем:
+    // генерировать классы не нужно, метамодель приходит вместе со схемами
+    implementation("org.eclipse.emf:org.eclipse.emf.ecore:2.35.0")
+    implementation("org.eclipse.emf:org.eclipse.emf.ecore.xmi:2.36.0")
+    implementation("org.eclipse.emf:org.eclipse.emf.common:2.29.0")
+
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core:3.27.7")
@@ -258,7 +344,40 @@ application {
 }
 
 // Эталоны (submodule samples-1c-platform) → ресурсы jar для scaffold по golden.
+/**
+ * Схемы выгрузки конфигуратора самой свежей версии: по ним имя типа из файла EDT
+ * получает пространство имён записи конфигуратора.
+ */
+val prepareDesignerTypeSchemas = tasks.register("prepareDesignerTypeSchemas") {
+    val version = discoverVersions().lastOrNull()
+    val target = layout.buildDirectory.dir("generated/designer-schemas")
+    inputs.dir(schemasDir).withPropertyName("схемы конфигуратора")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        if (version == null) {
+            throw GradleException("Схемы конфигуратора не найдены: $schemasDir. Обновите submodule namespace-forest.")
+        }
+        val schemas = schemasDir.dir(version).asFile
+            .listFiles { file: File -> file.isFile && file.name.endsWith(".xsd") }
+            ?.sortedBy { it.name }
+            ?: emptyList()
+        schemas.forEach { it.copyTo(output.resolve(it.name), overwrite = true) }
+        output.resolve("index.txt").writeText(schemas.joinToString("\n") { it.name } + "\n")
+    }
+}
+
 tasks.named<Copy>("processResources") {
+    // Метамодель EDT: edt-schemas/<файлы схем>
+    from(prepareEdtSchemas) {
+        into("edt-schemas")
+    }
+    // Схемы конфигуратора: designer-schemas/<файлы схем>
+    from(prepareDesignerTypeSchemas) {
+        into("designer-schemas")
+    }
     // Голые объекты конфигурации: golden/<формат>/<подкаталог>/…
     from("fixtures/samples-1c-platform/snapshots") {
         include("*/cf-bare-objects/**")

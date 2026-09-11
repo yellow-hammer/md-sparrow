@@ -26,7 +26,7 @@ public final class EmptyCfScaffold {
   public static void writeEmptyTree(
     Path targetCfRoot,
     String configurationName,
-    String synonymRu,
+    String synonym,
     String vendor,
     String appVersion,
     SchemaVersion version) throws IOException {
@@ -44,19 +44,19 @@ public final class EmptyCfScaffold {
       StandardCharsets.UTF_8);
 
     String cfg = GoldenScaffold.generateEmptyConfiguration(configurationName, version);
-    cfg = applyOptions(cfg, synonymRu, vendor, appVersion);
+    cfg = applyOptions(cfg, synonym, vendor, appVersion);
     Files.writeString(targetCfRoot.resolve(CfLayout.CONFIGURATION_XML), cfg, StandardCharsets.UTF_8);
   }
 
-  private static String applyOptions(String xml, String synonymRu, String vendor, String appVersion) {
+  private static String applyOptions(String xml, String synonym, String vendor, String appVersion) {
     if (vendor != null && !vendor.isEmpty()) {
       xml = ScaffoldPropertyEdit.setLeaf(xml, "Vendor", vendor);
     }
     if (appVersion != null && !appVersion.isEmpty()) {
       xml = ScaffoldPropertyEdit.setLeaf(xml, "Version", appVersion);
     }
-    if (synonymRu != null && !synonymRu.isEmpty()) {
-      xml = ScaffoldPropertyEdit.setSynonymRu(xml, synonymRu);
+    if (synonym != null && !synonym.isEmpty()) {
+      xml = ScaffoldPropertyEdit.setSynonym(xml, synonym, ConfigurationLanguage.FALLBACK);
     }
     return xml;
   }

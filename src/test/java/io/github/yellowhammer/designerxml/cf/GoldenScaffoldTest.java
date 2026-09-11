@@ -44,6 +44,21 @@ class GoldenScaffoldTest {
     DesignerXml.unmarshal(version, new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
   }
 
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void retargetsEveryFormatToConfigurationLanguage(SchemaVersion version) throws Exception {
+    String golden = GoldenScaffold.generateObject(MdObjectAddType.CATALOG, "Waren", version);
+
+    String retargeted = LocalStringElement.retarget(golden, "de");
+
+    assertThat(LocalStringElement.items(retargeted))
+      .as("строки эталона %s", version)
+      .isNotEmpty()
+      .allSatisfy(item -> assertThat(item.lang()).isEqualTo("de"));
+    assertThat(LocalStringElement.items(retargeted)).hasSameSizeAs(LocalStringElement.items(golden));
+    DesignerXml.unmarshal(version, new ByteArrayInputStream(retargeted.getBytes(StandardCharsets.UTF_8)));
+  }
+
   @Test
   void scaffoldsDocumentInOldFormat() throws Exception {
     String xml = GoldenScaffold.generateObject(MdObjectAddType.DOCUMENT, "ТестДок", SchemaVersion.V2_10);

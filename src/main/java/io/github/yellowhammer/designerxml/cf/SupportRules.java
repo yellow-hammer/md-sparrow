@@ -120,6 +120,14 @@ public final class SupportRules {
     public boolean vendorPayloadPresent = true;
     /** Хотя бы у одного блока поставщика правила открыты. */
     public boolean anyBlockOpen;
+    /**
+     * Файл правил есть, но не разобран.
+     *
+     * <p>Отличается от законной пустоты «файла правил нет»: там поставки не
+     * было вовсе, а здесь она есть и её условия неизвестны, поэтому правка
+     * запрещается до выяснения.
+     */
+    public boolean unreadable;
     /** Сырой режим записи по uuid объекта: 0 - запрещено, 1 - разрешено, 2 - снят. */
     public Map<String, Integer> modeByUuid = new HashMap<>();
     /** Объекты поставщиков с выключенным флагом блока: для них правила скрыты. */
@@ -268,6 +276,7 @@ public final class SupportRules {
     Rules rules = new Rules();
     List<Token> tokens = tokenize(bytes);
     if (tokens.size() < 3 || !"6".equals(tokens.get(0).value())) {
+      rules.unreadable = true;
       return rules;
     }
     Token global = tokens.get(1);
@@ -715,6 +724,11 @@ public final class SupportRules {
    * <p>Корень выгрузки ищется от файла объекта вверх; объект, снятый с
    * поддержки, и объект без записи изменению не мешают.
    */
+  /** Отказ при неразобранных правилах: условия поставки неизвестны. */
+  private static final String UNREADABLE_RULES =
+    "Правила поддержки поставщика не разобраны, поэтому правка запрещена."
+      + " Проверьте файл правил рядом с описанием конфигурации.";
+
   public static void ensureEditable(Path objectXml) throws IOException {
     if (!enforced) {
       return;
@@ -725,6 +739,9 @@ public final class SupportRules {
       return;
     }
     Rules rules = read(root);
+    if (rules.unreadable) {
+      throw new IllegalStateException(UNREADABLE_RULES);
+    }
     if (rules.isEmpty()) {
       return;
     }
@@ -758,6 +775,9 @@ public final class SupportRules {
       return;
     }
     Rules rules = read(root);
+    if (rules.unreadable) {
+      throw new IllegalStateException(UNREADABLE_RULES);
+    }
     if (rules.isEmpty()) {
       return;
     }

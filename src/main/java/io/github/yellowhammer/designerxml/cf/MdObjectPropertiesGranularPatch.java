@@ -14,8 +14,12 @@ import jakarta.xml.bind.JAXBException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.xml.stream.XMLStreamException;
 
@@ -36,6 +40,35 @@ public final class MdObjectPropertiesGranularPatch {
     SchemaVersion version,
     MdObjectPropertiesDto baseline,
     MdObjectPropertiesDto incoming) {
+    return tryApply(xmlUtf8, containerLocal, version, baseline, incoming, null, ConfigurationLanguage.FALLBACK);
+  }
+
+  /**
+   * @param extendable правимые свойства заимствованных узлов по элементам выгрузки: объект под
+   *     пустым ключом; {@code null}, если проверка не нужна
+   */
+  public static Optional<byte[]> tryApply(
+    String xmlUtf8,
+    String containerLocal,
+    SchemaVersion version,
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming,
+    Map<String, List<String>> extendable) {
+    return tryApply(xmlUtf8, containerLocal, version, baseline, incoming, extendable,
+      ConfigurationLanguage.FALLBACK);
+  }
+
+  /**
+   * @param languageCode язык текстов конфигурации: строки остальных языков правка не трогает
+   */
+  public static Optional<byte[]> tryApply(
+    String xmlUtf8,
+    String containerLocal,
+    SchemaVersion version,
+    MdObjectPropertiesDto baseline,
+    MdObjectPropertiesDto incoming,
+    Map<String, List<String>> extendable,
+    String languageCode) {
     if (baseline == null || incoming == null || containerLocal == null || containerLocal.isEmpty()) {
       return Optional.empty();
     }
@@ -45,8 +78,32 @@ public final class MdObjectPropertiesGranularPatch {
       return Optional.empty();
     }
     List<XmlGranularPatch.Replacement> reps = new ArrayList<>();
+    // Изменённые свойства заимствованных узлов: объект под пустым ключом, подчинённые под своим
+    Map<String, Set<String>> extended = new LinkedHashMap<>();
     try {
+      AdoptedStates.Frame root = AdoptedStates.scan(xmlUtf8.getBytes(StandardCharsets.UTF_8));
       for (MdObjectPropertiesLeafDiff.GranularPatchChange ch : changes) {
+        String nodeKey = ch.isNamedChildObject()
+          ? ch.namedChildContainerLocal() + ":" + ch.namedChildObjectInternalName()
+          : "";
+        AdoptedStates.Frame frame = ch.isNamedChildObject() ? root.children.get(nodeKey) : root;
+        if (frame != null && frame.adopted()) {
+          if (ch.mdElementLocalName().equals("Type")) {
+            throw new IllegalArgumentException(
+              "Тип заимствованного реквизита правится в расширяемой конфигурации: " + ch.namedChildObjectInternalName());
+          }
+          List<String> allowed = extendable == null
+            ? null
+            : extendable.get(ch.isNamedChildObject() ? ch.namedChildContainerLocal() : "");
+          if (allowed != null && AdoptedStates.stateful(ch.mdElementLocalName())
+            && !allowed.contains(AdoptedStates.key(ch.mdElementLocalName()))) {
+            throw new IllegalArgumentException(
+              "Свойство " + ch.mdElementLocalName() + " заимствованного узла принадлежит расширяемой конфигурации.");
+          }
+          if (AdoptedStates.recorded(ch.mdElementLocalName())) {
+            extended.computeIfAbsent(nodeKey, key -> new LinkedHashSet<>()).add(ch.mdElementLocalName());
+          }
+        }
         MdObjectXmlRegions.Region reg;
         if (ch.isNamedChildObject()) {
           reg = MdObjectXmlRegions.findDirectChildOfNamedChildObjectPropertiesRegion(
@@ -60,30 +117,37 @@ public final class MdObjectPropertiesGranularPatch {
             xmlUtf8, containerLocal, ch.mdElementLocalName());
         }
         if (!reg.isValid()) {
-          if (ch.isNamedChildObject()) {
-            return Optional.empty();
-          }
-          MdObjectXmlRegions.Region propertiesRegion = MdObjectXmlRegions.findPropertiesRegion(xmlUtf8, containerLocal);
+          MdObjectXmlRegions.Region propertiesRegion = propertiesRegion(xmlUtf8, containerLocal, ch);
           if (!propertiesRegion.isValid()) {
             return Optional.empty();
           }
-          int insertPos = propertiesClosingTagStart(xmlUtf8, propertiesRegion);
-          if (insertPos < 0) {
-            return Optional.empty();
-          }
-          String insertion = XmlGranularPatch.fileEol(xmlUtf8)
-            + XmlGranularPatch.formatInsertion(
-              xmlUtf8,
-              XmlGranularPatch.currentLineIndent(xmlUtf8, insertPos) + "\t",
-              ch.replacementElementXml());
-          reps.add(new XmlGranularPatch.Replacement(insertPos, insertPos, insertion));
+          String owner = ch.isNamedChildObject() ? ch.namedChildContainerLocal() : containerLocal;
+          AdoptedStatesPatch.Insertion place = AdoptedStatesPatch.insertionPoint(
+            xmlUtf8, propertiesRegion, AdoptedStatesPatch.propertyOrder(version, owner), ch.mdElementLocalName());
+          String insertion = XmlGranularPatch.formatInsertion(xmlUtf8, place.indent(), ch.replacementElementXml())
+            + XmlGranularPatch.fileEol(xmlUtf8);
+          reps.add(new XmlGranularPatch.Replacement(place.at(), place.at(), insertion));
           continue;
         }
+        String element = mergedLocalString(
+          xmlUtf8.substring(reg.start(), reg.end()), ch.mdElementLocalName(),
+          ch.replacementElementXml(), languageCode);
         String replacement = XmlGranularPatch.formatReplacementPreservingIndent(
           xmlUtf8,
           reg.start(),
-          XmlGranularPatch.dropRedundantNamespaces(xmlUtf8, ch.replacementElementXml()));
+          XmlGranularPatch.dropRedundantNamespaces(xmlUtf8, element));
         reps.add(new XmlGranularPatch.Replacement(reg.start(), reg.end(), replacement));
+      }
+      for (Map.Entry<String, Set<String>> entry : extended.entrySet()) {
+        String key = entry.getKey();
+        MdObjectXmlRegions.Region node = key.isEmpty()
+          ? MdObjectXmlRegions.findObjectRegion(xmlUtf8, containerLocal)
+          : MdObjectXmlRegions.findNamedChildObjectRegion(
+            xmlUtf8, containerLocal, key.substring(0, key.indexOf(':')), key.substring(key.indexOf(':') + 1));
+        if (!node.isValid()) {
+          return Optional.empty();
+        }
+        reps.add(AdoptedStatesPatch.extended(xmlUtf8, node, entry.getValue()));
       }
     } catch (XMLStreamException e) {
       return Optional.empty();
@@ -221,7 +285,46 @@ public final class MdObjectPropertiesGranularPatch {
     };
   }
 
-  private static int propertiesClosingTagStart(String xmlUtf8, MdObjectXmlRegions.Region propertiesRegion) {
-    return xmlUtf8.lastIndexOf("</", propertiesRegion.end() - 1);
+  /** Границы {@code Properties} узла, которому принадлежит правка. */
+  private static MdObjectXmlRegions.Region propertiesRegion(
+    String xmlUtf8,
+    String containerLocal,
+    MdObjectPropertiesLeafDiff.GranularPatchChange ch) throws XMLStreamException {
+    if (!ch.isNamedChildObject()) {
+      return MdObjectXmlRegions.findPropertiesRegion(xmlUtf8, containerLocal);
+    }
+    MdObjectXmlRegions.Region child = MdObjectXmlRegions.findNamedChildObjectRegion(
+      xmlUtf8, containerLocal, ch.namedChildContainerLocal(), ch.namedChildObjectInternalName());
+    if (!child.isValid()) {
+      return child;
+    }
+    for (AdoptedStatesPatch.Element element : AdoptedStatesPatch.children(xmlUtf8, child)) {
+      if (element.name().equals("Properties")) {
+        return new MdObjectXmlRegions.Region(element.start(), element.end());
+      }
+    }
+    return new MdObjectXmlRegions.Region(-1, -1);
+  }
+
+  /**
+   * Многоязычное свойство: строки остальных языков остаются на месте.
+   *
+   * <p>Правка идёт по одному языку, а элемент в файле держит по строке на язык.
+   * Замена элемента целиком уносила бы текст, написанный на других языках.
+   *
+   * @param existing элемент, как он лежит в файле
+   * @param localName имя элемента
+   * @param replacement элемент, собранный правкой
+   * @return элемент со строками всех языков, либо {@code replacement}, если свойство одноязычное
+   */
+  private static String mergedLocalString(
+      String existing, String localName, String replacement, String languageCode) {
+    if (!LocalStringElement.hasItems(existing) && !LocalStringElement.hasItems(replacement)) {
+      return replacement;
+    }
+    List<LocalStringElement.Item> incoming = LocalStringElement.items(replacement);
+    // Пустой элемент правки снимает строку своего языка, а не весь текст объекта
+    String content = incoming.isEmpty() ? "" : incoming.get(0).content();
+    return LocalStringElement.merge(localName, existing, languageCode, content);
   }
 }

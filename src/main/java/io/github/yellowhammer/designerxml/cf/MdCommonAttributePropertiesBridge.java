@@ -38,7 +38,7 @@ public final class MdCommonAttributePropertiesBridge {
     d.indexing = enumName(p, "getIndexing");
     d.fullTextSearch = enumName(p, "getFullTextSearch");
     d.dataHistory = enumName(p, "getDataHistory");
-    d.toolTipRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getToolTip"));
+    d.toolTip = LocalStringSync.first(JaxbReflect.getOptional(p, "getToolTip"));
     d.passwordMode = JaxbReflect.getBooleanOptional(p, "isPasswordMode");
     d.multiLine = JaxbReflect.getBooleanOptional(p, "isMultiLine");
     d.mask = JaxbReflect.getStringOptional(p, "getMask");
@@ -73,7 +73,7 @@ public final class MdCommonAttributePropertiesBridge {
     JaxbReflect.setEnumOrKeep(p, "setIndexing", d.indexing);
     JaxbReflect.setEnumOrKeep(p, "setFullTextSearch", d.fullTextSearch);
     JaxbReflect.setEnumOrKeep(p, "setDataHistory", d.dataHistory);
-    MdPropertiesBridgeSupport.ensureAndSetRu(p, "getToolTip", "setToolTip", d.toolTipRu);
+    MdPropertiesBridgeSupport.ensureAndSetRu(p, "getToolTip", "setToolTip", d.toolTip);
     JaxbReflect.setOptional(p, "setPasswordMode", d.passwordMode);
     JaxbReflect.setOptional(p, "setMultiLine", d.multiLine);
     JaxbReflect.setOptional(p, "setMask", d.mask);

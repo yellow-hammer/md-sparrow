@@ -26,8 +26,11 @@ public final class MdEnumPropertiesDto {
   public String auxiliaryListForm;
   public String auxiliaryChoiceForm;
   public String managerModule;
-  public String listPresentationRu;
-  public String extendedListPresentationRu;
-  public String explanationRu;
+  @LocalString
+  public String listPresentation;
+  @LocalString
+  public String extendedListPresentation;
+  @LocalString
+  public String explanation;
   public String choiceHistoryOnInput;
 }

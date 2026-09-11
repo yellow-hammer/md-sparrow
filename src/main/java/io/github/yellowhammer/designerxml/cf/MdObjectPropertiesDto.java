@@ -26,8 +26,31 @@ public final class MdObjectPropertiesDto {
 
   public String kind;
   public String internalName;
-  public String synonymRu;
+  @LocalString
+  public String synonym;
+  /**
+   * Язык, на котором прочитаны и будут записаны тексты.
+   *
+   * <p>Берётся у самой конфигурации. Панели он нужен, чтобы человек видел, на
+   * каком языке правит подпись.
+   */
+  public String languageCode;
+  /** Свойства, за которыми стоит язык: панель подписывает их языком и правит одну строку. */
+  public java.util.List<String> localStringProperties;
   public String comment;
+  /** Принадлежность в расширении: {@code Adopted} у заимствованного объекта, иначе пусто. */
+  public String objectBelonging;
+  /**
+   * Состояния свойств заимствованного объекта по именам метамодели EDT:
+   * {@code Checked} контролируется, {@code Extended} изменено расширением.
+   */
+  public java.util.Map<String, String> propertyStates;
+  /**
+   * Свойства, которые расширение контролирует или меняет у заимствованного объекта, под
+   * именами метамодели EDT; у своего объекта пусто. Остальные свойства принадлежат
+   * расширяемой конфигурации и в расширении не правятся.
+   */
+  public List<String> extendable;
   public List<MdNamedPropertyDto> attributes;
   public List<MdNamedPropertyDto> tabularSections;
   /** Значения перечисления (только для kind=enum). */

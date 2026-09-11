@@ -56,7 +56,7 @@ public final class EmptyCfeScaffold {
    *
    * @param targetCfeRoot каталог расширения (создаётся, содержимое очищается)
    * @param extensionName имя расширения
-   * @param synonymRu синоним на русском; пустой - берётся имя
+   * @param synonym синоним; пустой - берётся имя
    * @param namePrefix префикс имён объектов расширения; пустой - как в эталоне
    * @param purpose назначение расширения
    * @param compatibilityMode режим совместимости расширения из основной конфигурации
@@ -66,12 +66,29 @@ public final class EmptyCfeScaffold {
   public static void writeEmptyTree(
     Path targetCfeRoot,
     String extensionName,
-    String synonymRu,
+    String synonym,
     String namePrefix,
     Purpose purpose,
     String compatibilityMode,
     String interfaceCompatibilityMode,
     SchemaVersion version) throws IOException {
+    writeEmptyTree(targetCfeRoot, extensionName, synonym, namePrefix, purpose, compatibilityMode,
+      interfaceCompatibilityMode, version, ConfigurationLanguage.FALLBACK);
+  }
+
+  /**
+   * @param language язык текстов расширяемой конфигурации: расширение живёт её языком
+   */
+  public static void writeEmptyTree(
+    Path targetCfeRoot,
+    String extensionName,
+    String synonym,
+    String namePrefix,
+    Purpose purpose,
+    String compatibilityMode,
+    String interfaceCompatibilityMode,
+    SchemaVersion version,
+    String language) throws IOException {
     Objects.requireNonNull(targetCfeRoot, "targetCfeRoot");
     Objects.requireNonNull(purpose, "purpose");
     CatalogNameConstraints.check(extensionName);
@@ -86,10 +103,12 @@ public final class EmptyCfeScaffold {
     Files.createDirectories(rolesDir);
     Files.writeString(
       rolesDir.resolve(GoldenScaffold.extensionDefaultRoleName(version) + ".xml"),
-      GoldenScaffold.generateExtensionDefaultRole(extensionName, version),
+      LocalStringElement.retarget(
+        GoldenScaffold.generateExtensionDefaultRole(extensionName, version), language),
       StandardCharsets.UTF_8);
 
     String xml = GoldenScaffold.generateEmptyExtension(extensionName, version);
+    xml = LocalStringElement.retarget(xml, language);
     if (namePrefix != null && !namePrefix.isBlank()) {
       xml = ScaffoldPropertyEdit.setLeaf(xml, "NamePrefix", namePrefix);
     }
@@ -102,8 +121,8 @@ public final class EmptyCfeScaffold {
         xml, "InterfaceCompatibilityMode", interfaceCompatibilityMode.trim(),
         "ConfigurationInformationAddress");
     }
-    if (synonymRu != null && !synonymRu.isBlank()) {
-      xml = ScaffoldPropertyEdit.setSynonymRu(xml, synonymRu);
+    if (synonym != null && !synonym.isBlank()) {
+      xml = ScaffoldPropertyEdit.setSynonym(xml, synonym, language);
     }
     Files.writeString(targetCfeRoot.resolve(CfLayout.CONFIGURATION_XML), xml, StandardCharsets.UTF_8);
   }
@@ -125,7 +144,7 @@ public final class EmptyCfeScaffold {
   public static void writeEmptyTreeFromConfiguration(
     Path targetCfeRoot,
     String extensionName,
-    String synonymRu,
+    String synonym,
     String namePrefix,
     Purpose purpose,
     Path mainConfigurationXml,
@@ -135,14 +154,15 @@ public final class EmptyCfeScaffold {
     writeEmptyTree(
       targetCfeRoot,
       extensionName,
-      synonymRu,
+      synonym,
       namePrefix,
       purpose,
       ScaffoldPropertyEdit.leaf(main, "CompatibilityMode")
         .or(() -> ScaffoldPropertyEdit.leaf(main, "ConfigurationExtensionCompatibilityMode"))
         .orElse(null),
       ScaffoldPropertyEdit.leaf(main, "InterfaceCompatibilityMode").orElse(null),
-      version);
+      version,
+      ConfigurationLanguage.codeOf(mainConfigurationXml));
   }
 
 }

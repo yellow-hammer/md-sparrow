@@ -72,9 +72,13 @@ public final class UnknownEnumValues {
     var out = new StringBuilder(value.length() + 4);
     for (int i = 0; i < value.length(); i++) {
       char c = value.charAt(i);
-      boolean boundary = i > 0
-        && (Character.isUpperCase(c) || (Character.isDigit(c) && !Character.isDigit(value.charAt(i - 1))))
-        && out.charAt(out.length() - 1) != '_';
+      char previous = i > 0 ? value.charAt(i - 1) : 0;
+      char next = i + 1 < value.length() ? value.charAt(i + 1) : 0;
+      // Аббревиатура кончается там, где начинается слово: HTMLDocument это HTML_DOCUMENT
+      boolean endsAbbreviation = Character.isUpperCase(previous) && Character.isLowerCase(next);
+      boolean startsWord = Character.isUpperCase(c) && (!Character.isUpperCase(previous) || endsAbbreviation);
+      boolean startsNumber = Character.isDigit(c) && !Character.isDigit(previous);
+      boolean boundary = i > 0 && (startsWord || startsNumber) && out.charAt(out.length() - 1) != '_';
       if (boundary) {
         out.append('_');
       }

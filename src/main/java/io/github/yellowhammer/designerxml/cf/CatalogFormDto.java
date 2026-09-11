@@ -17,7 +17,8 @@ public final class CatalogFormDto {
   public String internalName;
 
   /** Синоним ru (и связанные представления — как при создании из прототипа). */
-  public String synonymRu;
+  @LocalString
+  public String synonym;
 
   /** Комментарий. */
   public String comment;
@@ -25,9 +26,9 @@ public final class CatalogFormDto {
   public CatalogFormDto() {
   }
 
-  public CatalogFormDto(String internalName, String synonymRu, String comment) {
+  public CatalogFormDto(String internalName, String synonym, String comment) {
     this.internalName = internalName;
-    this.synonymRu = synonymRu;
+    this.synonym = synonym;
     this.comment = comment;
   }
 }

@@ -43,7 +43,10 @@ public final class NewExternalArtifactXml {
     if (Files.exists(xmlPath)) {
       throw new IllegalArgumentException("file already exists: " + xmlPath);
     }
-    String xml = GoldenScaffold.generateExternalArtifact(kind, name, version);
+    // Эталон снят на русской конфигурации: подпись уезжает в язык той, к которой объект относится
+    String xml = LocalStringElement.retarget(
+      GoldenScaffold.generateExternalArtifact(kind, name, version),
+      ConfigurationLanguage.codeOf(xmlPath));
     try (ByteArrayInputStream in = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8))) {
       DesignerXml.unmarshal(version, in);
     }

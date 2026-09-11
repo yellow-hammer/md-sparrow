@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -124,11 +125,8 @@ public final class MdObjectPropertiesEdit {
     if (!Files.isRegularFile(objectXml)) {
       throw new IllegalArgumentException("file not found: " + objectXml);
     }
-    Object root = DesignerXml.read(objectXml, version);
-    if (!(root instanceof JAXBElement<?> je)) {
-      throw new IllegalArgumentException("expected JAXBElement root");
-    }
-    return readFromRoot(je, version);
+    byte[] bytes = Files.readAllBytes(objectXml);
+    return ConfigurationLanguage.with(objectXml, () -> readDto(bytes, version));
   }
 
   /**
@@ -139,10 +137,25 @@ public final class MdObjectPropertiesEdit {
     if (!(root instanceof JAXBElement<?> je)) {
       throw new IllegalArgumentException("expected JAXBElement root");
     }
-    return readFromRoot(je, version);
+    MdObjectPropertiesDto dto = readFromRoot(je, version);
+    dto.languageCode = ConfigurationLanguage.current();
+    dto.localStringProperties = LocalStringProperties.forResponse();
+    // Принадлежность и состояния свойств заимствованного объекта лежат вне модели JAXB
+    AdoptedStates.apply(dto, utf8Xml);
+    return dto;
   }
 
   public static void writeDto(Path objectXml, SchemaVersion version, MdObjectPropertiesDto dto)
+    throws IOException, JAXBException {
+    writeDto(objectXml, version, dto, null);
+  }
+
+  /**
+   * @param extendable правимые свойства заимствованных узлов по элементам выгрузки, см.
+   *     {@code EdtExtensionFeatures.byDesignerContainer}; {@code null}, если проверка не нужна
+   */
+  public static void writeDto(
+    Path objectXml, SchemaVersion version, MdObjectPropertiesDto dto, Map<String, List<String>> extendable)
     throws IOException, JAXBException {
     if (dto == null || dto.kind == null || dto.internalName == null || dto.internalName.isEmpty()) {
       throw new IllegalArgumentException("kind and internalName required");
@@ -151,6 +164,16 @@ public final class MdObjectPropertiesEdit {
       throw new IllegalArgumentException("file not found: " + objectXml);
     }
     SupportRules.ensureEditable(objectXml);
+    // Чтение, запись и сверка после записи идут языком этой конфигурации
+    ConfigurationLanguage.with(objectXml, () -> {
+      writeDtoInLanguage(objectXml, version, dto, extendable);
+      return null;
+    });
+  }
+
+  private static void writeDtoInLanguage(
+    Path objectXml, SchemaVersion version, MdObjectPropertiesDto dto, Map<String, List<String>> extendable)
+    throws IOException, JAXBException {
     MdObjectPropertiesDto baseline = readDto(objectXml, version);
     MdObjectPropertiesJsonCoalesce.coalesceFromBaseline(dto, baseline);
     if (dto.attributes == null) {
@@ -181,11 +204,19 @@ public final class MdObjectPropertiesEdit {
     String xml = Files.readString(objectXml, StandardCharsets.UTF_8);
     String container = MdObjectPropertiesGranularPatch.containerLocalForKind(dto.kind);
     if (!container.isEmpty()) {
-      Optional<byte[]> granular = MdObjectPropertiesGranularPatch.tryApply(xml, container, version, baseline, dto);
+      Optional<byte[]> granular =
+        MdObjectPropertiesGranularPatch.tryApply(
+          xml, container, version, baseline, dto, extendable, ConfigurationLanguage.current());
       if (granular.isPresent()) {
         Files.write(objectXml, granular.get());
         return;
       }
+    }
+    if (AdoptedStates.ADOPTED.equals(baseline.objectBelonging)) {
+      // Пересборка через JAXB потеряла бы состояния свойств в InternalInfo
+      throw new IllegalStateException("Заимствованный объект правится только точечно: "
+        + MdObjectPropertiesGranularPatch.describeFirstUnpatchableChange(xml, container, baseline, dto)
+          .orElse("причина не определена"));
     }
     Object root = DesignerXml.read(objectXml, version);
     if (!(root instanceof JAXBElement<?> je)) {
@@ -334,7 +365,7 @@ public final class MdObjectPropertiesEdit {
     MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
     dto.kind = kind;
     dto.internalName = JaxbReflect.getString(props, "getName");
-    dto.synonymRu = LocalStringSync.firstRu(JaxbReflect.get(props, "getSynonym"));
+    dto.synonym = LocalStringSync.first(JaxbReflect.get(props, "getSynonym"));
     String comment = JaxbReflect.getString(props, "getComment");
     dto.comment = comment == null ? "" : comment;
     return dto;
@@ -345,7 +376,7 @@ public final class MdObjectPropertiesEdit {
     String comment = JaxbReflect.getString(p, "getComment");
     MdNamedPropertyDto dto = new MdNamedPropertyDto(
       JaxbReflect.getString(p, "getName"),
-      LocalStringSync.firstRu(JaxbReflect.get(p, "getSynonym")),
+      LocalStringSync.first(JaxbReflect.get(p, "getSynonym")),
       comment == null ? "" : comment);
     // У табличной части и значения перечисления типа нет — getType вернёт null.
     dto.type = MdTypeDescriptionBridge.read(JaxbReflect.getOptional(p, "getType"));
@@ -437,13 +468,13 @@ public final class MdObjectPropertiesEdit {
     if (!dto.internalName.equals(JaxbReflect.getStringOptional(props, "getName"))) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRu(JaxbReflect.getOptional(props, "getSynonym"), syn);
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getObjectPresentation"), syn);
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExtendedObjectPresentation"), syn);
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getListPresentation"), syn);
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExtendedListPresentation"), syn);
-    LocalStringSync.replaceRu(JaxbReflect.getOptional(props, "getExplanation"), syn);
+    String syn = dto.synonym == null ? "" : dto.synonym;
+    LocalStringSync.setOrPut(JaxbReflect.getOptional(props, "getSynonym"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getObjectPresentation"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getExtendedObjectPresentation"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getListPresentation"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getExtendedListPresentation"), syn);
+    LocalStringSync.replace(JaxbReflect.getOptional(props, "getExplanation"), syn);
     JaxbReflect.setOptional(props, "setComment", dto.comment == null ? "" : dto.comment);
   }
 
@@ -471,8 +502,8 @@ public final class MdObjectPropertiesEdit {
     if (d.type != null) {
       MdTypeDescriptionBridge.apply(JaxbReflect.ensureOptional(p, "getType", "setType"), d.type);
     }
-    String syn = d.synonymRu == null ? "" : d.synonymRu;
-    LocalStringSync.setOrPutRu(JaxbReflect.get(p, "getSynonym"), syn);
+    String syn = d.synonym == null ? "" : d.synonym;
+    LocalStringSync.setOrPut(JaxbReflect.get(p, "getSynonym"), syn);
     JaxbReflect.set(p, "setComment", d.comment == null ? "" : d.comment);
     applyPaletteProperties(p, d);
   }
@@ -484,7 +515,7 @@ public final class MdObjectPropertiesEdit {
    * и поле остаётся пустым.
    */
   private static void readPaletteProperties(Object props, MdNamedPropertyDto dto) {
-    dto.toolTipRu = LocalStringSync.firstRu(JaxbReflect.getOptional(props, "getToolTip"));
+    dto.toolTip = LocalStringSync.first(JaxbReflect.getOptional(props, "getToolTip"));
     dto.fillChecking = JaxbReflect.enumNameOptional(props, "getFillChecking");
     dto.indexing = JaxbReflect.enumNameOptional(props, "getIndexing");
     dto.fullTextSearch = JaxbReflect.enumNameOptional(props, "getFullTextSearch");
@@ -504,10 +535,10 @@ public final class MdObjectPropertiesEdit {
    * отсутствующее в схеме свойство пропускается вместе со своим сеттером.
    */
   private static void applyPaletteProperties(Object props, MdNamedPropertyDto d) {
-    if (d.toolTipRu != null) {
+    if (d.toolTip != null) {
       Object toolTip = JaxbReflect.ensureOptional(props, "getToolTip", "setToolTip");
       if (toolTip != null) {
-        LocalStringSync.setOrPutRu(toolTip, d.toolTipRu);
+        LocalStringSync.setOrPut(toolTip, d.toolTip);
       }
     }
     JaxbReflect.setEnumOrKeep(props, "setFillChecking", d.fillChecking);
@@ -612,8 +643,8 @@ public final class MdObjectPropertiesEdit {
     if (!dto.internalName.equals(JaxbReflect.getString(props, "getName"))) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
-    LocalStringSync.setOrPutRu(JaxbReflect.get(props, "getSynonym"), syn);
+    String syn = dto.synonym == null ? "" : dto.synonym;
+    LocalStringSync.setOrPut(JaxbReflect.get(props, "getSynonym"), syn);
     JaxbReflect.set(props, "setComment", dto.comment == null ? "" : dto.comment);
     Object ch = JaxbReflect.get(sub, "getChildObjects");
     if (ch == null) {
@@ -688,7 +719,7 @@ public final class MdObjectPropertiesEdit {
     MdObjectPropertiesDto dto = new MdObjectPropertiesDto();
     dto.kind = kind;
     dto.internalName = toStringOrEmpty(invokeNoArg(props, "getName"));
-    dto.synonymRu = readLocalStringRu(invokeNoArgOrNull(props, "getSynonym"));
+    dto.synonym = readLocalStringRu(invokeNoArgOrNull(props, "getSynonym"));
     dto.comment = toStringOrEmpty(invokeNoArgOrNull(props, "getComment"));
     switch (kind) {
       case "enum" -> {
@@ -696,7 +727,10 @@ public final class MdObjectPropertiesEdit {
         readEnumValues(objectNode, dto);
       }
       case "constant" -> MdConstantPropertiesBridge.read(props, dto);
-      case "report", "dataProcessor" -> MdReportPropertiesBridge.read(props, dto);
+      case "report", "dataProcessor" -> {
+        MdReportPropertiesBridge.read(props, dto);
+        readCatalogLikeChildren(objectNode, dto);
+      }
       case "documentJournal" -> MdDocumentJournalPropertiesBridge.read(version, props, dto);
       case "chartOfCalculationTypes" -> {
         MdChartOfCalculationTypesPropertiesBridge.read(version, props, dto);
@@ -912,6 +946,7 @@ public final class MdObjectPropertiesEdit {
     }
     if (isReportKind(dto.kind) && dto.report != null) {
       MdReportPropertiesBridge.apply(props, dto);
+      applyAttrs(JaxbReflect.get(objectNode, "getChildObjects"), dto);
       return;
     }
     if ("documentJournal".equals(dto.kind) && dto.documentJournal != null) {
@@ -992,7 +1027,7 @@ public final class MdObjectPropertiesEdit {
     if (!dto.internalName.equals(currentName)) {
       throw new IllegalArgumentException("internalName mismatch with XML");
     }
-    String syn = dto.synonymRu == null ? "" : dto.synonymRu;
+    String syn = dto.synonym == null ? "" : dto.synonym;
     writeLocalStringRu(props, syn);
     invokeSetterString(props, "setComment", dto.comment == null ? "" : dto.comment);
     if (GENERIC_SCALAR_KINDS.contains(dto.kind)) {
@@ -1064,7 +1099,7 @@ public final class MdObjectPropertiesEdit {
       return "";
     }
     for (Object item : list) {
-      if ("ru".equals(toStringOrEmpty(invokeNoArgOrNull(item, "getLang")))) {
+      if (ConfigurationLanguage.current().equals(toStringOrEmpty(invokeNoArgOrNull(item, "getLang")))) {
         return toStringOrEmpty(invokeNoArgOrNull(item, "getContent"));
       }
     }
@@ -1090,14 +1125,14 @@ public final class MdObjectPropertiesEdit {
     @SuppressWarnings("unchecked")
     List<Object> items = (List<Object>) itemsObj;
     for (Object item : items) {
-      if ("ru".equals(toStringOrEmpty(invokeNoArgOrNull(item, "getLang")))) {
+      if (ConfigurationLanguage.current().equals(toStringOrEmpty(invokeNoArgOrNull(item, "getLang")))) {
         invokeSetterString(item, "setContent", value);
         return;
       }
     }
     Class<?> itemType = resolveLocalStringItemType(localString, items);
     Object newItem = newInstance(itemType);
-    invokeSetterString(newItem, "setLang", "ru");
+    invokeSetterString(newItem, "setLang", ConfigurationLanguage.current());
     invokeSetterString(newItem, "setContent", value);
     items.add(newItem);
   }

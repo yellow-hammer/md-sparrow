@@ -24,7 +24,7 @@ public final class FormItemDto {
   /** Идентификатор элемента внутри формы. */
   public String id;
 
-  /** Заголовок (ru). */
+  /** Заголовок на языке конфигурации. */
   public String title;
 
   /** Путь к данным формы. */

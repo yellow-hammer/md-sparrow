@@ -35,6 +35,71 @@ class RoleRightsFileTest {
     return roleXml;
   }
 
+  /** Роль с ограничением доступа по условию и с шаблоном ограничений в конце файла. */
+  private Path copyRestrictedRole() throws Exception {
+    Path fixture = Path.of("src", "test", "resources", "role-rights").toAbsolutePath();
+    Path roleXml = tempDir.resolve("РольСОграничением.xml");
+    Files.copy(fixture.resolve("РольСОграничением.xml"), roleXml);
+    Path rights = tempDir.resolve("РольСОграничением").resolve("Ext").resolve("Rights.xml");
+    Files.createDirectories(rights.getParent());
+    Files.copy(fixture.resolve("РольСОграничением/Ext/Rights.xml"), rights);
+    return roleXml;
+  }
+
+  @Test
+  void readsRightWithRestriction() throws Exception {
+    RoleRightsFile.Dto dto = RoleRightsFile.read(copyRestrictedRole());
+
+    RoleRightsFile.ObjectRights document = dto.objects.stream()
+      .filter(item -> "Document.Заказ".equals(item.name))
+      .findFirst()
+      .orElseThrow();
+    assertThat(document.rights).extracting(right -> right.name).containsExactly("Read", "Insert", "Update");
+    assertThat(document.rights.get(0).value).isTrue();
+    assertThat(document.rights.get(0).restricted).isTrue();
+    assertThat(document.rights.get(1).restricted).isFalse();
+  }
+
+  @Test
+  void keepsRestrictionWhenNeighbourRightChanges() throws Exception {
+    Path roleXml = copyRestrictedRole();
+    Path rights = RoleRightsFile.rightsPath(roleXml);
+
+    RoleRightsFile.Edit grant = new RoleRightsFile.Edit();
+    grant.object = "Document.Заказ";
+    grant.right = "Update";
+    grant.value = true;
+    RoleRightsFile.applyEdits(roleXml, List.of(grant));
+
+    String text = Files.readString(rights);
+    assertThat(text).contains("#ПоЗначениям(\"Документ.Заказ\"");
+    assertThat(text).contains("<restrictionTemplate>");
+    RoleRightsFile.Dto after = RoleRightsFile.read(roleXml);
+    RoleRightsFile.ObjectRights document = after.objects.stream()
+      .filter(item -> "Document.Заказ".equals(item.name))
+      .findFirst()
+      .orElseThrow();
+    assertThat(document.rights).extracting(right -> right.name).containsExactly("Read", "Insert", "Update");
+    assertThat(document.rights.get(0).restricted).isTrue();
+    assertThat(document.rights.get(2).value).isTrue();
+  }
+
+  @Test
+  void newObjectGoesBeforeRestrictionTemplates() throws Exception {
+    Path roleXml = copyRestrictedRole();
+
+    RoleRightsFile.Edit grant = new RoleRightsFile.Edit();
+    grant.object = "Catalog.Склады";
+    grant.right = "Read";
+    grant.value = true;
+    RoleRightsFile.applyEdits(roleXml, List.of(grant));
+
+    String text = Files.readString(RoleRightsFile.rightsPath(roleXml));
+    assertThat(text.indexOf("Catalog.Склады")).isLessThan(text.indexOf("<restrictionTemplate>"));
+    assertThat(RoleRightsFile.read(roleXml).objects).extracting(item -> item.name)
+      .containsExactly("Document.Заказ", "Catalog.Организации", "Catalog.Склады");
+  }
+
   @Test
   void readsFlagsAndObjects() throws Exception {
     Path roleXml = copyRole();

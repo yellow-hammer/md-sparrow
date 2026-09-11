@@ -191,6 +191,15 @@ public final class DcsRead {
   public static void addCalculatedField(
     Path templateXml, SchemaVersion version, String dataPath, String expression, String title)
     throws IOException, JAXBException {
+    ConfigurationLanguage.with(templateXml, () -> {
+      addCalculatedFieldInLanguage(templateXml, version, dataPath, expression, title);
+      return null;
+    });
+  }
+
+  private static void addCalculatedFieldInLanguage(
+    Path templateXml, SchemaVersion version, String dataPath, String expression, String title)
+    throws IOException, JAXBException {
     String text = java.nio.file.Files.readString(templateXml, java.nio.charset.StandardCharsets.UTF_8);
     String eol = text.contains("\r\n") ? "\r\n" : "\n";
     StringBuilder block = new StringBuilder();
@@ -200,7 +209,8 @@ public final class DcsRead {
     if (title != null && !title.isBlank()) {
       block.append("		<title xsi:type=\"v8:LocalStringType\">").append(eol);
       block.append("			<v8:item>").append(eol);
-      block.append("				<v8:lang>ru</v8:lang>").append(eol);
+      block.append("				<v8:lang>").append(ConfigurationLanguage.current())
+        .append("</v8:lang>").append(eol);
       block.append("				<v8:content>").append(escape(title)).append("</v8:content>").append(eol);
       block.append("			</v8:item>").append(eol);
       block.append("		</title>").append(eol);
@@ -344,7 +354,7 @@ public final class DcsRead {
         if (first.isEmpty()) {
           first = content;
         }
-        if ("ru".equals(stringify(JaxbReflect.getOptional(item, "getLang")))) {
+        if (ConfigurationLanguage.current().equals(stringify(JaxbReflect.getOptional(item, "getLang")))) {
           return content;
         }
       }

@@ -30,8 +30,12 @@ public final class RoleRightsFile {
 
   private static final Pattern OBJECT_BLOCK = Pattern.compile(
     "\\t<object>\\s*<name>([^<]+)</name>(.*?)</object>\\r?\\n", Pattern.DOTALL);
+  /**
+   * Право целиком: у права бывает ограничение доступа по условию, и всё, что
+   * идёт после значения, сохраняется как есть.
+   */
   private static final Pattern RIGHT_BLOCK = Pattern.compile(
-    "<right>\\s*<name>([^<]+)</name>\\s*<value>([^<]+)</value>\\s*</right>");
+    "<right>\\s*<name>([^<]+)</name>\\s*<value>([^<]+)</value>(.*?)</right>", Pattern.DOTALL);
   private static final Pattern FLAG = Pattern.compile("<(\\w+)>(true|false)</\\1>");
 
   private RoleRightsFile() {
@@ -41,6 +45,8 @@ public final class RoleRightsFile {
   public static final class RightEntry {
     public String name;
     public boolean value;
+    /** Право выдано с ограничением доступа по условию. */
+    public boolean restricted;
 
     public RightEntry() {
     }
@@ -48,6 +54,12 @@ public final class RoleRightsFile {
     public RightEntry(String name, boolean value) {
       this.name = name;
       this.value = value;
+    }
+
+    public RightEntry(String name, boolean value, boolean restricted) {
+      this.name = name;
+      this.value = value;
+      this.restricted = restricted;
     }
   }
 
@@ -72,10 +84,20 @@ public final class RoleRightsFile {
     public boolean value;
   }
 
-  /** Путь к файлу прав рядом с XML роли. */
+  /**
+   * Путь к файлу прав рядом с описанием роли.
+   *
+   * Формат прав у выгрузки конфигуратора и у проекта 1С:EDT один и тот же,
+   * различается только место файла: {@code Ext/Rights.xml} против
+   * {@code Rights.rights} рядом с описанием роли.
+   */
   public static Path rightsPath(Path roleXml) {
     Path normalized = roleXml.toAbsolutePath().normalize();
-    String stem = normalized.getFileName().toString().replaceFirst("[.][Xx][Mm][Ll]$", "");
+    String name = normalized.getFileName().toString();
+    if (name.endsWith(".mdo")) {
+      return normalized.getParent().resolve("Rights.rights");
+    }
+    String stem = name.replaceFirst("[.][Xx][Mm][Ll]$", "");
     return normalized.getParent().resolve(stem).resolve("Ext").resolve("Rights.xml");
   }
 
@@ -103,7 +125,10 @@ public final class RoleRightsFile {
       item.name = objects.group(1).trim();
       Matcher rights = RIGHT_BLOCK.matcher(objects.group(2));
       while (rights.find()) {
-        item.rights.add(new RightEntry(rights.group(1).trim(), Boolean.parseBoolean(rights.group(2).trim())));
+        item.rights.add(new RightEntry(
+          rights.group(1).trim(),
+          Boolean.parseBoolean(rights.group(2).trim()),
+          !rights.group(3).isBlank()));
       }
       out.objects.add(item);
     }
@@ -160,16 +185,15 @@ public final class RoleRightsFile {
     for (Map.Entry<String, List<Edit>> entry : byObject.entrySet()) {
       text = applyObjectEdits(text, entry.getKey(), entry.getValue(), eol);
     }
-    Dto verified = new Dto();
-    Matcher check = OBJECT_BLOCK.matcher(text);
-    while (check.find()) {
-      verified.objects.add(new ObjectRights());
-    }
     Files.writeString(file, text, StandardCharsets.UTF_8);
   }
 
+  /** Право в перебираемом файле: значение и хвост с ограничением доступа. */
+  private record Right(boolean value, String tail) {
+  }
+
   private static String applyObjectEdits(String text, String objectName, List<Edit> edits, String eol) {
-    Map<String, Boolean> desired = new LinkedHashMap<>();
+    Map<String, Right> desired = new LinkedHashMap<>();
     Matcher objects = OBJECT_BLOCK.matcher(text);
     int start = -1;
     int end = -1;
@@ -179,16 +203,21 @@ public final class RoleRightsFile {
         end = objects.end();
         Matcher rights = RIGHT_BLOCK.matcher(objects.group(2));
         while (rights.find()) {
-          desired.put(rights.group(1).trim(), Boolean.parseBoolean(rights.group(2).trim()));
+          desired.put(
+            rights.group(1).trim(),
+            new Right(Boolean.parseBoolean(rights.group(2).trim()), rights.group(3)));
         }
         break;
       }
     }
     for (Edit edit : edits) {
+      String name = edit.right.trim();
       if (edit.value) {
-        desired.put(edit.right.trim(), true);
+        // Ограничение доступа переживает правку значения: оно часть выданного права
+        Right known = desired.get(name);
+        desired.put(name, new Right(true, known == null ? eol + "\t\t" : known.tail()));
       } else {
-        desired.remove(edit.right.trim());
+        desired.remove(name);
       }
     }
     String block = desired.isEmpty() ? "" : objectBlock(objectName, desired, eol);
@@ -198,22 +227,47 @@ public final class RoleRightsFile {
     if (block.isEmpty()) {
       return text;
     }
+    int at = insertionPoint(text);
+    return text.substring(0, at) + block + text.substring(at);
+  }
+
+  /**
+   * Куда встаёт блок нового объекта: после последнего объекта, а если объектов
+   * ещё нет, то перед шаблонами ограничений, которые идут в файле после объектов.
+   */
+  private static int insertionPoint(String text) {
+    int lastObject = text.lastIndexOf("</object>");
+    if (lastObject >= 0) {
+      int after = lastObject + "</object>".length();
+      int lineEnd = text.indexOf('\n', after);
+      return lineEnd < 0 ? after : lineEnd + 1;
+    }
+    int template = text.indexOf("<restrictionTemplate");
+    if (template >= 0) {
+      return lineStart(text, template);
+    }
     int closing = text.lastIndexOf("</Rights>");
     if (closing < 0) {
       throw new IllegalArgumentException("Файл прав без корневого элемента Rights.");
     }
-    return text.substring(0, closing) + block + text.substring(closing);
+    return lineStart(text, closing);
   }
 
-  private static String objectBlock(String objectName, Map<String, Boolean> rights, String eol) {
+  private static int lineStart(String text, int position) {
+    int previous = text.lastIndexOf('\n', position - 1);
+    return previous < 0 ? 0 : previous + 1;
+  }
+
+  private static String objectBlock(String objectName, Map<String, Right> rights, String eol) {
     StringBuilder out = new StringBuilder();
     out.append("\t<object>").append(eol);
     out.append("\t\t<name>").append(escapeXml(objectName)).append("</name>").append(eol);
-    for (Map.Entry<String, Boolean> right : rights.entrySet()) {
+    for (Map.Entry<String, Right> right : rights.entrySet()) {
       out.append("\t\t<right>").append(eol);
       out.append("\t\t\t<name>").append(escapeXml(right.getKey())).append("</name>").append(eol);
-      out.append("\t\t\t<value>").append(right.getValue()).append("</value>").append(eol);
-      out.append("\t\t</right>").append(eol);
+      out.append("\t\t\t<value>").append(right.getValue().value()).append("</value>");
+      out.append(right.getValue().tail());
+      out.append("</right>").append(eol);
     }
     out.append("\t</object>").append(eol);
     return out.toString();

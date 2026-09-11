@@ -8,6 +8,7 @@ package io.github.yellowhammer.designerxml.cf;
 public final class ExternalArtifactPropertiesDto {
   public String kind;
   public String name;
-  public String synonymRu;
+  @LocalString
+  public String synonym;
   public String comment;
 }

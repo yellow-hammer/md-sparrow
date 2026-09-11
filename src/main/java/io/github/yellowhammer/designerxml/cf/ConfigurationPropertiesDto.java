@@ -14,7 +14,12 @@ import java.util.List;
 public final class ConfigurationPropertiesDto {
 
   public String name;
-  public String synonymRu;
+  @LocalString
+  public String synonym;
+  /** Язык, на котором прочитаны и будут записаны тексты конфигурации. */
+  public String languageCode;
+  /** Свойства, за которыми стоит язык: панель подписывает их языком. */
+  public List<String> localStringProperties;
   public String comment;
 
   public String defaultRunMode;
@@ -28,11 +33,16 @@ public final class ConfigurationPropertiesDto {
   public String sessionModule;
   public String externalConnectionModule;
 
-  public String briefInformationRu;
-  public String detailedInformationRu;
-  public String copyrightRu;
-  public String vendorInformationAddressRu;
-  public String configurationInformationAddressRu;
+  @LocalString
+  public String briefInformation;
+  @LocalString
+  public String detailedInformation;
+  @LocalString
+  public String copyright;
+  @LocalString
+  public String vendorInformationAddress;
+  @LocalString
+  public String configurationInformationAddress;
 
   public String vendor;
   public String version;

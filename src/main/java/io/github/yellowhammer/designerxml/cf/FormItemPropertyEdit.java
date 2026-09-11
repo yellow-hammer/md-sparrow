@@ -44,6 +44,15 @@ public final class FormItemPropertyEdit {
    */
   public static void apply(Path formXml, SchemaVersion version, List<FormItemPropertyChangeDto> changes)
     throws IOException, JAXBException {
+    ConfigurationLanguage.with(formXml, () -> {
+      applyInLanguage(formXml, version, changes);
+      return null;
+    });
+  }
+
+  private static void applyInLanguage(Path formXml, SchemaVersion version,
+    List<FormItemPropertyChangeDto> changes)
+    throws IOException, JAXBException {
     if (!Files.isRegularFile(formXml)) {
       throw new IllegalArgumentException("file not found: " + formXml);
     }
@@ -150,10 +159,10 @@ public final class FormItemPropertyEdit {
       case "string":
         return MdCatalogPropertiesGranularSerial.textElement(name, value);
       case "localString":
-        return MdCatalogPropertiesGranularSerial.localStringRuElement(name, value);
+        return MdCatalogPropertiesGranularSerial.localStringElement(name, value);
       case "formattedString":
         // Признак форматирования платформа пишет всегда; форматированный текст палитра не редактирует.
-        return MdCatalogPropertiesGranularSerial.localStringRuElement(name, value)
+        return MdCatalogPropertiesGranularSerial.localStringElement(name, value)
           .replaceFirst("^<" + name + ">", "<" + name + " formatted=\"false\">");
       default:
         throw new IllegalArgumentException("свойство " + name + " составное, точечная запись его не меняет");

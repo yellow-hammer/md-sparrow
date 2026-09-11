@@ -47,6 +47,37 @@ class SupportRulesTest {
   }
 
   @Test
+  void неразобранныеПравилаЗапрещаютПравку(@TempDir Path workspace) throws Exception {
+    Path root = workspace.resolve("cf");
+    Files.createDirectories(root);
+    Files.writeString(root.resolve("Configuration.xml"), "<MetaDataObject/>");
+    writeRulesWithPayload(root, "не тот формат".getBytes(StandardCharsets.UTF_8));
+    Path objectXml = root.resolve("Catalogs").resolve("Заказы.xml");
+    Files.createDirectories(objectXml.getParent());
+    Files.writeString(objectXml, "<MetaDataObject><Catalog uuid=\"" + UUID_A + "\"></Catalog></MetaDataObject>");
+
+    SupportRules.Rules rules = SupportRules.read(root);
+    assertThat(rules.unreadable).isTrue();
+    assertThat(rules.isEmpty()).isTrue();
+    assertThatThrownBy(() -> SupportRules.ensureEditable(objectXml))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("не разобраны");
+  }
+
+  @Test
+  void безФайлаПравилПравкаИдётКакБезПоставки(@TempDir Path workspace) throws Exception {
+    Path root = workspace.resolve("cf");
+    Path objectXml = root.resolve("Catalogs").resolve("Заказы.xml");
+    Files.createDirectories(objectXml.getParent());
+    Files.writeString(root.resolve("Configuration.xml"), "<MetaDataObject/>");
+    Files.writeString(objectXml, "<MetaDataObject><Catalog uuid=\"" + UUID_A + "\"></Catalog></MetaDataObject>");
+
+    SupportRules.Rules rules = SupportRules.read(root);
+    assertThat(rules.unreadable).isFalse();
+    SupportRules.ensureEditable(objectXml);
+  }
+
+  @Test
   void readsVendorFlagsAndRawModes() {
     SupportRules.Rules rules = SupportRules.parse(rulesFile("0", "0", "1", "2"));
     assertThat(rules.vendor).isEqualTo("Поставщик \"Тест\"");

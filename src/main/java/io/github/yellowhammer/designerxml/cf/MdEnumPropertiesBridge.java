@@ -41,9 +41,9 @@ public final class MdEnumPropertiesBridge {
     d.auxiliaryListForm = JaxbReflect.getStringOptional(p, "getAuxiliaryListForm");
     d.auxiliaryChoiceForm = JaxbReflect.getStringOptional(p, "getAuxiliaryChoiceForm");
     d.managerModule = JaxbReflect.getStringOptional(p, "getManagerModule");
-    d.listPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getListPresentation"));
-    d.extendedListPresentationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
-    d.explanationRu = LocalStringSync.firstRu(JaxbReflect.getOptional(p, "getExplanation"));
+    d.listPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getListPresentation"));
+    d.extendedListPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedListPresentation"));
+    d.explanation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExplanation"));
     d.choiceHistoryOnInput = enumName(p, "getChoiceHistoryOnInput");
     dto.enumeration = d;
   }
@@ -66,9 +66,9 @@ public final class MdEnumPropertiesBridge {
     JaxbReflect.setOptional(p, "setAuxiliaryListForm", d.auxiliaryListForm);
     JaxbReflect.setOptional(p, "setAuxiliaryChoiceForm", d.auxiliaryChoiceForm);
     JaxbReflect.setOptional(p, "setManagerModule", d.managerModule);
-    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentationRu);
-    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentationRu);
-    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanationRu);
+    ensureAndSetRu(p, "getListPresentation", "setListPresentation", d.listPresentation);
+    ensureAndSetRu(p, "getExtendedListPresentation", "setExtendedListPresentation", d.extendedListPresentation);
+    ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanation);
     JaxbReflect.setEnumOrKeep(p, "setChoiceHistoryOnInput", d.choiceHistoryOnInput);
   }
 

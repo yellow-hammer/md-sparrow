@@ -39,24 +39,43 @@ public final class ExternalArtifactLister {
     if (!Files.isDirectory(dir)) {
       return List.of();
     }
-    Path rootNorm = projectRoot.toAbsolutePath().normalize();
-    List<ExternalArtifactEntry> out = new ArrayList<>();
+    List<Path> subs = new ArrayList<>();
     try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir, Files::isDirectory)) {
       for (Path sub : ds) {
-        String name = sub.getFileName().toString();
-        Path xml = sub.resolve(name + ".xml");
-        if (!Files.isRegularFile(xml)) {
-          xml = findFirstXmlInDir(sub);
-        }
-        if (xml == null || !Files.isRegularFile(xml)) {
-          continue;
-        }
-        Path xmlNorm = xml.toAbsolutePath().normalize();
-        String rel = xmlNorm.startsWith(rootNorm)
-          ? rootNorm.relativize(xmlNorm).toString().replace('\\', '/')
-          : xmlNorm.toString().replace('\\', '/');
-        out.add(new ExternalArtifactEntry(name, rel));
+        subs.add(sub);
       }
+    }
+    return artifactsAt(projectRoot, subs);
+  }
+
+  /**
+   * Артефакты в заданных каталогах, где бы те ни лежали: каталог без описания пропускается.
+   *
+   * @param projectRoot корень проекта
+   * @param dirs каталоги объектов
+   * @return записи по имени без учёта регистра
+   * @throws IOException если каталог не читается
+   */
+  public static List<ExternalArtifactEntry> artifactsAt(Path projectRoot, List<Path> dirs) throws IOException {
+    Path rootNorm = projectRoot.toAbsolutePath().normalize();
+    List<ExternalArtifactEntry> out = new ArrayList<>();
+    for (Path sub : dirs) {
+      if (!Files.isDirectory(sub)) {
+        continue;
+      }
+      String name = sub.getFileName().toString();
+      Path xml = sub.resolve(name + ".xml");
+      if (!Files.isRegularFile(xml)) {
+        xml = findFirstXmlInDir(sub);
+      }
+      if (xml == null || !Files.isRegularFile(xml)) {
+        continue;
+      }
+      Path xmlNorm = xml.toAbsolutePath().normalize();
+      String rel = xmlNorm.startsWith(rootNorm)
+        ? rootNorm.relativize(xmlNorm).toString().replace('\\', '/')
+        : xmlNorm.toString().replace('\\', '/');
+      out.add(new ExternalArtifactEntry(name, rel));
     }
     out.sort(Comparator.comparing(ExternalArtifactEntry::name, String.CASE_INSENSITIVE_ORDER));
     return out;

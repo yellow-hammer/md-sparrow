@@ -6,6 +6,8 @@
 package io.github.yellowhammer.designerxml.cf;
 
 import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.edt.EdtLayout;
+import io.github.yellowhammer.edt.EdtProjectMetadataTree;
 
 import jakarta.xml.bind.JAXBException;
 
@@ -17,7 +19,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Собирает {@link ProjectMetadataTreeDto} по каталогу проекта без {@code ConfigDumpInfo.xml}.
@@ -45,23 +46,31 @@ public final class ProjectMetadataTreeBuilder {
     Path mainCf = dirs.cfPath(normalized);
     Path mainCfg = mainCf.resolve(CfLayout.CONFIGURATION_XML);
     if (!Files.isRegularFile(mainCfg)) {
-      throw new IOException("Не найден файл основной выгрузки: " + mainCfg);
+      // Формат исходников виден по самим файлам: спрашивать его у клиента
+      // значило бы просить IDE знать про раскладки обоих форматов
+      if (EdtLayout.isProject(mainCf)) {
+        // Проект конфигурации задан явно: расширения берутся из заданных каталогов,
+        // а без них из общего каталога расширений
+        List<Path> projects = new ArrayList<>();
+        projects.add(mainCf);
+        dirs.extensionDirs(normalized).stream().filter(EdtLayout::isProject).forEach(projects::add);
+        return EdtProjectMetadataTree.build(normalized, projects);
+      }
+      if (!EdtLayout.projects(normalized).isEmpty()) {
+        return EdtProjectMetadataTree.build(normalized);
+      }
+      throw new IOException("Не найдены исходники конфигурации: ни выгрузка конфигуратора " + mainCfg
+        + ", ни проект 1С:EDT в " + normalized);
     }
     String ver = MetaDataObjectHeadReader.readMetaDataObjectVersion(mainCfg);
     SchemaVersion mainSchema = SupportedSchemaVersions.requireSupported(ver);
     String verFlag = MetaDataObjectHeadReader.toSchemaVersionFlag(ver);
     List<ProjectMetadataTreeDto.MetadataSourceDto> sources = new ArrayList<>();
     sources.add(buildMainSource(normalized, mainCf, mainCfg, ver, mainSchema));
-    Path cfeRoot = dirs.cfePath(normalized);
-    if (Files.isDirectory(cfeRoot)) {
-      try (var stream = Files.list(cfeRoot)) {
-        List<Path> extDirs = stream.filter(Files::isDirectory).sorted().collect(Collectors.toList());
-        for (Path extDir : extDirs) {
-          Path extCfg = extDir.resolve(CfLayout.CONFIGURATION_XML);
-          if (Files.isRegularFile(extCfg)) {
-            sources.add(buildExtensionSource(normalized, extDir, extCfg));
-          }
-        }
+    for (Path extDir : dirs.extensionDirs(normalized)) {
+      Path extCfg = extDir.resolve(CfLayout.CONFIGURATION_XML);
+      if (Files.isRegularFile(extCfg)) {
+        sources.add(buildExtensionSource(normalized, extDir, extCfg));
       }
     }
     appendExternalArtifactSources(normalized, dirs, sources);
@@ -78,6 +87,22 @@ public final class ProjectMetadataTreeBuilder {
   }
 
   private static ProjectMetadataTreeDto.MetadataSourceDto buildMainSource(
+    Path projectRoot,
+    Path cfRoot,
+    Path configurationXml,
+    String schemaVersion,
+    SchemaVersion schema
+  ) throws IOException {
+    // Подписи узлов идут на языке этой конфигурации
+    try {
+      return ConfigurationLanguage.with(configurationXml, () ->
+        buildMainSourceInLanguage(projectRoot, cfRoot, configurationXml, schemaVersion, schema));
+    } catch (jakarta.xml.bind.JAXBException error) {
+      throw new IOException(error);
+    }
+  }
+
+  private static ProjectMetadataTreeDto.MetadataSourceDto buildMainSourceInLanguage(
     Path projectRoot,
     Path cfRoot,
     Path configurationXml,
@@ -258,21 +283,26 @@ public final class ProjectMetadataTreeBuilder {
     boolean readBelonging,
     SupportRules.Rules supportRules
   ) {
+    // Шапка объекта читается один раз: из неё и принадлежность, и синоним, и режим поддержки
+    ObjectHead.Head head = relativePath == null || relativePath.isEmpty()
+        ? ObjectHead.Head.EMPTY
+        : ObjectHead.read(projectRoot.resolve(relativePath));
     return new ProjectMetadataTreeDto.MetadataItemDto(
       objectType,
       name,
       relativePath,
-      belonging(projectRoot, relativePath, readBelonging),
-      supportState(projectRoot, relativePath, supportRules),
+      readBelonging ? head.objectBelonging() : null,
+      supportState(head, supportRules),
+      LocalStrings.pick(head.synonym()),
       MdObjectOpen.resolve(objectType, projectRoot, relativePath));
   }
 
   /** Режим поддержки объекта по правилам поставщика; пусто без правил или записи. */
-  private static String supportState(Path projectRoot, String relativePath, SupportRules.Rules rules) {
-    if (rules == null || rules.isEmpty() || relativePath == null || relativePath.isEmpty()) {
+  private static String supportState(ObjectHead.Head head, SupportRules.Rules rules) {
+    if (rules == null || rules.isEmpty()) {
       return null;
     }
-    return rules.effectiveState(ObjectBelongingReader.readRootUuid(projectRoot.resolve(relativePath)));
+    return rules.effectiveState(head.uuid());
   }
 
   private static String relativePathForItem(
@@ -295,13 +325,17 @@ public final class ProjectMetadataTreeBuilder {
     ProjectSourceDirs dirs,
     List<ProjectMetadataTreeDto.MetadataSourceDto> sources
   ) throws IOException {
-    List<ExternalArtifactLister.ExternalArtifactEntry> erf =
-      ExternalArtifactLister.listArtifacts(projectRoot, dirs.erfPath(projectRoot));
+    List<Path> erfDirs = dirs.explicitErfDirs(projectRoot);
+    List<ExternalArtifactLister.ExternalArtifactEntry> erf = erfDirs == null
+      ? ExternalArtifactLister.listArtifacts(projectRoot, dirs.erfPath(projectRoot))
+      : ExternalArtifactLister.artifactsAt(projectRoot, erfDirs);
     if (!erf.isEmpty()) {
       sources.add(buildExternalErfSource(erf, relativeOrAbsolute(projectRoot, dirs.erfPath(projectRoot))));
     }
-    List<ExternalArtifactLister.ExternalArtifactEntry> epf =
-      ExternalArtifactLister.listArtifacts(projectRoot, dirs.epfPath(projectRoot));
+    List<Path> epfDirs = dirs.explicitEpfDirs(projectRoot);
+    List<ExternalArtifactLister.ExternalArtifactEntry> epf = epfDirs == null
+      ? ExternalArtifactLister.listArtifacts(projectRoot, dirs.epfPath(projectRoot))
+      : ExternalArtifactLister.artifactsAt(projectRoot, epfDirs);
     if (!epf.isEmpty()) {
       sources.add(buildExternalEpfSource(epf, relativeOrAbsolute(projectRoot, dirs.epfPath(projectRoot))));
     }
@@ -313,7 +347,7 @@ public final class ProjectMetadataTreeBuilder {
   ) {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
-      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalReport", e.name(), e.relativePath(), null, null, null));
+      items.add(new ProjectMetadataTreeDto.MetadataItemDto("ExternalReport", e.name(), e.relativePath(), null, null, null, null));
     }
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = List.of(
       new ProjectMetadataTreeDto.MetadataGroupDto("content", "", "report", items, List.of())
@@ -340,7 +374,7 @@ public final class ProjectMetadataTreeBuilder {
     List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
     for (ExternalArtifactLister.ExternalArtifactEntry e : entries) {
       items.add(new ProjectMetadataTreeDto.MetadataItemDto(
-        "ExternalDataProcessor", e.name(), e.relativePath(), null, null, null));
+        "ExternalDataProcessor", e.name(), e.relativePath(), null, null, null, null));
     }
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups = List.of(
       new ProjectMetadataTreeDto.MetadataGroupDto("content", "", "run-below", items, List.of())

@@ -36,6 +36,10 @@ class UnknownEnumValuesTest {
     assertThat(UnknownEnumValues.constantName("Version8_5_1")).isEqualTo("VERSION_8_5_1");
     assertThat(UnknownEnumValues.constantName("TaxiEnableVersion8_2")).isEqualTo("TAXI_ENABLE_VERSION_8_2");
     assertThat(UnknownEnumValues.constantName("Adopted")).isEqualTo("ADOPTED");
+    // Аббревиатура остаётся словом целиком, а не рассыпается по буквам
+    assertThat(UnknownEnumValues.constantName("HTMLDocument")).isEqualTo("HTML_DOCUMENT");
+    assertThat(UnknownEnumValues.constantName("AddIn")).isEqualTo("ADD_IN");
+    assertThat(UnknownEnumValues.constantName("XDTOPackage")).isEqualTo("XDTO_PACKAGE");
     assertThat(UnknownEnumValues.constantName("")).isEmpty();
   }
 

@@ -78,7 +78,7 @@ class ProjectMetadataGraphBuilderTest {
   void demoCatalogHasOwnerAndSubsystemMembership() {
     var demoBank = nodeByKey("Catalog._ДемоБанковскиеСчета");
     assertThat(demoBank.objectType()).isEqualTo("Catalog");
-    assertThat(demoBank.synonymRu()).contains("Банковские счета");
+    assertThat(demoBank.synonym()).contains("Банковские счета");
     var ownersEdges = edgesFrom("Catalog._ДемоБанковскиеСчета", RelationKind.CATALOG_OWNERS);
     assertThat(ownersEdges)
       .extracting(ProjectMetadataGraphDto.EdgeDto::targetKey)

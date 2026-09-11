@@ -21,7 +21,7 @@ class WriteProbeTest {
     Files.copy(src, copy, StandardCopyOption.REPLACE_EXISTING);
     MdObjectPropertiesDto baseline = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20);
-    dto.synonymRu = "Новый синоним";
+    dto.synonym = "Новый синоним";
     List<MdObjectPropertiesLeafDiff.GranularPatchChange> changes =
       MdObjectPropertiesLeafDiff.computePropertyChanges(baseline, dto);
     System.out.println("PROBE kind=" + baseline.kind + " changes=" + changes.size());

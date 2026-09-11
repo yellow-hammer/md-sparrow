@@ -29,7 +29,8 @@ public final class MdCommonAttributePropertiesDto {
   public String indexing;
   public String fullTextSearch;
   public String dataHistory;
-  public String toolTipRu;
+  @LocalString
+  public String toolTip;
   public boolean passwordMode;
   public boolean multiLine;
   public String mask;

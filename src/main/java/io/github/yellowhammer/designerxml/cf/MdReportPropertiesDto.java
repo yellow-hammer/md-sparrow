@@ -25,8 +25,10 @@ public final class MdReportPropertiesDto {
   public String objectModule;
   public String managerModule;
   public boolean includeHelpInContents;
-  public String extendedPresentationRu;
-  public String explanationRu;
+  @LocalString
+  public String extendedPresentation;
+  @LocalString
+  public String explanation;
 
   // Только отчёт
   /** Основная схема компоновки данных. */

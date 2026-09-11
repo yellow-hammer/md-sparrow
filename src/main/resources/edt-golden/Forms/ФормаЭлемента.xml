@@ -1,0 +1,9 @@
+  <forms uuid="171f1bbc-4964-3c7a-ba1e-dc373401969f">
+    <name>ФормаЭлемента</name>
+    <synonym>
+      <key>ru</key>
+      <value>ФормаЭлемента</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>

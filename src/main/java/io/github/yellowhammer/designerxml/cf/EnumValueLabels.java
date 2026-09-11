@@ -32,7 +32,12 @@ public final class EnumValueLabels {
 
   /** Свойства, у которых значение называется не так, как везде: {@code блок.свойство} -> подписи. */
   private static final Map<String, Map<String, String>> BY_PROPERTY = Map.of(
-    "chartOfCalculationTypes.dependenceOnCalculationTypes", Map.of("DONT_USE", "Не зависит")
+    "chartOfCalculationTypes.dependenceOnCalculationTypes", Map.of("DONT_USE", "Не зависит"),
+    "configuration.usePurposes", Map.of(
+      "PLATFORM_APPLICATION", "Персональный компьютер",
+      "MOBILE_PLATFORM_APPLICATION", "Мобильное устройство",
+      "PERSONAL_COMPUTER", "Персональный компьютер",
+      "MOBILE_DEVICE", "Мобильное устройство")
   );
 
   /**

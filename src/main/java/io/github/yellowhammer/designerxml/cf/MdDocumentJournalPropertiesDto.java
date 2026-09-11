@@ -26,9 +26,12 @@ public final class MdDocumentJournalPropertiesDto {
   public String managerModule;
   public boolean includeHelpInContents;
   public String standardAttributesXml;
-  public String listPresentationRu;
-  public String extendedListPresentationRu;
-  public String explanationRu;
+  @LocalString
+  public String listPresentation;
+  @LocalString
+  public String extendedListPresentation;
+  @LocalString
+  public String explanation;
   public String additionalIndexes;
   /** Регистрируемые документы: ссылки вида {@code Document.ИмяДокумента}. */
   public List<String> registeredDocuments;
