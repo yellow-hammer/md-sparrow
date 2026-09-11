@@ -36,11 +36,26 @@ public final class CfTreeDelete {
     if (!Files.isDirectory(cfRoot)) {
       throw new IllegalArgumentException("Ожидается каталог выгрузки: " + cfRoot);
     }
+    if (belongsToEdtProject(cfRoot)) {
+      throw new IllegalArgumentException(
+        "Каталог принадлежит проекту 1С:EDT, выгрузка конфигуратора туда не пишется: " + cfRoot);
+    }
     try (Stream<Path> stream = Files.list(cfRoot)) {
       for (Path child : stream.toList()) {
         deleteRecursively(child);
       }
     }
+  }
+
+  /**
+   * Каталог проекта 1С:EDT или его {@code src}: у выгрузки конфигуратора ни описания
+   * {@code Configuration/Configuration.mdo}, ни файлов проекта не бывает.
+   */
+  private static boolean belongsToEdtProject(Path directory) {
+    Path parent = directory.getParent();
+    return Files.isRegularFile(directory.resolve("Configuration").resolve("Configuration.mdo"))
+      || Files.isRegularFile(directory.resolve(".project"))
+      || (parent != null && Files.isRegularFile(parent.resolve(".project")));
   }
 
   private static void deleteRecursively(Path path) throws IOException {
