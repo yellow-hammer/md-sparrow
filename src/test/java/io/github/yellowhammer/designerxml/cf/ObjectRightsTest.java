@@ -233,6 +233,14 @@ class ObjectRightsTest {
       .isInstanceOf(IllegalArgumentException.class);
   }
 
+  /** Стандартный реквизит берёт идентификатор владельца, даже если владельца ещё не спрашивали. */
+  @Test
+  void resolvesStandardAttributeBeforeItsOwner() {
+    ObjectRights.UuidOrder order = new ObjectRights.UuidOrder(FIXTURE.resolve("cf"));
+
+    assertThat(order.uuid("Catalog.Товары.StandardAttribute.Code")).isEqualTo("93b87574-f379-39e5-94a8-c258efd2a608");
+  }
+
   /** Место нового блока ищется по идентификаторам: на всех ролях выгрузки ssl31 они идут по порядку. */
   @Test
   void blocksOfSsl31RolesGoInOrderOfIdentifiers() throws Exception {

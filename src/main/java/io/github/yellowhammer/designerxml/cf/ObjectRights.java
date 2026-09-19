@@ -483,7 +483,12 @@ public final class ObjectRights {
     }
 
     String uuid(String object) {
-      return known.computeIfAbsent(object, this::resolve);
+      if (known.containsKey(object)) {
+        return known.get(object);
+      }
+      String value = resolve(object);
+      known.put(object, value);
+      return value;
     }
 
     private String resolve(String object) {
