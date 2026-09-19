@@ -10,6 +10,7 @@ package io.github.yellowhammer.designerxml.cf;
 
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtObjectReader;
+import io.github.yellowhammer.edt.EdtSupportRules;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -51,8 +52,8 @@ public final class ObjectRights {
     public List<String> rights = new ArrayList<>();
     /** Право -> права, которые платформа выдаёт вместе с ним. */
     public Map<String, List<String>> requires = new LinkedHashMap<>();
+    /** У вида объекта есть права в ролях. */
     public boolean editable;
-    public String readonlyReason;
     public List<RoleDto> roles = new ArrayList<>();
   }
 
@@ -99,17 +100,16 @@ public final class ObjectRights {
       out.rights = kind.rights();
       out.requires = kind.requires();
     }
-    out.editable = !target.edt() && kind != null;
-    if (target.edt()) {
-      out.readonlyReason = "В проекте 1С:EDT права можно только посмотреть.";
-    }
+    out.editable = kind != null;
+    RoleLocks locks = new RoleLocks(target);
     for (Path roleFile : roleFiles(target)) {
-      out.roles.add(roleRights(target, kind, roleFile));
+      out.roles.add(roleRights(target, kind, roleFile, locks));
     }
     return out;
   }
 
-  private static RoleDto roleRights(Target target, RoleRightsCatalog.Kind kind, Path roleFile) throws IOException {
+  private static RoleDto roleRights(Target target, RoleRightsCatalog.Kind kind, Path roleFile, RoleLocks locks)
+      throws IOException {
     RoleDto role = new RoleDto();
     role.name = stem(roleFile);
     role.synonym = synonym(roleFile, target.edt());
@@ -141,9 +141,7 @@ public final class ObjectRights {
         role.restrictions.put(right, RightsText.restrictions(stored.tail()));
       }
     }
-    if (!target.edt()) {
-      role.readonlyReason = roleLock(roleFile);
-    }
+    role.readonlyReason = locks.of(roleFile);
     return role;
   }
 
@@ -156,9 +154,6 @@ public final class ObjectRights {
    */
   public static void apply(Path objectFile, List<Edit> edits) throws IOException {
     Target target = target(objectFile);
-    if (target.edt()) {
-      throw new IllegalArgumentException("Правка прав в проекте 1С:EDT не поддержана.");
-    }
     RoleRightsCatalog.Kind kind = RoleRightsCatalog.kind(target.kind());
     if (kind == null) {
       throw new IllegalArgumentException("У объекта вида " + target.kind() + " нет прав в ролях.");
@@ -174,19 +169,20 @@ public final class ObjectRights {
       byRole.computeIfAbsent(edit.role, key -> new ArrayList<>()).add(edit);
     }
     Path rolesDir = target.sourceRoot().resolve(ROLES);
-    UuidOrder order = new UuidOrder(target.sourceRoot());
+    UuidOrder order = new UuidOrder(target.sourceRoot(), target.edt());
+    RoleLocks locks = new RoleLocks(target);
     Map<Path, String> updates = new LinkedHashMap<>();
     for (Map.Entry<String, List<Edit>> entry : byRole.entrySet()) {
       String role = entry.getKey();
-      Path roleFile = rolesDir.resolve(role + ".xml");
+      Path roleFile = target.edt() ? rolesDir.resolve(role).resolve(role + ".mdo") : rolesDir.resolve(role + ".xml");
       if (!Files.isRegularFile(roleFile)) {
         throw new IllegalArgumentException("Нет роли " + role + ".");
       }
-      String lock = roleLock(roleFile);
+      String lock = locks.of(roleFile);
       if (lock != null) {
         throw new IllegalStateException(lock);
       }
-      Path file = rightsFile(roleFile, false);
+      Path file = rightsFile(roleFile, target.edt());
       if (!Files.isRegularFile(file)) {
         throw new IllegalArgumentException("У роли " + role + " нет файла прав: " + file);
       }
@@ -374,16 +370,40 @@ public final class ObjectRights {
     return edt ? roleFile.getParent().resolve(EDT_RIGHTS) : RoleRightsFile.rightsPath(roleFile);
   }
 
-  /** Почему права роли не правятся: роль на поддержке без изменения или правила поддержки не разобраны. */
-  private static String roleLock(Path roleFile) throws IOException {
-    try {
-      SupportRules.ensureEditable(roleFile);
-      return null;
-    } catch (IllegalStateException e) {
-      if (!"locked".equals(SupportRules.objectState(roleFile))) {
-        return e.getMessage();
+  /**
+   * Почему права роли не правятся: роль на поддержке без изменения или правила поддержки не разобраны.
+   * Правила поставки проекта EDT читаются один раз на все роли запроса.
+   */
+  private static final class RoleLocks {
+
+    private final boolean edt;
+    private final EdtSupportRules.Rules edtRules;
+
+    RoleLocks(Target target) throws IOException {
+      edt = target.edt();
+      edtRules = edt && SupportRules.isEnforced() && EdtSupportRules.present(target.sourceRoot())
+        ? EdtSupportRules.read(target.sourceRoot())
+        : null;
+    }
+
+    String of(Path roleFile) throws IOException {
+      if (edt) {
+        return edtRules != null && "locked".equals(edtRules.effectiveState(EdtSupportRules.rootUuid(roleFile)))
+          ? lockedRole(roleFile, edtRules.vendor)
+          : null;
       }
-      return "Роль " + stem(roleFile) + " на поддержке поставщика «" + SupportRules.rulesFor(roleFile).vendor
+      try {
+        SupportRules.ensureEditable(roleFile);
+        return null;
+      } catch (IllegalStateException e) {
+        return "locked".equals(SupportRules.objectState(roleFile))
+          ? lockedRole(roleFile, SupportRules.rulesFor(roleFile).vendor)
+          : e.getMessage();
+      }
+    }
+
+    private static String lockedRole(Path roleFile, String vendor) {
+      return "Роль " + stem(roleFile) + " на поддержке поставщика «" + vendor
         + "» без возможности изменения. Включите возможность изменения или снимите роль с поддержки.";
     }
   }
@@ -419,10 +439,16 @@ public final class ObjectRights {
       "<(\\w+) uuid=\"([^\"]+)\">\\s*<Properties>\\s*<Name>([^<]+)</Name>");
 
     private final Path root;
+    private final boolean edt;
     private final Map<String, String> known = new HashMap<>();
 
-    UuidOrder(Path root) {
+    /**
+     * @param root корень выгрузки или каталог {@code src} проекта EDT
+     * @param edt проект EDT
+     */
+    UuidOrder(Path root, boolean edt) {
       this.root = root;
+      this.edt = edt;
     }
 
     int insertionPoint(String text, String object) {
@@ -497,54 +523,104 @@ public final class ObjectRights {
         if (parts.length < 2) {
           return null;
         }
-        if ("Configuration".equals(parts[0])) {
-          return head(root.resolve("Configuration.xml"));
-        }
         if (parts.length >= 4 && "StandardAttribute".equals(parts[parts.length - 2])) {
           return uuid(String.join(".", Arrays.copyOf(parts, parts.length - 2)));
         }
-        String directory = CfObjectPathResolver.subdirsByType().get(parts[0]);
-        if (directory == null) {
-          return null;
-        }
-        Path file = root.resolve(directory).resolve(parts[1] + ".xml");
-        String owner = parts[1];
-        String region = null;
-        String found = null;
-        for (int index = 2; index + 1 < parts.length; index += 2) {
-          // Подсистемы, перерасчёты, таблицы лежат своими файлами в каталоге владельца
-          Path own = file.resolveSibling(owner).resolve(parts[index] + "s").resolve(parts[index + 1] + ".xml");
-          if (Files.isRegularFile(own)) {
-            file = own;
-            owner = parts[index + 1];
-            region = null;
-            found = null;
-            continue;
-          }
-          if (region == null) {
-            if (!Files.isRegularFile(file)) {
-              return null;
-            }
-            region = Files.readString(file, StandardCharsets.UTF_8);
-          }
-          Matcher matcher = CHILD_HEAD.matcher(region);
-          found = null;
-          while (matcher.find()) {
-            if (matcher.group(1).equals(parts[index]) && matcher.group(3).equals(parts[index + 1])) {
-              found = matcher.group(2).toLowerCase(Locale.ROOT);
-              int close = region.indexOf("</" + parts[index] + ">", matcher.end());
-              region = region.substring(matcher.start(), close < 0 ? region.length() : close);
-              break;
-            }
-          }
-          if (found == null) {
-            return null;
-          }
-        }
-        return found != null ? found : head(file);
+        return edt ? edtUuid(parts) : designerUuid(parts);
       } catch (IOException | RuntimeException e) {
         return null;
       }
+    }
+
+    private String designerUuid(String[] parts) throws IOException {
+      if ("Configuration".equals(parts[0])) {
+        return head(root.resolve("Configuration.xml"));
+      }
+      String directory = CfObjectPathResolver.subdirsByType().get(parts[0]);
+      if (directory == null) {
+        return null;
+      }
+      Path file = root.resolve(directory).resolve(parts[1] + ".xml");
+      String owner = parts[1];
+      String region = null;
+      String found = null;
+      for (int index = 2; index + 1 < parts.length; index += 2) {
+        // Подсистемы, перерасчёты, таблицы лежат своими файлами в каталоге владельца
+        Path own = file.resolveSibling(owner).resolve(parts[index] + "s").resolve(parts[index + 1] + ".xml");
+        if (Files.isRegularFile(own)) {
+          file = own;
+          owner = parts[index + 1];
+          region = null;
+          found = null;
+          continue;
+        }
+        if (region == null) {
+          if (!Files.isRegularFile(file)) {
+            return null;
+          }
+          region = Files.readString(file, StandardCharsets.UTF_8);
+        }
+        Matcher matcher = CHILD_HEAD.matcher(region);
+        found = null;
+        while (matcher.find()) {
+          if (matcher.group(1).equals(parts[index]) && matcher.group(3).equals(parts[index + 1])) {
+            found = matcher.group(2).toLowerCase(Locale.ROOT);
+            int close = region.indexOf("</" + parts[index] + ">", matcher.end());
+            region = region.substring(matcher.start(), close < 0 ? region.length() : close);
+            break;
+          }
+        }
+        if (found == null) {
+          return null;
+        }
+      }
+      return found != null ? found : head(file);
+    }
+
+    /**
+     * Идентификатор узла проекта EDT: вложенная подсистема лежит своим каталогом,
+     * реквизиты, команды, перерасчёты и прочие узлы записаны в описании владельца
+     * элементами {@code attributes}, {@code commands}, {@code recalculations}.
+     */
+    private String edtUuid(String[] parts) throws IOException {
+      Path file = "Configuration".equals(parts[0])
+        ? root.resolve(EdtLayout.CONFIGURATION_MDO)
+        : edtObjectFile(parts[0], parts[1]);
+      if (file == null) {
+        return null;
+      }
+      EdtObjectReader.EdtNode node = null;
+      for (int index = 2; index + 1 < parts.length; index += 2) {
+        Path own = file.resolveSibling(parts[index] + "s").resolve(parts[index + 1]).resolve(parts[index + 1] + ".mdo");
+        if (node == null && Files.isRegularFile(own)) {
+          file = own;
+          continue;
+        }
+        if (node == null) {
+          node = EdtObjectReader.read(file);
+        }
+        node = edtChild(node, parts[index], parts[index + 1]);
+        if (node == null) {
+          return null;
+        }
+      }
+      String value = node != null ? node.uuid() : EdtSupportRules.rootUuid(file);
+      return value == null || value.isEmpty() ? null : value.toLowerCase(Locale.ROOT);
+    }
+
+    private Path edtObjectFile(String type, String name) {
+      String directory = CfObjectPathResolver.subdirsByType().get(type);
+      return directory == null ? null : root.resolve(directory).resolve(name).resolve(name + ".mdo");
+    }
+
+    private static EdtObjectReader.EdtNode edtChild(EdtObjectReader.EdtNode owner, String type, String name) {
+      String kind = type + "s";
+      for (EdtObjectReader.EdtNode child : owner.children()) {
+        if (child.kind().equalsIgnoreCase(kind) && child.name().equals(name)) {
+          return child;
+        }
+      }
+      return null;
     }
 
     private static String head(Path file) {

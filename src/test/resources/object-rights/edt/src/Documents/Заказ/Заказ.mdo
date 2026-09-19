@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Document xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="06eb8487-f353-381c-9cda-ccdcd07fc645">
+  <producedTypes>
+    <objectType typeId="f4cb6d7a-20fc-3578-bbee-06c3ad1c0bd8" valueTypeId="f3cd2eb8-c60a-3d57-9dde-c3c7eeb94865"/>
+    <refType typeId="f84a07eb-dcaf-355f-80a8-ed4dcd48db60" valueTypeId="04cc03f6-019c-392f-ae57-ec2e11e0b6a4"/>
+    <selectionType typeId="f9a4de4b-9246-39a2-9b11-fc86715db2cf" valueTypeId="8beea144-ff50-3ec0-b04e-f87aa2cc4361"/>
+    <listType typeId="1222cb58-1bf0-3275-9082-94c5f35380a5" valueTypeId="e9744bea-56bf-34db-9377-60eed16152ed"/>
+    <managerType typeId="0a257e68-8bd1-366c-9183-ec452a73092d" valueTypeId="717c2673-3825-31ee-8ce5-0c92f23b45f3"/>
+  </producedTypes>
+  <name>Заказ</name>
+  <useStandardCommands>true</useStandardCommands>
+  <inputByString>Document.Заказ.StandardAttribute.Number</inputByString>
+  <fullTextSearchOnInputByString>DontUse</fullTextSearchOnInputByString>
+  <createOnInput>Use</createOnInput>
+  <dataLockControlMode>Managed</dataLockControlMode>
+  <fullTextSearch>Use</fullTextSearch>
+  <numberType>String</numberType>
+  <numberLength>9</numberLength>
+  <numberAllowedLength>Variable</numberAllowedLength>
+  <checkUnique>true</checkUnique>
+  <autonumbering>true</autonumbering>
+  <postInPrivilegedMode>true</postInPrivilegedMode>
+  <unpostInPrivilegedMode>true</unpostInPrivilegedMode>
+</mdclass:Document>

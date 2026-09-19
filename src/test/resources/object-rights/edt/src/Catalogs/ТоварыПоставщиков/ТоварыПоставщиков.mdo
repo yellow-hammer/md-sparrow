@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Catalog xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="dc5b75a4-e76d-3b4f-b09b-dbb6dcb42915">
+  <producedTypes>
+    <objectType typeId="c169146f-ac68-3177-8647-06a286903042" valueTypeId="7c7c78f2-9cf9-37ff-876a-0b662991878b"/>
+    <refType typeId="c8fdd90d-9241-3af3-8aab-2a622351c46c" valueTypeId="dc8a1021-41e8-3ad4-8646-0b99c0dc4e44"/>
+    <selectionType typeId="709c1b2c-878d-3a4e-b3fe-e08c9b2d0995" valueTypeId="27c5f0b9-803a-3d98-bc25-036e26324042"/>
+    <listType typeId="b7c0deaf-ed79-33f0-adf7-dba081be9e68" valueTypeId="732753ed-1870-34c9-9c18-fe505df59384"/>
+    <managerType typeId="ab8b7840-edd3-3ef3-8b9f-0a8a43e10e76" valueTypeId="fbada439-cc1b-3479-91a0-5b863ebdc0c0"/>
+  </producedTypes>
+  <name>ТоварыПоставщиков</name>
+  <synonym>
+    <key>ru</key>
+    <value>ТоварыПоставщиков</value>
+  </synonym>
+  <useStandardCommands>true</useStandardCommands>
+  <inputByString>Catalog.ТоварыПоставщиков.StandardAttribute.Description</inputByString>
+  <inputByString>Catalog.ТоварыПоставщиков.StandardAttribute.Code</inputByString>
+  <fullTextSearchOnInputByString>DontUse</fullTextSearchOnInputByString>
+  <createOnInput>Use</createOnInput>
+  <dataLockControlMode>Managed</dataLockControlMode>
+  <fullTextSearch>Use</fullTextSearch>
+  <objectPresentation>
+    <key>ru</key>
+    <value>ТоварыПоставщиков</value>
+  </objectPresentation>
+  <extendedObjectPresentation>
+    <key>ru</key>
+    <value>ТоварыПоставщиков</value>
+  </extendedObjectPresentation>
+  <listPresentation>
+    <key>ru</key>
+    <value>ТоварыПоставщиков</value>
+  </listPresentation>
+  <extendedListPresentation>
+    <key>ru</key>
+    <value>ТоварыПоставщиков</value>
+  </extendedListPresentation>
+  <explanation>
+    <key>ru</key>
+    <value>ТоварыПоставщиков</value>
+  </explanation>
+  <levelCount>2</levelCount>
+  <foldersOnTop>true</foldersOnTop>
+  <codeLength>9</codeLength>
+  <descriptionLength>25</descriptionLength>
+  <codeType>String</codeType>
+  <codeAllowedLength>Variable</codeAllowedLength>
+  <checkUnique>true</checkUnique>
+  <autonumbering>true</autonumbering>
+  <defaultPresentation>AsDescription</defaultPresentation>
+  <editType>InDialog</editType>
+  <choiceMode>BothWays</choiceMode>
+</mdclass:Catalog>

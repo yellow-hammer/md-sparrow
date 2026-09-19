@@ -144,6 +144,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
     "cf-md-object-set",
     "cf-configuration-properties-set",
     "cf-role-rights-set",
+    "cf-object-rights-set",
     "cf-md-object-rename",
     "cf-md-object-delete",
     "cf-md-object-duplicate",
@@ -231,6 +232,10 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
     if (!EdtLayout.isObjectFile(p.objectXml)) {
       return null;
+    }
+    // Права лежат в файлах ролей: запрет поставщика проверяется у каждой роли
+    if ("cf-object-rights-set".equals(p.op)) {
+      return applyObjectRights(p);
     }
     refuseLockedEdt(p);
     switch (p.op) {
@@ -355,6 +360,13 @@ final class ApplyMutationCmd implements Callable<Integer> {
       throw new IllegalArgumentException(
         "Правка \"" + p.op + "\" в формате 1С:EDT пока не поддержана.");
     }
+  }
+
+  /** Правки прав ролей на объект, payload: {"edits":[{role,right,value}...]}. */
+  private static String applyObjectRights(CliParams p) throws IOException {
+    ObjectRightsPayload payload = new Gson().fromJson(p.req(p.payloadJson, "payloadJson"), ObjectRightsPayload.class);
+    ObjectRights.apply(p.reqPath(p.objectXml, "objectXml"), payload == null ? null : payload.edits);
+    return "OK";
   }
 
   /** Режим поддержки из name: 0 запретить, 1 разрешить, 2 снять с поддержки. */
@@ -529,13 +541,8 @@ final class ApplyMutationCmd implements Callable<Integer> {
         }
         return "OK";
       }
-      case "cf-object-rights-set": {
-        // payload: {"edits":[{role,right,value}...]}
-        ObjectRightsPayload payload = new Gson().fromJson(
-          p.req(p.payloadJson, "payloadJson"), ObjectRightsPayload.class);
-        ObjectRights.apply(p.reqPath(p.objectXml, "objectXml"), payload == null ? null : payload.edits);
-        return "OK";
-      }
+      case "cf-object-rights-set":
+        return applyObjectRights(p);
       case "cf-support-object-mode-set": {
         // Режим в name: "0" запретить, "1" разрешить, "2" снять с поддержки;
         // tag = "children" распространяет режим на подчинённые объекту субъекты

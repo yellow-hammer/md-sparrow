@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Rights xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://v8.1c.ru/8.2/roles" xsi:type="Rights">
+	<setForNewObjects>false</setForNewObjects>
+	<setForAttributesByDefault>true</setForAttributesByDefault>
+	<independentRightsOfChildObjects>false</independentRightsOfChildObjects>
+	<object>
+		<name>Document.Заказ</name>
+		<right>
+			<name>Insert</name>
+			<value>false</value>
+			<restrictionByCondition>
+				<condition>ГДЕ ЛОЖЬ</condition>
+			</restrictionByCondition>
+		</right>
+	</object>
+	<object>
+		<name>Catalog.Товары.Attribute.Цена</name>
+		<right>
+			<name>View</name>
+			<value>false</value>
+		</right>
+		<right>
+			<name>Edit</name>
+			<value>false</value>
+		</right>
+	</object>
+	<object>
+		<name>Configuration.Склад</name>
+		<right>
+			<name>ThinClient</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>Catalog.Товары</name>
+		<right>
+			<name>Read</name>
+			<value>false</value>
+			<restrictionByCondition>
+				<condition>#Если &amp;ОграничениеПоСкладу #Тогда
+#ПоЗначениям("Справочник.Товары", "", "", "Склады", "Склад")
+#КонецЕсли</condition>
+			</restrictionByCondition>
+			<restrictionByCondition>
+				<field>Цена</field>
+				<condition>ГДЕ ЛОЖЬ</condition>
+			</restrictionByCondition>
+		</right>
+	</object>
+	<object>
+		<name>Catalog.Склады</name>
+		<right>
+			<name>Read</name>
+			<value>true</value>
+		</right>
+		<right>
+			<name>View</name>
+			<value>true</value>
+		</right>
+	</object>
+	<object>
+		<name>Catalog.ТоварыПоставщиков</name>
+		<right>
+			<name>Read</name>
+			<value>true</value>
+		</right>
+	</object>
+	<restrictionTemplate>
+		<name>ПоЗначениям(Таблица, Поле)</name>
+		<condition>ГДЕ ИСТИНА</condition>
+	</restrictionTemplate>
+</Rights>
