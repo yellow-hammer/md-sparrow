@@ -83,6 +83,10 @@ public final class MdObjectAdd {
     String text = LocalStringElement.retarget(
       generateObjectXml(type, name, version, catalogSynonymRu, catalogSynonymEmpty),
       ConfigurationLanguage.codeOf(configurationXml));
+    text = DistinctUuidRewrite.remapDeterministic(
+      text,
+      GoldenUuid.from("add|" + version.name() + "|" + type + "|" + name,
+        Files.readString(configurationXml, StandardCharsets.UTF_8)));
     Files.createDirectories(out.getParent());
     Files.writeString(out, text, StandardCharsets.UTF_8);
     if (type.roleWithExtRights()) {
