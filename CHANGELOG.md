@@ -5,6 +5,18 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.6.1] - 2026-09-21
+
+
+### Исправления
+
+- **metadata:** Обновить GeneratedType при переименовании объекта
+
+- **metadata:** Не менять дочерние имена GeneratedType
+
+- **metadata:** Выдавать новые UUID при создании объекта
+
+
 ## [0.6.0] - 2026-09-20
 
 
