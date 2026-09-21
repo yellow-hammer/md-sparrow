@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document xmlns="http://v8.1c.ru/8.2/data/spreadsheet" xmlns:v8="http://v8.1c.ru/8.1/data/core">
+	<rowsItem>
+		<index>2</index>
+		<row>
+			<c>
+				<c>
+					<f>1</f>
+					<tl><v8:item><v8:lang>ru</v8:lang><v8:content>Было</v8:content></v8:item></tl>
+				</c>
+			</c>
+			<c>
+				<i>3</i>
+				<c>
+					<f>2</f>
+					<parameter>Имя</parameter>
+				</c>
+			</c>
+		</row>
+	</rowsItem>
+</document>

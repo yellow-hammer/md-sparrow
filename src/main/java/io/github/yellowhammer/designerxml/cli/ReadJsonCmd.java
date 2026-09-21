@@ -28,6 +28,7 @@ import io.github.yellowhammer.designerxml.cf.EnumValueLabels;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
 import io.github.yellowhammer.designerxml.cf.DcsRead;
+import io.github.yellowhammer.designerxml.cf.SpreadsheetRead;
 import io.github.yellowhammer.designerxml.cf.ObjectRights;
 import io.github.yellowhammer.designerxml.cf.RoleRightsCatalog;
 import io.github.yellowhammer.designerxml.cf.RoleRightsFile;
@@ -167,6 +168,7 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-form-standard-commands",
     "cf-dcs-info",
     "cf-dcs-validate",
+    "cf-spreadsheet-get",
     "cf-support-object-get",
     "cf-support-get",
     "cf-support-object-states",
@@ -341,6 +343,9 @@ final class ReadJsonCmd implements Callable<Integer> {
       }
       case "cf-dcs-info": {
         return gson.toJson(DcsRead.info(p.reqPath(p.objectXml, "objectXml"), p.version()));
+      }
+      case "cf-spreadsheet-get": {
+        return gson.toJson(SpreadsheetRead.read(p.reqPath(p.objectXml, "objectXml"), p.version()));
       }
       case "cf-dcs-validate": {
         return gson.toJson(DcsRead.validate(p.reqPath(p.objectXml, "objectXml"), p.version()));

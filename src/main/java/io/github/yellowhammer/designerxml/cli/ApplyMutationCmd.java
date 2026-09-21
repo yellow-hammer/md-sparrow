@@ -33,6 +33,7 @@ import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.FormScaffold;
 import io.github.yellowhammer.designerxml.cf.SupportRules;
 import io.github.yellowhammer.designerxml.cf.DcsRead;
+import io.github.yellowhammer.designerxml.cf.SpreadsheetRead;
 import io.github.yellowhammer.designerxml.cf.RoleRightsFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
 import io.github.yellowhammer.designerxml.cf.MdContentMemberDto;
@@ -515,6 +516,17 @@ final class ApplyMutationCmd implements Callable<Integer> {
         } else {
           ExchangePlanContentFile.write(plan, p.version(), members);
         }
+        return "OK";
+      }
+      case "cf-spreadsheet-set-cell": {
+        java.util.Map<String, Object> cell = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        int row = ((Number) cell.get("row")).intValue();
+        int column = ((Number) cell.get("column")).intValue();
+        String text = cell.get("text") == null ? "" : String.valueOf(cell.get("text"));
+        boolean parameter = Boolean.TRUE.equals(cell.get("parameter"));
+        SpreadsheetRead.setCellText(p.reqPath(p.objectXml, "objectXml"), row, column, text, parameter);
         return "OK";
       }
       case "cf-dcs-set-query":
