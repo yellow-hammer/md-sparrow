@@ -24,6 +24,8 @@ public final class CfMdObjectMutations {
   /** Описание объекта: только у таких файлов копии выдаются новые идентификаторы. */
   private static final Pattern METADATA_OBJECT_ROOT = Pattern.compile(
     "\\A[\\uFEFF\\s]*(?:<\\?[^>]*\\?>\\s*)?<(?:[\\w.-]+:)?MetaDataObject[\\s>]");
+  private static final Pattern GENERATED_TYPE_NAME = Pattern.compile(
+    "(<(?:[\\w.-]+:)?GeneratedType\\b[^>]*\\bname\\s*=\\s*\")([^\"]*)(\")");
 
   private CfMdObjectMutations() {
   }
@@ -106,7 +108,10 @@ public final class CfMdObjectMutations {
       throw new IllegalArgumentException("Не найдено поле Name в XML объекта.");
     }
     String replacement = matcher.group(1) + Matcher.quoteReplacement(newName) + matcher.group(2);
-    return matcher.replaceFirst(replacement);
+    String renamed = matcher.replaceFirst(replacement);
+    Pattern nameToken = Pattern.compile("(?<=\\.)" + Pattern.quote(oldName) + "(?=\\.|$)");
+    return GENERATED_TYPE_NAME.matcher(renamed).replaceAll(match ->
+      match.group(1) + nameToken.matcher(match.group(2)).replaceAll(Matcher.quoteReplacement(newName)) + match.group(3));
   }
 
   /**
