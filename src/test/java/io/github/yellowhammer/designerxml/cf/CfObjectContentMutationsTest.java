@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -32,6 +33,7 @@ class CfObjectContentMutationsTest {
 
   private static final SchemaVersion VERSION = SchemaVersion.V2_20;
   private static final Pattern FORM_UUID = Pattern.compile("<Form uuid=\"([^\"]+)\"");
+  private static final Pattern GENERATED_TYPE_NAME = Pattern.compile("<xr:GeneratedType\\s+name=\"([^\"]+)\"");
 
   @TempDir
   Path workspace;
@@ -57,6 +59,23 @@ class CfObjectContentMutationsTest {
     assertThat(content("Заказы")).doesNotExist();
     assertThat(content("Продажи").resolve("Forms/ФормаСписка.xml")).exists();
     assertThat(content("Продажи").resolve("Ext/ManagerModule.bsl")).exists();
+  }
+
+  @Test
+  void переименованиеОбновляетИменаПорождаемыхТипов() throws Exception {
+    String oldName = "Заказы";
+    String newName = "Продажи";
+    MdObjectChildMutations.addTabularSection(objectXml, VERSION, oldName);
+    List<String> before = generatedTypeNames(objectXml);
+
+    CfMdObjectMutations.rename(configurationXml, objectXml, "Catalog", oldName, newName);
+
+    List<String> actual = generatedTypeNames(CfLayout.catalogObjectXml(cf, newName));
+    List<String> expected = before.stream()
+      .map(name -> name.replaceFirst("\\." + Pattern.quote(oldName) + "(?=\\.|$)", "." + newName))
+      .toList();
+    assertThat(actual).containsExactlyInAnyOrderElementsOf(expected);
+    assertThat(actual).contains("CatalogTabularSection." + newName + "." + oldName);
   }
 
   @Test
@@ -97,6 +116,11 @@ class CfObjectContentMutationsTest {
     Matcher uuid = FORM_UUID.matcher(xml);
     assertThat(uuid.find()).isTrue();
     return uuid.group(1);
+  }
+
+  private static List<String> generatedTypeNames(Path xmlFile) throws IOException {
+    String xml = Files.readString(xmlFile, StandardCharsets.UTF_8);
+    return GENERATED_TYPE_NAME.matcher(xml).results().map(match -> match.group(1)).toList();
   }
 
   private static void copyContent(Path source, Path target) throws IOException {
