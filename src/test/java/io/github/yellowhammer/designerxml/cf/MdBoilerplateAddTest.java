@@ -14,7 +14,11 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,6 +30,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * поэтому такие проверки тоже параметризованы.
  */
 class MdObjectAddTest {
+
+  private static final Pattern UUID_TOKEN = Pattern.compile(
+    "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+  private static final String CLASS_ID_OPEN_END = "ClassId>";
 
   @TempDir
   Path workspace;
@@ -100,6 +108,23 @@ class MdObjectAddTest {
 
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
+  void повторноеСозданиеИмениПослеПереименованияДаётНовыеИдентификаторы(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfUuid");
+    String initialName = MdObjectAdd.addWithNextAvailableName(cfg, version, MdObjectAddType.CATALOG, null, false);
+    Path initialXml = CfLayout.catalogObjectXml(cfg.getParent(), initialName);
+    String renamedName = "Склады";
+    CfMdObjectMutations.rename(cfg, initialXml, "Catalog", initialName, renamedName);
+
+    String repeatedName = MdObjectAdd.addWithNextAvailableName(cfg, version, MdObjectAddType.CATALOG, null, false);
+    Set<String> firstIdentifiers = nonClassUuids(CfLayout.catalogObjectXml(cfg.getParent(), renamedName));
+    Set<String> secondIdentifiers = nonClassUuids(CfLayout.catalogObjectXml(cfg.getParent(), repeatedName));
+
+    assertThat(repeatedName).isEqualTo(initialName);
+    assertThat(secondIdentifiers).isNotEmpty().doesNotContainAnyElementsOf(firstIdentifiers);
+  }
+
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
   void addDocumentProfileIsSnapshotLike(SchemaVersion version) throws Exception {
     Path cfg = emptyCfg(version, "cfDocument");
     String name = "Документ1";
@@ -167,5 +192,18 @@ class MdObjectAddTest {
     assertThat(xml).contains("<DefaultPresentation>AsDescription</DefaultPresentation>");
     assertThat(xml).contains("<xr:Field>Task." + name + ".StandardAttribute.Description</xr:Field>");
     assertThat(xml).contains("<FullTextSearch>Use</FullTextSearch>");
+  }
+
+  private static Set<String> nonClassUuids(Path xmlFile) throws Exception {
+    String xml = Files.readString(xmlFile);
+    Set<String> identifiers = new LinkedHashSet<>();
+    Matcher matcher = UUID_TOKEN.matcher(xml);
+    while (matcher.find()) {
+      int openEnd = matcher.start() - CLASS_ID_OPEN_END.length();
+      if (openEnd < 0 || !xml.regionMatches(openEnd, CLASS_ID_OPEN_END, 0, CLASS_ID_OPEN_END.length())) {
+        identifiers.add(matcher.group());
+      }
+    }
+    return identifiers;
   }
 }
