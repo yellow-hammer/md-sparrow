@@ -109,9 +109,10 @@ public final class CfMdObjectMutations {
     }
     String replacement = matcher.group(1) + Matcher.quoteReplacement(newName) + matcher.group(2);
     String renamed = matcher.replaceFirst(replacement);
-    Pattern nameToken = Pattern.compile("(?<=\\.)" + Pattern.quote(oldName) + "(?=\\.|$)");
+    Pattern objectNameToken = Pattern.compile("\\A([^.]+\\.)" + Pattern.quote(oldName) + "(?=\\.|$)");
     return GENERATED_TYPE_NAME.matcher(renamed).replaceAll(match ->
-      match.group(1) + nameToken.matcher(match.group(2)).replaceAll(Matcher.quoteReplacement(newName)) + match.group(3));
+      match.group(1) + objectNameToken.matcher(match.group(2))
+        .replaceFirst(token -> token.group(1) + Matcher.quoteReplacement(newName)) + match.group(3));
   }
 
   /**

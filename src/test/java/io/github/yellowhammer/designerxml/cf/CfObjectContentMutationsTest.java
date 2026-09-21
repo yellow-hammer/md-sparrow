@@ -65,16 +65,17 @@ class CfObjectContentMutationsTest {
   void переименованиеОбновляетИменаПорождаемыхТипов() throws Exception {
     String oldName = "Заказы";
     String newName = "Продажи";
+    MdObjectChildMutations.addTabularSection(objectXml, VERSION, oldName);
     List<String> before = generatedTypeNames(objectXml);
 
     CfMdObjectMutations.rename(configurationXml, objectXml, "Catalog", oldName, newName);
 
     List<String> actual = generatedTypeNames(CfLayout.catalogObjectXml(cf, newName));
     List<String> expected = before.stream()
-      .map(name -> name.replace("." + oldName, "." + newName))
+      .map(name -> name.replaceFirst("\\." + Pattern.quote(oldName) + "(?=\\.|$)", "." + newName))
       .toList();
     assertThat(actual).containsExactlyInAnyOrderElementsOf(expected);
-    assertThat(actual).noneMatch(name -> name.contains("." + oldName));
+    assertThat(actual).contains("CatalogTabularSection." + newName + "." + oldName);
   }
 
   @Test
