@@ -123,6 +123,41 @@ class MdObjectAddTest {
     assertThat(secondIdentifiers).isNotEmpty().doesNotContainAnyElementsOf(firstIdentifiers);
   }
 
+  /**
+   * Сценарий из отчётов о переименовании и повторном создании: имена порождаемых типов
+   * и поля ввода по строке переходят на новое имя, а {@code TypeId}/{@code ValueId} остаются.
+   * Второй справочник получает другие идентификаторы.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void переименованиеИВторойСправочникНеДелятИдентификаторыТипов(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfRename");
+    String initialName = MdObjectAdd.addWithNextAvailableName(cfg, version, MdObjectAddType.CATALOG, null, false);
+    Path initialXml = CfLayout.catalogObjectXml(cfg.getParent(), initialName);
+    String before = Files.readString(initialXml);
+    Set<String> typeIds = elementValues(before, "TypeId");
+    Set<String> valueIds = elementValues(before, "ValueId");
+
+    String renamedName = "Склады";
+    CfMdObjectMutations.rename(cfg, initialXml, "Catalog", initialName, renamedName);
+    String renamed = Files.readString(CfLayout.catalogObjectXml(cfg.getParent(), renamedName));
+    assertThat(elementValues(renamed, "TypeId")).isEqualTo(typeIds);
+    assertThat(elementValues(renamed, "ValueId")).isEqualTo(valueIds);
+    assertThat(generatedTypeNames(renamed)).containsExactlyInAnyOrderElementsOf(
+      MdObjectAddType.CATALOG.generatedTypeCategories().stream()
+        .map(category -> "Catalog" + category + "." + renamedName)
+        .toList());
+    assertThat(renamed).contains("<xr:Field>Catalog." + renamedName + ".StandardAttribute.Description</xr:Field>");
+    assertThat(renamed).contains("<v8:content>" + initialName + "</v8:content>");
+
+    String secondName = MdObjectAdd.addWithNextAvailableName(cfg, version, MdObjectAddType.CATALOG, null, false);
+    CfMdObjectMutations.rename(cfg, CfLayout.catalogObjectXml(cfg.getParent(), secondName), "Catalog", secondName, "Номенклатура");
+    String second = Files.readString(CfLayout.catalogObjectXml(cfg.getParent(), "Номенклатура"));
+    assertThat(elementValues(second, "TypeId")).doesNotContainAnyElementsOf(typeIds);
+    assertThat(elementValues(second, "ValueId")).doesNotContainAnyElementsOf(valueIds);
+    assertThat(generatedTypeNames(second)).contains("CatalogObject.Номенклатура", "CatalogRef.Номенклатура");
+  }
+
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
   void addDocumentProfileIsSnapshotLike(SchemaVersion version) throws Exception {
@@ -192,6 +227,21 @@ class MdObjectAddTest {
     assertThat(xml).contains("<DefaultPresentation>AsDescription</DefaultPresentation>");
     assertThat(xml).contains("<xr:Field>Task." + name + ".StandardAttribute.Description</xr:Field>");
     assertThat(xml).contains("<FullTextSearch>Use</FullTextSearch>");
+  }
+
+  private static List<String> generatedTypeNames(String xml) {
+    return Pattern.compile("<(?:[\\w.-]+:)?GeneratedType\\s+name=\"([^\"]+)\"")
+      .matcher(xml).results().map(match -> match.group(1)).toList();
+  }
+
+  private static Set<String> elementValues(String xml, String localName) {
+    Set<String> values = new LinkedHashSet<>();
+    Matcher matcher = Pattern.compile(
+      "<(?:[\\w.-]+:)?" + localName + ">([^<]*)</(?:[\\w.-]+:)?" + localName + ">").matcher(xml);
+    while (matcher.find()) {
+      values.add(matcher.group(1));
+    }
+    return values;
   }
 
   private static Set<String> nonClassUuids(Path xmlFile) throws Exception {

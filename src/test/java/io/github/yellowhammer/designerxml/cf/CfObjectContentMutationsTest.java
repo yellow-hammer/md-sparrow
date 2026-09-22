@@ -6,6 +6,7 @@
 package io.github.yellowhammer.designerxml.cf;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.yellowhammer.designerxml.SchemaVersion;
 
@@ -76,6 +77,16 @@ class CfObjectContentMutationsTest {
       .toList();
     assertThat(actual).containsExactlyInAnyOrderElementsOf(expected);
     assertThat(actual).contains("CatalogTabularSection." + newName + "." + oldName);
+  }
+
+  @Test
+  void переименованиеВЗанятоеИмяОтклоняется() throws Exception {
+    MdObjectAdd.add(configurationXml, "Продажи", VERSION, MdObjectAddType.CATALOG, null, false);
+
+    assertThatThrownBy(() -> CfMdObjectMutations.rename(configurationXml, objectXml, "Catalog", "Заказы", "Продажи"))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Справочник «Продажи» уже есть.");
+    assertThat(objectXml).exists();
   }
 
   @Test

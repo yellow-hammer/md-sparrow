@@ -58,6 +58,15 @@ public final class UiLabels {
     return SECTIONS.getOrDefault("objectKinds", Map.of());
   }
 
+  /** «Справочник «Имя» уже есть.» Вид берётся из {@link #objectKinds()}. */
+  public static String alreadyExists(String kindTag, String name) {
+    String kind = objectKinds().get(kindTag);
+    if (kind == null || kind.isBlank()) {
+      kind = "Объект";
+    }
+    return kind + " «" + name + "» уже есть.";
+  }
+
   private static Map<String, Map<String, String>> load() {
     try (InputStream stream = UiLabels.class.getResourceAsStream(RESOURCE)) {
       if (stream == null) {

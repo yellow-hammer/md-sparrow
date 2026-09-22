@@ -44,6 +44,7 @@ import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
 import io.github.yellowhammer.designerxml.cf.CatalogNameConstraints;
+import io.github.yellowhammer.designerxml.cf.UiLabels;
 import io.github.yellowhammer.designerxml.cf.ChildObjectEntry;
 import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 import io.github.yellowhammer.edt.EdtObjectRegions.Region;
@@ -114,7 +115,7 @@ public final class EdtObjectScaffold {
     Path sourceRoot = sourceRoot(configurationMdo);
     Path objectDir = sourceRoot.resolve(kind.cfSubdir()).resolve(name);
     if (Files.exists(objectDir)) {
-      throw new IllegalArgumentException("Объект уже есть: " + name);
+      throw new IllegalArgumentException(UiLabels.alreadyExists(kind.configurationXmlTag(), name));
     }
     String proto = kind.namePrefix() + "1";
     String golden = golden(kind.cfSubdir() + "/" + proto + "/" + proto + ".mdo");

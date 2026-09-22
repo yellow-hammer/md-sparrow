@@ -48,7 +48,7 @@ final class ConfigurationChildObjectMutator {
     }
     String content = Files.readString(configurationXml, StandardCharsets.UTF_8);
     if (contains(content, xmlTag, newName)) {
-      throw new IllegalArgumentException(xmlTag + " already in Configuration: " + newName);
+      throw new IllegalArgumentException(UiLabels.alreadyExists(xmlTag, newName));
     }
     Pattern linePattern = linePatternForTagAndName(xmlTag, oldName);
     Matcher matcher = linePattern.matcher(content);
