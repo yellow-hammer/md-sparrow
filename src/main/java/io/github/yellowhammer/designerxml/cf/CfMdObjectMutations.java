@@ -26,6 +26,8 @@ public final class CfMdObjectMutations {
     "\\A[\\uFEFF\\s]*(?:<\\?[^>]*\\?>\\s*)?<(?:[\\w.-]+:)?MetaDataObject[\\s>]");
   private static final Pattern GENERATED_TYPE_NAME = Pattern.compile(
     "(<(?:[\\w.-]+:)?GeneratedType\\b[^>]*\\bname\\s*=\\s*\")([^\"]*)(\")");
+  private static final Pattern FIELD_REF = Pattern.compile(
+    "(<(?:[\\w.-]+:)?Field>)([^<]*)(</(?:[\\w.-]+:)?Field>)");
 
   private CfMdObjectMutations() {
   }
@@ -52,12 +54,12 @@ public final class CfMdObjectMutations {
     }
     Path targetXml = objectXml.resolveSibling(newName + ".xml");
     if (Files.exists(targetXml)) {
-      throw new IllegalArgumentException("object file already exists: " + targetXml);
+      throw new IllegalArgumentException(UiLabels.alreadyExists(xmlTag, newName));
     }
     String source = Files.readString(objectXml, StandardCharsets.UTF_8);
     String renamed = replaceObjectName(source, oldName, newName);
     Files.writeString(targetXml, renamed, StandardCharsets.UTF_8);
-    moveContentIfExists(objectXml, oldName, newName);
+    moveContentIfExists(objectXml, xmlTag, oldName, newName);
     Files.deleteIfExists(objectXml);
     ConfigurationChildObjectMutator.rename(configurationXml, xmlTag, oldName, newName);
   }
@@ -73,13 +75,13 @@ public final class CfMdObjectMutations {
     CatalogNameConstraints.check(newName);
     Path targetXml = objectXml.resolveSibling(newName + ".xml");
     if (Files.exists(targetXml)) {
-      throw new IllegalArgumentException("object file already exists: " + targetXml);
+      throw new IllegalArgumentException(UiLabels.alreadyExists(xmlTag, newName));
     }
     String source = Files.readString(objectXml, StandardCharsets.UTF_8);
     String renamed = replaceObjectName(source, sourceName, newName);
     String remapped = DistinctUuidRewrite.remap(renamed);
     Files.writeString(targetXml, remapped, StandardCharsets.UTF_8);
-    copyContentIfExists(objectXml, sourceName, newName);
+    copyContentIfExists(objectXml, xmlTag, sourceName, newName);
     ConfigurationChildObjectAppender.append(configurationXml, xmlTag, newName);
   }
 
@@ -109,10 +111,17 @@ public final class CfMdObjectMutations {
     }
     String replacement = matcher.group(1) + Matcher.quoteReplacement(newName) + matcher.group(2);
     String renamed = matcher.replaceFirst(replacement);
-    Pattern objectNameToken = Pattern.compile("\\A([^.]+\\.)" + Pattern.quote(oldName) + "(?=\\.|$)");
-    return GENERATED_TYPE_NAME.matcher(renamed).replaceAll(match ->
-      match.group(1) + objectNameToken.matcher(match.group(2))
-        .replaceFirst(token -> token.group(1) + Matcher.quoteReplacement(newName)) + match.group(3));
+    // Меняется только сегмент имени объекта: CatalogObject.Старое и Catalog.Старое.Реквизит.
+    // Сегмент дальше (имя табличной части или реквизита) не трогаем, даже если он совпал со старым именем.
+    return replaceObjectSegment(replaceObjectSegment(renamed, GENERATED_TYPE_NAME, oldName, newName),
+      FIELD_REF, oldName, newName);
+  }
+
+  private static String replaceObjectSegment(String xml, Pattern qualified, String oldName, String newName) {
+    Pattern token = Pattern.compile("\\A([^.]+\\.)" + Pattern.quote(oldName) + "(?=\\.|$)");
+    return qualified.matcher(xml).replaceAll(match -> match.group(1)
+      + token.matcher(match.group(2)).replaceFirst(found -> found.group(1) + newName)
+      + match.group(3));
   }
 
   /**
@@ -126,14 +135,14 @@ public final class CfMdObjectMutations {
     }
   }
 
-  private static void moveContentIfExists(Path objectXml, String oldName, String newName) throws IOException {
+  private static void moveContentIfExists(Path objectXml, String xmlTag, String oldName, String newName) throws IOException {
     Path source = objectXml.getParent().resolve(oldName);
     if (!Files.isDirectory(source)) {
       return;
     }
     Path target = objectXml.getParent().resolve(newName);
     if (Files.exists(target)) {
-      throw new IllegalArgumentException("object content dir already exists: " + target);
+      throw new IllegalArgumentException(UiLabels.alreadyExists(xmlTag, newName));
     }
     try {
       Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
@@ -142,14 +151,14 @@ public final class CfMdObjectMutations {
     }
   }
 
-  private static void copyContentIfExists(Path objectXml, String sourceName, String newName) throws IOException {
+  private static void copyContentIfExists(Path objectXml, String xmlTag, String sourceName, String newName) throws IOException {
     Path source = objectXml.getParent().resolve(sourceName);
     if (!Files.isDirectory(source)) {
       return;
     }
     Path target = objectXml.getParent().resolve(newName);
     if (Files.exists(target)) {
-      throw new IllegalArgumentException("object content dir already exists: " + target);
+      throw new IllegalArgumentException(UiLabels.alreadyExists(xmlTag, newName));
     }
     copyRecursively(source, target);
     remapContentUuids(target);

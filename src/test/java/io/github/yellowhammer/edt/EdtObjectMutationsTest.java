@@ -29,7 +29,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -38,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.yellowhammer.designerxml.cf.ChildObjectEntry;
+import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 
 /** Операции над объектом метаданных 1С:EDT целиком. */
 class EdtObjectMutationsTest {
@@ -131,13 +135,67 @@ class EdtObjectMutationsTest {
         .doesNotContainAnyElementsOf(original.list("attributes").stream()
             .map(EdtObjectReader.EdtNode::uuid).toList());
     // Порождаемые типы у копии тоже свои
-    assertThat(typeIds(Files.readString(copy, StandardCharsets.UTF_8)))
+    String copyXml = Files.readString(copy, StandardCharsets.UTF_8);
+    assertThat(typeIds(copyXml))
         .doesNotContainAnyElementsOf(typeIds(Files.readString(origin, StandardCharsets.UTF_8)));
+    assertThat(copyXml).contains("Catalog.ВалютыКопия.Form.ФормаСписка");
+    assertThat(copyXml).doesNotContain("Catalog.Валюты.");
+    assertThat(copyXml).doesNotContain("CatalogRef.Валюты<");
+  }
+
+  @Test
+  void переименованиеСохраняетИдентификаторыТиповАПовторноеСозданиеБерётНовые() throws Exception {
+    Path root = source();
+    Path configuration = root.resolve("Configuration/Configuration.mdo");
+    String initialName = EdtObjectScaffold.addWithNextAvailableName(configuration, model, MdObjectAddType.CATALOG);
+    Path initialMdo = root.resolve("Catalogs").resolve(initialName).resolve(initialName + ".mdo");
+    String before = Files.readString(initialMdo, StandardCharsets.UTF_8);
+    Set<String> typeIds = attributeValues(before, "typeId");
+    Set<String> valueIds = attributeValues(before, "valueTypeId");
+    String objectUuid = rootUuid(before);
+    String golden = EdtObjectScaffold.golden("Catalogs/Справочник1/Справочник1.mdo");
+
+    EdtObjectMutations.rename(configuration, initialMdo, "Catalog", initialName, "Склады");
+
+    Path renamedMdo = root.resolve("Catalogs/Склады/Склады.mdo");
+    String renamed = Files.readString(renamedMdo, StandardCharsets.UTF_8);
+    assertThat(attributeValues(renamed, "typeId")).isEqualTo(typeIds);
+    assertThat(attributeValues(renamed, "valueTypeId")).isEqualTo(valueIds);
+    assertThat(rootUuid(renamed)).isEqualTo(objectUuid);
+    assertThat(renamed).contains("<name>Склады</name>");
+    assertThat(renamed).contains("<inputByString>Catalog.Склады.StandardAttribute.Description</inputByString>");
+    assertThat(renamed).contains("<value>" + initialName + "</value>");
+    assertThat(renamed).doesNotContain(rootUuid(golden));
+    assertThat(typeIds).doesNotContainAnyElementsOf(attributeValues(golden, "typeId"));
+
+    String repeatedName = EdtObjectScaffold.addWithNextAvailableName(configuration, model, MdObjectAddType.CATALOG);
+    String repeated = Files.readString(
+        root.resolve("Catalogs").resolve(repeatedName).resolve(repeatedName + ".mdo"), StandardCharsets.UTF_8);
+    assertThat(repeatedName).isEqualTo(initialName);
+    assertThat(attributeValues(repeated, "typeId")).doesNotContainAnyElementsOf(typeIds);
+    assertThat(attributeValues(repeated, "valueTypeId")).doesNotContainAnyElementsOf(valueIds);
+    assertThat(rootUuid(repeated)).isNotEqualTo(objectUuid);
+    assertThat(repeated).doesNotContain(rootUuid(golden));
   }
 
   private static List<String> typeIds(String xml) {
     return Pattern.compile("typeId=\"([0-9a-f-]{36})\"").matcher(xml).results()
         .map(match -> match.group(1)).toList();
+  }
+
+  private static Set<String> attributeValues(String xml, String attribute) {
+    Set<String> values = new LinkedHashSet<>();
+    Matcher matcher = Pattern.compile(attribute + "=\"([0-9a-fA-F-]{36})\"").matcher(xml);
+    while (matcher.find()) {
+      values.add(matcher.group(1));
+    }
+    return values;
+  }
+
+  private static String rootUuid(String xml) {
+    Matcher matcher = Pattern.compile("uuid=\"([0-9a-fA-F-]{36})\"").matcher(xml);
+    assertThat(matcher.find()).isTrue();
+    return matcher.group(1);
   }
 
   @Test

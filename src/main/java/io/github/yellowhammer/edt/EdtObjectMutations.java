@@ -35,6 +35,7 @@ import java.util.stream.Stream;
 
 import javax.xml.stream.XMLStreamException;
 
+import io.github.yellowhammer.designerxml.cf.UiLabels;
 import io.github.yellowhammer.edt.EdtObjectRegions.Region;
 
 /**
@@ -82,10 +83,11 @@ public final class EdtObjectMutations {
     Path objectDir = objectMdo.getParent();
     Path targetDir = objectDir.resolveSibling(newName);
     if (Files.exists(targetDir)) {
-      throw new IllegalArgumentException("Объект уже есть: " + newName);
+      throw new IllegalArgumentException(UiLabels.alreadyExists(objectType, newName));
     }
 
     writeName(objectMdo, newName);
+    rewriteQualifiedName(objectMdo, objectType, oldName, newName);
     Files.move(objectMdo, objectDir.resolve(newName + ".mdo"));
     Files.move(objectDir, targetDir);
     replaceReference(configurationMdo, objectType, oldName, newName);
@@ -113,7 +115,7 @@ public final class EdtObjectMutations {
     Path objectDir = objectMdo.getParent();
     Path targetDir = objectDir.resolveSibling(newName);
     if (Files.exists(targetDir)) {
-      throw new IllegalArgumentException("Объект уже есть: " + newName);
+      throw new IllegalArgumentException(UiLabels.alreadyExists(objectType, newName));
     }
 
     copyDirectory(objectDir, targetDir);
@@ -124,6 +126,7 @@ public final class EdtObjectMutations {
     Files.writeString(renamed, freshIdentifiers(Files.readString(renamed, StandardCharsets.UTF_8)),
         StandardCharsets.UTF_8);
     writeName(renamed, newName);
+    rewriteQualifiedName(renamed, objectType, sourceName, newName);
     appendReference(configurationMdo, objectType, newName);
   }
 
@@ -141,6 +144,21 @@ public final class EdtObjectMutations {
     requireObject(objectMdo, name);
     deleteDirectory(objectMdo.getParent());
     removeReference(configurationMdo, objectType, name);
+  }
+
+  /**
+   * Ссылки вида {@code Catalog.СтароеИмя} и {@code CatalogRef.СтароеИмя}.
+   * Текст синонима не меняется: это отдельное свойство, а не путь к объекту.
+   */
+  private static void rewriteQualifiedName(Path objectMdo, String objectType, String oldName, String newName)
+      throws IOException {
+    String xml = Files.readString(objectMdo, StandardCharsets.UTF_8);
+    Pattern token = Pattern.compile("(?<![\\p{L}\\p{N}_])(" + Pattern.quote(objectType) + "[\\p{L}\\p{N}]*\\.)"
+        + Pattern.quote(oldName) + "(?![\\p{L}\\p{N}_])");
+    String updated = token.matcher(xml).replaceAll(match -> match.group(1) + newName);
+    if (!updated.equals(xml)) {
+      Files.writeString(objectMdo, updated, StandardCharsets.UTF_8);
+    }
   }
 
   /** Имя объекта в его описании. */
