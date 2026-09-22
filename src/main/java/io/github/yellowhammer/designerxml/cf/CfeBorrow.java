@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,12 +27,53 @@ import java.util.regex.Pattern;
  * <p>Платформа связывает заимствованный объект с оригиналом по имени, а все
  * идентификаторы у него свои: шапка и список порождаемых типов берутся из
  * оригинала, идентификаторы заменяются детерминированными новыми, свойства
- * сводятся к принадлежности, имени и комментарию.
+ * сводятся к принадлежности, имени и комментарию. Пустой {@code ChildObjects}
+ * пишется только у видов, в схеме которых он есть.
  */
 public final class CfeBorrow {
 
   private static final Pattern ROOT_NODE = Pattern.compile("<([A-Za-z]+) uuid=\"[0-9a-fA-F-]+\">");
   private static final Pattern ANY_UUID = Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+
+  /**
+   * Виды, у которых в MDClasses есть элемент {@code ChildObjects}.
+   * В форматах 2.10–2.21 набор один и тот же.
+   */
+  private static final Set<String> CHILD_OBJECT_TYPES = Set.of(
+    "AccountingRegister",
+    "AccumulationRegister",
+    "BusinessProcess",
+    "CalculationRegister",
+    "Catalog",
+    "ChartOfAccounts",
+    "ChartOfCalculationTypes",
+    "ChartOfCharacteristicTypes",
+    "Configuration",
+    "Cube",
+    "DataProcessor",
+    "DimensionTable",
+    "Document",
+    "DocumentJournal",
+    "Enum",
+    "ExchangePlan",
+    "ExternalDataProcessor",
+    "ExternalDataSource",
+    "ExternalReport",
+    "FilterCriterion",
+    "HTTPService",
+    "InformationRegister",
+    "IntegrationService",
+    "Operation",
+    "Recalculation",
+    "Report",
+    "Sequence",
+    "SettingsStorage",
+    "Subsystem",
+    "Table",
+    "TabularSection",
+    "Task",
+    "URLTemplate",
+    "WebService");
 
   private CfeBorrow() {
   }
@@ -99,7 +141,9 @@ public final class CfeBorrow {
     out.append("\t\t\t<Name>").append(name).append("</Name>").append(eol);
     out.append("\t\t\t<Comment/>").append(eol);
     out.append("\t\t</Properties>").append(eol);
-    out.append("\t\t<ChildObjects/>").append(eol);
+    if (CHILD_OBJECT_TYPES.contains(containerLocal)) {
+      out.append("\t\t<ChildObjects/>").append(eol);
+    }
     out.append("\t</").append(containerLocal).append('>').append(eol);
     out.append("</MetaDataObject>");
     return out.toString();
