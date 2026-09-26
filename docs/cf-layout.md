@@ -70,6 +70,23 @@ init-empty-cf path/to/src/cf -v V2_21
 init-empty-cf path/to/src/cf -v V2_20 --name МояБаза --synonym-ru "Моя база" --vendor "ООО Ромашка" --app-version 1.0.0
 ```
 
+### Проект 1С:EDT
+
+С **`--format edt`** (по умолчанию `designer`) та же команда создаёт проект конфигурации 1С:EDT:
+позиционный аргумент — каталог проекта, он должен быть пустым или отсутствовать. Имя проекта —
+**`--project-name`**, по умолчанию имя каталога; версия платформы проекта (`Runtime-Version`) —
+линейка платформы формата `-v`. Остальные параметры те же. В канале `apply-mutation` это поля
+`format` и `projectName` рядом с `targetCfRoot`. Состав проекта и значения новой конфигурации — в
+[scaffold-golden.md](scaffold-golden.md#пустой-проект-1сedt).
+
+```text
+init-empty-cf path/to/Основа -v V2_21 --format edt
+init-empty-cf path/to/project -v V2_20 --format edt --project-name Основа --name Основа
+```
+
+На созданном проекте работают `add-md-object`, `init-empty-cfe` и `external-artifact-add`: формат
+EDT они узнают по файлу `src/Configuration/Configuration.mdo`.
+
 > **`Configuration/@formatVersion`:** в XSD атрибут обязателен, но в реальной выгрузке платформы на
 > `<Configuration>` его нет (версия только в `MetaDataObject/@version`). Golden-эталоны повторяют поведение
 > платформы; проверка по XSD (`validate`, `XmlValidator`) считает атрибут необязательным.

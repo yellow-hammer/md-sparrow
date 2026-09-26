@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Configuration xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="7fdb45c3-216c-3c7c-abd2-8c144fa36c56">
+  <name>ЭталонСемя</name>
+  <containedObjects classId="9cd510cd-abfc-11d4-9434-004095e12fc7" objectId="89837a57-67da-36e6-842b-afc851e0e62d"/>
+  <containedObjects classId="9fcd25a0-4822-11d4-9414-008048da11f9" objectId="406744a1-9266-3e2d-bcee-894ead6ed341"/>
+  <containedObjects classId="e3687481-0a87-462c-a166-9f34594f9bba" objectId="453b7469-13e1-372d-8147-f903f0c40b69"/>
+  <containedObjects classId="9de14907-ec23-4a07-96f0-85521cb6b53b" objectId="b4a39c89-2ec5-3757-858e-cf6c702fba1d"/>
+  <containedObjects classId="51f2d5d8-ea4d-4064-8892-82951750031e" objectId="277a7922-9249-3347-aeea-b3b92ac2239a"/>
+  <containedObjects classId="e68182ea-4237-4383-967f-90c1e3370bc7" objectId="8c4297a2-f9f6-3c0f-bbf6-cc862705ab81"/>
+  <containedObjects classId="fb282519-d103-4dd3-bc12-cb271d631dfc" objectId="3806ca8b-c0df-3f93-8a66-e3007a5b9dca"/>
+  <configurationExtensionCompatibilityMode>8.3.23</configurationExtensionCompatibilityMode>
+  <defaultRunMode>ManagedApplication</defaultRunMode>
+  <scriptVariant>Russian</scriptVariant>
+  <usedMobileApplicationFunctionalities>
+    <functionality>
+      <use>true</use>
+    </functionality>
+    <functionality>
+      <functionality>OSBackup</functionality>
+      <use>true</use>
+    </functionality>
+  </usedMobileApplicationFunctionalities>
+  <defaultLanguage>Language.Русский</defaultLanguage>
+  <dataLockControlMode>Managed</dataLockControlMode>
+  <objectAutonumerationMode>NotAutoFree</objectAutonumerationMode>
+  <modalityUseMode>DontUse</modalityUseMode>
+  <synchronousPlatformExtensionAndAddInCallUseMode>DontUse</synchronousPlatformExtensionAndAddInCallUseMode>
+  <compatibilityMode>8.3.12</compatibilityMode>
+  <languages uuid="f4212891-7b55-38ae-850a-6d71bd034875">
+    <name>Русский</name>
+    <synonym>
+      <key>ru</key>
+      <value>Русский</value>
+    </synonym>
+    <languageCode>ru</languageCode>
+  </languages>
+  <subsystems>Subsystem.Подсистема1</subsystems>
+  <commonPictures>CommonPicture.ОбщаяКартинка1</commonPictures>
+  <sessionParameters>SessionParameter.ПараметрСеанса1</sessionParameters>
+  <roles>Role.Роль1</roles>
+  <commonModules>CommonModule.ОбщийМодуль1</commonModules>
+  <commonAttributes>CommonAttribute.ОбщийРеквизит1</commonAttributes>
+  <exchangePlans>ExchangePlan.ПланОбмена1</exchangePlans>
+  <constants>Constant.Константа1</constants>
+  <catalogs>Catalog.Справочник1</catalogs>
+  <documents>Document.Документ1</documents>
+  <documentNumerators>DocumentNumerator.Нумератор1</documentNumerators>
+  <enums>Enum.Перечисление1</enums>
+  <reports>Report.Отчет1</reports>
+  <dataProcessors>DataProcessor.Обработка1</dataProcessors>
+  <chartsOfCharacteristicTypes>ChartOfCharacteristicTypes.ПланВидовХарактеристик1</chartsOfCharacteristicTypes>
+  <chartsOfAccounts>ChartOfAccounts.ПланСчетов1</chartsOfAccounts>
+  <chartsOfCalculationTypes>ChartOfCalculationTypes.ПланВидовРасчета1</chartsOfCalculationTypes>
+  <tasks>Task.Задача1</tasks>
+  <externalDataSources>ExternalDataSource.ВнешнийИсточник1</externalDataSources>
+</mdclass:Configuration>

@@ -714,14 +714,20 @@ public final class DesignerXmlCli implements Callable<Integer> {
 
   @Command(
     name = "init-empty-cf",
-    description = "Инициализировать каталог пустой выгрузки конфигурации."
+    description = "Инициализировать пустую конфигурацию: выгрузку конфигуратора или проект 1С:EDT."
   )
   static final class InitEmptyCfCmd implements Callable<Integer> {
-    @Parameters(index = "0", description = "Каталог целевой выгрузки src/cf")
+    @Parameters(index = "0", description = "Каталог выгрузки src/cf либо каталог проекта EDT")
     Path targetCfRoot;
 
     @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
+
+    @Option(names = "--format", description = "Формат исходников: designer (по умолчанию) или edt")
+    String format;
+
+    @Option(names = "--project-name", description = "Имя проекта EDT; по умолчанию имя каталога")
+    String projectName;
 
     @Option(
       names = "--name",
@@ -745,8 +751,15 @@ public final class DesignerXmlCli implements Callable<Integer> {
           configurationName == null || configurationName.isEmpty()
             ? CfLayout.DEFAULT_CONFIGURATION_NAME
             : configurationName;
-        io.github.yellowhammer.designerxml.cf.EmptyCfScaffold.writeEmptyTree(
-          targetCfRoot, name, synonym, vendor, appVersion, version);
+        if (SourceFormat.fromCliName(format) == SourceFormat.EDT) {
+          io.github.yellowhammer.edt.EdtConfigurationScaffold.create(
+            targetCfRoot, projectName, name, synonym, vendor, appVersion, version, EdtModel.bundled());
+        } else if (projectName != null && !projectName.isBlank()) {
+          throw new IllegalArgumentException("--project-name задаётся только для --format edt");
+        } else {
+          io.github.yellowhammer.designerxml.cf.EmptyCfScaffold.writeEmptyTree(
+            targetCfRoot, name, synonym, vendor, appVersion, version);
+        }
       } catch (IllegalArgumentException e) {
         System.err.println(e.getMessage());
         return 2;

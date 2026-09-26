@@ -58,6 +58,7 @@ import picocli.CommandLine.ParentCommand;
 
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
+import io.github.yellowhammer.edt.EdtConfigurationScaffold;
 import io.github.yellowhammer.edt.EdtExchangePlanContent;
 import io.github.yellowhammer.edt.EdtExtensionFeatures;
 import io.github.yellowhammer.edt.EdtModel;
@@ -845,6 +846,15 @@ final class ApplyMutationCmd implements Callable<Integer> {
       case "init-empty-cf": {
         String cfgName = p.name == null || p.name.isEmpty() ? CfLayout.DEFAULT_CONFIGURATION_NAME : p.name;
         Path target = p.reqPath(p.targetCfRoot, "targetCfRoot");
+        if (SourceFormat.fromCliName(p.format) == SourceFormat.EDT) {
+          // У проекта EDT целевой каталог - каталог проекта, а не src/cf
+          EdtConfigurationScaffold.create(
+            target, p.projectName, cfgName, p.synonym, null, null, p.version(), EdtModel.bundled());
+          return "OK: " + target.toAbsolutePath();
+        }
+        if (p.projectName != null && !p.projectName.isBlank()) {
+          throw new IllegalArgumentException("projectName задаётся только для format edt");
+        }
         EmptyCfScaffold.writeEmptyTree(target, cfgName, p.synonym, null, null, p.version());
         return "OK: " + target.toAbsolutePath();
       }
