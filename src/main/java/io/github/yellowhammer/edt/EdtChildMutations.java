@@ -28,11 +28,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.stream.XMLStreamException;
 
 import org.eclipse.emf.ecore.EClass;
-import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
 import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
@@ -51,6 +52,23 @@ public final class EdtChildMutations {
 
   /** Отступ уровня в файлах EDT. */
   private static final String INDENT = "  ";
+
+  /** Порождаемые типы: 1С:EDT пишет их первыми, где бы они ни стояли в схеме. */
+  private static final String PRODUCED_TYPES = "producedTypes";
+
+  /** Пространства имён, на которые ссылаются значения в эталонах узлов. */
+  private static final java.util.Map<String, String> NAMESPACES = java.util.Map.of(
+      "xsi", "http://www.w3.org/2001/XMLSchema-instance",
+      "core", "http://g5.1c.ru/v8/dt/mcore");
+  private static final String XSI = "xsi";
+  private static final String XMLNS = "xmlns:";
+
+  /** Префикс атрибута ({@code xsi:type=}) и префикс типа в его значении ({@code "core:UndefinedValue"}). */
+  private static final Pattern USED_PREFIX = Pattern.compile("(\\w+):\\w+=\"(?:(\\w+):)?");
+
+  /** Корневой элемент файла объекта со всеми атрибутами. */
+  private static final Pattern ROOT_TAG = Pattern.compile("<(\\w+:\\w+)((?:\\s+[\\w:]+=\"[^\"]*\")*)\\s*>");
+  private static final Pattern ATTRIBUTE = Pattern.compile("\\s+([\\w:]+)=\"([^\"]*)\"");
 
   private EdtChildMutations() {
   }
@@ -87,7 +105,7 @@ public final class EdtChildMutations {
       String feature,
       String name) throws IOException {
     requireName(name);
-    edit(objectMdo, xml -> {
+    editAll(objectMdo, xml -> {
       Region parent = owner == null ? null : requireChild(xml, null, owner, ownerName);
       List<Region> siblings = children(xml, parent, feature);
       if (EdtObjectRegions.names(xml, siblings).contains(name)) {
@@ -100,9 +118,17 @@ public final class EdtChildMutations {
       String ownerClass = owner == null ? objectClass : kindOf(model, objectClass, owner);
       String kind = kindOf(model, ownerClass, feature);
       String indent = parent == null ? INDENT : INDENT + INDENT;
-      String node = snippet(feature, name, kind, model, indent, eol(xml));
-      int at = insertionPoint(xml, model, parent, siblings, feature);
-      return new Edit(at, at, node + eol(xml));
+      String node = EdtNodeGolden.node(kind, name, ConfigurationLanguage.current(), indent, eol(xml));
+      int at = insertionPoint(xml, model, parent, ownerClass, siblings, feature);
+      List<Edit> edits = new ArrayList<>();
+      edits.add(new Edit(at, at, node + eol(xml)));
+      // Значения вроде <minValue xsi:type="core:UndefinedValue"/> требуют своих
+      // пространств имён в корне файла
+      Edit namespaces = declareNamespaces(xml, node);
+      if (namespaces != null) {
+        edits.add(namespaces);
+      }
+      return edits;
     });
   }
 
@@ -242,12 +268,12 @@ public final class EdtChildMutations {
 
   /** Правка файла: одна замена. */
   private interface SingleEdit {
-    Edit apply(String xml) throws XMLStreamException;
+    Edit apply(String xml) throws XMLStreamException, IOException;
   }
 
   /** Правка файла: несколько замен. */
   private interface MultiEdit {
-    List<Edit> apply(String xml) throws XMLStreamException;
+    List<Edit> apply(String xml) throws XMLStreamException, IOException;
   }
 
   /** Замена участка файла. */
@@ -311,21 +337,98 @@ public final class EdtChildMutations {
       String xml,
       EdtModel model,
       Region parent,
+      String ownerClass,
       List<Region> siblings,
       String feature) throws XMLStreamException {
     if (!siblings.isEmpty()) {
       return lineEnd(xml, siblings.get(siblings.size() - 1).end());
     }
+    List<String> order = order(model, ownerClass);
     if (parent == null) {
-      List<String> order = new ArrayList<>();
-      EClass eClass = model.classOf(objectKind(xml));
-      if (eClass != null) {
-        eClass.getEAllStructuralFeatures().forEach(item -> order.add(item.getName()));
-      }
       return EdtObjectRegions.insertionPoint(xml, order, feature);
     }
-    // Первый узел внутри владельца встаёт перед его закрывающим тегом
+    // Первый узел внутри владельца встаёт перед первым свойством, которое схема
+    // ставит после него: у табличной части это длина номера строки
+    int place = order.indexOf(feature);
+    for (EdtObjectRegions.Child child : EdtObjectRegions.children(xml, parent)) {
+      if (place >= 0 && order.indexOf(child.name()) > place) {
+        return EdtObjectRegions.lineStart(xml, child.region().start());
+      }
+    }
     return EdtObjectRegions.lineStart(xml, parent.end());
+  }
+
+  /** Порядок свойств класса, как его пишет 1С:EDT: порождаемые типы первыми, дальше по схеме. */
+  private static List<String> order(EdtModel model, String className) {
+    List<String> order = new ArrayList<>();
+    order.add(PRODUCED_TYPES);
+    EClass eClass = model.classOf(className);
+    if (eClass != null) {
+      for (EStructuralFeature item : eClass.getEAllStructuralFeatures()) {
+        if (!order.contains(item.getName())) {
+          order.add(item.getName());
+        }
+      }
+    }
+    return order;
+  }
+
+  /**
+   * Объявления пространств имён, которых не хватает узлу, в корне файла.
+   *
+   * 1С:EDT пишет их в корне и только те, что в файле встречаются: сначала
+   * {@code xsi}, остальные по алфавиту. Остальные атрибуты корня не трогаются.
+   *
+   * @return правка корня либо {@code null}, если всё уже объявлено
+   */
+  private static Edit declareNamespaces(String xml, String node) {
+    java.util.Set<String> used = new java.util.TreeSet<>();
+    Matcher prefixes = USED_PREFIX.matcher(node);
+    while (prefixes.find()) {
+      used.add(prefixes.group(1));
+      if (prefixes.group(2) != null) {
+        used.add(prefixes.group(2));
+      }
+    }
+    if (used.isEmpty()) {
+      return null;
+    }
+    Matcher root = ROOT_TAG.matcher(xml);
+    if (!root.find()) {
+      throw new IllegalArgumentException("Не найден корневой узел объекта");
+    }
+    java.util.Map<String, String> declared = new java.util.LinkedHashMap<>();
+    StringBuilder others = new StringBuilder();
+    Matcher attributes = ATTRIBUTE.matcher(root.group(2));
+    while (attributes.find()) {
+      if (attributes.group(1).startsWith(XMLNS)) {
+        declared.put(attributes.group(1).substring(XMLNS.length()), attributes.group(2));
+      } else {
+        others.append(attributes.group());
+      }
+    }
+    boolean missing = false;
+    for (String prefix : used) {
+      if (!declared.containsKey(prefix)) {
+        String uri = NAMESPACES.get(prefix);
+        if (uri == null) {
+          throw new IllegalStateException("Эталон узла ссылается на неизвестное пространство имён " + prefix);
+        }
+        declared.put(prefix, uri);
+        missing = true;
+      }
+    }
+    if (!missing) {
+      return null;
+    }
+    List<String> sorted = new ArrayList<>(declared.keySet());
+    sorted.sort((left, right) -> XSI.equals(left) ? -1 : XSI.equals(right) ? 1 : left.compareTo(right));
+    StringBuilder tag = new StringBuilder("<").append(root.group(1));
+    for (String prefix : sorted) {
+      tag.append(" xmlns:").append(prefix).append("=\"").append(declared.get(prefix)).append('"');
+    }
+    tag.append(others).append('>');
+    return new Edit(root.start(), root.end(), tag.toString());
   }
 
   /** Класс объекта: корневой тег файла без пространства имён. */
@@ -354,70 +457,6 @@ public final class EdtChildMutations {
       }
     }
     throw new IllegalArgumentException("У вида " + owner + " нет узлов " + feature);
-  }
-
-  /**
-   * Разметка нового узла.
-   *
-   * Пишется только то, без чего узла не бывает: идентификатор, имя и синоним.
-   * Остальные свойства формат EDT не пишет, пока они со значением по умолчанию.
-   */
-  private static String snippet(
-      String feature,
-      String name,
-      String kind,
-      EdtModel model,
-      String indent,
-      String eol) {
-    StringBuilder node = new StringBuilder();
-    node.append(indent).append("<").append(feature).append(" uuid=\"").append(UUID.randomUUID()).append("\">")
-        .append(eol);
-    node.append(producedTypes(model, kind, indent, eol));
-    node.append(indent).append(INDENT).append("<name>").append(escape(name)).append("</name>").append(eol);
-    node.append(indent).append(INDENT).append("<synonym>").append(eol);
-    node.append(indent).append(INDENT).append(INDENT)
-        .append("<key>").append(ConfigurationLanguage.current()).append("</key>").append(eol);
-    node.append(indent).append(INDENT).append(INDENT).append("<value>").append(escape(name)).append("</value>")
-        .append(eol);
-    node.append(indent).append(INDENT).append("</synonym>").append(eol);
-    // Тип нужен узлам данных: без него платформа не знает, что хранить
-    if (model.classOf(kind) != null && model.classOf(kind).getEStructuralFeature("type") != null) {
-      node.append(indent).append(INDENT).append("<type>").append(eol);
-      node.append(indent).append(INDENT).append(INDENT).append("<types>String</types>").append(eol);
-      node.append(indent).append(INDENT).append(INDENT).append("<stringQualifiers>").append(eol);
-      node.append(indent).append(INDENT).append(INDENT).append(INDENT).append("<length>10</length>").append(eol);
-      node.append(indent).append(INDENT).append(INDENT).append("</stringQualifiers>").append(eol);
-      node.append(indent).append(INDENT).append("</type>").append(eol);
-    }
-    node.append(indent).append("</").append(feature).append(">");
-    return node.toString();
-  }
-
-  /**
-   * Типы, которые узел порождает в платформе.
-   *
-   * У табличной части это тип объекта и тип строки: без них 1С:EDT выдаёт им
-   * новые идентификаторы при каждой выгрузке, и платформа считает таблицу новой.
-   * Какие типы бывают у вида узла, знает схема.
-   */
-  private static String producedTypes(EdtModel model, String kind, String indent, String eol) {
-    EClass eClass = model.classOf(kind);
-    EStructuralFeature produced = eClass == null ? null : eClass.getEStructuralFeature("producedTypes");
-    if (!(produced instanceof EReference reference)) {
-      return "";
-    }
-
-    StringBuilder types = new StringBuilder();
-    types.append(indent).append(INDENT).append("<producedTypes>").append(eol);
-    for (EStructuralFeature type : reference.getEReferenceType().getEAllStructuralFeatures()) {
-      types.append(indent).append(INDENT).append(INDENT)
-          .append("<").append(type.getName())
-          .append(" typeId=\"").append(UUID.randomUUID())
-          .append("\" valueTypeId=\"").append(UUID.randomUUID()).append("\"/>")
-          .append(eol);
-    }
-    types.append(indent).append(INDENT).append("</producedTypes>").append(eol);
-    return types.toString();
   }
 
   /** Конец строки, в которой кончается участок. */

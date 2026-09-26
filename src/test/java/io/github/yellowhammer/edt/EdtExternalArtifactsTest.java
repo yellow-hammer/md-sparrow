@@ -83,13 +83,46 @@ class EdtExternalArtifactsTest {
         assertThat(withoutUuids(actual)).as(golden[1] + "/" + file).isEqualTo(withoutUuids(expected));
       }
     }
-    // Свои идентификаторы у каждого объекта
+    // Свои идентификаторы у каждого объекта, а номер класса платформы общий
     String one = Files.readString(processor, StandardCharsets.UTF_8);
     String golden = EdtObjectScaffold.golden("ExternalDataProcessor/Обработка1/src/ExternalDataProcessors/Обработка1/Обработка1.mdo");
-    java.util.regex.Matcher uuids = java.util.regex.Pattern.compile(UUID).matcher(golden);
-    while (uuids.find()) {
-      assertThat(one).doesNotContain(uuids.group());
+    for (String uuid : EdtExtensionScaffoldTest.objectIds(golden)) {
+      assertThat(one).doesNotContain(uuid);
     }
+  }
+
+  @Test
+  void номерКлассаКакУПлатформы() throws Exception {
+    Path base = baseConfiguration();
+    Path artifacts = workDir.resolve("epf");
+
+    Path processor = EdtExternalArtifacts.create(artifacts, base, "Загрузка", ExternalArtifactKind.DATA_PROCESSOR);
+    Path report = EdtExternalArtifacts.create(artifacts, base, "Сводка", ExternalArtifactKind.REPORT);
+    Path copy = EdtExternalArtifacts.duplicate(processor, "ЗагрузкаКопия");
+
+    // Платформа принимает внешний объект только со своим номером класса: он тот же,
+    // что в выгрузке конфигуратора
+    String processorClass = platformClassId("ВнешняяОбработка1");
+    String reportClass = platformClassId("ВнешнийОтчет1");
+    assertThat(EdtExtensionScaffoldTest.classIds(Files.readString(processor, StandardCharsets.UTF_8)))
+        .containsExactly(processorClass);
+    assertThat(EdtExtensionScaffoldTest.classIds(Files.readString(report, StandardCharsets.UTF_8)))
+        .containsExactly(reportClass);
+    String copied = Files.readString(copy, StandardCharsets.UTF_8);
+    assertThat(EdtExtensionScaffoldTest.classIds(copied)).containsExactly(processorClass);
+    for (String uuid : EdtExtensionScaffoldTest.objectIds(Files.readString(processor, StandardCharsets.UTF_8))) {
+      assertThat(copied).doesNotContain(uuid);
+    }
+  }
+
+  /** Номер класса внешнего объекта в выгрузке платформы: {@code <xr:ClassId>}. */
+  private static String platformClassId(String name) throws IOException {
+    Path xml = Path.of(System.getProperty("samples.root"), "snapshots", "2.20", "external-files", "empty",
+        name, name + ".xml");
+    java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("<xr:ClassId>(" + UUID + ")</xr:ClassId>")
+        .matcher(Files.readString(xml, StandardCharsets.UTF_8));
+    assertThat(matcher.find()).as(xml.toString()).isTrue();
+    return matcher.group(1);
   }
 
   @Test

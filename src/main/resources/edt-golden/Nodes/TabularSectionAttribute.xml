@@ -1,0 +1,17 @@
+  <attributes uuid="9c4ad6ef-59a9-38a6-a04d-6936179072a7">
+    <name>Реквизит1</name>
+    <synonym>
+      <key>ru</key>
+      <value>Реквизит1</value>
+    </synonym>
+    <type>
+      <types>String</types>
+      <stringQualifiers>
+        <length>10</length>
+      </stringQualifiers>
+    </type>
+    <minValue xsi:type="core:UndefinedValue"/>
+    <maxValue xsi:type="core:UndefinedValue"/>
+    <dataHistory>Use</dataHistory>
+    <fullTextSearch>Use</fullTextSearch>
+  </attributes>

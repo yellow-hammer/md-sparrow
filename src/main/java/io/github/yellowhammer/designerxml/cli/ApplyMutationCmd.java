@@ -178,12 +178,17 @@ final class ApplyMutationCmd implements Callable<Integer> {
   private static String applyEdtMutation(CliParams p) throws IOException {
     if ("add-md-object".equals(p.op) && EdtLayout.isObjectFile(p.configurationXml)) {
       MdObjectAddType kind = MdObjectAddType.fromCliName(p.req(p.type, "type"));
+      // Контракт синонима тот же, что у выгрузки конфигуратора
+      if (kind != MdObjectAddType.CATALOG && (p.synonymEmpty || p.synonym != null)) {
+        throw new IllegalArgumentException("synonym/synonymEmpty поддерживаются только для type CATALOG");
+      }
       java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
       if (p.autoName) {
-        return EdtObjectScaffold.addWithNextAvailableName(configuration, EdtModel.bundled(), kind);
+        return EdtObjectScaffold.addWithNextAvailableName(
+          configuration, EdtModel.bundled(), kind, p.synonym, p.synonymEmpty);
       }
       String name = p.req(p.name, "name");
-      EdtObjectScaffold.add(configuration, EdtModel.bundled(), kind, name);
+      EdtObjectScaffold.add(configuration, EdtModel.bundled(), kind, name, p.synonym, p.synonymEmpty);
       return name;
     }
     if ("cf-form-item-properties-set".equals(p.op) && EdtLayout.isFormFile(p.formXml)) {

@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
+import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 
 /**
@@ -113,6 +114,48 @@ class EdtLanguageTest {
       .filteredOn(node -> node.name.equals("Артикул"))
       .extracting(node -> node.synonym)
       .containsExactly("Артикул");
+  }
+
+  @Test
+  void подписиНовогоОбъектаНаЯзыкеКонфигурации() throws Exception {
+    Path project = copyFixture();
+    Path configuration = project.resolve("src/Configuration/Configuration.mdo");
+
+    EdtObjectScaffold.add(configuration, model, MdObjectAddType.CATALOG, "Artikel");
+
+    String xml = Files.readString(project.resolve("src/Catalogs/Artikel/Artikel.mdo"), StandardCharsets.UTF_8);
+    // Эталон записан по-русски: все его подписи, не только синоним, уходят в немецкий
+    assertThat(xml).contains("<key>de</key>").doesNotContain("<key>ru</key>");
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(project.resolve("src/Catalogs/Artikel/Artikel.mdo"), model);
+    assertThat(dto.synonym).isEqualTo("Artikel");
+  }
+
+  @Test
+  void подписьНовойФормыНаЯзыкеКонфигурации() throws Exception {
+    Path object = copyFixture().resolve("src/Catalogs/Товары/Товары.mdo");
+
+    EdtObjectScaffold.addForm(object, model, "Artikelform");
+
+    String xml = Files.readString(object, StandardCharsets.UTF_8);
+    String form = xml.substring(xml.indexOf("<name>Artikelform</name>"), xml.indexOf("</forms>", xml.indexOf("<name>Artikelform</name>")));
+    assertThat(form).contains("<key>de</key>", "<value>Artikelform</value>").doesNotContain("<key>ru</key>");
+  }
+
+  @Test
+  void синонимНовогоОбъектаЗадаётсяИлиОстаётсяПустым() throws Exception {
+    Path project = copyFixture();
+    Path configuration = project.resolve("src/Configuration/Configuration.mdo");
+
+    EdtObjectScaffold.add(configuration, model, MdObjectAddType.CATALOG, "Waren", "Warenkatalog", false);
+    EdtObjectScaffold.add(configuration, model, MdObjectAddType.CATALOG, "Lager", null, true);
+
+    Path named = project.resolve("src/Catalogs/Waren/Waren.mdo");
+    assertThat(EdtObjectProperties.readDto(named, model).synonym).isEqualTo("Warenkatalog");
+    // Представления объекта остаются как в эталоне: меняется только синоним
+    assertThat(Files.readString(named, StandardCharsets.UTF_8)).contains("<value>Waren</value>");
+    Path empty = project.resolve("src/Catalogs/Lager/Lager.mdo");
+    assertThat(synonymBlocks(Files.readString(empty, StandardCharsets.UTF_8))).isZero();
+    assertThat(EdtObjectProperties.readDto(empty, model).synonym).isEmpty();
   }
 
   /** Число подписей верхнего уровня: у каждого языка свой элемент. */

@@ -1,0 +1,14 @@
+  <extDimensionAccountingFlags uuid="f837100c-9051-34f3-ae1f-d2f961f91373">
+    <name>ПризнакУчетаСубконто1</name>
+    <synonym>
+      <key>ru</key>
+      <value>ПризнакУчетаСубконто1</value>
+    </synonym>
+    <type>
+      <types>Boolean</types>
+    </type>
+    <minValue xsi:type="core:UndefinedValue"/>
+    <maxValue xsi:type="core:UndefinedValue"/>
+    <dataHistory>Use</dataHistory>
+    <fillValue xsi:type="core:UndefinedValue"/>
+  </extDimensionAccountingFlags>

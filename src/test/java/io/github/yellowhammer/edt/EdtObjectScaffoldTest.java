@@ -222,6 +222,70 @@ class EdtObjectScaffoldTest {
   }
 
   @Test
+  void формаПишетсяСПереводамиСтрокОбъекта() throws Exception {
+    for (String eol : List.of("\r\n", "\n")) {
+      Path root = source();
+      Path mdo = root.resolve("Catalogs/Валюты/Валюты.mdo");
+      Files.writeString(mdo, Files.readString(mdo, StandardCharsets.UTF_8).replace("\r\n", "\n").replace("\n", eol),
+          StandardCharsets.UTF_8);
+
+      EdtObjectScaffold.addForm(mdo, model, "ФормаПроверки");
+
+      for (Path file : List.of(mdo, root.resolve("Catalogs/Валюты/Forms/ФормаПроверки/Form.form"))) {
+        String text = Files.readString(file, StandardCharsets.UTF_8);
+        // Все строки файла кончаются одинаково, лишнего возврата каретки нет
+        assertThat(text.replace(eol, "")).as(file + " " + eol.length()).doesNotContain("\n", "\r");
+      }
+      EdtObjectScaffold.deleteForm(mdo, "ФормаПроверки");
+      deleteTree(root);
+    }
+  }
+
+  private static void deleteTree(Path root) throws IOException {
+    try (Stream<Path> files = Files.walk(root)) {
+      for (Path file : files.sorted(java.util.Comparator.reverseOrder()).toList()) {
+        Files.delete(file);
+      }
+    }
+  }
+
+  @Test
+  void формаУВидаБезФормОтклоняется() throws Exception {
+    // У этих видов в схеме нет форм: 1С:EDT такую форму не загружает
+    for (String directory : List.of("Subsystems", "Roles", "CommonModules", "Constants", "SessionParameters")) {
+      Path mdo = firstObject(directory);
+      String before = Files.readString(mdo, StandardCharsets.UTF_8);
+
+      assertThatThrownBy(() -> EdtObjectScaffold.addForm(mdo, model, "Форма"))
+          .as(directory)
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("нет форм");
+      assertThat(Files.readString(mdo, StandardCharsets.UTF_8)).as(directory).isEqualTo(before);
+      assertThat(mdo.resolveSibling("Forms")).as(directory).doesNotExist();
+    }
+    for (String directory : List.of("Catalogs", "Documents", "DataProcessors", "Reports", "InformationRegisters")) {
+      Path mdo = firstObject(directory);
+
+      EdtObjectScaffold.addForm(mdo, model, "ФормаПроверки");
+
+      assertThat(mdo.resolveSibling("Forms/ФормаПроверки/Form.form")).as(directory).exists();
+    }
+  }
+
+  /** Первый объект вида из фикстуры, скопированный в рабочий каталог. */
+  private Path firstObject(String directory) throws IOException {
+    Path first;
+    try (Stream<Path> objects = Files.list(fixture.resolve(directory))) {
+      first = objects.filter(Files::isDirectory).sorted().findFirst().orElseThrow();
+    }
+    Path target = workDir.resolve(directory).resolve(first.getFileName().toString());
+    Path mdo = first.resolve(first.getFileName() + ".mdo");
+    Files.createDirectories(target);
+    Files.copy(mdo, target.resolve(mdo.getFileName().toString()));
+    return target.resolve(mdo.getFileName().toString());
+  }
+
+  @Test
   void повторнаяФормаОтклоняется() throws Exception {
     Path root = source();
     Path mdo = root.resolve("Catalogs/Валюты/Валюты.mdo");
