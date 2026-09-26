@@ -555,6 +555,11 @@ final class MdSimplePropertiesGranularSerial {
     List<MdObjectPropertiesLeafDiff.GranularPatchChange> out) {
     MdPropertiesGranularChanges c = new MdPropertiesGranularChanges(out);
     c.enumText("ObjectBelonging", b.objectBelonging, i.objectBelonging);
+    // У новой подписки источник пустой: <Source/> получает типы целиком
+    if (!MdFlatDtoSupport.equalsFlat(b.source, i.source, false)) {
+      out.add(MdObjectPropertiesLeafDiff.GranularPatchChange.objectProperty(
+        "Source", MdTypeDescriptionSerial.typeElement("Source", i.source)));
+    }
     c.text("Event", b.event, i.event);
     c.text("Handler", b.handler, i.handler);
   }

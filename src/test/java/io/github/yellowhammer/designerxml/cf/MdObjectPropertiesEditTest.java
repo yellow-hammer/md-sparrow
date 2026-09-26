@@ -27,11 +27,18 @@ import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 import jakarta.xml.bind.JAXBElement;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -495,6 +502,85 @@ class MdObjectPropertiesEditTest {
 
     assertThat(MdObjectPropertiesEdit.readDto(copy, SchemaVersion.V2_20).eventSubscription.handler)
       .isEqualTo("ОбщийМодуль.Тест.Обработчик");
+  }
+
+  /**
+   * У новой подписки источник, событие и обработчик пустые; заданные, они пишутся точечно и так же,
+   * как их пишет платформа. В каждом формате - по подписке ssl31 на каждое устройство источника: только
+   * типы, только наборы типов ({@code v8:TypeSet}), и то и другое.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void writeDto_eventSubscription_newSubscriptionGetsSource(SchemaVersion version) throws Exception {
+    Map<String, Path> byShape = new TreeMap<>();
+    for (Path subscription : ssl31Subscriptions()) {
+      String source = property(Files.readString(subscription, StandardCharsets.UTF_8), "Source");
+      byShape.putIfAbsent(source.contains("<v8:Type>") + "/" + source.contains("<v8:TypeSet>"), subscription);
+    }
+    assertThat(byShape).containsKeys("true/false", "false/true", "true/true");
+
+    assertNewSubscriptionGetsSourceOf(version, byShape.values());
+  }
+
+  /** То же со значениями каждой подписки ssl31, в её формате. */
+  @Test
+  void writeDto_eventSubscription_newSubscriptionGetsSourceOfEverySsl31Subscription() throws Exception {
+    List<Path> subscriptions = ssl31Subscriptions();
+    assertThat(subscriptions).hasSizeGreaterThan(100);
+
+    assertNewSubscriptionGetsSourceOf(SchemaVersion.V2_20, subscriptions);
+  }
+
+  /**
+   * Новая подписка в пустой конфигурации получает источник, событие и обработчик каждой из подписок платформы;
+   * записанный файл отличается от пустого ровно этими тремя свойствами в том виде, в каком их записала платформа.
+   */
+  private void assertNewSubscriptionGetsSourceOf(SchemaVersion version, Collection<Path> platformSubscriptions)
+    throws Exception {
+    Path cfRoot = tempDir.resolve("cf-" + version.name());
+    EmptyCfScaffold.writeEmptyTree(cfRoot, CfLayout.DEFAULT_CONFIGURATION_NAME, "", "", "", version);
+    String name = MdObjectPropertiesEdit.readDto(platformSubscriptions.iterator().next(), SchemaVersion.V2_20)
+      .internalName;
+    MdObjectAdd.add(cfRoot.resolve(CfLayout.CONFIGURATION_XML), name, version, MdObjectAddType.EVENT_SUBSCRIPTION);
+    Path xml = CfObjectPathResolver.objectXml(cfRoot, "EventSubscription", name).orElseThrow();
+    String empty = Files.readString(xml, StandardCharsets.UTF_8);
+    String eol = empty.contains("\r\n") ? "\r\n" : "\n";
+
+    for (Path platformSubscription : platformSubscriptions) {
+      Files.writeString(xml, empty, StandardCharsets.UTF_8);
+      MdEventSubscriptionPropertiesDto platform =
+        MdObjectPropertiesEdit.readDto(platformSubscription, SchemaVersion.V2_20).eventSubscription;
+      MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(xml, version);
+      dto.eventSubscription.source = platform.source;
+      dto.eventSubscription.event = platform.event;
+      dto.eventSubscription.handler = platform.handler;
+      MdObjectPropertiesEdit.writeDto(xml, version, dto);
+
+      String platformText = Files.readString(platformSubscription, StandardCharsets.UTF_8).replace("\r\n", "\n");
+      assertThat(Files.readString(xml, StandardCharsets.UTF_8)).as(platformSubscription.toString()).isEqualTo(empty
+        .replace("<Source/>", property(platformText, "Source").replace("\n", eol))
+        .replace("<Event/>", property(platformText, "Event"))
+        .replace("<Handler/>", property(platformText, "Handler")));
+    }
+  }
+
+  /** Подписки на события выгрузки ssl31. */
+  private static List<Path> ssl31Subscriptions() throws Exception {
+    try (Stream<Path> files = Files.list(Ssl31SubmodulePaths.projectRoot().resolve("src/cf/EventSubscriptions"))) {
+      return files.filter(file -> file.getFileName().toString().endsWith(".xml")).sorted().toList();
+    }
+  }
+
+  /** Свойство {@code <Имя>…</Имя>} (или {@code <Имя/>}) из текста описания объекта, как оно записано. */
+  private static String property(String text, String name) {
+    int start = text.indexOf("<" + name + ">");
+    if (start < 0) {
+      start = text.indexOf("<" + name + "/>");
+      assertThat(start).as(name).isNotNegative();
+      return "<" + name + "/>";
+    }
+    String close = "</" + name + ">";
+    return text.substring(start, text.indexOf(close, start) + close.length());
   }
 
   @Test
