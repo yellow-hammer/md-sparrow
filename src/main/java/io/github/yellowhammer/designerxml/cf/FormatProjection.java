@@ -74,13 +74,16 @@ import java.util.regex.Pattern;
  *
  * <p>Поддерживаемые корни: {@code MetaDataObject} (объекты, конфигурация, расширение, внешние
  * отчёты и обработки), {@code Form} управляемой формы и {@code Rights} прав роли (модели прав
- * нет, у них меняется только версия).
+ * нет, у них меняется только версия). Описание WS-ссылки ({@code definitions} WSDL) формата
+ * выгрузки не несёт и возвращается как есть: платформы 8.3.23, 8.3.24, 8.3.27 и 8.5.1 пишут его
+ * одинаково.
  */
 public final class FormatProjection {
 
   private static final String MD_CLASSES_NS = "http://v8.1c.ru/8.3/MDClasses";
   private static final String LOGFORM_NS = "http://v8.1c.ru/8.3/xcf/logform";
   private static final String ROLES_NS = "http://v8.1c.ru/8.2/roles";
+  private static final String WSDL_NS = "http://schemas.xmlsoap.org/wsdl/";
   private static final String XSI_NS = "http://www.w3.org/2001/XMLSchema-instance";
   private static final String JAXB_BASE = "io.github.yellowhammer.designerxml.jaxb.";
   private static final String DEFAULT_NAME = "##default";
@@ -105,7 +108,8 @@ public final class FormatProjection {
   private enum Root {
     META_DATA_OBJECT(MD_CLASSES_NS, "MetaDataObject", "mdclasses.MetaDataObject"),
     FORM(LOGFORM_NS, "Form", "v8_3_xcf_logform.Form"),
-    RIGHTS(ROLES_NS, "Rights", null);
+    RIGHTS(ROLES_NS, "Rights", null),
+    WSDL(WSDL_NS, "definitions", null);
 
     private final String namespace;
     private final String localName;
@@ -178,6 +182,9 @@ public final class FormatProjection {
         throw new IllegalArgumentException("в эталоне нет корневого элемента");
       }
       Root root = Root.of(nullToEmpty(reader.getNamespaceURI()), reader.getLocalName());
+      if (root == Root.WSDL) {
+        return xml;
+      }
       int rootStart = XmlLines.offset(reader);
       SchemaVersion source = sourceVersion(reader.getAttributeValue(null, "version"));
       if (target.compareTo(source) > 0) {

@@ -64,17 +64,67 @@ class FormatProjectionTest {
     SoftAssertions softly = new SoftAssertions();
     int compared = 0;
     for (String file : canonicalFiles(GoldenSnapshots.CF)) {
+      String source = GoldenSnapshots.read(canonical(), GoldenSnapshots.CF, file);
       Path expected = GoldenSnapshots.format(version).resolve(GoldenSnapshots.CF).resolve(file);
-      if (!Files.isRegularFile(expected)) {
+      String projected;
+      try {
+        projected = FormatProjection.project(source, version);
+      } catch (IllegalArgumentException absent) {
+        // вида ещё нет в формате: нет его и в выгрузке платформы этого формата
+        softly.assertThat(absent).as("%s в формате %s", file, version).hasMessageContaining("появился в формате");
+        softly.assertThat(expected).as("%s в формате %s", file, version).doesNotExist();
         continue;
       }
-      String projected = FormatProjection.project(
-        GoldenSnapshots.read(canonical(), GoldenSnapshots.CF, file), version);
-      softly.assertThat(projected).as("%s в формате %s", file, version).isEqualTo(GoldenSnapshots.read(expected));
+      if (!Files.isRegularFile(expected)) {
+        // эталон формата снят семенем, где этого вида не было
+        continue;
+      }
+      String actual = GoldenSnapshots.read(expected);
+      if (CfLayout.CONFIGURATION_XML.equals(file)) {
+        projected = withCompositionOf(projected, actual);
+      }
+      softly.assertThat(projected).as("%s в формате %s", file, version).isEqualTo(actual);
       compared++;
     }
     softly.assertAll();
-    assertThat(compared).as("сверено файлов формата %s", version).isEqualTo(canonicalFiles(GoldenSnapshots.CF).size());
+    assertThat(compared)
+      .as("сверено файлов формата %s: каждый файл эталона формата", version)
+      .isEqualTo(GoldenSnapshots.files(version, GoldenSnapshots.CF).size());
+  }
+
+  /**
+   * Состав {@code ChildObjects} конфигурации - это состав семени, с которого снят эталон, а не
+   * свойство формата: у эталонов, снятых прежним семенем, в нём меньше видов. Оставляет
+   * в проекции только строки состава, которые есть в эталоне, и проверяет, что эталон не знает
+   * строк, которых нет в проекции.
+   */
+  private static String withCompositionOf(String projected, String actual) {
+    List<String> actualItems = compositionLines(actual);
+    List<String> projectedItems = compositionLines(projected);
+    assertThat(projectedItems).as("состав конфигурации").containsAll(actualItems);
+    int start = projected.indexOf("<ChildObjects>");
+    int end = projected.indexOf("</ChildObjects>", start);
+    StringBuilder kept = new StringBuilder();
+    for (String line : projected.substring(start, end).split("(?<=\n)")) {
+      if (!isCompositionLine(line) || actualItems.contains(line.strip())) {
+        kept.append(line);
+      }
+    }
+    return projected.substring(0, start) + kept + projected.substring(end);
+  }
+
+  private static List<String> compositionLines(String configuration) {
+    int start = configuration.indexOf("<ChildObjects>");
+    int end = configuration.indexOf("</ChildObjects>", start);
+    return configuration.substring(start, end).lines()
+      .filter(FormatProjectionTest::isCompositionLine)
+      .map(String::strip)
+      .toList();
+  }
+
+  private static boolean isCompositionLine(String line) {
+    String item = line.strip();
+    return item.startsWith("<") && !item.startsWith("<ChildObjects") && item.endsWith(">");
   }
 
   @ParameterizedTest
@@ -132,6 +182,9 @@ class FormatProjectionTest {
     String file = null;
     int line = -1;
     for (String candidate : canonicalFiles(GoldenSnapshots.CF)) {
+      if (!Files.isRegularFile(GoldenSnapshots.format(older).resolve(GoldenSnapshots.CF).resolve(candidate))) {
+        continue;
+      }
       List<String> newer = GoldenSnapshots.read(canonical(), GoldenSnapshots.CF, candidate).lines().toList();
       List<String> old = GoldenSnapshots.read(older, GoldenSnapshots.CF, candidate).lines().toList();
       int differs = firstDifferentLine(newer, old);
