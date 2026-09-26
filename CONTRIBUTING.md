@@ -13,7 +13,7 @@
 ./gradlew javadoc     # HTML → build/docs/javadoc/index.html
 ```
 
-Проверка лицензионных заголовков входит в `./gradlew check` (задача `license`).
+Проверка лицензионных заголовков входит в `./gradlew check` (задача `license`): у каждого `.java` в `src/main/java` и `src/test/java` должен стоять полный текст `license/HEADER.txt`. Добавить недостающие: `./gradlew licenseFormat`.
 
 ## Схемы (`xsd.root`)
 
