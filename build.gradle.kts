@@ -10,7 +10,9 @@ buildscript {
     }
     dependencies {
         constraints {
-            classpath("org.springframework:spring-core:7.0.8")
+            // license-maven-plugin 3.0 внутри cloud.rio.license зовёт конструктор PropertyPlaceholderHelper,
+            // убранный в Spring 7: 6.2 - последняя линия, где он есть, 6.2.19 закрывает CVE-2026-41848
+            classpath("org.springframework:spring-core:6.2.19")
             classpath("org.codehaus.plexus:plexus-utils:4.0.3")
             classpath("org.apache.logging.log4j:log4j-core:2.26.1")
             classpath("org.apache.logging.log4j:log4j-api:2.26.1")
@@ -18,7 +20,7 @@ buildscript {
     }
     configurations.named("classpath") {
         resolutionStrategy.force(
-            "org.springframework:spring-core:7.0.8",
+            "org.springframework:spring-core:6.2.19",
             "org.codehaus.plexus:plexus-utils:4.0.3",
             "org.apache.logging.log4j:log4j-core:2.26.1",
             "org.apache.logging.log4j:log4j-api:2.26.1",
