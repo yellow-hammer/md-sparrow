@@ -186,14 +186,16 @@ public final class GoldenScaffold {
   }
 
   /**
-   * Пустая конфигурация формата {@code version}: эталон Configuration.xml с обрезанным до Языка
-   * {@code ChildObjects}, параметризованный именем {@code targetName} и ремапом UUID. Для init-empty-cf.
+   * Пустая конфигурация формата {@code version} - такая, какую создаёт платформа: эталон
+   * Configuration.xml с обрезанным до Языка {@code ChildObjects} и умолчаниями новой конфигурации
+   * ({@link ConfigurationFormatRules#asNewConfiguration}), параметризованный именем {@code targetName}
+   * и ремапом UUID. Для init-empty-cf.
    */
   public static String generateEmptyConfiguration(String targetName, SchemaVersion version) throws IOException {
     String golden = projected(CANONICAL_CF + CfLayout.CONFIGURATION_XML, version);
-    String stripped = stripChildObjectsToLanguage(golden);
+    String empty = ConfigurationFormatRules.asNewConfiguration(stripChildObjectsToLanguage(golden), version);
     String seed = "scaffoldEmptyCf|" + version.name() + "|" + targetName;
-    return GoldenObjectTemplate.parametrize(stripped, EMPTY_CONFIG_PROTO, targetName, seed);
+    return GoldenObjectTemplate.parametrize(empty, EMPTY_CONFIG_PROTO, targetName, seed);
   }
 
   /**

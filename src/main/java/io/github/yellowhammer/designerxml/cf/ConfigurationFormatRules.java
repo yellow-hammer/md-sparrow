@@ -127,6 +127,34 @@ final class ConfigurationFormatRules {
     return "Version" + version.platformLine().replace('.', '_');
   }
 
+  /**
+   * Свойства, которые у новой конфигурации ставит сама платформа.
+   *
+   * <p>Эталон cf-bare-objects снят с семени, где режим совместимости {@code Version8_3_12}
+   * и пустой {@code UsePurposes}. Пустая база платформы ({@code ibcmd infobase create} и выгрузка
+   * на 8.3.23, 8.3.24, 8.3.27, 8.5.1) пишет режим совместимости своей версии и назначение
+   * {@code PlatformApplication}. Режим 8.3.12 к тому же не даёт подключить к конфигурации
+   * расширение, переопределяющее свойства заимствованных объектов.
+   *
+   * @param xml {@code Configuration.xml} формата {@code version}
+   * @param version формат
+   * @return текст с умолчаниями новой конфигурации
+   */
+  static String asNewConfiguration(String xml, SchemaVersion version) {
+    String result = ScaffoldPropertyEdit.setLeaf(xml, "CompatibilityMode", compatibilityMode(version));
+    Optional<XmlLines.Node> purposes = property(result, "UsePurposes");
+    if (purposes.isEmpty() || !result.startsWith("<UsePurposes/>", purposes.get().start())) {
+      return result;
+    }
+    XmlLines.Node node = purposes.get();
+    String indent = XmlLines.indentAt(result, node.start());
+    String eol = XmlLines.newline(result);
+    String filled = "<UsePurposes>" + eol
+      + indent + "\t<v8:Value xsi:type=\"app:ApplicationUsePurpose\">PlatformApplication</v8:Value>" + eol
+      + indent + "</UsePurposes>";
+    return result.substring(0, node.start()) + filled + result.substring(node.end());
+  }
+
   private static String mobileFunctionalities(String xml, SchemaVersion target) {
     List<int[]> removals = new ArrayList<>();
     for (XmlLines.Node functionality : XmlLines.children(xml, FUNCTIONALITIES)) {

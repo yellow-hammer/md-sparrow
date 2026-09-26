@@ -797,7 +797,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     )
     Path mainConfigurationXml;
 
-    @Option(names = "--synonym-ru", description = "Синоним ru; по умолчанию имя расширения")
+    @Option(names = "--synonym-ru", description = "Синоним ru; по умолчанию пустой, как у платформы")
     String synonym;
 
     @Override

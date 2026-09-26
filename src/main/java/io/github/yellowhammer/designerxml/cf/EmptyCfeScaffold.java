@@ -28,6 +28,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Пустое расширение конфигурации: {@code Configuration.xml} и роль по умолчанию.
@@ -69,19 +71,39 @@ public final class EmptyCfeScaffold {
     }
   }
 
+  private static final Pattern COMPATIBILITY_MODE = Pattern.compile("Version(\\d+(?:_\\d+)*)");
+
+  /** Режим 8.3.13: последний, в котором переопределять свойства заимствованных объектов нельзя. */
+  private static final int[] LAST_MODE_WITHOUT_OVERRIDES = {8, 3, 13};
+
+  private static final Pattern DEFAULT_ROLES =
+    Pattern.compile("(?s)\\R[\\t ]*(?:<DefaultRoles/>|<DefaultRoles>.*?</DefaultRoles>)");
+
+  private static final Pattern INTERFACE_COMPATIBILITY_MODE = Pattern.compile(
+    "\\R[\\t ]*(?:<InterfaceCompatibilityMode/>|<InterfaceCompatibilityMode>[^<]*</InterfaceCompatibilityMode>)");
+
+  private static final Pattern CHILD_OBJECTS = Pattern.compile("(?s)<ChildObjects>(.*?)</ChildObjects>");
+
+  private static final Pattern ROLE_ENTRY = Pattern.compile("\\R[\\t ]*<Role>[^<]*</Role>");
+
   private EmptyCfeScaffold() {
   }
 
   /**
    * Пишет каркас расширения в каталог.
    *
+   * <p>В режиме совместимости 8.3.13 и ниже расширение не может переопределять свойства
+   * заимствованной конфигурации, поэтому каркас получается таким, каким его создаёт платформа:
+   * без основных ролей, роли по умолчанию и режима совместимости интерфейса.
+   *
    * @param targetCfeRoot каталог расширения (создаётся, содержимое очищается)
    * @param extensionName имя расширения
-   * @param synonym синоним; пустой - берётся имя
+   * @param synonym синоним; пустой - синоним остаётся пустым, как у расширения платформы
    * @param namePrefix префикс имён объектов расширения; пустой - как в эталоне
    * @param purpose назначение расширения
    * @param compatibilityMode режим совместимости расширения из основной конфигурации
-   * @param interfaceCompatibilityMode режим совместимости интерфейса; пустой - как в эталоне
+   * @param interfaceCompatibilityMode режим совместимости интерфейса; пустой - как в эталоне;
+   *                                   в режиме совместимости 8.3.13 и ниже не пишется
    * @param version версия формата выгрузки
    */
   public static void writeEmptyTree(
@@ -114,17 +136,6 @@ public final class EmptyCfeScaffold {
     Objects.requireNonNull(purpose, "purpose");
     CatalogNameConstraints.check(extensionName);
 
-    CfTreeDelete.deleteAllContents(targetCfeRoot);
-    Files.createDirectories(targetCfeRoot);
-
-    Path rolesDir = targetCfeRoot.resolve("Roles");
-    Files.createDirectories(rolesDir);
-    Files.writeString(
-      rolesDir.resolve(GoldenScaffold.extensionDefaultRoleName() + ".xml"),
-      LocalStringElement.retarget(
-        GoldenScaffold.generateExtensionDefaultRole(extensionName, version), language),
-      StandardCharsets.UTF_8);
-
     String xml = GoldenScaffold.generateEmptyExtension(extensionName, version);
     xml = LocalStringElement.retarget(xml, language);
     if (namePrefix != null && !namePrefix.isBlank()) {
@@ -134,28 +145,91 @@ public final class EmptyCfeScaffold {
     if (compatibilityMode != null && !compatibilityMode.isBlank()) {
       xml = ScaffoldPropertyEdit.setLeaf(xml, "ConfigurationExtensionCompatibilityMode", compatibilityMode.trim());
     }
-    if (interfaceCompatibilityMode != null && !interfaceCompatibilityMode.isBlank()) {
-      xml = ScaffoldPropertyEdit.setOrInsertLeaf(
-        xml, "InterfaceCompatibilityMode", interfaceCompatibilityMode.trim(),
-        "ConfigurationInformationAddress");
+    boolean overrides = overridesAdoptedProperties(
+      ScaffoldPropertyEdit.leaf(xml, "ConfigurationExtensionCompatibilityMode").orElse(""));
+    if (overrides) {
+      if (interfaceCompatibilityMode != null && !interfaceCompatibilityMode.isBlank()) {
+        xml = ScaffoldPropertyEdit.setOrInsertLeaf(
+          xml, "InterfaceCompatibilityMode", interfaceCompatibilityMode.trim(),
+          "ConfigurationInformationAddress");
+      }
+    } else {
+      xml = withoutAdoptedOverrides(xml);
     }
     if (synonym != null && !synonym.isBlank()) {
       xml = ScaffoldPropertyEdit.setSynonym(xml, synonym, language);
+    }
+
+    CfTreeDelete.deleteAllContents(targetCfeRoot);
+    Files.createDirectories(targetCfeRoot);
+    if (overrides) {
+      Path rolesDir = targetCfeRoot.resolve("Roles");
+      Files.createDirectories(rolesDir);
+      Files.writeString(
+        rolesDir.resolve(GoldenScaffold.extensionDefaultRoleName() + ".xml"),
+        LocalStringElement.retarget(
+          GoldenScaffold.generateExtensionDefaultRole(extensionName, version), language),
+        StandardCharsets.UTF_8);
     }
     Files.writeString(targetCfeRoot.resolve(CfLayout.CONFIGURATION_XML), xml, StandardCharsets.UTF_8);
   }
 
   /**
+   * Может ли расширение в этом режиме совместимости переопределять свойства заимствованных
+   * объектов, в том числе самой конфигурации.
+   *
+   * <p>В режиме 8.3.13 и ниже платформа такое расширение не принимает («Переопределение свойств
+   * заимствованных объектов в расширениях недопустимо в режиме совместимости 8.3.13 и ниже»).
+   * {@code DontUse} - режим самой платформы, то есть новый.
+   *
+   * @param compatibilityMode значение {@code ConfigurationExtensionCompatibilityMode}, например {@code Version8_3_12}
+   * @return {@code false} для режима 8.3.13 и ниже
+   */
+  static boolean overridesAdoptedProperties(String compatibilityMode) {
+    Matcher mode = COMPATIBILITY_MODE.matcher(compatibilityMode.trim());
+    if (!mode.matches()) {
+      return true;
+    }
+    String[] parts = mode.group(1).split("_");
+    for (int i = 0; i < LAST_MODE_WITHOUT_OVERRIDES.length; i++) {
+      int part = i < parts.length ? Integer.parseInt(parts[i]) : 0;
+      if (part != LAST_MODE_WITHOUT_OVERRIDES[i]) {
+        return part > LAST_MODE_WITHOUT_OVERRIDES[i];
+      }
+    }
+    return parts.length > LAST_MODE_WITHOUT_OVERRIDES.length;
+  }
+
+  /**
+   * Расширение таким, каким его создаёт сама платформа в старом режиме совместимости: без
+   * основных ролей, роли по умолчанию и режима совместимости интерфейса.
+   *
+   * <p>Отвергает платформа именно основные роли - это свойство заимствованной конфигурации.
+   * Режим совместимости интерфейса проверку проходит, но платформа его в таком расширении не
+   * пишет, а роль по умолчанию без основных ролей теряет смысл.
+   */
+  private static String withoutAdoptedOverrides(String xml) {
+    String out = DEFAULT_ROLES.matcher(xml).replaceAll("");
+    out = INTERFACE_COMPATIBILITY_MODE.matcher(out).replaceAll("");
+    Matcher childObjects = CHILD_OBJECTS.matcher(out);
+    if (!childObjects.find()) {
+      return out;
+    }
+    String inner = ROLE_ENTRY.matcher(childObjects.group(1)).replaceAll("");
+    String replacement = inner.isBlank() ? "<ChildObjects/>" : "<ChildObjects>" + inner + "</ChildObjects>";
+    return out.substring(0, childObjects.start()) + replacement + out.substring(childObjects.end());
+  }
+
+  /**
    * То же, но режимы совместимости берутся из основной конфигурации.
    *
-   * <p>Платформа отвергает расширение, у которого режим совместимости или режим совместимости
-   * интерфейса не совпал с расширяемой конфигурацией, поэтому угадывать их нельзя.
+   * <p>Режим совместимости интерфейса платформа сверяет с расширяемой конфигурацией, поэтому
+   * угадывать его нельзя.
    *
-   * <p>Берётся {@code CompatibilityMode} конфигурации: платформа требует, чтобы режим
-   * совместимости расширения не превышал режим совместимости расширяемой конфигурации
-   * («Режим совместимости расширения конфигурации больше режима совместимости основной
-   * конфигурации»). Свойство {@code ConfigurationExtensionCompatibilityMode} у конфигурации
-   * может быть выше и на роль источника не годится - оно берётся только как запасное.
+   * <p>Режим совместимости расширения - {@code CompatibilityMode} конфигурации: так его выбирает
+   * и сама платформа ({@code ibcmd infobase config extension create} на базе в режиме 8.3.12
+   * пишет расширению {@code Version8_3_12}, хотя {@code ConfigurationExtensionCompatibilityMode}
+   * у конфигурации выше). Это свойство конфигурации берётся только как запасное.
    *
    * @param mainConfigurationXml {@code Configuration.xml} расширяемой конфигурации
    */

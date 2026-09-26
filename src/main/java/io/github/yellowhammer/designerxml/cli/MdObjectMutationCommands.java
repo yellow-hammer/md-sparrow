@@ -50,7 +50,7 @@ final class MdObjectMutationCommands {
     @Parameters(index = "1", description = "Путь к JSON")
     Path jsonFile;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -82,7 +82,7 @@ final class MdObjectMutationCommands {
     Path objectXml;
     @Option(names = "--name", required = true, description = "Имя реквизита")
     String name;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -106,7 +106,7 @@ final class MdObjectMutationCommands {
     String oldName;
     @Option(names = "--new-name", required = true, description = "Новое имя реквизита")
     String newName;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -128,7 +128,7 @@ final class MdObjectMutationCommands {
     Path objectXml;
     @Option(names = "--name", required = true, description = "Имя реквизита")
     String name;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -152,7 +152,7 @@ final class MdObjectMutationCommands {
     String sourceName;
     @Option(names = "--new-name", required = true, description = "Имя копии")
     String newName;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -174,7 +174,7 @@ final class MdObjectMutationCommands {
     Path objectXml;
     @Option(names = "--name", required = true, description = "Имя табличной части")
     String name;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -198,7 +198,7 @@ final class MdObjectMutationCommands {
     String oldName;
     @Option(names = "--new-name", required = true, description = "Новое имя табличной части")
     String newName;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -220,7 +220,7 @@ final class MdObjectMutationCommands {
     Path objectXml;
     @Option(names = "--name", required = true, description = "Имя табличной части")
     String name;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -244,7 +244,7 @@ final class MdObjectMutationCommands {
     String sourceName;
     @Option(names = "--new-name", required = true, description = "Имя копии")
     String newName;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -268,7 +268,7 @@ final class MdObjectMutationCommands {
     String tabularSectionName;
     @Option(names = "--name", required = true, description = "Имя реквизита табличной части")
     String name;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -294,7 +294,7 @@ final class MdObjectMutationCommands {
     String oldName;
     @Option(names = "--new-name", required = true, description = "Новое имя реквизита")
     String newName;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -318,7 +318,7 @@ final class MdObjectMutationCommands {
     String tabularSectionName;
     @Option(names = "--name", required = true, description = "Имя реквизита")
     String name;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -344,7 +344,7 @@ final class MdObjectMutationCommands {
     String sourceName;
     @Option(names = "--new-name", required = true, description = "Имя копии")
     String newName;
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override

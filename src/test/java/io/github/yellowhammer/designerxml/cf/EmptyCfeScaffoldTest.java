@@ -22,17 +22,27 @@
 package io.github.yellowhammer.designerxml.cf;
 
 import io.github.yellowhammer.designerxml.DesignerXml;
+import io.github.yellowhammer.designerxml.SamplesSubmodulePaths;
 import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.io.TempDir;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -174,10 +184,10 @@ class EmptyCfeScaffoldTest {
 
   @Test
   void режимыСовместимостиБерутсяИзОсновнойКонфигурации() throws IOException {
-    Path mainCf = workspace.resolve("cf");
-    EmptyCfScaffold.writeEmptyTree(mainCf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, VERSION);
-    Path mainConfigurationXml = mainCf.resolve(CfLayout.CONFIGURATION_XML);
+    // Типовая конфигурация в новом режиме совместимости: расширение может переопределять её свойства
+    Path mainConfigurationXml = Ssl31SubmodulePaths.configurationXml();
     String main = Files.readString(mainConfigurationXml, StandardCharsets.UTF_8);
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties(leaf(main, "CompatibilityMode"))).isTrue();
 
     Path root = workspace.resolve("РасширениеПоКонфигурации");
     EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
@@ -185,13 +195,85 @@ class EmptyCfeScaffoldTest {
       mainConfigurationXml, VERSION);
 
     String xml = Files.readString(root.resolve(CfLayout.CONFIGURATION_XML), StandardCharsets.UTF_8);
-    // платформа не принимает расширение с режимом выше, чем у расширяемой конфигурации
+    // режим расширения платформа сама берёт из режима совместимости основной конфигурации
     assertThat(xml).contains(
       "<ConfigurationExtensionCompatibilityMode>" + leaf(main, "CompatibilityMode")
         + "</ConfigurationExtensionCompatibilityMode>");
     assertThat(xml).contains(
       "<InterfaceCompatibilityMode>" + leaf(main, "InterfaceCompatibilityMode")
         + "</InterfaceCompatibilityMode>");
+    String role = GoldenScaffold.extensionDefaultRoleName();
+    assertThat(xml).contains("<DefaultRoles>").contains("<Role>" + role + "</Role>");
+    assertThat(root.resolve("Roles").resolve(role + ".xml")).exists();
+  }
+
+  /**
+   * В режиме совместимости 8.3.13 и ниже платформа не принимает расширение, которое переопределяет
+   * свойства заимствованной конфигурации, а основные роли - такое свойство. Сама она создаёт в этом
+   * режиме расширение без основных ролей, роли по умолчанию и режима совместимости интерфейса.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void приСтаромРежимеОсновнойРасширениеКакУПлатформы(SchemaVersion version) throws Exception {
+    // Голые объекты сняты с базы в режиме совместимости 8.3.12
+    Path mainConfigurationXml = SamplesSubmodulePaths.bareObjects(version).resolve(CfLayout.CONFIGURATION_XML);
+    String main = Files.readString(mainConfigurationXml, StandardCharsets.UTF_8);
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties(leaf(main, "CompatibilityMode"))).isFalse();
+
+    Path root = workspace.resolve("Старое" + version.name());
+    EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
+      root, "НовоеРасширение", null, null, EmptyCfeScaffold.Purpose.CUSTOMIZATION, mainConfigurationXml, version);
+
+    String xml = Files.readString(root.resolve(CfLayout.CONFIGURATION_XML), StandardCharsets.UTF_8);
+    assertThat(xml).contains(
+      "<ConfigurationExtensionCompatibilityMode>" + leaf(main, "CompatibilityMode")
+        + "</ConfigurationExtensionCompatibilityMode>");
+    assertThat(xml).doesNotContain("DefaultRoles").doesNotContain("InterfaceCompatibilityMode");
+    assertThat(xml).contains("<ChildObjects/>").doesNotContain("<Role>");
+    assertThat(root.resolve("Roles")).doesNotExist();
+    DesignerXml.read(root.resolve(CfLayout.CONFIGURATION_XML), version);
+  }
+
+  @Test
+  void переопределятьСвойстваМожноСРежима8_3_14() {
+    // Граница из сообщения платформы: «недопустимо в режиме совместимости 8.3.13 и ниже»
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties("Version8_3_13")).isFalse();
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties("Version8_3_14")).isTrue();
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties("Version8_5_1")).isTrue();
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties("DontUse")).isTrue();
+  }
+
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void режимыСхемыФорматаНеДопускаютПереопределений(SchemaVersion version) throws Exception {
+    // В схемах перечисление режимов остановилось на 8.3.12: все его значения, кроме режима
+    // самой платформы, старые
+    List<String> modes = compatibilityModesOfSchema(version);
+    assertThat(modes).contains("DontUse");
+    for (String mode : modes) {
+      assertThat(EmptyCfeScaffold.overridesAdoptedProperties(mode)).as(mode).isEqualTo("DontUse".equals(mode));
+    }
+  }
+
+  private static List<String> compatibilityModesOfSchema(SchemaVersion version) throws Exception {
+    Path xsd = Path.of(System.getProperty("xsd.root"), version.xsdDirectoryName(), "v8.1c.ru-8.3-xcf-enums.xsd");
+    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    factory.setNamespaceAware(true);
+    NodeList types = factory.newDocumentBuilder().parse(xsd.toFile())
+      .getElementsByTagNameNS(XMLConstants.W3C_XML_SCHEMA_NS_URI, "simpleType");
+    for (int i = 0; i < types.getLength(); i++) {
+      Element type = (Element) types.item(i);
+      if (!"CompatibilityMode".equals(type.getAttribute("name"))) {
+        continue;
+      }
+      NodeList values = type.getElementsByTagNameNS(XMLConstants.W3C_XML_SCHEMA_NS_URI, "enumeration");
+      List<String> modes = new ArrayList<>();
+      for (int j = 0; j < values.getLength(); j++) {
+        modes.add(((Element) values.item(j)).getAttribute("value"));
+      }
+      return modes;
+    }
+    throw new IllegalStateException("нет перечисления CompatibilityMode в " + xsd);
   }
 
   private static String leaf(String xml, String tag) {
