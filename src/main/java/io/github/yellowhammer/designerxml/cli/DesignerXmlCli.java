@@ -340,7 +340,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
-    @Option(names = "--type", required = true, description = "CATALOG, ENUM, CONSTANT, DOCUMENT, REPORT, DATA_PROCESSOR, TASK, CHART_OF_ACCOUNTS, …")
+    @Option(names = "--type", required = true, description = "Вид объекта: CATALOG, DOCUMENT, INFORMATION_REGISTER, COMMON_FORM, … (перечень - docs/cf-md-object.md)")
     String type;
 
     @Option(names = "--auto-name", description = "Подобрать имя вида ПрефиксN на стороне md-sparrow (без кириллицы в argv)")

@@ -37,9 +37,11 @@ submodule **`fixtures/samples-1c-platform`** (см. [scaffold-golden.md](scaffol
 
 ## Добавление объекта (`add-md-object`)
 
-Создание объекта (`MdObjectAdd`) формирует `<Подкаталог>/<имя>.xml` параметризацией golden-эталона нужной
-версии (см. [scaffold-golden.md](scaffold-golden.md)) — **не** читает и **не** копирует структуру других файлов
-в каталоге. Затем имя добавляется в `Configuration.xml`.
+Создание объекта (`MdObjectAdd`) пишет `<Подкаталог>/<имя>.xml` и файлы из каталога прототипа
+(`<Подкаталог>/<имя>/Ext/…`) параметризацией golden-эталона нужной версии (см.
+[scaffold-golden.md](scaffold-golden.md#виды-объектов)) — **не** читает и **не** копирует структуру других
+файлов в каталоге. Затем имя добавляется в `Configuration.xml`. Перечень видов и форматов —
+[cf-md-object.md](cf-md-object.md#создание-объектов-add-md-object).
 
 Строка в `Configuration.xml` вставляется **точечно** (без JAXB), с тем же отступом, что у строк `ChildObjects`.
 Состав идёт блоками по виду (`ConfigurationChildObjectsOrder`): набор видов — из `ConfigurationChildObjects`

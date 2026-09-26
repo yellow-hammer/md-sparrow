@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Set;
 
 public final class MdObjectAdd {
@@ -49,6 +50,7 @@ public final class MdObjectAdd {
     boolean catalogSynonymEmpty)
     throws IOException, JAXBException {
     CatalogNameConstraints.check(objectName);
+    type.requireIn(version);
     Path cfRoot = requireCfRoot(configurationXml);
     String name = resolveNonConflictingName(configurationXml, version, type, cfRoot, objectName);
     writeNewObject(configurationXml, cfRoot, name, version, type, catalogSynonymRu, catalogSynonymEmpty);
@@ -66,6 +68,7 @@ public final class MdObjectAdd {
     String catalogSynonymRu,
     boolean catalogSynonymEmpty)
     throws IOException, JAXBException {
+    type.requireIn(version);
     Path cfRoot = requireCfRoot(configurationXml);
     String name = MdObjectAddNextName.nextFreeName(configurationXml, version, type, cfRoot);
     CatalogNameConstraints.check(name);
@@ -90,23 +93,32 @@ public final class MdObjectAdd {
     String catalogSynonymRu,
     boolean catalogSynonymEmpty)
     throws IOException, JAXBException {
-    Path out = CfLayout.objectXmlInSubdir(cfRoot, type.cfSubdir(), name);
-    if (Files.exists(out)) {
-      throw new IllegalArgumentException("object file already exists: " + out);
+    // Все файлы прототипа из эталона: описание и то, что лежит в каталоге объекта (Ext/…)
+    Map<String, String> files = GoldenScaffold.generateObjectFiles(type, name, version);
+    for (String relative : files.keySet()) {
+      if (Files.exists(cfRoot.resolve(relative))) {
+        throw new IllegalArgumentException("object file already exists: " + cfRoot.resolve(relative));
+      }
     }
 
-    // Эталон снят на русской конфигурации: подписи нового объекта уезжают в язык этой
-    String text = LocalStringElement.retarget(
-      generateObjectXml(type, name, version, catalogSynonymRu, catalogSynonymEmpty),
-      ConfigurationLanguage.codeOf(configurationXml));
-    text = DistinctUuidRewrite.remapDeterministic(
-      text,
-      GoldenUuid.from("add|" + version.name() + "|" + type + "|" + name,
-        Files.readString(configurationXml, StandardCharsets.UTF_8)));
-    Files.createDirectories(out.getParent());
-    Files.writeString(out, text, StandardCharsets.UTF_8);
-    if (type.roleWithExtRights()) {
-      writeRoleRights(cfRoot, name, version);
+    String language = ConfigurationLanguage.codeOf(configurationXml);
+    String configuration = Files.readString(configurationXml, StandardCharsets.UTF_8);
+    // Одно зерно на все файлы объекта: общие UUID описания и его Ext остаются общими
+    String seed = GoldenUuid.from("add|" + version.name() + "|" + type + "|" + name, configuration);
+    String compatibilityMode = ScaffoldPropertyEdit.leaf(configuration, "CompatibilityMode").orElse(null);
+    String description = GoldenScaffold.objectRelative(type, name);
+    for (Map.Entry<String, String> file : files.entrySet()) {
+      String text = file.getValue();
+      if (type == MdObjectAddType.CATALOG && file.getKey().equals(description)) {
+        text = applyCatalogSynonym(text, name, catalogSynonymRu, catalogSynonymEmpty);
+      }
+      // Эталон снят в режиме совместимости 8.3.12: форма объявляет пространства имён по режиму конфигурации
+      text = FormNamespaceRules.forCompatibility(text, compatibilityMode);
+      // Эталон снят на русской конфигурации: подписи нового объекта уезжают в язык этой
+      text = DistinctUuidRewrite.remapDeterministic(LocalStringElement.retarget(text, language), seed);
+      Path target = cfRoot.resolve(file.getKey());
+      Files.createDirectories(target.getParent());
+      Files.writeString(target, text, StandardCharsets.UTF_8);
     }
     ConfigurationChildObjectAppender.append(configurationXml, type.configurationXmlTag(), name);
   }
@@ -122,30 +134,6 @@ public final class MdObjectAdd {
       }
     }
     return MdObjectAddNextName.nextFreeName(configurationXml, version, type, cfRoot);
-  }
-
-  private static void writeRoleRights(Path cfRoot, String roleName, SchemaVersion version) throws IOException {
-    Path rightsXml = CfLayout.roleExtRightsXml(cfRoot, roleName);
-    Files.createDirectories(rightsXml.getParent());
-    Files.writeString(rightsXml, GoldenScaffold.generateRoleRights(roleName, version), StandardCharsets.UTF_8);
-  }
-
-  /**
-   * Новый объект — параметризация эталона (golden) «голого» объекта нужной версии (см. {@link GoldenScaffold}).
-   * Работает для любого формата, у которого есть эталон. Для справочника применяется опция синонима.
-   */
-  private static String generateObjectXml(
-    MdObjectAddType type,
-    String name,
-    SchemaVersion version,
-    String catalogSynonymRu,
-    boolean catalogSynonymEmpty)
-    throws IOException {
-    String xml = GoldenScaffold.generateObject(type, name, version);
-    if (type == MdObjectAddType.CATALOG) {
-      xml = applyCatalogSynonym(xml, name, catalogSynonymRu, catalogSynonymEmpty);
-    }
-    return xml;
   }
 
   /**

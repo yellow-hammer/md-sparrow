@@ -426,6 +426,32 @@ val prepareCanonicalGolden = tasks.register("prepareCanonicalGolden") {
         val rules = output.resolve("rules/2.10")
         rules.mkdirs()
         rules.resolve("RequiredMobileApplicationPermissions.xml").writeText(block)
+        output.resolve("index.txt").writeText(resourceIndex(output))
+    }
+}
+
+/**
+ * Перечень файлов каталога для index.txt: каталог ресурсов в jar не перечислить, а scaffold
+ * берёт все файлы объекта-прототипа (описание и файлы рядом с ним). Пути относительные, через «/».
+ */
+fun resourceIndex(directory: File): String =
+    directory.walkTopDown()
+        .filter { it.isFile }
+        .map { it.relativeTo(directory).invariantSeparatorsPath }
+        .sorted()
+        .joinToString("\n", postfix = "\n")
+
+/** Перечень эталонов, записанных 1С:EDT: edt-golden/index.txt. */
+val indexEdtGolden = tasks.register("indexEdtGolden") {
+    val source = layout.projectDirectory.dir("src/main/resources/edt-golden")
+    val target = layout.buildDirectory.dir("generated/edt-golden-index")
+    inputs.dir(source).withPropertyName("эталоны EDT")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        output.resolve("index.txt").writeText(resourceIndex(source.asFile))
     }
 }
 
@@ -438,9 +464,13 @@ tasks.named<Copy>("processResources") {
     from(prepareDesignerTypeSchemas) {
         into("designer-schemas")
     }
-    // Канонический набор: golden/{cf,cfe,ext,form}/…, golden/format.txt, golden/rules/…
+    // Канонический набор: golden/{cf,cfe,ext,form}/…, golden/format.txt, golden/rules/…, golden/index.txt
     from(prepareCanonicalGolden) {
         into("golden")
+    }
+    // Перечень эталонов EDT: edt-golden/index.txt
+    from(indexEdtGolden) {
+        into("edt-golden")
     }
 }
 

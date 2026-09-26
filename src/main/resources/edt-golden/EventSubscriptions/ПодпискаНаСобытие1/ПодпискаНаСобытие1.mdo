@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:EventSubscription xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="1d16814e-4ee5-524d-83d6-72a3e926a9cf">
+  <name>ПодпискаНаСобытие1</name>
+  <source/>
+</mdclass:EventSubscription>

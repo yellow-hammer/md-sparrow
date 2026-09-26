@@ -57,6 +57,9 @@ class MdObjectChildMutationsOnNewObjectsTest {
     boolean tabularAttributeCovered = false;
 
     for (MdObjectAddType type : MdObjectAddType.values()) {
+      if (!type.existsIn(version)) {
+        continue;
+      }
       String objectName = MdObjectAdd.addWithNextAvailableName(configurationXml, version, type, null, false);
       Path objectXml = CfObjectPathResolver.objectXml(cf, type.configurationXmlTag(), objectName).orElseThrow();
       List<String> allowed = ChildNodeOp.schemaChildren(version, type.configurationXmlTag());
@@ -88,9 +91,8 @@ class MdObjectChildMutationsOnNewObjectsTest {
       }
     }
 
-    // Регистров add-md-object не создаёт: измерения и ресурсы проверяются на регистрах выгрузки
-    Set<ChildNodeOp> required = EnumSet.complementOf(EnumSet.of(ChildNodeOp.DIMENSION, ChildNodeOp.RESOURCE));
-    assertThat(covered).containsAll(required);
+    // Регистры тоже создаются: каждый вид узла добавлен хотя бы одному объекту
+    assertThat(covered).containsExactlyInAnyOrder(ChildNodeOp.values());
     assertThat(tabularAttributeCovered).isTrue();
     assertThat(CfDumpValidation.validate(cf)).isEmpty();
   }

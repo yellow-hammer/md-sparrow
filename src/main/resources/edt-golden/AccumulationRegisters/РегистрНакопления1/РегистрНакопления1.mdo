@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:AccumulationRegister xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="e99fa70f-9baa-514e-82e2-0c811cb340fb">
+  <producedTypes>
+    <selectionType typeId="14854adb-72b8-5220-868b-f2745ba5351a" valueTypeId="7653235e-efaa-5219-a08a-4a5c7c038746"/>
+    <listType typeId="2fe1e164-19d3-539e-a883-de84bc335c3c" valueTypeId="e2956fec-c223-5bbb-b8d8-a21b2f428675"/>
+    <managerType typeId="16526877-fccd-515a-9a98-ef8fbcaf2f3c" valueTypeId="c377c1f0-4aa2-5b94-9667-058e2cc05a85"/>
+    <recordSetType typeId="4cd9fdf6-0fff-566d-b6dc-e2448d48d079" valueTypeId="7066c921-9707-597d-a2e8-0ffd7bb63068"/>
+    <recordKeyType typeId="935a1e0f-762e-5a6c-b38e-f30c132bf430" valueTypeId="6e4f5b8f-8455-5d7b-b631-941d4598e10d"/>
+    <recordType typeId="b53dde54-ffb6-5cf0-8b26-adf11c806c4d" valueTypeId="79bfc4a6-5bd3-55b7-b787-4a12d9f1489e"/>
+  </producedTypes>
+  <name>РегистрНакопления1</name>
+  <useStandardCommands>true</useStandardCommands>
+  <dataLockControlMode>Managed</dataLockControlMode>
+</mdclass:AccumulationRegister>

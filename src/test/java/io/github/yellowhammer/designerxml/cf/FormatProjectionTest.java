@@ -206,13 +206,42 @@ class FormatProjectionTest {
       .hasMessageContaining("построчно не вырезать");
   }
 
-  @Test
-  void видыОбъектовДля19ВидовЕстьВоВсехФорматах() {
-    for (SchemaVersion version : SchemaVersion.values()) {
+  /**
+   * Вид есть в модели формата тогда и только тогда, когда его выгружает платформа формата: сверка
+   * с эталонами, снятыми со всеми видами. Виды только прибавляются: появившись, вид есть и во всех
+   * более новых форматах.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void видОбъектаЕстьВМоделиФорматаЕслиЕгоВыгружаетПлатформа(SchemaVersion version) {
+    Path snapshot = GoldenSnapshots.format(version).resolve(GoldenSnapshots.CF);
+    List<String> exported = compositionLines(GoldenSnapshots.read(snapshot.resolve(CfLayout.CONFIGURATION_XML)))
+      .stream()
+      .map(line -> line.substring(1, line.indexOf('>')))
+      .distinct()
+      .toList();
+    for (MdObjectAddType type : MdObjectAddType.values()) {
+      String kind = type.configurationXmlTag();
+      if (exported.contains(kind)) {
+        assertThat(FormatProjection.hasObjectKind(kind, version)).as("%s в формате %s", kind, version).isTrue();
+      }
+      if (FormatProjection.hasObjectKind(kind, version)) {
+        for (SchemaVersion newer : SchemaVersion.values()) {
+          if (newer.compareTo(version) > 0) {
+            assertThat(FormatProjection.hasObjectKind(kind, newer)).as("%s в формате %s", kind, newer).isTrue();
+          }
+        }
+      }
+    }
+    boolean complete = java.util.Arrays.stream(MdObjectAddType.values())
+      .filter(type -> FormatProjection.hasObjectKind(type.configurationXmlTag(), version))
+      .allMatch(type -> exported.contains(type.configurationXmlTag()));
+    if (complete) {
+      // эталон со всеми видами формата: и обратное - вида нет в выгрузке, значит нет и в модели
       for (MdObjectAddType type : MdObjectAddType.values()) {
         assertThat(FormatProjection.hasObjectKind(type.configurationXmlTag(), version))
           .as("%s в формате %s", type, version)
-          .isTrue();
+          .isEqualTo(exported.contains(type.configurationXmlTag()));
       }
     }
   }

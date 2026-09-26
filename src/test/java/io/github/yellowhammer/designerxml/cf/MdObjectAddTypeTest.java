@@ -45,6 +45,8 @@ class MdObjectAddTypeTest {
       String cli = cliName(type.configurationXmlTag());
       assertThat(MdObjectAddType.fromCliName(cli)).isEqualTo(type);
       assertThat(MdObjectAddType.fromCliName(cli.toLowerCase(Locale.ROOT).replace('_', '-'))).isEqualTo(type);
+      assertThat(MdObjectAddType.fromCliName(type.name())).isEqualTo(type);
+      assertThat(MdObjectAddType.fromCliName(type.configurationXmlTag())).isEqualTo(type);
     }
   }
 
@@ -66,6 +68,16 @@ class MdObjectAddTypeTest {
         .hasMessageContaining(cli)
         .hasMessageContainingAll(Arrays.stream(MdObjectAddType.values()).map(Enum::name).toArray(String[]::new));
     }
+  }
+
+  /** Отказ о занятом имени называет вид по-русски у каждого вида, который создаёт add-md-object. */
+  @Test
+  void каждыйВидПодписан() {
+    for (MdObjectAddType type : MdObjectAddType.values()) {
+      assertThat(UiLabels.objectKinds()).as(type.name()).containsKey(type.configurationXmlTag());
+    }
+    assertThat(UiLabels.alreadyExists("EventSubscription", "ПередЗаписью"))
+      .isEqualTo("Подписка на событие «ПередЗаписью» уже есть.");
   }
 
   @Test

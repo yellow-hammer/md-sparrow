@@ -27,6 +27,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -44,27 +47,13 @@ import java.util.regex.Pattern;
  */
 public final class GoldenScaffold {
 
-  /** Имя объекта-прототипа в эталоне (как в семени samples-1c-platform/seed). */
-  private static final Map<MdObjectAddType, String> PROTO = Map.ofEntries(
-    Map.entry(MdObjectAddType.CATALOG, "Справочник1"),
-    Map.entry(MdObjectAddType.ENUM, "Перечисление1"),
-    Map.entry(MdObjectAddType.CONSTANT, "Константа1"),
-    Map.entry(MdObjectAddType.DOCUMENT, "Документ1"),
-    Map.entry(MdObjectAddType.REPORT, "Отчет1"),
-    Map.entry(MdObjectAddType.DATA_PROCESSOR, "Обработка1"),
-    Map.entry(MdObjectAddType.TASK, "Задача1"),
-    Map.entry(MdObjectAddType.CHART_OF_ACCOUNTS, "ПланСчетов1"),
-    Map.entry(MdObjectAddType.CHART_OF_CHARACTERISTIC_TYPES, "ПланВидовХарактеристик1"),
-    Map.entry(MdObjectAddType.CHART_OF_CALCULATION_TYPES, "ПланВидовРасчета1"),
-    Map.entry(MdObjectAddType.COMMON_MODULE, "ОбщийМодуль1"),
-    Map.entry(MdObjectAddType.SUBSYSTEM, "Подсистема1"),
-    Map.entry(MdObjectAddType.SESSION_PARAMETER, "ПараметрСеанса1"),
-    Map.entry(MdObjectAddType.EXCHANGE_PLAN, "ПланОбмена1"),
-    Map.entry(MdObjectAddType.COMMON_ATTRIBUTE, "ОбщийРеквизит1"),
-    Map.entry(MdObjectAddType.COMMON_PICTURE, "ОбщаяКартинка1"),
-    Map.entry(MdObjectAddType.DOCUMENT_NUMERATOR, "Нумератор1"),
-    Map.entry(MdObjectAddType.EXTERNAL_DATA_SOURCE, "ВнешнийИсточник1"),
-    Map.entry(MdObjectAddType.ROLE, "Роль1"));
+  /**
+   * Прототипы, которые семя samples-1c-platform/seed назвало не по префиксу вида. У остальных видов
+   * прототип - префикс вида и «1», как новый объект называет конфигуратор.
+   */
+  private static final Map<MdObjectAddType, String> PROTO_BY_SEED = Map.of(
+    MdObjectAddType.DOCUMENT_NUMERATOR, "Нумератор1",
+    MdObjectAddType.EXTERNAL_DATA_SOURCE, "ВнешнийИсточник1");
 
   /** Имя внешнего объекта-прототипа в эталоне (external-files/empty). */
   private static final Map<ExternalArtifactKind, String> EXTERNAL_PROTO = Map.ofEntries(
@@ -79,6 +68,9 @@ public final class GoldenScaffold {
 
   /** Канонический набор: голые объекты конфигурации (cf-bare-objects). */
   private static final String CANONICAL_CF = "golden/cf/";
+
+  /** Голые объекты в перечне канонического набора. */
+  private static final String CANONICAL_CF_IN_INDEX = "cf/";
 
   /** Канонический набор: пустое расширение (cfe-empty). */
   private static final String CANONICAL_CFE = "golden/cfe/";
@@ -106,17 +98,19 @@ public final class GoldenScaffold {
   /** Формат канонического набора. */
   private static final String CANONICAL_FORMAT = "golden/format.txt";
 
+  /** Перечень файлов канонического набора: пути относительно {@code golden/}. */
+  private static final String CANONICAL_INDEX = "golden/index.txt";
+
   private static volatile SchemaVersion canonicalVersion;
+
+  private static volatile List<String> canonicalIndex;
 
   private GoldenScaffold() {
   }
 
+  /** Имя объекта-прототипа вида в эталоне. */
   static String protoName(MdObjectAddType type) {
-    String proto = PROTO.get(type);
-    if (proto == null) {
-      throw new IllegalArgumentException("нет прототипа для " + type);
-    }
-    return proto;
+    return PROTO_BY_SEED.getOrDefault(type, type.namePrefix() + "1");
   }
 
   /**
@@ -148,15 +142,77 @@ public final class GoldenScaffold {
   public static boolean hasGolden(MdObjectAddType type, SchemaVersion version) {
     return resourceUrl(CANONICAL_CF + objectRelative(type)) != null
       && version.compareTo(canonicalVersion()) <= 0
-      && FormatProjection.hasObjectKind(type.configurationXmlTag(), version);
+      && type.existsIn(version);
   }
 
   /** XML нового объекта типа {@code type} с именем {@code targetName} в формате {@code version}. */
   public static String generateObject(MdObjectAddType type, String targetName, SchemaVersion version)
     throws IOException {
-    String golden = projected(CANONICAL_CF + objectRelative(type), version);
+    return generateObjectFiles(type, targetName, version).get(objectRelative(type, targetName));
+  }
+
+  /**
+   * Все файлы нового объекта: описание и файлы из каталога объекта-прототипа ({@code Ext/Rights.xml}
+   * роли, {@code Ext/Form.xml} общей формы, {@code Ext/WSDefinition.xml} WS-ссылки), каждый в
+   * формате {@code version}, под именем {@code targetName} и с одним ремапом UUID на все файлы.
+   *
+   * @param type вид объекта
+   * @param targetName имя нового объекта
+   * @param version формат
+   * @return путь относительно каталога выгрузки (через {@code /}) - текст; описание объекта первым
+   * @throws IOException если эталона нет или формат новее канонического набора
+   * @throws IllegalArgumentException если вида в формате ещё нет
+   */
+  public static Map<String, String> generateObjectFiles(
+    MdObjectAddType type, String targetName, SchemaVersion version) throws IOException {
+    String proto = protoName(type);
     String seed = "scaffold|" + version.name() + "|" + type + "|" + targetName;
-    return GoldenObjectTemplate.parametrize(golden, protoName(type), targetName, seed);
+    Map<String, String> files = new LinkedHashMap<>();
+    for (String relative : prototypeFiles(type)) {
+      String golden = projected(CANONICAL_CF + relative, version);
+      files.put(renamedPath(relative, proto, targetName),
+        GoldenObjectTemplate.parametrize(golden, proto, targetName, seed));
+    }
+    return files;
+  }
+
+  /**
+   * Файлы прототипа вида в каноническом наборе: описание {@code <Каталог>/<Прототип>.xml} и всё, что
+   * лежит в каталоге {@code <Каталог>/<Прототип>/}.
+   */
+  static List<String> prototypeFiles(MdObjectAddType type) throws IOException {
+    String directory = CANONICAL_CF_IN_INDEX + type.cfSubdir() + "/" + protoName(type) + "/";
+    List<String> files = new ArrayList<>();
+    files.add(objectRelative(type));
+    for (String entry : canonicalIndex()) {
+      if (entry.startsWith(directory)) {
+        files.add(entry.substring(CANONICAL_CF_IN_INDEX.length()));
+      }
+    }
+    return files;
+  }
+
+  /** Путь файла прототипа под именем нового объекта: меняются каталог объекта и имя описания. */
+  private static String renamedPath(String relative, String proto, String targetName) {
+    String[] segments = relative.split("/");
+    for (int i = 0; i < segments.length; i++) {
+      if (segments[i].equals(proto)) {
+        segments[i] = targetName;
+      } else if (segments[i].equals(proto + ".xml")) {
+        segments[i] = targetName + ".xml";
+      }
+    }
+    return String.join("/", segments);
+  }
+
+  /** Перечень файлов канонического набора из jar. */
+  private static List<String> canonicalIndex() throws IOException {
+    List<String> cached = canonicalIndex;
+    if (cached == null) {
+      cached = readResource(CANONICAL_INDEX).lines().filter(line -> !line.isBlank()).toList();
+      canonicalIndex = cached;
+    }
+    return cached;
   }
 
   /**
@@ -209,14 +265,6 @@ public final class GoldenScaffold {
    */
   public static String generateFormContent(SchemaVersion version) throws IOException {
     return projected(CANONICAL_FORM + FORM_PROTO + "/Ext/Form.xml", version);
-  }
-
-  /** {@code Ext/Rights.xml} новой роли из эталона (пустые права нужной версии формата). */
-  public static String generateRoleRights(String targetRoleName, SchemaVersion version) throws IOException {
-    String proto = protoName(MdObjectAddType.ROLE);
-    String golden = projected(CANONICAL_CF + "Roles/" + proto + "/Ext/Rights.xml", version);
-    String seed = "scaffoldRights|" + version.name() + "|" + targetRoleName;
-    return GoldenObjectTemplate.parametrize(golden, proto, targetRoleName, seed);
   }
 
   /**
@@ -315,7 +363,18 @@ public final class GoldenScaffold {
   }
 
   private static String objectRelative(MdObjectAddType type) {
-    return type.cfSubdir() + "/" + protoName(type) + ".xml";
+    return objectRelative(type, protoName(type));
+  }
+
+  /**
+   * Описание объекта относительно каталога выгрузки.
+   *
+   * @param type вид объекта
+   * @param name имя объекта
+   * @return например {@code Catalogs/Склады.xml}
+   */
+  static String objectRelative(MdObjectAddType type, String name) {
+    return type.cfSubdir() + "/" + name + ".xml";
   }
 
   static String externalProtoName(ExternalArtifactKind kind) {

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:DocumentJournal xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="700bf71f-8ae8-51cb-9b49-747dacc5b454">
+  <producedTypes>
+    <selectionType typeId="cacf4af3-c74c-5cc9-894b-8061869f9133" valueTypeId="e6e9c8cd-0ba9-530d-bac1-1104a46ca2dc"/>
+    <listType typeId="cf4ddaa9-1708-5d3f-b944-9102c7621729" valueTypeId="98e8763d-49da-5b01-967c-5f9d220adf1b"/>
+    <managerType typeId="55ca39f5-9807-53e5-8d8f-80c9b3409406" valueTypeId="b6025542-b091-551b-a83b-4e6c594d5cbb"/>
+  </producedTypes>
+  <name>ЖурналДокументов1</name>
+  <useStandardCommands>true</useStandardCommands>
+</mdclass:DocumentJournal>

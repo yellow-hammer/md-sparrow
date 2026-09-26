@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -43,6 +44,7 @@ import javax.xml.stream.XMLStreamException;
 import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
+import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.cf.CatalogNameConstraints;
 import io.github.yellowhammer.designerxml.cf.UiLabels;
 import io.github.yellowhammer.designerxml.cf.ChildObjectEntry;
@@ -64,12 +66,13 @@ import io.github.yellowhammer.edt.EdtObjectRegions.Region;
 public final class EdtObjectScaffold {
 
   private static final String GOLDEN = "/edt-golden/";
+  /** Перечень эталонов: каталог ресурсов в jar не перечислить. */
+  private static final String GOLDEN_INDEX = "index.txt";
   private static final String CONFIGURATION = "Configuration";
   private static final String FORMS = "forms";
   private static final String FORMS_DIRECTORY = "Forms";
   private static final String FORM_FILE = "Form.form";
   private static final String FORM_PROTO = "ФормаЭлемента";
-  private static final String RIGHTS_FILE = "Rights.rights";
   private static final String INDENT = "  ";
   private static final int MAX_SUFFIX = 999_999;
 
@@ -85,6 +88,8 @@ public final class EdtObjectScaffold {
 
   /** Код языка подписи: {@code <synonym><key>ru</key><value>...</value></synonym>}. */
   private static final Pattern LOCAL_STRING_KEY = Pattern.compile("<key>[^<]*</key>(?=\\s*<value>)");
+
+  private static volatile List<String> goldenIndex;
 
   private EdtObjectScaffold() {
   }
@@ -148,8 +153,9 @@ public final class EdtObjectScaffold {
   /**
    * Добавляет объект с заданным именем и синонимом.
    *
-   * Подписи эталона записаны по-русски и переносятся на основной язык
-   * конфигурации.
+   * Объект получает все файлы каталога прототипа из эталона: описание, права
+   * роли, разметку общей формы, описание WS-ссылки. Подписи эталона записаны
+   * по-русски и переносятся на основной язык конфигурации.
    *
    * @param configurationMdo описание конфигурации
    * @param model метамодель EDT
@@ -168,22 +174,87 @@ public final class EdtObjectScaffold {
       boolean synonymEmpty) throws IOException {
     CatalogNameConstraints.check(name);
     Path sourceRoot = sourceRoot(configurationMdo);
+    requireKindInProject(kind, sourceRoot.getParent());
     Path objectDir = sourceRoot.resolve(kind.cfSubdir()).resolve(name);
     if (Files.exists(objectDir)) {
       throw new IllegalArgumentException(UiLabels.alreadyExists(kind.configurationXmlTag(), name));
     }
     String proto = kind.namePrefix() + "1";
-    String golden = golden(kind.cfSubdir() + "/" + proto + "/" + proto + ".mdo");
+    String directory = kind.cfSubdir() + "/" + proto + "/";
+    String description = directory + proto + ".mdo";
+    List<String> files = goldenFiles(directory);
+    if (!files.contains(description)) {
+      throw new IOException("В сборке нет эталона объекта EDT: " + description);
+    }
+    // Одно зерно на все файлы объекта: общие идентификаторы остаются общими
     String seed = seed("add|" + kind.name() + "|" + name, Files.readString(configurationMdo, StandardCharsets.UTF_8));
-    String text = retargeted(parametrize(golden, proto, name, seed), ConfigurationLanguage.codeOf(configurationMdo));
+    String language = ConfigurationLanguage.codeOf(configurationMdo);
     Files.createDirectories(objectDir);
-    Files.writeString(objectDir.resolve(name + ".mdo"), withSynonym(text, name, synonym, synonymEmpty),
-        StandardCharsets.UTF_8);
-    if (kind.roleWithExtRights()) {
-      Files.writeString(objectDir.resolve(RIGHTS_FILE),
-          golden(kind.cfSubdir() + "/" + proto + "/" + RIGHTS_FILE), StandardCharsets.UTF_8);
+    for (String file : files) {
+      String text = retargeted(parametrize(golden(file), proto, name, seed), language);
+      if (file.equals(description)) {
+        text = withSynonym(text, name, synonym, synonymEmpty);
+      }
+      Path target = objectDir.resolve(renamedPath(file.substring(directory.length()), proto, name));
+      Files.createDirectories(target.getParent());
+      Files.writeString(target, text, StandardCharsets.UTF_8);
     }
     appendReference(configurationMdo, model, kind.configurationXmlTag(), name);
+  }
+
+  /**
+   * Вид должен быть у платформы проекта: формат берётся по {@code Runtime-Version}
+   * манифеста. Без манифеста проверки нет: эталоны записаны 1С:EDT для самой
+   * новой платформы и годятся любому виду.
+   */
+  private static void requireKindInProject(MdObjectAddType kind, Path projectDir) throws IOException {
+    if (projectDir == null) {
+      return;
+    }
+    Optional<String> runtime = EdtProjectManifest.runtimeVersion(projectDir);
+    if (runtime.isEmpty()) {
+      return;
+    }
+    try {
+      kind.requireIn(SchemaVersion.ofPlatform(runtime.get()));
+    } catch (IllegalArgumentException absent) {
+      throw new IllegalArgumentException("Платформа проекта " + runtime.get() + ": " + absent.getMessage(), absent);
+    }
+  }
+
+  /**
+   * Файлы эталона в каталоге.
+   *
+   * @param directory каталог относительно корня эталонов, с «/» в конце
+   * @return пути относительно корня эталонов
+   * @throws IOException если перечня эталонов нет в сборке
+   */
+  static List<String> goldenFiles(String directory) throws IOException {
+    List<String> index = goldenIndex;
+    if (index == null) {
+      index = golden(GOLDEN_INDEX).lines().filter(line -> !line.isBlank()).toList();
+      goldenIndex = index;
+    }
+    List<String> files = new ArrayList<>();
+    for (String file : index) {
+      if (file.startsWith(directory)) {
+        files.add(file);
+      }
+    }
+    return files;
+  }
+
+  /** Путь файла прототипа под именем нового объекта: имя меняется в имени описания и в каталогах. */
+  private static String renamedPath(String relative, String proto, String name) {
+    String[] segments = relative.split("/");
+    for (int i = 0; i < segments.length; i++) {
+      if (segments[i].equals(proto)) {
+        segments[i] = name;
+      } else if (segments[i].startsWith(proto + ".")) {
+        segments[i] = name + segments[i].substring(proto.length());
+      }
+    }
+    return String.join("/", segments);
   }
 
   /**

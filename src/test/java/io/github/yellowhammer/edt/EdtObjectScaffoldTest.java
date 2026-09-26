@@ -28,18 +28,33 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamReader;
+
+import org.eclipse.emf.ecore.EStructuralFeature;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectStructureDto;
+import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeBuilder;
+import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
 
 /**
  * Новые объекты и формы проекта EDT.
@@ -293,5 +308,162 @@ class EdtObjectScaffoldTest {
     assertThatThrownBy(() -> EdtObjectScaffold.addForm(mdo, model, "ФормаЭлемента"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("уже");
+  }
+
+  /**
+   * Проект с манифестом: описание конфигурации и манифест фикстуры, версия платформы - {@code runtime}.
+   *
+   * @return каталог исходников проекта
+   */
+  private Path project(String runtime) throws IOException {
+    Path project = workDir.resolve("ws").resolve("ssl31");
+    Path root = project.resolve("src");
+    copy(fixture.resolve("Configuration"), root.resolve("Configuration"));
+    String manifest = Files.readString(fixture.resolveSibling("DT-INF").resolve("PROJECT.PMF"), StandardCharsets.UTF_8);
+    Path target = project.resolve("DT-INF").resolve("PROJECT.PMF");
+    Files.createDirectories(target.getParent());
+    Files.writeString(target,
+        manifest.replaceFirst("(?m)^Runtime-Version:.*$", Matcher.quoteReplacement("Runtime-Version: " + runtime)),
+        StandardCharsets.UTF_8);
+    return root;
+  }
+
+  /**
+   * Каждый вид: файлы нового объекта - все файлы эталона 1С:EDT, совпадают с ним после замены имени и
+   * идентификаторов ({@code classId} как есть), читаются свойствами, структурой и деревом проекта.
+   */
+  @Test
+  void каждыйВидСовпадаетСЭталономИЧитается() throws Exception {
+    Path root = project("8.5.1");
+    Map<String, String> created = new LinkedHashMap<>();
+    for (MdObjectAddType kind : MdObjectAddType.values()) {
+      String proto = kind.namePrefix() + "1";
+      String name = "Нов" + proto;
+      EdtObjectScaffold.add(configuration(root), model, kind, name);
+      created.put(kind.configurationXmlTag() + "." + name, kind.cfSubdir() + "/" + name + "/" + name + ".mdo");
+
+      String directory = kind.cfSubdir() + "/" + proto + "/";
+      List<String> golden = EdtObjectScaffold.goldenFiles(directory);
+      Path objectDir = root.resolve(kind.cfSubdir()).resolve(name);
+      List<String> files;
+      try (Stream<Path> walk = Files.walk(objectDir)) {
+        files = walk.filter(Files::isRegularFile)
+            .map(file -> directory + objectDir.relativize(file).toString().replace('\\', '/').replace(name, proto))
+            .toList();
+      }
+      assertThat(files).as(kind.name()).isNotEmpty().containsExactlyInAnyOrderElementsOf(golden);
+      for (String file : golden) {
+        Path written = root.resolve(file.replace(proto, name));
+        assertThat(normalized(Files.readString(written, StandardCharsets.UTF_8), name, proto))
+            .as(file)
+            .isEqualTo(normalized(EdtObjectScaffold.golden(file), proto, proto));
+      }
+
+      Path mdo = objectDir.resolve(name + ".mdo");
+      assertThat(EdtObjectProperties.readDto(mdo, model).internalName).as(kind.name()).isEqualTo(name);
+      EdtObjectStructure.read(mdo, model);
+    }
+
+    Map<String, String> tree = new LinkedHashMap<>();
+    ProjectMetadataTreeDto.MetadataSourceDto main = ProjectMetadataTreeBuilder.build(workDir.resolve("ws"))
+        .sources().getFirst();
+    for (ProjectMetadataTreeDto.MetadataGroupDto group : main.groups()) {
+      List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>(group.items());
+      group.subgroups().forEach(subgroup -> items.addAll(subgroup.items()));
+      items.forEach(item -> tree.put(item.objectType() + "." + item.name(), item.relativePath()));
+    }
+    for (Map.Entry<String, String> object : created.entrySet()) {
+      assertThat(tree).as("дерево проекта").containsEntry(object.getKey(), "ssl31/src/" + object.getValue());
+    }
+  }
+
+  /** Имя - имя прототипа, идентификаторы - метки по порядку появления; {@code classId} как есть. */
+  private static String normalized(String text, String name, String proto) {
+    String renamed = EdtObjectScaffold.renamed(text, name, proto);
+    Map<String, String> labels = new HashMap<>();
+    Matcher uuids = UUID_TOKEN.matcher(renamed);
+    StringBuilder out = new StringBuilder();
+    while (uuids.find()) {
+      String label = renamed.startsWith("classId=\"", uuids.start() - "classId=\"".length())
+          ? uuids.group()
+          : labels.computeIfAbsent(uuids.group(), uuid -> "UUID-" + labels.size());
+      uuids.appendReplacement(out, Matcher.quoteReplacement(label));
+    }
+    uuids.appendTail(out);
+    return out.toString();
+  }
+
+  /**
+   * Ссылки в составе конфигурации идут в порядке признаков класса {@code Configuration} схемы, в каком
+   * бы порядке ни добавлялись объекты.
+   */
+  @Test
+  void составКонфигурацииИдётВПорядкеСхемы() throws Exception {
+    Path root = project("8.5.1");
+    List<MdObjectAddType> kinds = new ArrayList<>(List.of(MdObjectAddType.values()));
+    Collections.reverse(kinds);
+    for (MdObjectAddType kind : kinds) {
+      String name = EdtObjectScaffold.addWithNextAvailableName(configuration(root), model, kind);
+      assertThat(names(root, kind.configurationXmlTag())).as(kind.name()).contains(name);
+    }
+
+    List<String> order = new ArrayList<>();
+    for (EStructuralFeature feature : model.classOf("Configuration").getEAllStructuralFeatures()) {
+      order.add(feature.getName());
+    }
+    int previous = -1;
+    String previousElement = null;
+    for (String element : topLevelElements(configuration(root))) {
+      int index = order.indexOf(element);
+      assertThat(index).as("признак %s", element).isNotNegative();
+      assertThat(index).as("%s после %s", element, previousElement).isGreaterThanOrEqualTo(previous);
+      previous = index;
+      previousElement = element;
+    }
+  }
+
+  /** Имена элементов верхнего уровня описания по порядку. */
+  private static List<String> topLevelElements(Path mdo) throws Exception {
+    List<String> elements = new ArrayList<>();
+    XMLStreamReader reader = XMLInputFactory.newFactory()
+        .createXMLStreamReader(new java.io.StringReader(Files.readString(mdo, StandardCharsets.UTF_8)));
+    int depth = 0;
+    while (reader.hasNext()) {
+      int event = reader.next();
+      if (event == XMLStreamConstants.START_ELEMENT) {
+        depth++;
+        if (depth == 2) {
+          elements.add(reader.getLocalName());
+        }
+      } else if (event == XMLStreamConstants.END_ELEMENT) {
+        depth--;
+      }
+    }
+    return elements;
+  }
+
+  /**
+   * Вид, которого у платформы проекта ещё нет, не создаётся: платформа берётся из
+   * {@code Runtime-Version} манифеста, формат - по линейке платформы.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void видыПроектаПоВерсииПлатформы(SchemaVersion version) throws Exception {
+    Path root = project(version.platformLine());
+    for (MdObjectAddType kind : MdObjectAddType.values()) {
+      if (kind.existsIn(version)) {
+        String name = EdtObjectScaffold.addWithNextAvailableName(configuration(root), model, kind);
+        assertThat(root.resolve(kind.cfSubdir()).resolve(name)).as("%s в %s", kind, version).isDirectory();
+        continue;
+      }
+      String before = Files.readString(configuration(root), StandardCharsets.UTF_8);
+      assertThatThrownBy(() -> EdtObjectScaffold.addWithNextAvailableName(configuration(root), model, kind))
+          .as("%s в %s", kind, version)
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("Платформа проекта " + version.platformLine())
+          .hasMessageContaining("вид " + kind.configurationXmlTag() + " появился в формате");
+      assertThat(root.resolve(kind.cfSubdir())).as("%s в %s", kind, version).doesNotExist();
+      assertThat(Files.readString(configuration(root), StandardCharsets.UTF_8)).isEqualTo(before);
+    }
   }
 }

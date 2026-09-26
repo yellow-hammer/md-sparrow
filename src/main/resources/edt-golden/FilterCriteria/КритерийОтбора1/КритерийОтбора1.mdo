@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:FilterCriterion xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="9eeb054f-c994-5a0e-b691-e283b3f8af61">
+  <producedTypes>
+    <listType typeId="c4416ffd-e684-5040-9cd3-581a994523af" valueTypeId="304e9f4f-4451-5613-8147-225a76911526"/>
+    <managerType typeId="f0a46ee2-5632-538a-92a9-17447054da0b" valueTypeId="b77d2877-b4ef-5397-af2f-949a33443248"/>
+  </producedTypes>
+  <name>КритерийОтбора1</name>
+  <type/>
+  <useStandardCommands>true</useStandardCommands>
+</mdclass:FilterCriterion>

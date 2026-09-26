@@ -39,11 +39,98 @@
 
 Обе операции работают с выгрузкой конфигуратора (`Roles/<Роль>/Ext/Rights.xml`) и с проектом 1С:EDT (`Roles/<Роль>/Rights.rights`, поддержка из `Configuration/Configuration.distr`).
 
+## Создание объектов (`add-md-object`)
+
+`add-md-object` создаёт объект верхнего уровня любого вида, кроме языка и устаревшего интерфейса: в выгрузке конфигуратора (путь к `Configuration.xml`, CLI и канал `apply-mutation`) и в проекте 1С:EDT (путь к `Configuration/Configuration.mdo`, канал `apply-mutation`). Вид задаёт `--type` (`type` в канале): имя константы из таблицы, регистр и разделители не важны, годится и имя элемента состава (`information-register`, `InformationRegister`). С `--auto-name` имя подбирается как у конфигуратора: префикс вида и первый свободный номер («РегистрСведений1»). Синоним задаётся только справочнику (`--synonym-ru`, `--synonym-empty`), у остальных видов он пустой, как в эталоне.
+
+Новый объект - копия прототипа из эталона под новым именем и с новыми UUID: все файлы прототипа, а не только описание. В выгрузке конфигуратора это эталон платформы (см. [scaffold-golden.md](scaffold-golden.md#виды-объектов)), в проекте EDT - файлы, которые записала 1С:EDT при импорте той же выгрузки.
+
+| `--type`                       | Элемент состава              | Каталог                       | Имя нового                     | С формата | Файлы кроме описания                                |
+|--------------------------------|------------------------------|-------------------------------|--------------------------------|-----------|-----------------------------------------------------|
+| `CATALOG`                      | `Catalog`                    | `Catalogs`                    | `Справочник1`                  | 2.10      |                                                     |
+| `ENUM`                         | `Enum`                       | `Enums`                       | `Перечисление1`                | 2.10      |                                                     |
+| `CONSTANT`                     | `Constant`                   | `Constants`                   | `Константа1`                   | 2.10      |                                                     |
+| `DOCUMENT`                     | `Document`                   | `Documents`                   | `Документ1`                    | 2.10      |                                                     |
+| `REPORT`                       | `Report`                     | `Reports`                     | `Отчет1`                       | 2.10      |                                                     |
+| `DATA_PROCESSOR`               | `DataProcessor`              | `DataProcessors`              | `Обработка1`                   | 2.10      |                                                     |
+| `TASK`                         | `Task`                       | `Tasks`                       | `Задача1`                      | 2.10      |                                                     |
+| `CHART_OF_ACCOUNTS`            | `ChartOfAccounts`            | `ChartsOfAccounts`            | `ПланСчетов1`                  | 2.10      |                                                     |
+| `CHART_OF_CHARACTERISTIC_TYPES`| `ChartOfCharacteristicTypes` | `ChartsOfCharacteristicTypes` | `ПланВидовХарактеристик1`      | 2.10      |                                                     |
+| `CHART_OF_CALCULATION_TYPES`   | `ChartOfCalculationTypes`    | `ChartsOfCalculationTypes`    | `ПланВидовРасчета1`            | 2.10      |                                                     |
+| `COMMON_MODULE`                | `CommonModule`               | `CommonModules`               | `ОбщийМодуль1`                 | 2.10      |                                                     |
+| `SUBSYSTEM`                    | `Subsystem`                  | `Subsystems`                  | `Подсистема1`                  | 2.10      |                                                     |
+| `SESSION_PARAMETER`            | `SessionParameter`           | `SessionParameters`           | `ПараметрСеанса1`              | 2.10      |                                                     |
+| `EXCHANGE_PLAN`                | `ExchangePlan`               | `ExchangePlans`               | `ПланОбмена1`                  | 2.10      |                                                     |
+| `COMMON_ATTRIBUTE`             | `CommonAttribute`            | `CommonAttributes`            | `ОбщийРеквизит1`               | 2.10      |                                                     |
+| `COMMON_PICTURE`               | `CommonPicture`              | `CommonPictures`              | `ОбщаяКартинка1`               | 2.10      |                                                     |
+| `DOCUMENT_NUMERATOR`           | `DocumentNumerator`          | `DocumentNumerators`          | `НумераторДокументов1`         | 2.10      |                                                     |
+| `EXTERNAL_DATA_SOURCE`         | `ExternalDataSource`         | `ExternalDataSources`         | `ВнешнийИсточникДанных1`       | 2.10      |                                                     |
+| `ROLE`                         | `Role`                       | `Roles`                       | `Роль1`                        | 2.10      | `Ext/Rights.xml`; EDT: `Rights.rights`              |
+| `STYLE_ITEM`                   | `StyleItem`                  | `StyleItems`                  | `ЭлементСтиля1`                | 2.10      |                                                     |
+| `STYLE`                        | `Style`                      | `Styles`                      | `Стиль1`                       | 2.10      |                                                     |
+| `COMMON_TEMPLATE`              | `CommonTemplate`             | `CommonTemplates`             | `ОбщийМакет1`                  | 2.10      |                                                     |
+| `FILTER_CRITERION`             | `FilterCriterion`            | `FilterCriteria`              | `КритерийОтбора1`              | 2.10      |                                                     |
+| `XDTO_PACKAGE`                 | `XDTOPackage`                | `XDTOPackages`                | `ПакетXDTO1`                   | 2.10      |                                                     |
+| `WEB_SERVICE`                  | `WebService`                 | `WebServices`                 | `WebСервис1`                   | 2.10      |                                                     |
+| `HTTP_SERVICE`                 | `HTTPService`                | `HTTPServices`                | `HTTPСервис1`                  | 2.10      |                                                     |
+| `WS_REFERENCE`                 | `WSReference`                | `WSReferences`                | `WSСсылка1`                    | 2.10      | `Ext/WSDefinition.xml`; EDT: `WsDefinitions.wsdl`   |
+| `WEB_SOCKET_CLIENT`            | `WebSocketClient`            | `WebSocketClients`            | `WebSocketКлиент1`             | 2.20      |                                                     |
+| `EVENT_SUBSCRIPTION`           | `EventSubscription`          | `EventSubscriptions`          | `ПодпискаНаСобытие1`           | 2.10      |                                                     |
+| `SCHEDULED_JOB`                | `ScheduledJob`               | `ScheduledJobs`               | `РегламентноеЗадание1`         | 2.10      |                                                     |
+| `SETTINGS_STORAGE`             | `SettingsStorage`            | `SettingsStorages`            | `ХранилищеНастроек1`           | 2.10      |                                                     |
+| `FUNCTIONAL_OPTION`            | `FunctionalOption`           | `FunctionalOptions`           | `ФункциональнаяОпция1`         | 2.10      |                                                     |
+| `FUNCTIONAL_OPTIONS_PARAMETER` | `FunctionalOptionsParameter` | `FunctionalOptionsParameters` | `ПараметрФункциональныхОпций1` | 2.10      |                                                     |
+| `DEFINED_TYPE`                 | `DefinedType`                | `DefinedTypes`                | `ОпределяемыйТип1`             | 2.10      |                                                     |
+| `BOT`                          | `Bot`                        | `Bots`                        | `Бот1`                         | 2.11      |                                                     |
+| `PALETTE_COLOR`                | `PaletteColor`               | `PaletteColors`               | `ЦветПалитры1`                 | 2.21      |                                                     |
+| `COMMON_COMMAND`               | `CommonCommand`              | `CommonCommands`              | `ОбщаяКоманда1`                | 2.10      |                                                     |
+| `COMMAND_GROUP`                | `CommandGroup`               | `CommandGroups`               | `ГруппаКоманд1`                | 2.10      |                                                     |
+| `COMMON_FORM`                  | `CommonForm`                 | `CommonForms`                 | `ОбщаяФорма1`                  | 2.10      | `Ext/Form.xml`; EDT: `Form.form`                    |
+| `SEQUENCE`                     | `Sequence`                   | `Sequences`                   | `Последовательность1`          | 2.10      |                                                     |
+| `DOCUMENT_JOURNAL`             | `DocumentJournal`            | `DocumentJournals`            | `ЖурналДокументов1`            | 2.10      |                                                     |
+| `INFORMATION_REGISTER`         | `InformationRegister`        | `InformationRegisters`        | `РегистрСведений1`             | 2.10      |                                                     |
+| `ACCUMULATION_REGISTER`        | `AccumulationRegister`       | `AccumulationRegisters`       | `РегистрНакопления1`           | 2.10      |                                                     |
+| `ACCOUNTING_REGISTER`          | `AccountingRegister`         | `AccountingRegisters`         | `РегистрБухгалтерии1`          | 2.10      |                                                     |
+| `CALCULATION_REGISTER`         | `CalculationRegister`        | `CalculationRegisters`        | `РегистрРасчета1`              | 2.10      |                                                     |
+| `BUSINESS_PROCESS`             | `BusinessProcess`            | `BusinessProcesses`           | `БизнесПроцесс1`               | 2.10      |                                                     |
+| `INTEGRATION_SERVICE`          | `IntegrationService`         | `IntegrationServices`         | `СервисИнтеграции1`            | 2.10      |                                                     |
+
+Описание объекта лежит в выгрузке в `<Каталог>/<Имя>.xml`, файлы из последнего столбца - в `<Каталог>/<Имя>/…`; в проекте EDT все файлы лежат в `<Каталог>/<Имя>/`, описание - `<Имя>.mdo`.
+
+**Формат.** Вид, которого в формате ещё нет, не создаётся, выгрузка и проект не меняются: «вид PaletteColor появился в формате 2.21 (платформа 8.5.1), в формате 2.20 его нет». Столбец «С формата» - по модели формата (`FormatProjection.hasObjectKind`), он же совпадает с тем, что выгружает платформа. Формат выгрузки - `-v` (`schemaVersion`), у проекта EDT - формат линейки его платформы (`Runtime-Version` в `DT-INF/PROJECT.PMF`, `SchemaVersion.ofPlatform`): в проекте 8.3.27 нет цвета палитры, в проекте 8.3.17 - бота и клиента WebSocket. Проект без манифеста принимает любой вид.
+
+**Место в составе.** Ссылка в `Configuration.xml` встаёт в блок своего вида в порядке платформы (см. [cf-layout.md](cf-layout.md#добавление-объекта-add-md-object)), в `Configuration.mdo` - в порядке признаков класса `Configuration` схемы EDT.
+
+**Общая форма.** Корень `Ext/Form.xml` объявляет пространство схемы компоновки (`xmlns:dcssch`) по режиму совместимости конфигурации, как платформа: с `Version8_3_19` объявляет, в более старых режимах и в `DontUse` - нет.
+
+**Проверка конфигурации платформой.** Голые объекты 14 видов, как и новые объекты конфигуратора, обычную загрузку с проверкой не проходят - платформа требует заполнить свойства или состав. Загрузка без проверки (`ibcmd infobase config import files --no-check`) принимает все виды. Чем дополнить объект и есть ли для этого операция md-sparrow:
+
+| Вид                          | Чего не хватает                          | Операция                                                    |
+|------------------------------|------------------------------------------|-------------------------------------------------------------|
+| `InformationRegister`        | измерения, ресурса или реквизита         | `cf-md-resource-add`, `cf-md-dimension-add`, `cf-md-attribute-add` |
+| `AccumulationRegister`       | ресурса; документа-регистратора          | `cf-md-resource-add`; `registerRecords` документа в `cf-md-object-set` |
+| `AccountingRegister`         | ресурса; документа-регистратора          | то же                                                       |
+| `DocumentJournal`            | регистрируемых документов                | `registeredDocuments` в `cf-md-object-set`                  |
+| `EventSubscription`          | источника, события, обработчика          | `source`, `event`, `handler` в `cf-md-object-set`           |
+| `ScheduledJob`               | имени метода                             | `methodName` в `cf-md-object-set`                           |
+| `CommonCommand`              | группы                                   | `group` в `cf-md-object-set`                                |
+| `CalculationRegister`        | плана видов расчета; регистратора        | нет (план видов расчета)                                    |
+| `BusinessProcess`            | задачи                                   | нет                                                         |
+| `Sequence`                   | документов                               | нет                                                         |
+| `FunctionalOption`           | хранения                                 | нет                                                         |
+| `FunctionalOptionsParameter` | использования                            | нет                                                         |
+| `WebService`                 | пространства имён                        | нет                                                         |
+| `HTTPService`                | корневого URL                            | нет                                                         |
+
+Проверено ibcmd 8.3.23, 8.3.24, 8.3.27 и 8.5.1: конфигурация из `init-empty-cf` со всеми видами формата, дополненная операциями из таблицы (у обработчиков подписки и задания - серверный общий модуль), без семи видов, для которых операции нет, проходит `ibcmd infobase config import` с проверкой.
+
+EDT: те же виды и те же имена прототипов; файлы нового объекта совпадают с эталоном 1С:EDT после замены имени и идентификаторов, `classId` не меняется, подписи уходят в язык конфигурации.
+
 ## Поля JSON (`MdObjectPropertiesDto`)
 
 Общие поля:
 
-- `kind`: `"catalog"` \| `"constant"` \| `"enum"` \| `"document"` \| `"report"` \| `"dataProcessor"` \| `"task"` \| `"chartOfAccounts"` \| `"chartOfCharacteristicTypes"` \| `"chartOfCalculationTypes"` \| `"commonModule"` \| `"subsystem"` \| `"sessionParameter"` \| `"exchangePlan"` \| `"commonAttribute"` \| `"commonPicture"` \| `"documentNumerator"` \| `"eventSubscription"` \| `"scheduledJob"` \| `"commonCommand"` \| `"externalDataSource"` \| `"role"` \| `"documentJournal"` \| `"businessProcess"`
+- `kind`: `"catalog"` \| `"constant"` \| `"enum"` \| `"document"` \| `"report"` \| `"dataProcessor"` \| `"task"` \| `"chartOfAccounts"` \| `"chartOfCharacteristicTypes"` \| `"chartOfCalculationTypes"` \| `"commonModule"` \| `"subsystem"` \| `"sessionParameter"` \| `"exchangePlan"` \| `"commonAttribute"` \| `"commonPicture"` \| `"documentNumerator"` \| `"eventSubscription"` \| `"scheduledJob"` \| `"commonCommand"` \| `"externalDataSource"` \| `"role"` \| `"documentJournal"` \| `"businessProcess"` \| `"informationRegister"` \| `"accumulationRegister"`; без своего блока свойств (имя, синоним, комментарий и состав): `"accountingRegister"` \| `"calculationRegister"` \| `"sequence"` \| `"filterCriterion"` \| `"settingsStorage"` \| `"functionalOption"` \| `"functionalOptionsParameter"` \| `"definedType"` \| `"commonForm"` \| `"commonTemplate"` \| `"commandGroup"` \| `"xdtoPackage"` \| `"webService"` \| `"httpService"` \| `"wsReference"` \| `"webSocketClient"` \| `"integrationService"` \| `"style"` \| `"styleItem"` \| `"bot"` \| `"paletteColor"` \| `"language"` \| `"interface"`
 - `internalName`: имя объекта (как в XML; при сохранении должно совпадать с именем файла без `.xml`)
 - `synonymRu`, `comment`: строки; для `catalog` / `document` / `exchangePlan` синоним ru синхронизируется с представлениями так же, как в `cf-catalog-form-get/set`
 

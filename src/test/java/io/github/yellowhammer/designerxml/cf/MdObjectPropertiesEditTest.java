@@ -357,6 +357,9 @@ class MdObjectPropertiesEditTest {
     Path configurationXml = cfRoot.resolve("Configuration.xml");
     int idx = 100;
     for (MdObjectAddType type : MdObjectAddType.values()) {
+      if (!type.existsIn(SchemaVersion.V2_20)) {
+        continue;
+      }
       String name = type.namePrefix() + idx++;
       MdObjectAdd.add(configurationXml, name, SchemaVersion.V2_20, type);
       Path objectXml = CfObjectPathResolver.objectXml(cfRoot, type.configurationXmlTag(), name).orElseThrow();
@@ -847,6 +850,34 @@ class MdObjectPropertiesEditTest {
       case DOCUMENT_NUMERATOR -> "documentNumerator";
       case EXTERNAL_DATA_SOURCE -> "externalDataSource";
       case ROLE -> "role";
+      case STYLE_ITEM -> "styleItem";
+      case STYLE -> "style";
+      case COMMON_TEMPLATE -> "commonTemplate";
+      case FILTER_CRITERION -> "filterCriterion";
+      case XDTO_PACKAGE -> "xdtoPackage";
+      case WEB_SERVICE -> "webService";
+      case HTTP_SERVICE -> "httpService";
+      case WS_REFERENCE -> "wsReference";
+      case WEB_SOCKET_CLIENT -> "webSocketClient";
+      case EVENT_SUBSCRIPTION -> "eventSubscription";
+      case SCHEDULED_JOB -> "scheduledJob";
+      case SETTINGS_STORAGE -> "settingsStorage";
+      case FUNCTIONAL_OPTION -> "functionalOption";
+      case FUNCTIONAL_OPTIONS_PARAMETER -> "functionalOptionsParameter";
+      case DEFINED_TYPE -> "definedType";
+      case BOT -> "bot";
+      case PALETTE_COLOR -> "paletteColor";
+      case COMMON_COMMAND -> "commonCommand";
+      case COMMAND_GROUP -> "commandGroup";
+      case COMMON_FORM -> "commonForm";
+      case SEQUENCE -> "sequence";
+      case DOCUMENT_JOURNAL -> "documentJournal";
+      case INFORMATION_REGISTER -> "informationRegister";
+      case ACCUMULATION_REGISTER -> "accumulationRegister";
+      case ACCOUNTING_REGISTER -> "accountingRegister";
+      case CALCULATION_REGISTER -> "calculationRegister";
+      case BUSINESS_PROCESS -> "businessProcess";
+      case INTEGRATION_SERVICE -> "integrationService";
     };
   }
 }

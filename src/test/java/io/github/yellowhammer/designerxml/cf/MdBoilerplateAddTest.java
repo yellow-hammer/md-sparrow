@@ -37,6 +37,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Добавление объектов в пустую выгрузку: файл появляется, регистрируется в {@code Configuration.xml},
@@ -101,6 +102,9 @@ class MdObjectAddTest {
     List<MdObjectAddType> types = List.of(MdObjectAddType.values());
     int idx = 1000;
     for (MdObjectAddType type : types) {
+      if (!type.existsIn(version)) {
+        continue;
+      }
       String name = type.namePrefix() + idx++;
       MdObjectAdd.add(cfgA, name, version, type);
       MdObjectAdd.add(cfgB, name, version, type);
@@ -110,6 +114,25 @@ class MdObjectAddTest {
       DesignerXml.read(outA, version);
     }
     assertThat(Files.readString(cfgA)).isEqualTo(Files.readString(cfgB));
+  }
+
+  /** Вид, появившийся позже формата, не создаётся ни под своим, ни под подобранным именем. */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void видНовееФорматаНеСоздаётся(SchemaVersion version) throws Exception {
+    Path cfg = emptyCfg(version, "cfAbsent");
+    String before = Files.readString(cfg);
+    for (MdObjectAddType type : MdObjectAddType.values()) {
+      if (type.existsIn(version)) {
+        continue;
+      }
+      assertThatThrownBy(() -> MdObjectAdd.addWithNextAvailableName(cfg, version, type, null, false))
+        .as("%s в формате %s", type, version)
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("вид " + type.configurationXmlTag() + " появился в формате");
+      assertThat(cfg.getParent().resolve(type.cfSubdir())).doesNotExist();
+    }
+    assertThat(Files.readString(cfg)).isEqualTo(before);
   }
 
   @ParameterizedTest
@@ -159,9 +182,11 @@ class MdObjectAddTest {
     String renamed = Files.readString(CfLayout.catalogObjectXml(cfg.getParent(), renamedName));
     assertThat(elementValues(renamed, "TypeId")).isEqualTo(typeIds);
     assertThat(elementValues(renamed, "ValueId")).isEqualTo(valueIds);
+    // порождаемые типы те же, что у эталона, только под новым именем
+    assertThat(generatedTypeNames(before)).isNotEmpty().allSatisfy(type -> assertThat(type).endsWith("." + initialName));
     assertThat(generatedTypeNames(renamed)).containsExactlyInAnyOrderElementsOf(
-      MdObjectAddType.CATALOG.generatedTypeCategories().stream()
-        .map(category -> "Catalog" + category + "." + renamedName)
+      generatedTypeNames(before).stream()
+        .map(type -> type.substring(0, type.length() - initialName.length()) + renamedName)
         .toList());
     assertThat(renamed).contains("<xr:Field>Catalog." + renamedName + ".StandardAttribute.Description</xr:Field>");
     assertThat(renamed).contains("<v8:content>" + initialName + "</v8:content>");
