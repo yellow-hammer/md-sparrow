@@ -366,6 +366,57 @@ val prepareDesignerTypeSchemas = tasks.register("prepareDesignerTypeSchemas") {
     }
 }
 
+// Эталоны выгрузки платформы: snapshots/<формат>/… в submodule samples-1c-platform
+val snapshotsDir = layout.projectDirectory.dir("fixtures/samples-1c-platform/snapshots")
+
+/** Формат канонического набора: самый новый каталог снимков, у которого есть cf-bare-objects. */
+fun canonicalGoldenVersion(): String? =
+    snapshotsDir.asFile.listFiles { file: File -> file.isDirectory && File(file, "cf-bare-objects").isDirectory }
+        ?.map { it.name }
+        ?.filter { it.matches(Regex("[0-9]+[.][0-9]+")) }
+        ?.maxWithOrNull(compareBy({ it.substringBefore('.').toInt() }, { it.substringAfter('.').toInt() }))
+
+/**
+ * Канонический набор эталонов для scaffold: в jar один формат, остальные получаются проекцией
+ * (cf/FormatProjection). Плюс то, что проекцией не получить: разрешения мобильного приложения 2.10.
+ */
+val prepareCanonicalGolden = tasks.register("prepareCanonicalGolden") {
+    val version = canonicalGoldenVersion()
+    val target = layout.buildDirectory.dir("generated/golden")
+    inputs.dir(snapshotsDir).withPropertyName("эталоны")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        if (version == null) {
+            throw GradleException("Эталоны не найдены: $snapshotsDir. Обновите submodule samples-1c-platform.")
+        }
+        val base = snapshotsDir.dir(version).asFile
+        val cfe = File(base, "cfe-empty")
+        if (!cfe.isDirectory) {
+            throw GradleException("В эталонах формата $version нет cfe-empty: канонический набор неполон.")
+        }
+        File(base, "cf-bare-objects").copyRecursively(output.resolve("cf"))
+        cfe.copyRecursively(output.resolve("cfe"))
+        output.resolve("format.txt").writeText("$version\n")
+
+        // 2.10 пишет непустой список разрешений, которого в XSD не вывести: берём блок из эталона 2.10
+        val configuration210 = snapshotsDir.file("2.10/cf-bare-objects/Configuration.xml").asFile
+        val text = configuration210.readText()
+        val opening = text.indexOf("<RequiredMobileApplicationPermissions>")
+        val closing = "</RequiredMobileApplicationPermissions>"
+        val end = text.indexOf(closing)
+        if (opening < 0 || end < 0) {
+            throw GradleException("В $configuration210 нет списка RequiredMobileApplicationPermissions.")
+        }
+        val block = text.substring(text.lastIndexOf('\n', opening) + 1, end + closing.length)
+        val rules = output.resolve("rules/2.10")
+        rules.mkdirs()
+        rules.resolve("RequiredMobileApplicationPermissions.xml").writeText(block)
+    }
+}
+
 tasks.named<Copy>("processResources") {
     // Метамодель EDT: edt-schemas/<файлы схем>
     from(prepareEdtSchemas) {
@@ -375,23 +426,9 @@ tasks.named<Copy>("processResources") {
     from(prepareDesignerTypeSchemas) {
         into("designer-schemas")
     }
-    // Голые объекты конфигурации: golden/<формат>/<подкаталог>/…
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/cf-bare-objects/**")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden", segs[0], *segs.drop(2).toTypedArray())
-        }
-    }
-    // Пустое расширение: golden-cfe/<формат>/…
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/cfe-empty/**")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden-cfe", segs[0], *segs.drop(2).toTypedArray())
-        }
+    // Канонический набор: golden/{cf,cfe}/…, golden/format.txt, golden/rules/…
+    from(prepareCanonicalGolden) {
+        into("golden")
     }
     // Пустая управляемая форма платформы: golden-form/<формат>/{Форма.xml, Ext.xml}
     from("fixtures/samples-1c-platform/snapshots") {

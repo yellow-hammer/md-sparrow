@@ -21,6 +21,7 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import io.github.yellowhammer.designerxml.DesignerXml;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 
 import org.junit.jupiter.api.Test;
@@ -32,8 +33,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,9 +40,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Пустое расширение: каркас из эталона выгрузки плюс свойства вызывающего.
  *
- * Эталоны сняты с платформы, поэтому проверка идёт по всем версиям формата, для которых
- * платформа умеет создать расширение. Для более старых операция честно отказывается,
- * вместо того чтобы собирать XML из головы.
+ * Каркас формата V - проекция канонического эталона, поэтому расширение создаётся во всех
+ * форматах. Где платформа сняла эталон (2.14-2.21), результат сверяется с ним с точностью до UUID.
  */
 class EmptyCfeScaffoldTest {
 
@@ -76,20 +74,17 @@ class EmptyCfeScaffoldTest {
       root, "Пустое", null, "пу_", EmptyCfeScaffold.Purpose.CUSTOMIZATION, null, null, VERSION);
 
     String xml = Files.readString(root.resolve(CfLayout.CONFIGURATION_XML), StandardCharsets.UTF_8);
-    assertThat(xml).contains("<Role>" + GoldenScaffold.extensionDefaultRoleName(VERSION) + "</Role>");
-    assertThat(xml).contains("Role." + GoldenScaffold.extensionDefaultRoleName(VERSION));
+    assertThat(xml).contains("<Role>" + GoldenScaffold.extensionDefaultRoleName() + "</Role>");
+    assertThat(xml).contains("Role." + GoldenScaffold.extensionDefaultRoleName());
     assertThat(xml).doesNotContain("<Language>");
     assertThat(xml).doesNotContain("<CommonModule>");
-    assertThat(root.resolve("Roles").resolve(GoldenScaffold.extensionDefaultRoleName(VERSION) + ".xml")).exists();
+    assertThat(root.resolve("Roles").resolve(GoldenScaffold.extensionDefaultRoleName() + ".xml")).exists();
     assertThat(root.resolve(CfLayout.LANGUAGES_DIR)).doesNotExist();
   }
 
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
-  void эталонЕстьИДаётРабочийКаркас(SchemaVersion version) throws IOException {
-    if (!GoldenScaffold.hasExtensionGolden(version)) {
-      return;
-    }
+  void каркасЕстьВоВсехФорматах(SchemaVersion version) throws Exception {
     Path root = workspace.resolve("Расширение" + version.name());
     EmptyCfeScaffold.writeEmptyTree(
       root, "Расширение", null, "рас_", EmptyCfeScaffold.Purpose.ADD_ON, null, null, version);
@@ -99,30 +94,32 @@ class EmptyCfeScaffoldTest {
     assertThat(xml).contains("<Name>Расширение</Name>");
     assertThat(xml).contains("<ObjectBelonging>Adopted</ObjectBelonging>");
     assertThat(xml).contains("<NamePrefix>рас_</NamePrefix>");
-    String role = GoldenScaffold.extensionDefaultRoleName(version);
+    String role = GoldenScaffold.extensionDefaultRoleName();
     assertThat(xml).contains("<Role>" + role + "</Role>");
-    assertThat(root.resolve("Roles").resolve(role + ".xml")).exists();
+    Path roleXml = root.resolve("Roles").resolve(role + ".xml");
+    assertThat(roleXml).exists();
+    DesignerXml.read(root.resolve(CfLayout.CONFIGURATION_XML), version);
+    DesignerXml.read(roleXml, version);
   }
 
-  @Test
-  void эталоныЕстьДляВсехФорматовГдеПлатформаУмеетСоздатьРасширение() {
-    // ibcmd научился создавать расширения с 8.3.21, то есть с формата 2.14; для более старых
-    // платформ эталон снять нечем: в ibcmd тех версий режима расширений нет вовсе.
-    List<String> covered = Arrays.stream(SchemaVersion.values())
-      .filter(GoldenScaffold::hasExtensionGolden)
-      .map(SchemaVersion::metadataObjectVersionAttribute)
-      .toList();
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void совпадаетСРасширениемПлатформыСТочностьюДоUuid(SchemaVersion version) throws IOException {
+    // эталоны есть с 2.14: ibcmd более старых платформ расширений не создаёт
+    if (GoldenSnapshots.files(version, GoldenSnapshots.CFE).isEmpty()) {
+      return;
+    }
+    String platform = GoldenSnapshots.read(version, GoldenSnapshots.CFE, CfLayout.CONFIGURATION_XML);
+    String name = ScaffoldPropertyEdit.leaf(platform, "Name").orElseThrow();
+    Path root = workspace.resolve("Платформа" + version.name());
+    // эталон снят с назначением «дополнение», без префикса и режимов вызывающего
+    EmptyCfeScaffold.writeEmptyTree(root, name, null, null, EmptyCfeScaffold.Purpose.ADD_ON, null, null, version);
 
-    assertThat(covered).containsExactly("2.14", "2.15", "2.16", "2.17", "2.18", "2.19", "2.20", "2.21");
-  }
-
-  @Test
-  void безЭталонаФорматаОперацияОтказывается() {
-    assertThatThrownBy(() -> EmptyCfeScaffold.writeEmptyTree(
-      workspace.resolve("Старое"),
-      "Старое", null, "ст_", EmptyCfeScaffold.Purpose.ADD_ON, null, null, SchemaVersion.V2_10))
-      .isInstanceOf(IOException.class)
-      .hasMessageContaining("2.10");
+    assertThat(GoldenSnapshots.normalizeUuids(GoldenSnapshots.read(root.resolve(CfLayout.CONFIGURATION_XML))))
+      .isEqualTo(GoldenSnapshots.normalizeUuids(platform));
+    String role = "Roles/" + GoldenScaffold.extensionDefaultRoleName() + ".xml";
+    assertThat(GoldenSnapshots.normalizeUuids(GoldenSnapshots.read(root.resolve(role))))
+      .isEqualTo(GoldenSnapshots.normalizeUuids(GoldenSnapshots.read(version, GoldenSnapshots.CFE, role)));
   }
 
   @Test

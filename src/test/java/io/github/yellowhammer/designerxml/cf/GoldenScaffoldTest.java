@@ -34,10 +34,16 @@ import java.nio.charset.StandardCharsets;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Scaffold по golden работает для ЛЮБОГО формата, у которого есть эталон (а не только 2.20/2.21):
- * эталоны забандлены в jar (golden/&lt;формат&gt;/…), объект параметризуется именем и читается JAXB-моделью версии.
+ * Scaffold по golden работает для ЛЮБОГО формата (а не только 2.20/2.21): в jar канонический набор
+ * эталонов (golden/cf/…), файл формата - его проекция, объект параметризуется именем и читается
+ * JAXB-моделью версии.
  */
 class GoldenScaffoldTest {
+
+  @Test
+  void jarCarriesNewestPlatformSnapshotAsCanonicalSet() {
+    assertThat(GoldenScaffold.canonicalVersion()).isEqualTo(GoldenSnapshots.canonical());
+  }
 
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)

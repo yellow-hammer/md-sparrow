@@ -32,11 +32,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Scaffold нового объекта метаданных из эталона (golden) «голого» объекта нужной версии, забандленного в jar
- * (ресурсы {@code golden/<формат>/<подкаталог>/<прототип>.xml} — см. build.gradle.kts; источник —
- * submodule samples-1c-platform). Значения по умолчанию берутся из выгрузки конфигуратора этой версии
- * (в XSD их нет); новый объект — параметризация эталона (имя + детерминированные UUID) через
- * {@link GoldenObjectTemplate}. Работает для любой версии, у которой есть эталон.
+ * Scaffold нового объекта метаданных из канонического эталона «голого» объекта, забандленного в jar.
+ *
+ * <p>В jar лежит один набор эталонов - выгрузка платформы самого нового формата (ресурсы
+ * {@code golden/cf/…} и {@code golden/cfe/…}, формат - в {@code golden/format.txt}; см. build.gradle.kts,
+ * источник - submodule samples-1c-platform). Файл формата V получается проекцией канонического
+ * ({@link FormatProjection}), новый объект - параметризацией результата (имя и детерминированные UUID,
+ * {@link GoldenObjectTemplate}). Значения по умолчанию - из выгрузки платформы: в XSD их нет.
+ *
+ * <p>Внешние объекты ({@code golden-ext/<формат>/…}) пока берутся из эталона своего формата.
  */
 public final class GoldenScaffold {
 
@@ -73,6 +77,17 @@ public final class GoldenScaffold {
   /** Имя расширения в эталоне: подменяется на имя создаваемого расширения. */
   private static final String EMPTY_EXTENSION_PROTO = "ПустоеРасширение";
 
+  /** Канонический набор: голые объекты конфигурации (cf-bare-objects). */
+  private static final String CANONICAL_CF = "golden/cf/";
+
+  /** Канонический набор: пустое расширение (cfe-empty). */
+  private static final String CANONICAL_CFE = "golden/cfe/";
+
+  /** Формат канонического набора. */
+  private static final String CANONICAL_FORMAT = "golden/format.txt";
+
+  private static volatile SchemaVersion canonicalVersion;
+
   /** InternalInfo внешнего объекта в «сыром» (транскодер) порядке: GeneratedType перед ContainedObject. */
   private static final Pattern INTERNAL_INFO_GENERATED_THEN_CONTAINED = Pattern.compile(
     "(?s)<InternalInfo>\\s*(<xr:GeneratedType\\b.*?</xr:GeneratedType>)\\s*"
@@ -89,15 +104,42 @@ public final class GoldenScaffold {
     return proto;
   }
 
-  /** Есть ли в jar эталон для типа в этой версии формата. */
+  /**
+   * Формат канонического набора эталонов в jar.
+   *
+   * @return формат, из которого проецируются остальные
+   * @throws IllegalStateException если jar собран без эталонов
+   */
+  static SchemaVersion canonicalVersion() {
+    SchemaVersion cached = canonicalVersion;
+    if (cached == null) {
+      String text;
+      try {
+        text = readResource(CANONICAL_FORMAT).trim();
+      } catch (IOException e) {
+        throw new IllegalStateException(e.getMessage(), e);
+      }
+      cached = SchemaVersion.byVersionAttribute(text).orElseThrow(
+        () -> new IllegalStateException("неизвестный формат канонического набора эталонов: " + text));
+      canonicalVersion = cached;
+    }
+    return cached;
+  }
+
+  /**
+   * Можно ли создать объект вида {@code type} в формате {@code version}: канонический эталон вида
+   * есть в jar, формат не новее канонического и вид в формате уже существует.
+   */
   public static boolean hasGolden(MdObjectAddType type, SchemaVersion version) {
-    return resourceUrl(objectResource(type, version)) != null;
+    return resourceUrl(CANONICAL_CF + objectRelative(type)) != null
+      && version.compareTo(canonicalVersion()) <= 0
+      && FormatProjection.hasObjectKind(type.configurationXmlTag(), version);
   }
 
   /** XML нового объекта типа {@code type} с именем {@code targetName} в формате {@code version}. */
   public static String generateObject(MdObjectAddType type, String targetName, SchemaVersion version)
     throws IOException {
-    String golden = readResource(objectResource(type, version), version);
+    String golden = projected(CANONICAL_CF + objectRelative(type), version);
     String seed = "scaffold|" + version.name() + "|" + type + "|" + targetName;
     return GoldenObjectTemplate.parametrize(golden, protoName(type), targetName, seed);
   }
@@ -117,7 +159,7 @@ public final class GoldenScaffold {
   public static String generateExternalArtifact(ExternalArtifactKind kind, String targetName, SchemaVersion version)
     throws IOException {
     String proto = externalProtoName(kind);
-    String golden = readResource(externalResource(kind, version), version);
+    String golden = readResource(externalResource(kind, version));
     String normalized = reorderInternalInfoContainedFirst(
       GoldenXmlPostProcessor.normalizeMetaDataObjectXml(golden, version));
     String seed = "scaffoldExt|" + version.name() + "|" + kind + "|" + targetName;
@@ -138,8 +180,7 @@ public final class GoldenScaffold {
   /** {@code Ext/Rights.xml} новой роли из эталона (пустые права нужной версии формата). */
   public static String generateRoleRights(String targetRoleName, SchemaVersion version) throws IOException {
     String proto = protoName(MdObjectAddType.ROLE);
-    String res = "golden/" + version.metadataObjectVersionAttribute() + "/Roles/" + proto + "/Ext/Rights.xml";
-    String golden = readResource(res, version);
+    String golden = projected(CANONICAL_CF + "Roles/" + proto + "/Ext/Rights.xml", version);
     String seed = "scaffoldRights|" + version.name() + "|" + targetRoleName;
     return GoldenObjectTemplate.parametrize(golden, proto, targetRoleName, seed);
   }
@@ -149,15 +190,10 @@ public final class GoldenScaffold {
    * {@code ChildObjects}, параметризованный именем {@code targetName} и ремапом UUID. Для init-empty-cf.
    */
   public static String generateEmptyConfiguration(String targetName, SchemaVersion version) throws IOException {
-    String golden = readResource("golden/" + version.metadataObjectVersionAttribute() + "/Configuration.xml", version);
+    String golden = projected(CANONICAL_CF + CfLayout.CONFIGURATION_XML, version);
     String stripped = stripChildObjectsToLanguage(golden);
     String seed = "scaffoldEmptyCf|" + version.name() + "|" + targetName;
     return GoldenObjectTemplate.parametrize(stripped, EMPTY_CONFIG_PROTO, targetName, seed);
-  }
-
-  /** Есть ли в jar эталон пустого расширения в этой версии формата. */
-  public static boolean hasExtensionGolden(SchemaVersion version) {
-    return resourceUrl(extensionResource(version, "Configuration.xml")) != null;
   }
 
   /**
@@ -169,7 +205,7 @@ public final class GoldenScaffold {
    * без языка.
    */
   public static String generateEmptyExtension(String targetName, SchemaVersion version) throws IOException {
-    String golden = readResource(extensionResource(version, "Configuration.xml"), version);
+    String golden = projected(CANONICAL_CFE + CfLayout.CONFIGURATION_XML, version);
     String seed = "scaffoldEmptyCfe|" + version.name() + "|" + targetName;
     return GoldenObjectTemplate.parametrize(golden, EMPTY_EXTENSION_PROTO, targetName, seed);
   }
@@ -180,54 +216,70 @@ public final class GoldenScaffold {
    * <p>Имя зависит от локали платформы, снявшей эталон ({@code ОсновнаяРоль} против
    * {@code DefaultRole}), поэтому берётся из файла, а не задаётся здесь.
    */
-  public static String extensionDefaultRoleName(SchemaVersion version) throws IOException {
-    String golden = readResource(extensionResource(version, "Configuration.xml"), version);
+  public static String extensionDefaultRoleName() throws IOException {
+    String golden = readResource(CANONICAL_CFE + CfLayout.CONFIGURATION_XML);
     Matcher role = Pattern.compile("<Role>([^<]+)</Role>").matcher(golden);
     if (!role.find()) {
-      throw new IOException(
-        "в эталоне расширения формата " + version.metadataObjectVersionAttribute() + " нет роли по умолчанию");
+      throw new IOException("в эталоне расширения нет роли по умолчанию");
     }
     return role.group(1).trim();
   }
 
   /** {@code Roles/<роль по умолчанию>.xml} расширения формата {@code version} из эталона (ремап UUID). */
   public static String generateExtensionDefaultRole(String extensionName, SchemaVersion version) throws IOException {
-    String roleName = extensionDefaultRoleName(version);
-    String golden = readResource(extensionResource(version, "Roles/" + roleName + ".xml"), version);
+    String roleName = extensionDefaultRoleName();
+    String golden = projected(CANONICAL_CFE + "Roles/" + roleName + ".xml", version);
     String seed = "scaffoldCfeRole|" + version.name() + "|" + extensionName;
     return GoldenObjectTemplate.parametrize(golden, roleName, roleName, seed);
   }
 
-  private static String extensionResource(SchemaVersion version, String relative) {
-    return "golden-cfe/" + version.metadataObjectVersionAttribute() + "/" + relative;
-  }
-
   /** {@code Languages/Русский.xml} формата {@code version} из эталона (ремап UUID). Для init-empty-cf. */
   public static String generateRussianLanguage(SchemaVersion version) throws IOException {
-    String res = "golden/" + version.metadataObjectVersionAttribute() + "/Languages/Русский.xml";
-    String golden = readResource(res, version);
+    String golden = projected(CANONICAL_CF + "Languages/Русский.xml", version);
     String seed = "scaffoldLang|" + version.name() + "|Русский";
     return GoldenObjectTemplate.parametrize(golden, "Русский", "Русский", seed);
   }
 
-  /** Оставляет в {@code ChildObjects} только {@code <Language>…</Language>}, удаляя ссылки на объекты. */
+  /**
+   * Оставляет в {@code ChildObjects} только {@code <Language>…</Language>}, удаляя ссылки на объекты.
+   * Строки и перевод строки - как в файле.
+   */
   private static String stripChildObjectsToLanguage(String xml) {
     Matcher m = Pattern.compile("(?s)<ChildObjects>(.*?)</ChildObjects>").matcher(xml);
     if (!m.find()) {
       return xml;
     }
-    StringBuilder kept = new StringBuilder("<ChildObjects>\n");
-    for (String line : m.group(1).split("\n")) {
+    String eol = XmlLines.newline(xml);
+    String[] lines = m.group(1).split("\\r?\\n", -1);
+    StringBuilder kept = new StringBuilder("<ChildObjects>").append(eol);
+    for (String line : lines) {
       if (line.contains("<Language>")) {
-        kept.append(line).append('\n');
+        kept.append(line).append(eol);
       }
     }
-    kept.append("\t\t</ChildObjects>");
+    // последний кусок - отступ закрывающего тега
+    kept.append(lines[lines.length - 1]).append("</ChildObjects>");
     return xml.substring(0, m.start()) + kept + xml.substring(m.end());
   }
 
-  private static String objectResource(MdObjectAddType type, SchemaVersion version) {
-    return "golden/" + version.metadataObjectVersionAttribute() + "/" + type.cfSubdir() + "/" + protoName(type) + ".xml";
+  /**
+   * Файл канонического набора в формате {@code version}.
+   *
+   * @throws IOException если формат новее канонического набора
+   */
+  private static String projected(String resource, SchemaVersion version) throws IOException {
+    SchemaVersion canonical = canonicalVersion();
+    if (version.compareTo(canonical) > 0) {
+      throw new IOException(
+        "Нет эталона формата " + version.metadataObjectVersionAttribute() + ": эталоны сняты в формате "
+          + canonical.metadataObjectVersionAttribute()
+          + ". Добавьте в samples-1c-platform выгрузку платформы нового формата.");
+    }
+    return FormatProjection.project(readResource(resource), version);
+  }
+
+  private static String objectRelative(MdObjectAddType type) {
+    return type.cfSubdir() + "/" + protoName(type) + ".xml";
   }
 
   static String externalProtoName(ExternalArtifactKind kind) {
@@ -247,12 +299,11 @@ public final class GoldenScaffold {
     return GoldenScaffold.class.getClassLoader().getResource(resource);
   }
 
-  private static String readResource(String resource, SchemaVersion version) throws IOException {
+  private static String readResource(String resource) throws IOException {
     try (InputStream in = GoldenScaffold.class.getClassLoader().getResourceAsStream(resource)) {
       if (in == null) {
         throw new IOException(
-          "Нет эталона формата " + version.metadataObjectVersionAttribute() + " (ресурс " + resource
-            + "). Добавьте выгрузку этой версии в samples-1c-platform (cf-bare-objects).");
+          "Нет эталона " + resource + " в jar: соберите md-sparrow с submodule samples-1c-platform.");
       }
       return new String(in.readAllBytes(), StandardCharsets.UTF_8);
     }

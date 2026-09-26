@@ -113,9 +113,6 @@ public final class EmptyCfeScaffold {
     Objects.requireNonNull(targetCfeRoot, "targetCfeRoot");
     Objects.requireNonNull(purpose, "purpose");
     CatalogNameConstraints.check(extensionName);
-    if (!GoldenScaffold.hasExtensionGolden(version)) {
-      throw new IOException("нет эталона пустого расширения для формата " + version.metadataObjectVersionAttribute());
-    }
 
     CfTreeDelete.deleteAllContents(targetCfeRoot);
     Files.createDirectories(targetCfeRoot);
@@ -123,7 +120,7 @@ public final class EmptyCfeScaffold {
     Path rolesDir = targetCfeRoot.resolve("Roles");
     Files.createDirectories(rolesDir);
     Files.writeString(
-      rolesDir.resolve(GoldenScaffold.extensionDefaultRoleName(version) + ".xml"),
+      rolesDir.resolve(GoldenScaffold.extensionDefaultRoleName() + ".xml"),
       LocalStringElement.retarget(
         GoldenScaffold.generateExtensionDefaultRole(extensionName, version), language),
       StandardCharsets.UTF_8);

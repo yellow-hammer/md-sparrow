@@ -8,7 +8,7 @@ alwaysApply: true
 ## Что считать «пустой»
 
 - **`fixtures/ssl31`** — типовая большая выгрузка (например БСП), **не** пустая конфигурация по наполнению и дефолтам. Структура файлов (в т.ч. корня `Configuration.xml`) та же — один формат платформы; ssl31 отличается лишь значениями и объёмом `ChildObjects`.
-- Пустую конфигурацию md-sparrow формирует **`init-empty-cf`** (`EmptyCfScaffold`): берёт golden-эталон версии (`fixtures/samples-1c-platform/snapshots/<версия>/cf-bare-objects/Configuration.xml` — реальная выгрузка `ibcmd`), обрезает `ChildObjects` до языка и параметризует. Отдельного снимка «пустой ИБ» в эталонах нет — источник правды для дефолтов/структуры это `cf-bare-objects` (см. [docs/scaffold-golden.md](../../docs/scaffold-golden.md)).
+- Пустую конфигурацию md-sparrow формирует **`init-empty-cf`** (`EmptyCfScaffold`) — такой, какую создаёт платформа (`ibcmd infobase create` + выгрузка): `Configuration.xml` эталона `cf-bare-objects` в формате версии (проекция канонического, `cf/FormatProjection`), `ChildObjects` до языка, `CompatibilityMode` = режим платформы формата и `UsePurposes` = `PlatformApplication` (в `cf-bare-objects` здесь значения семени). Выгрузка пустой базы платформы — `snapshots/<версия>/cf-empty-infobase`, где она есть (см. [docs/scaffold-golden.md](../../docs/scaffold-golden.md)).
 
 ## XSD и `Configuration/@formatVersion`
 

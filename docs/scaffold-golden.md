@@ -9,47 +9,144 @@
   **конфигуратора**, в XSD их нет (`grep -c 'default=' v8.1c.ru-8.3-MDClasses.xsd` → `0`).
 - В эталоне есть и то, чего в XSD не бывает: UUID (`TypeId`/`ValueId`), ссылки на формы/реквизиты по имени.
 
-Вывод: байт-в-байт возможен только из эталона нужной версии. XSD годится лишь для отладки структуры.
+Вывод: байт-в-байт возможен только из выгрузки платформы. XSD годится как фильтр состава при
+переходе к более старому формату (см. ниже), но не как источник файла.
 
 ## Архитектура
-0. **Расширения.** Эталон пустого расширения лежит рядом: `snapshots/<версия>/cfe-empty/`
-   (`Configuration.xml` и `Roles/ОсновнаяРоль.xml`), в jar попадает как `golden-cfe/<формат>/…`.
-   Снимается так же, как эталоны конфигурации: расширение создаёт сама платформа
-   (`ibcmd infobase config extension create`) и она же выгружает исходники, см. workflow
-   `diagnose-golden-cfe`. Отличия от конфигурации: `ObjectBelonging=Adopted`,
-   `ConfigurationExtensionPurpose`, `NamePrefix`, `ConfigurationExtensionCompatibilityMode`.
-   Состав пустого расширения - **одна роль по умолчанию и ссылка на неё в `DefaultRoles`**, языка
-   в нём нет; синоним пустой, режима совместимости интерфейса нет вовсе. Назначение и префикс
-   задаёт вызывающий, режимы совместимости берутся из основной конфигурации: расширение другого
-   формата платформа не примет. Префикс необязателен - платформа в новом расширении оставляет его
-   пустым, и расширение без префикса она принимает (проверено загрузкой).
 
-   Эталоны есть для форматов **2.14–2.21**. Более старых нет и снять их нечем: режим работы с
-   расширениями появился в `ibcmd` начиная с 8.3.21 (формат 2.14), а у 8.3.17–8.3.20 в утилите
-   только `help`, `server` и `infobase`. Через конфигуратор эти форматы снять можно, но ему нужна
-   лицензия, а сборка эталонов идёт на CI. Для форматов без эталона `init-empty-cfe` отказывается
-   с внятным сообщением.
+### Один канонический набор и проекция
+1. **Источник правды** — выгрузка платформы самого нового формата, у которого в
+   `fixtures/samples-1c-platform/snapshots` есть `cf-bare-objects` (сейчас 2.21). В jar лежит только он
+   (задача `prepareCanonicalGolden` в `build.gradle.kts`):
+   - `golden/cf/…` — `cf-bare-objects`: голый объект каждого из 19 видов, `Configuration.xml`,
+     `Languages/Русский.xml`, `Roles/Роль1/Ext/Rights.xml`;
+   - `golden/cfe/…` — `cfe-empty`: пустое расширение;
+   - `golden/format.txt` — формат набора;
+   - `golden/rules/2.10/RequiredMobileApplicationPermissions.xml` — блок из эталона 2.10, который
+     проекцией не получить (см. правила `Configuration.xml`).
 
-   Локаль платформы при съёмке важна: в английской она пишет `ScriptVariant=English` и роль
-   `DefaultRole` вместо `Russian` и `ОсновнаяРоль`, поэтому workflow создаёт базу с `--locale=ru`.
-   Имя роли по умолчанию scaffold читает из состава эталона, а не хранит у себя.
+   Эталоны остальных форматов остаются в submodule: это регрессионные фикстуры проекции.
+2. **Файл формата V — проекция канонического** (`cf/FormatProjection.project`):
+   - состав берётся из JAXB-модели формата (`io.github.yellowhammer.designerxml.jaxb.v2_XX`,
+     сгенерирована из XSD): элемент, которого в модели формата нет, удаляется целыми строками.
+     Поиск идёт по полям класса и его суперклассов (`@XmlElement`, `@XmlElements`,
+     `@XmlElementRef(s)`, по локальному имени); в `@XmlAnyElement`, в простые типы и в элементы
+     с `xsi:type` проекция не спускается;
+   - порядок и значения — из канонического файла; работа идёт по тексту (структуру разбирает StAX),
+     поэтому BOM, CRLF, `<X/>` и отсутствие перевода строки в конце сохраняются. Если удаляемый
+     элемент делит строку с другим текстом, проекция падает (`IllegalStateException`), а не портит
+     файл;
+   - если в формате V нет самого вида объекта, операция отказывает: «вид X появился в формате Y».
+     Среди 19 видов `add-md-object` таких нет (появились позже только `Bot` 2.11,
+     `WebSocketClient` 2.20, `PaletteColor` 2.21), и тестом отказ пока не покрыт: эталона такого
+     вида в samples-1c-platform нет;
+   - к формату новее канонического проекция не идёт: для него нужен новый эталон с новой платформы.
+   - корни: `MetaDataObject` (объекты, конфигурация, расширение, внешние отчёты и обработки),
+     `Form` управляемой формы и `Rights` прав роли (модели прав нет, меняется только `version`).
+3. **Почему XSD — только фильтр** (сверка XSD 2.10–2.21 с эталонами всех 12 форматов и выгрузками
+   ibcmd 8.3.23/8.3.24/8.3.27/8.5.1):
+   - между 2.10 и 2.21 схемы только прирастают: удалений и перестановок элементов нет, поэтому
+     файл старого формата — это файл нового без незнакомых старому формату элементов;
+   - порядок записи платформы с порядком XSD не совпадает: у `ChartOfAccounts`
+     `UpdateDataHistoryImmediatelyAfterWrite` и `ExecuteAfterWriteDataHistoryVersionProcessing` идут
+     раньше, чем в схеме; у `Subsystem` `UseOneCommand` стоит после `IncludeInCommandInterface`;
+     у реквизитов, измерений и ресурсов переставлены `FillFromFillingValue`, `FillValue` и другие;
+     `ConfigurationProperties` и `xr:StandardAttribute` объявлены как `xs:choice`, и порядок там
+     задаёт только платформа;
+   - обязательность в XSD не равна тому, что пишет платформа: `ObjectBelonging` (min=1) у своих
+     объектов не пишется, `BinaryDataStorageMode` (2.16) и `BinaryDataBlockStorageUseMode` (2.19) —
+     тоже, а `UseOneCommand` (min=0) пишется всегда;
+   - значения, зависящие от формата, в XSD отсутствуют (правила `Configuration.xml` ниже).
 
-1. **Источник правды** — per-version эталон **голого** объекта каждого вида в submodule
-   `fixtures/samples-1c-platform`: `snapshots/<версия>/cf-bare-objects/<подкаталог>/<Прототип>.xml`
-   (объекты конфигурации) и `snapshots/<версия>/external-files/empty/<Прототип>/<Прототип>.xml`
-   (внешние отчёты/обработки). НЕ `empty-full-objects` (там формы и лишние ссылки), НЕ копирование «как есть».
-2. **Генерация** — параметризация эталона без повторной сборки через JAXB (сохраняет форматирование):
-   подстановка имени как целого токена + детерминированный ремап UUID.
-   - `cf/GoldenScaffold` — фасад: `generateObject`, `generateEmptyConfiguration`, `generateExternalArtifact`,
-     `generateRoleRights`, `generateRussianLanguage`.
-   - `cf/GoldenObjectTemplate.parametrize(goldenXml, sourceName, targetName, uuidSeed)` — ядро
-     (имя: граница `(?<![\p{L}\p{N}_])…(?![\p{L}\p{N}_])`; UUID: `DistinctUuidRewrite.remapDeterministic`).
-   - `DistinctUuidRewrite` ремапит все UUID, **кроме `<xr:ClassId>`** — это фиксированный идентификатор
-     класса метаданных платформы, а не объектно-зависимый UUID.
-3. **Доступность версии = наличие эталона.** Никакого `== V2_20`: добавить версию = добавить её эталон,
-   ноль правок Java (`GoldenScaffold.hasGolden` / `hasExternalGolden`).
-4. **Пост-проверка** — результат читается `DesignerXml.read`/`unmarshal`. Идемпотентность и детерминизм
-   покрыты тестами (`GoldenScaffoldTest`, `GoldenObjectTemplateTest`, `MdBoilerplateAddTest` — все 12 версий).
+   Проверка — `FormatProjectionTest`: проекция каждого файла канонического набора в каждый формат
+   равна `snapshots/<формат>/…` побайтно (`cf-bare-objects`) и с точностью до UUID (`cfe-empty`,
+   там платформа выдаёт UUID случайно в каждом снимке).
+
+### Заголовок
+- Атрибут `version` корня становится версией формата.
+- `xmlns:pal="http://v8.1c.ru/8.1/data/ui/colors/palette"` корни `MetaDataObject` и `Form` объявляют
+  с 2.21 (выгрузка 8.5.1), в 2.10–2.20 его нет. Из XSD это не вывести (пространство палитры не
+  упоминает ни одна схема), поэтому в `FormatProjection` таблица «пространство имён → с какого
+  формата».
+- У `Rights` от формата зависит только `version`.
+
+### Правила `Configuration.xml`
+`cf/ConfigurationFormatRules` — то, чем эталоны разных форматов отличаются сверх состава:
+- `ConfigurationExtensionCompatibilityMode` = `Version` + линейка платформы формата
+  (`SchemaVersion.platformLine()`: 2.10 → 8.3.17 … 2.20 → 8.3.27, 2.21 → 8.5.1, по
+  `schemas/designer/processed-versions.json`). Перечисление режимов в XSD всех форматов
+  заканчивается на `Version8_3_12`, поэтому взять значение оттуда нельзя.
+- `UsedMobileApplicationFunctionalities` — список канонического эталона без функциональностей,
+  которых формат ещё не пишет: таблица «функциональность → с какого формата» снята с эталонов
+  2.11–2.21 (`BackgroundAudioRecording` с 2.12, `Videoconferences` с 2.15, `NFC` и
+  `DocumentScanning` с 2.16, `SpeechToText`, `Geofences` и два вида входящих запросов с 2.17,
+  `TextToSpeech` с 2.18). `SpeechToText` и `TextToSpeech` платформа пишет, хотя в перечислении XSD
+  их нет. В 2.10 самого элемента нет — его убирает проекция.
+- `RequiredMobileApplicationPermissions`: в 2.10 — непустой список из 24 разрешений, с 2.11 —
+  пустой элемент. Из XSD список не выводится (пять значений перечисления не пишутся, два
+  переставлены), поэтому блок копируется из эталона 2.10 при сборке.
+- Расширение: до 2.14 включительно `ObjectBelonging` стоит после `ConfigurationExtensionPurpose`
+  (эталон 2.14, так же пишет EDT), с 2.15 — первым свойством. В 2.19 в `InternalInfo` есть два
+  `xr:PropertyState` (`CommandInterface` и `MainSectionCommandInterface` = `Extended`), которых
+  нет ни в 2.18, ни в 2.20. Правило снято с единственного снимка 8.3.26, его стоит перепроверить
+  workflow golden-snapshots; локально платформ 8.3.21 и 8.3.26 нет.
+
+### Пустая конфигурация — новая конфигурация платформы
+`init-empty-cf` (`GoldenScaffold.generateEmptyConfiguration`) пишет то же, что платформа в новой
+базе (`ibcmd infobase create` и выгрузка): проекция `Configuration.xml`, `ChildObjects` до языка,
+`CompatibilityMode` = режим платформы формата (как `ConfigurationExtensionCompatibilityMode`) и
+`UsePurposes` = `PlatformApplication`. В эталоне `cf-bare-objects` режим `Version8_3_12` и пустое
+назначение — это значения семени, из которого сняты эталоны, а не умолчания платформы. С режимом
+8.3.12 платформа не принимает расширение, переопределяющее свойства заимствованных объектов,
+поэтому `init-empty-cfe --from-configuration` на такой конфигурации давал нерабочее расширение.
+
+Сверено с выгрузкой пустой базы 8.3.23, 8.3.24, 8.3.27 и 8.5.1: `Configuration.xml` и
+`Languages/Русский.xml` совпадают с точностью до UUID. `EmptyCfScaffoldTest` сверяет результат со
+всеми `snapshots/<формат>/cf-empty-infobase/Configuration.xml`, какие есть в submodule (с точностью
+до имени, UUID, состава `ChildObjects` и языка по умолчанию); без них сравнение пропускается.
+
+### Расширения
+Эталон пустого расширения — `snapshots/<версия>/cfe-empty/` (`Configuration.xml` и
+`Roles/ОсновнаяРоль.xml`). Снимается так же, как эталоны конфигурации: расширение создаёт сама
+платформа (`ibcmd infobase config extension create`) и она же выгружает исходники, см. workflow
+`diagnose-golden-cfe`. Отличия от конфигурации: `ObjectBelonging=Adopted`,
+`ConfigurationExtensionPurpose`, `NamePrefix`, `ConfigurationExtensionCompatibilityMode`.
+Состав пустого расширения — **одна роль по умолчанию и ссылка на неё в `DefaultRoles`**, языка
+в нём нет; синоним пустой, режима совместимости интерфейса нет вовсе. Назначение и префикс
+задаёт вызывающий, режимы совместимости берутся из основной конфигурации: расширение другого
+формата платформа не примет. Префикс необязателен - платформа в новом расширении оставляет его
+пустым, и расширение без префикса она принимает (проверено загрузкой).
+
+Каркас формата V — проекция канонического `cfe-empty`, поэтому `init-empty-cfe` работает во всех
+форматах 2.10–2.21. Платформой сняты эталоны 2.14–2.21 (режим расширений в `ibcmd` появился
+в 8.3.21), с ними результат сверяется с точностью до UUID; 2.10–2.13 проверены только моделью
+формата.
+
+Локаль платформы при съёмке важна: в английской она пишет `ScriptVariant=English` и роль
+`DefaultRole` вместо `Russian` и `ОсновнаяРоль`, поэтому workflow создаёт базу с `--locale=ru`.
+Имя роли по умолчанию scaffold читает из состава эталона, а не хранит у себя.
+
+### Генерация объекта
+Параметризация файла формата V без повторной сборки через JAXB (сохраняет форматирование):
+подстановка имени как целого токена + детерминированный ремап UUID.
+- `cf/GoldenScaffold` — фасад: `generateObject`, `generateEmptyConfiguration`, `generateEmptyExtension`,
+  `generateRoleRights`, `generateRussianLanguage`, `generateExternalArtifact`.
+- `cf/GoldenObjectTemplate.parametrize(goldenXml, sourceName, targetName, uuidSeed)` — ядро
+  (имя: граница `(?<![\p{L}\p{N}_])…(?![\p{L}\p{N}_])`; UUID: `DistinctUuidRewrite.remapDeterministic`).
+- `DistinctUuidRewrite` ремапит все UUID, **кроме `<xr:ClassId>`** — это фиксированный идентификатор
+  класса метаданных платформы, а не объектно-зависимый UUID.
+
+Доступность вида в формате (`GoldenScaffold.hasGolden`) — канонический эталон вида есть в jar и вид
+существует в модели формата. Новый формат = константа `SchemaVersion` (с линейкой платформы) и новый
+канонический набор, снятый его платформой; правки таблиц нужны, только если платформа поменяла
+значения, которых нет в XSD.
+
+Проверка: `MdObjectAddGoldenTest` — `add-md-object` по 19 видам в каждом из 12 форматов совпадает
+с `snapshots/<формат>/cf-bare-objects` побайтно после замены имени и UUID; `EmptyCfeScaffoldTest`,
+`EmptyCfScaffoldTest`, `GoldenScaffoldTest`, `GoldenObjectTemplateTest`.
+
+Внешние отчёты и обработки (`golden-ext/<формат>/…`) и пустая форма (`golden-form/<формат>/…`) пока
+берутся из эталона своего формата; проекция их корни уже поддерживает.
 
 ## Как получены эталоны
 Вспомогательный re-runnable workflow `.github/workflows/diagnose-golden-cf.yml` (workflow_dispatch):
@@ -79,9 +176,9 @@
 конфигурацией (`Значение контролируемого свойства РежимСовместимостиИнтерфейса … не совпадает`),
 поэтому угадывать режимы нельзя. Их либо задаёт вызывающий, либо `init-empty-cfe` берёт их из
 основной конфигурации: `--from-configuration <путь к Configuration.xml>` (в канале параметров -
-поле `mainConfigurationXml`). Режим совместимости расширений конфигурация объявляет отдельным
-свойством `ConfigurationExtensionCompatibilityMode`: берётся оно, и только если его нет - общий
-`CompatibilityMode`.
+поле `mainConfigurationXml`). Режим совместимости расширения берётся из `CompatibilityMode`
+основной конфигурации, и только если его нет - из `ConfigurationExtensionCompatibilityMode`.
+У конфигурации из `init-empty-cf` оба свойства равны режиму платформы формата.
 
 Результат проверен на платформе 8.3.27: расширение собирается в пустую базу (`compileext`), после
 обратной разборки (`decompileext`) файлы совпадают с записанными md-sparrow байт в байт - и когда
