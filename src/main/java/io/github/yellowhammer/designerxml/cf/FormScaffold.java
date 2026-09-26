@@ -114,9 +114,10 @@ public final class FormScaffold {
 
     // Эталон снят на русской конфигурации: подпись уезжает в язык той, к которой относится форма
     String descriptorXml = LocalStringElement.retarget(
-      GoldenScaffold.generateFormDescriptor(ownerKind, stem(objectXml), formName, version),
+      GoldenScaffold.generateFormDescriptor(ownerKind, stem(objectXml), objectText, formName, version),
       ConfigurationLanguage.current());
-    String contentXml = GoldenScaffold.generateFormContent(version);
+    String contentXml = FormNamespaceRules.forCompatibility(
+      GoldenScaffold.generateFormContent(version), compatibilityModeOf(objectXml, ownerKind));
 
     String updated = insertFormEntry(objectText, ownerKind, formName, version);
     MdObjectStructureRead.read(updated.getBytes(StandardCharsets.UTF_8), version);
@@ -155,7 +156,9 @@ public final class FormScaffold {
       addForm(objectXml, version, formName);
     }
     FormDefinition definition = FormDefinition.parse(definitionJson);
-    String contentXml = buildContent(version, definition);
+    String ownerKind = ownerKind(Files.readString(objectXml, StandardCharsets.UTF_8));
+    String contentXml = FormNamespaceRules.forCompatibility(
+      buildContent(version, definition), compatibilityModeOf(objectXml, ownerKind));
     verifyContent(contentXml, version);
     Files.writeString(formContentPath(objectXml, formName), contentXml, StandardCharsets.UTF_8);
     if (definition.synonym != null && !definition.synonym.isBlank()) {
@@ -165,6 +168,33 @@ public final class FormScaffold {
         ScaffoldPropertyEdit.setSynonym(descriptorXml, definition.synonym, ConfigurationLanguage.current()),
         StandardCharsets.UTF_8);
     }
+  }
+
+  /**
+   * Режим совместимости конфигурации или расширения, которому принадлежит объект-владелец формы.
+   *
+   * <p>От него зависит, объявляет ли форма пространство схемы компоновки: в режиме ниже 8.3.19
+   * платформа его не пишет (ibcmd 8.3.27, конфигурация в режиме 8.3.12: форма справочника после
+   * загрузки и выгрузки теряет {@code xmlns:dcssch}). У расширения действует его собственный режим
+   * ({@link FormNamespaceRules#compatibilityModeOf}). У внешних отчётов и обработок режима нет,
+   * их формы платформа выгружает с объявлением.
+   *
+   * @return режим или {@code null}, если конфигурации нет
+   */
+  private static String compatibilityModeOf(Path objectXml, String ownerKind) throws IOException {
+    if (ownerKind.startsWith("External")) {
+      return null;
+    }
+    Path kindDir = objectXml.toAbsolutePath().getParent();
+    Path cfRoot = kindDir == null ? null : kindDir.getParent();
+    if (cfRoot == null) {
+      return null;
+    }
+    Path configurationXml = cfRoot.resolve(CfLayout.CONFIGURATION_XML);
+    if (!Files.isRegularFile(configurationXml)) {
+      return null;
+    }
+    return FormNamespaceRules.compatibilityModeOf(Files.readString(configurationXml, StandardCharsets.UTF_8));
   }
 
   /** Содержимое формы обязано читаться моделью схемы: битую форму не пишем. */

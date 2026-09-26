@@ -193,6 +193,42 @@ class FormAddGoldenTest {
     readable(forms.resolve("ФормаЭлемента.xml"), forms.resolve("ФормаЭлемента").resolve("Ext").resolve("Form.xml"), version);
   }
 
+  /**
+   * Пространство схемы компоновки форма объекта объявляет по режиму совместимости конфигурации,
+   * как и общая форма: с 8.3.19. Эталоны голых объектов сняты с конфигурации в режиме 8.3.12,
+   * пустая конфигурация md-sparrow - в режиме платформы формата (2.10 - 8.3.17, 2.11 - 8.3.18,
+   * с 2.12 - 8.3.19 и выше).
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void схемаКомпоновкиВФормеОбъектаПоРежимуСовместимости(SchemaVersion version) throws Exception {
+    Path bare = workspace.resolve("bare");
+    Path bareCatalogs = bare.resolve(MdObjectAddType.CATALOG.cfSubdir());
+    Files.createDirectories(bareCatalogs);
+    Path bareSnapshot = GoldenSnapshots.format(version).resolve(GoldenSnapshots.CF);
+    Files.copy(bareSnapshot.resolve(CfLayout.CONFIGURATION_XML), bare.resolve(CfLayout.CONFIGURATION_XML));
+    String proto = GoldenScaffold.protoName(MdObjectAddType.CATALOG);
+    Path bareCatalog = bareCatalogs.resolve(proto + ".xml");
+    Files.copy(bareSnapshot.resolve(MdObjectAddType.CATALOG.cfSubdir()).resolve(proto + ".xml"), bareCatalog);
+    FormScaffold.addForm(bareCatalog, version, "ФормаЭлемента");
+    assertThat(GoldenSnapshots.read(bareCatalogs.resolve(proto).resolve("Forms").resolve("ФормаЭлемента")
+      .resolve("Ext").resolve("Form.xml")))
+      .as("режим 8.3.12, формат %s", version)
+      .doesNotContain("xmlns:dcssch=");
+
+    Path fresh = workspace.resolve("fresh");
+    EmptyCfScaffold.writeEmptyTree(fresh, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, version);
+    MdObjectAdd.add(fresh.resolve(CfLayout.CONFIGURATION_XML), "Товары", version, MdObjectAddType.CATALOG);
+    Path freshCatalog = CfLayout.objectXmlInSubdir(fresh, MdObjectAddType.CATALOG.cfSubdir(), "Товары");
+    FormScaffold.addForm(freshCatalog, version, "ФормаЭлемента");
+    String content = GoldenSnapshots.read(freshCatalog.resolveSibling("Товары").resolve("Forms")
+      .resolve("ФормаЭлемента").resolve("Ext").resolve("Form.xml"));
+    boolean declared = content.contains("xmlns:dcssch=");
+    assertThat(declared)
+      .as("режим платформы формата %s", version)
+      .isEqualTo(version.compareTo(SchemaVersion.V2_12) >= 0);
+  }
+
   private static void readable(Path descriptor, Path content, SchemaVersion version) throws Exception {
     assertThat(MdObjectPropertiesEdit.readDto(descriptor, version).kind).isEqualTo("form");
     XmlValidator.validate(descriptor, version, Path.of(System.getProperty("xsd.root")));
@@ -237,7 +273,7 @@ class FormAddGoldenTest {
     SoftAssertions softly = new SoftAssertions();
     for (Map.Entry<String, Set<List<String>>> kind : platform.entrySet()) {
       softly.assertThat(kind.getValue()).as("формы вида %s в ssl31 записаны одинаково", kind.getKey()).hasSize(1);
-      String ours = GoldenScaffold.generateFormDescriptor(kind.getKey(), "Владелец", "Форма", version);
+      String ours = GoldenScaffold.generateFormDescriptor(kind.getKey(), "Владелец", "", "Форма", version);
       softly.assertThat(properties(ours)).as("свойства формы вида %s", kind.getKey())
         .isEqualTo(kind.getValue().iterator().next());
     }
@@ -391,6 +427,33 @@ class FormAddGoldenTest {
     }
 
     assertThat(formUuid(descriptors.get(0))).isNotEqualTo(formUuid(descriptors.get(1)));
+  }
+
+  /**
+   * Переименованный объект уносит свои формы вместе с их UUID, а новый объект с прежним именем - уже
+   * другой объект: его одноимённая форма получает другой UUID. С одним UUID на две формы платформа
+   * молча сливает их в одну при загрузке.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void формаНовогоОбъектаСИменемПереименованногоПолучаетДругойUuid(SchemaVersion version) throws Exception {
+    Path cf = workspace.resolve(version.name());
+    EmptyCfScaffold.writeEmptyTree(cf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, version);
+    Path configuration = cf.resolve(CfLayout.CONFIGURATION_XML);
+    MdObjectAddType catalog = MdObjectAddType.CATALOG;
+    String name = MdObjectAdd.addWithNextAvailableName(configuration, version, catalog, null, false);
+    Path ownerXml = CfLayout.objectXmlInSubdir(cf, catalog.cfSubdir(), name);
+    FormScaffold.addForm(ownerXml, version, "ФормаЭлемента");
+    String renamed = name + "Прежний";
+    CfMdObjectMutations.rename(configuration, ownerXml, catalog.configurationXmlTag(), name, renamed);
+
+    assertThat(MdObjectAdd.addWithNextAvailableName(configuration, version, catalog, null, false))
+      .as("имя нового объекта").isEqualTo(name);
+    FormScaffold.addForm(ownerXml, version, "ФормаЭлемента");
+
+    String renamedForm = GoldenSnapshots.read(ownerXml.resolveSibling(renamed).resolve("Forms").resolve("ФормаЭлемента.xml"));
+    String newForm = GoldenSnapshots.read(ownerXml.resolveSibling(name).resolve("Forms").resolve("ФормаЭлемента.xml"));
+    assertThat(formUuid(newForm)).isNotEqualTo(formUuid(renamedForm));
   }
 
   private static String formUuid(String descriptor) {

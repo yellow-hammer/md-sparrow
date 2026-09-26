@@ -54,10 +54,32 @@ final class FormNamespaceRules {
   }
 
   /**
+   * Режим совместимости, по которому платформа пишет формы объектов этой конфигурации.
+   *
+   * <p>У расширения это его собственный {@code ConfigurationExtensionCompatibilityMode}, режим
+   * основной конфигурации на формы расширения не влияет. Проверено загрузкой и выгрузкой расширения
+   * ibcmd 8.3.24, 8.3.27 и 8.5.1: в расширении в режиме 8.3.12 формы своего и заимствованного
+   * справочника и общая форма выгружаются без {@code dcssch}, в режиме 8.3.24 и выше - с ним, при
+   * основной конфигурации и в 8.3.12, и в режиме платформы. У основной конфигурации - её
+   * {@code CompatibilityMode}; её же {@code ConfigurationExtensionCompatibilityMode} - режим для
+   * подключаемых расширений. Расширение отличается от основной конфигурации назначением
+   * ({@code ConfigurationExtensionPurpose}): у основной его нет.
+   *
+   * @param configurationXml текст {@code Configuration.xml} конфигурации или расширения
+   * @return значение режима; {@code null}, если его нет
+   */
+  static String compatibilityModeOf(String configurationXml) {
+    String property = ScaffoldPropertyEdit.leaf(configurationXml, "ConfigurationExtensionPurpose").isPresent()
+      ? "ConfigurationExtensionCompatibilityMode"
+      : "CompatibilityMode";
+    return ScaffoldPropertyEdit.leaf(configurationXml, property).orElse(null);
+  }
+
+  /**
    * Корень управляемой формы с объявлениями, как их пишет платформа в этом режиме совместимости.
    *
    * @param xml файл; не форма возвращается как есть
-   * @param compatibilityMode {@code CompatibilityMode} конфигурации; без него файл не меняется
+   * @param compatibilityMode режим конфигурации ({@link #compatibilityModeOf}); без него файл не меняется
    * @return текст с объявлением {@code dcssch} или без него
    */
   static String forCompatibility(String xml, String compatibilityMode) {

@@ -235,18 +235,23 @@ public final class GoldenScaffold {
    *
    * @param ownerKind вид владельца - элемент под {@code MetaDataObject}: {@code Catalog}, {@code ExternalReport}
    * @param ownerName имя владельца: одноимённые формы разных владельцев получают разные UUID
+   * @param ownerXml текст файла владельца: входит в зерно UUID, как текст состава у нового объекта.
+   *                 Новый объект с именем переименованного - другой файл (другие UUID объекта), и его
+   *                 одноимённая форма не повторяет UUID формы, которую переименованный унёс с собой
    * @param formName имя формы
    * @param version формат
    * @return текст описания формы
    * @throws IOException если эталона нет в jar или формат новее канонического
    */
-  public static String generateFormDescriptor(String ownerKind, String ownerName, String formName, SchemaVersion version)
+  public static String generateFormDescriptor(
+    String ownerKind, String ownerName, String ownerXml, String formName, SchemaVersion version)
     throws IOException {
     String golden = projected(CANONICAL_FORM + FORM_PROTO + ".xml", version);
     if (!FORM_OWNERS_WITH_EXTENDED_PRESENTATION.contains(ownerKind)) {
       golden = withoutEmptyElementLine(golden, "ExtendedPresentation");
     }
-    String seed = "form|" + version.name() + "|" + ownerKind + "." + ownerName + "|" + formName;
+    String seed = GoldenUuid.from(
+      "form|" + version.name() + "|" + ownerKind + "." + ownerName + "|" + formName, ownerXml);
     return GoldenObjectTemplate.parametrize(golden, FORM_PROTO, formName, seed);
   }
 

@@ -111,7 +111,7 @@ public final class MdObjectAdd {
     String configuration = Files.readString(configurationXml, StandardCharsets.UTF_8);
     // Одно зерно на все файлы объекта: общие UUID описания и его Ext остаются общими
     String seed = GoldenUuid.from("add|" + version.name() + "|" + type + "|" + name, configuration);
-    String compatibilityMode = ScaffoldPropertyEdit.leaf(configuration, "CompatibilityMode").orElse(null);
+    String compatibilityMode = FormNamespaceRules.compatibilityModeOf(configuration);
     String description = GoldenScaffold.objectRelative(type, name);
     Map<Path, String> texts = new LinkedHashMap<>();
     for (Map.Entry<String, String> file : files.entrySet()) {
