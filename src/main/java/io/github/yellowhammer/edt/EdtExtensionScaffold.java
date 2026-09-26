@@ -100,6 +100,8 @@ public final class EdtExtensionScaffold {
     String language = ConfigurationLanguage.codeOf(baseConfigurationMdo);
     String compatibility = compatibilityMode(baseConfigurationMdo);
     String runtime = runtimeVersion(baseProject);
+    String seed = EdtObjectScaffold.seed("extension|" + name,
+        Files.readString(baseConfigurationMdo, StandardCharsets.UTF_8));
 
     for (String file : FILES) {
       String text = EdtObjectScaffold.golden(GOLDEN + file);
@@ -110,7 +112,7 @@ public final class EdtExtensionScaffold {
       } else if (file.endsWith("Configuration.mdo")) {
         text = configuration(text, name, label, namePrefix, purpose, compatibility, language, model);
       }
-      text = EdtObjectScaffold.freshUuids(text);
+      text = EdtObjectScaffold.freshUuids(text, seed);
       Path target = targetProjectDir.resolve(file);
       Files.createDirectories(target.getParent());
       Files.writeString(target, text, StandardCharsets.UTF_8);

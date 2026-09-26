@@ -28,7 +28,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -49,11 +48,8 @@ import io.github.yellowhammer.edt.EdtObjectRegions.Region;
  */
 public final class EdtObjectMutations {
 
-  /** Идентификатор объекта или узла в файле. */
-  private static final Pattern UUID_ATTRIBUTE = Pattern.compile("uuid=\"[0-9a-fA-F-]{36}\"");
-
-  /** Идентификаторы порождаемых типов. */
-  private static final Pattern TYPE_ID = Pattern.compile("(typeId|valueTypeId)=\"[0-9a-fA-F-]{36}\"");
+  /** Идентификатор объекта или узла и идентификаторы порождаемых типов. */
+  private static final Pattern IDENTIFIER = Pattern.compile("\\b(uuid|typeId|valueTypeId)=\"([0-9a-fA-F-]{36})\"");
 
   private EdtObjectMutations() {
   }
@@ -123,7 +119,9 @@ public final class EdtObjectMutations {
     Files.move(copyMdo, targetDir.resolve(newName + ".mdo"));
     Path renamed = targetDir.resolve(newName + ".mdo");
     // У копии свои идентификаторы: по ним платформа отличает объекты друг от друга
-    Files.writeString(renamed, freshIdentifiers(Files.readString(renamed, StandardCharsets.UTF_8)),
+    String seed = EdtObjectScaffold.seed("duplicate|" + objectType + "|" + sourceName + "|" + newName,
+        Files.readString(configurationMdo, StandardCharsets.UTF_8));
+    Files.writeString(renamed, freshIdentifiers(Files.readString(renamed, StandardCharsets.UTF_8), seed),
         StandardCharsets.UTF_8);
     writeName(renamed, newName);
     rewriteQualifiedName(renamed, objectType, sourceName, newName);
@@ -177,24 +175,20 @@ public final class EdtObjectMutations {
     }
   }
 
-  /** Новые идентификаторы объекта и его узлов: копия не должна повторять исходник. */
-  private static String freshIdentifiers(String xml) {
-    String withUuids = replaceAll(UUID_ATTRIBUTE.matcher(xml), () -> "uuid=\"" + UUID.randomUUID() + "\"");
-    Matcher types = TYPE_ID.matcher(withUuids);
+  /**
+   * Новые идентификаторы объекта и его узлов: копия не должна повторять исходник.
+   *
+   * Меняются только идентификаторы самой копии, а не ссылки на другие объекты;
+   * новый выводится из зерна и старого, поэтому повтор той же копии даёт те же.
+   */
+  private static String freshIdentifiers(String xml, String seed) {
+    Matcher identifiers = IDENTIFIER.matcher(xml);
     StringBuilder out = new StringBuilder();
-    while (types.find()) {
-      types.appendReplacement(out, Matcher.quoteReplacement(types.group(1) + "=\"" + UUID.randomUUID() + "\""));
+    while (identifiers.find()) {
+      identifiers.appendReplacement(out, Matcher.quoteReplacement(identifiers.group(1) + "=\""
+          + EdtObjectScaffold.derivedUuid(seed, identifiers.group(2)) + "\""));
     }
-    types.appendTail(out);
-    return out.toString();
-  }
-
-  private static String replaceAll(Matcher matcher, java.util.function.Supplier<String> value) {
-    StringBuilder out = new StringBuilder();
-    while (matcher.find()) {
-      matcher.appendReplacement(out, Matcher.quoteReplacement(value.get()));
-    }
-    matcher.appendTail(out);
+    identifiers.appendTail(out);
     return out.toString();
   }
 

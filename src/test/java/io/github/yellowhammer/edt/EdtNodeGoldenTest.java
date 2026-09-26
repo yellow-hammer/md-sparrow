@@ -260,7 +260,7 @@ class EdtNodeGoldenTest {
 
   @Test
   void узелБезЭталонаОтклоняется() {
-    assertThatThrownBy(() -> EdtNodeGolden.node("CubeCommand", "Команда", "ru", "  ", "\n"))
+    assertThatThrownBy(() -> EdtNodeGolden.node("CubeCommand", "Команда", "ru", "  ", "\n", "зерно"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("CubeCommand");
   }

@@ -174,7 +174,8 @@ public final class EdtObjectScaffold {
     }
     String proto = kind.namePrefix() + "1";
     String golden = golden(kind.cfSubdir() + "/" + proto + "/" + proto + ".mdo");
-    String text = retargeted(parametrize(golden, proto, name), ConfigurationLanguage.codeOf(configurationMdo));
+    String seed = seed("add|" + kind.name() + "|" + name, Files.readString(configurationMdo, StandardCharsets.UTF_8));
+    String text = retargeted(parametrize(golden, proto, name, seed), ConfigurationLanguage.codeOf(configurationMdo));
     Files.createDirectories(objectDir);
     Files.writeString(objectDir.resolve(name + ".mdo"), withSynonym(text, name, synonym, synonymEmpty),
         StandardCharsets.UTF_8);
@@ -239,7 +240,8 @@ public final class EdtObjectScaffold {
         throw new IllegalArgumentException("Форма уже объявлена в описании объекта: " + formName);
       }
       String entry = retargeted(
-          parametrize(fragment(FORMS_DIRECTORY + "/" + FORM_PROTO + ".xml", eol), FORM_PROTO, formName),
+          parametrize(fragment(FORMS_DIRECTORY + "/" + FORM_PROTO + ".xml", eol), FORM_PROTO, formName,
+              seed("form|" + formName, xml)),
           ConfigurationLanguage.codeOf(objectMdo));
       int at = forms.isEmpty()
           ? EdtObjectRegions.insertionPoint(xml, order(model, kind), FORMS)
@@ -349,8 +351,23 @@ public final class EdtObjectScaffold {
    * эталона, кроме идентификаторов класса, получает свой новый: по ним
    * платформа отличает объекты и типы.
    */
-  static String parametrize(String golden, String protoName, String name) {
-    return freshUuids(renamed(golden, protoName, name));
+  static String parametrize(String golden, String protoName, String name, String seed) {
+    return freshUuids(renamed(golden, protoName, name), seed);
+  }
+
+  /**
+   * Зерно идентификаторов правки.
+   *
+   * Как у выгрузки конфигуратора: из того, что создаётся, и из текста файла,
+   * к которому оно добавляется. Одна и та же правка одного и того же проекта
+   * даёт те же идентификаторы, а другая правка или другой проект - другие.
+   *
+   * @param what что создаётся: действие, вид и имя
+   * @param context текст файла, к которому добавляется новое
+   * @return зерно для {@link #freshUuids(String, String)}
+   */
+  static String seed(String what, String context) {
+    return nameUuid(what + "|" + context);
   }
 
   /**
@@ -376,18 +393,34 @@ public final class EdtObjectScaffold {
    * а номер класса хранимых данных платформы, один у всех расширений и у всех
    * внешних обработок. С другим номером платформа файл не принимает.
    */
-  static String freshUuids(String renamed) {
+  static String freshUuids(String renamed, String seed) {
     Map<String, String> fresh = new HashMap<>();
     Matcher uuids = UUID_TOKEN.matcher(renamed);
     StringBuilder out = new StringBuilder();
     while (uuids.find()) {
+      // Новый идентификатор выводится из зерна и старого: без случайности
       String next = isClassId(renamed, uuids.start())
           ? uuids.group()
-          : fresh.computeIfAbsent(uuids.group(), old -> UUID.randomUUID().toString());
+          : fresh.computeIfAbsent(uuids.group(), old -> derivedUuid(seed, old));
       uuids.appendReplacement(out, Matcher.quoteReplacement(next));
     }
     uuids.appendTail(out);
     return out.toString();
+  }
+
+  /**
+   * Новый идентификатор вместо старого: один и тот же при том же зерне.
+   *
+   * @param seed зерно правки, см. {@link #seed(String, String)}
+   * @param old идентификатор эталона или источника
+   * @return новый идентификатор
+   */
+  static String derivedUuid(String seed, String old) {
+    return nameUuid(seed + "|" + old);
+  }
+
+  private static String nameUuid(String text) {
+    return UUID.nameUUIDFromBytes(text.getBytes(StandardCharsets.UTF_8)).toString();
   }
 
   private static boolean isClassId(String text, int valueStart) {

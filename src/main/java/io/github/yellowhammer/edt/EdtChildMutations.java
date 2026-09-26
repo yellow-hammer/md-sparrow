@@ -27,7 +27,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -118,7 +117,8 @@ public final class EdtChildMutations {
       String ownerClass = owner == null ? objectClass : kindOf(model, objectClass, owner);
       String kind = kindOf(model, ownerClass, feature);
       String indent = parent == null ? INDENT : INDENT + INDENT;
-      String node = EdtNodeGolden.node(kind, name, ConfigurationLanguage.current(), indent, eol(xml));
+      String seed = EdtObjectScaffold.seed("node|" + ownerName + "|" + kind + "|" + name, xml);
+      String node = EdtNodeGolden.node(kind, name, ConfigurationLanguage.current(), indent, eol(xml), seed);
       int at = insertionPoint(xml, model, parent, ownerClass, siblings, feature);
       List<Edit> edits = new ArrayList<>();
       edits.add(new Edit(at, at, node + eol(xml)));
@@ -215,9 +215,10 @@ public final class EdtChildMutations {
       Region source = requireChild(xml, parent, feature, sourceName);
       Region name = EdtObjectRegions.nameRegion(xml, source);
 
-      // Идентификатор у копии свой: по нему платформа отличает узлы друг от друга
-      String copy = xml.substring(source.start(), source.end())
-          .replaceFirst("uuid=\"[^\"]*\"", "uuid=\"" + UUID.randomUUID() + "\"");
+      // Идентификаторы у копии свои все: и у самого узла, и у его порождаемых
+      // типов, и у вложенных реквизитов - по ним платформа отличает узлы и типы
+      String copy = EdtObjectScaffold.freshUuids(xml.substring(source.start(), source.end()),
+          EdtObjectScaffold.seed("duplicate|" + ownerName + "|" + feature + "|" + sourceName + "|" + newName, xml));
       String renamed = name.found()
           ? copy.substring(0, name.start() - source.start())
               + "<name>" + escape(newName) + "</name>"

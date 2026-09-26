@@ -149,6 +149,30 @@ class EdtChildMutationsTest {
   }
 
   @Test
+  void копияТабличнойЧастиНеПовторяетИдентификаторовИсточника() throws Exception {
+    Path file = copyOf("Catalogs/Валюты/Валюты.mdo");
+    String section = EdtObjectProperties.readDto(file, model).tabularSections.get(0).name;
+
+    EdtChildMutations.duplicate(file, null, null, "tabularSections", section, section + "Копия");
+
+    // Порождаемые типы и вложенные реквизиты копии тоже свои: одинаковый TypeId у двух
+    // табличных частей платформа считает одним типом
+    List<String> identifiers = new java.util.ArrayList<>();
+    java.util.regex.Matcher matcher = java.util.regex.Pattern
+        .compile("\\b(?:uuid|typeId|valueTypeId)=\"([0-9a-f-]{36})\"")
+        .matcher(Files.readString(file, StandardCharsets.UTF_8));
+    while (matcher.find()) {
+      identifiers.add(matcher.group(1));
+    }
+    assertThat(identifiers).doesNotHaveDuplicates();
+    MdNamedPropertyDto copy = EdtObjectProperties.readDto(file, model).tabularSections.stream()
+        .filter(node -> node.name.equals(section + "Копия")).findFirst().orElseThrow();
+    assertThat(names(copy.attributes))
+        .isEqualTo(names(EdtObjectProperties.readDto(file, model).tabularSections.get(0).attributes))
+        .isNotEmpty();
+  }
+
+  @Test
   void переставляетРеквизиты() throws Exception {
     Path file = copyOf("Catalogs/Валюты/Валюты.mdo");
     List<String> before = attributesOf(file);

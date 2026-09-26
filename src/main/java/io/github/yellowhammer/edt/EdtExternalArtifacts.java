@@ -106,7 +106,10 @@ public final class EdtExternalArtifacts {
       }
       write(project.resolve(file), text);
     }
-    String object = EdtObjectScaffold.parametrize(EdtObjectScaffold.golden(proto.resource() + proto.objectFile()), proto.name(), name);
+    String seed = EdtObjectScaffold.seed("external|" + kind.name() + "|" + name,
+        Files.readString(baseConfigurationMdo, StandardCharsets.UTF_8));
+    String object = EdtObjectScaffold.parametrize(
+        EdtObjectScaffold.golden(proto.resource() + proto.objectFile()), proto.name(), name, seed);
     Path objectMdo = project.resolve("src").resolve(proto.directory()).resolve(name).resolve(name + ".mdo");
     write(objectMdo, object);
     return objectMdo;
@@ -172,7 +175,8 @@ public final class EdtExternalArtifacts {
           Files.createDirectories(target);
         } else if (file.getFileName().toString().endsWith(".mdo")) {
           String text = Files.readString(file, StandardCharsets.UTF_8);
-          write(target, EdtObjectScaffold.parametrize(text, oldName, newName));
+          write(target, EdtObjectScaffold.parametrize(text, oldName, newName,
+              EdtObjectScaffold.seed("duplicate|" + newName, text)));
         } else if (file.getFileName().toString().equals(EdtLayout.PROJECT_FILE)) {
           write(target, EdtObjectScaffold.renamed(Files.readString(file, StandardCharsets.UTF_8), oldName, newName));
         } else {

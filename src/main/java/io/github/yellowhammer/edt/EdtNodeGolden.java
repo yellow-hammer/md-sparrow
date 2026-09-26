@@ -67,10 +67,12 @@ final class EdtNodeGolden {
    * @param language код языка подписи
    * @param indent отступ узла в файле
    * @param eol перевод строки файла
+   * @param seed зерно идентификаторов узла
    * @return узел без перевода строки после закрывающего тега
    * @throws IOException если эталон не читается
    */
-  static String node(String kind, String name, String language, String indent, String eol) throws IOException {
+  static String node(String kind, String name, String language, String indent, String eol, String seed)
+      throws IOException {
     if (!exists(kind)) {
       throw new IllegalArgumentException("Узлы вида " + kind + " в проекте 1С:EDT не создаются: нет эталона.");
     }
@@ -80,7 +82,7 @@ final class EdtNodeGolden {
       throw new IllegalStateException("В эталоне узла " + kind + " нет имени");
     }
     String text = EdtObjectScaffold.retargeted(EdtObjectScaffold.renamed(golden, proto.group(1), name), language);
-    text = EdtObjectScaffold.freshUuids(text);
+    text = EdtObjectScaffold.freshUuids(text, seed);
 
     StringBuilder node = new StringBuilder();
     for (String line : text.strip().split("\n")) {
