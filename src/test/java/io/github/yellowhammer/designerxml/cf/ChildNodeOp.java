@@ -36,6 +36,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
@@ -59,6 +60,8 @@ enum ChildNodeOp {
     MdObjectChildMutations::addExtDimensionAccountingFlag, dto -> dto.extDimensionAccountingFlags);
 
   private static final String XSD_NS = XMLConstants.W3C_XML_SCHEMA_NS_URI;
+
+  private static final String CHILD_OBJECTS = "ChildObjects";
 
   /** Элемент узла в выгрузке. */
   final String element;
@@ -86,15 +89,10 @@ enum ChildNodeOp {
    * @return пусто, если такого типа в схеме нет
    */
   static List<String> schemaChildren(SchemaVersion version, String ownerLocal) throws Exception {
-    String root = System.getProperty("xsd.root");
-    Path xsd = Path.of(root, version.xsdDirectoryName(), "v8.1c.ru-8.3-MDClasses.xsd");
-    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-    factory.setNamespaceAware(true);
-    Document schema = factory.newDocumentBuilder().parse(xsd.toFile());
-    NodeList types = schema.getElementsByTagNameNS(XSD_NS, "complexType");
+    NodeList types = schema(version).getElementsByTagNameNS(XSD_NS, "complexType");
     for (int i = 0; i < types.getLength(); i++) {
       Element type = (Element) types.item(i);
-      if (!(ownerLocal + "ChildObjects").equals(type.getAttribute("name"))) {
+      if (!(ownerLocal + CHILD_OBJECTS).equals(type.getAttribute("name"))) {
         continue;
       }
       List<String> children = new ArrayList<>();
@@ -105,6 +103,46 @@ enum ChildNodeOp {
       return children;
     }
     return List.of();
+  }
+
+  /**
+   * Виды, у которых в XSD формата есть подчинённые: типы {@code <Вид>ChildObjects}.
+   *
+   * @return и корневые виды, и вложенные ({@code TabularSection}, {@code Recalculation})
+   */
+  static List<String> schemaOwners(SchemaVersion version) throws Exception {
+    NodeList types = schema(version).getElementsByTagNameNS(XSD_NS, "complexType");
+    List<String> owners = new ArrayList<>();
+    for (int i = 0; i < types.getLength(); i++) {
+      String name = ((Element) types.item(i)).getAttribute("name");
+      if (name.endsWith(CHILD_OBJECTS) && name.length() > CHILD_OBJECTS.length()) {
+        owners.add(name.substring(0, name.length() - CHILD_OBJECTS.length()));
+      }
+    }
+    return owners;
+  }
+
+  /** Операция добавления узла по его элементу в выгрузке. */
+  static ChildNodeOp of(String element) {
+    for (ChildNodeOp op : values()) {
+      if (op.element.equals(element)) {
+        return op;
+      }
+    }
+    throw new IllegalArgumentException("md-sparrow не добавляет узлы " + element);
+  }
+
+  /** Элементы всех узлов, которые добавляет md-sparrow. */
+  static List<String> elements() {
+    return Arrays.stream(values()).map(op -> op.element).toList();
+  }
+
+  private static Document schema(SchemaVersion version) throws Exception {
+    String root = System.getProperty("xsd.root");
+    Path xsd = Path.of(root, version.xsdDirectoryName(), "v8.1c.ru-8.3-MDClasses.xsd");
+    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    factory.setNamespaceAware(true);
+    return factory.newDocumentBuilder().parse(xsd.toFile());
   }
 
   /** Вид объекта: элемент под {@code MetaDataObject}. */

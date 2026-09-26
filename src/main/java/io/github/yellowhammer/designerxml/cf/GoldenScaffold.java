@@ -351,7 +351,7 @@ public final class GoldenScaffold {
    *
    * @throws IOException если формат новее канонического набора
    */
-  private static String projected(String resource, SchemaVersion version) throws IOException {
+  static String projected(String resource, SchemaVersion version) throws IOException {
     SchemaVersion canonical = canonicalVersion();
     if (version.compareTo(canonical) > 0) {
       throw new IOException(

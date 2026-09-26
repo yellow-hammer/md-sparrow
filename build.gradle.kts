@@ -455,6 +455,39 @@ val indexEdtGolden = tasks.register("indexEdtGolden") {
     }
 }
 
+/**
+ * Эталоны дочерних узлов (реквизит, табличная часть, команда…) канонического формата: объекты-владельцы
+ * из cf-object-nodes, по файлу на вид владельца - golden/nodes/<Вид>.xml (cf/GoldenNodes).
+ */
+val prepareCanonicalNodes = tasks.register("prepareCanonicalNodes") {
+    val version = canonicalGoldenVersion()
+    val target = layout.buildDirectory.dir("generated/golden-nodes")
+    inputs.dir(snapshotsDir).withPropertyName("эталоны")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        if (version == null) {
+            throw GradleException("Эталоны не найдены: $snapshotsDir. Обновите submodule samples-1c-platform.")
+        }
+        val nodes = snapshotsDir.dir("$version/cf-object-nodes").asFile
+        if (!nodes.isDirectory) {
+            throw GradleException("В эталонах формата $version нет cf-object-nodes: канонический набор неполон.")
+        }
+        val kindOf = Regex("<MetaDataObject\\b[^>]*>\\s*<(\\w+)\\b")
+        nodes.walkTopDown().filter { it.isFile && it.name.endsWith(".xml") }.sortedBy { it.path }.forEach { file ->
+            val kind = kindOf.find(file.readText())?.groupValues?.get(1)
+                ?: throw GradleException("$file: не объект метаданных")
+            val copy = output.resolve("$kind.xml")
+            if (copy.exists()) {
+                throw GradleException("В $nodes два владельца вида $kind")
+            }
+            file.copyTo(copy)
+        }
+    }
+}
+
 tasks.named<Copy>("processResources") {
     // Метамодель EDT: edt-schemas/<файлы схем>
     from(prepareEdtSchemas) {
@@ -471,6 +504,10 @@ tasks.named<Copy>("processResources") {
     // Перечень эталонов EDT: edt-golden/index.txt
     from(indexEdtGolden) {
         into("edt-golden")
+    }
+    // Эталоны дочерних узлов: golden/nodes/<вид владельца>.xml
+    from(prepareCanonicalNodes) {
+        into("golden/nodes")
     }
 }
 
