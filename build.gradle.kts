@@ -2,6 +2,7 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.javadoc.Javadoc
 import java.io.File
 import java.security.MessageDigest
+import nl.javadude.gradle.plugins.license.License
 
 buildscript {
     repositories {
@@ -496,19 +497,19 @@ license {
     header = rootProject.file("license/HEADER.txt")
     skipExistingHeaders = false
     strictCheck = true
+    // По умолчанию плагин берёт file.encoding демона, а licenseFormat переписывает файлы с кириллицей
+    encoding = "UTF-8"
     ext["year"] = "2026"
     ext["name"] = "Ivan Karlo <i.karlo@outlook.com>"
     ext["project"] = "md-sparrow"
     mapping("java", "SLASHSTAR_STYLE")
-    include("src/main/java/**/*.java")
-    include("src/test/java/**/*.java")
-    exclude("build/generated/**")
+    // Шаблон сверяется с путём внутри каталога исходников (io/github/…), а не от корня проекта
+    include("**/*.java")
 }
 
-// Сгенерированный xjc лежит в sourceSets.main; Gradle 8+ требует явной связи задач.
-tasks.named("licenseMain") {
-    dependsOn(xjcTaskNames)
-}
-tasks.named("licenseFormatMain") {
-    dependsOn(xjcTaskNames)
-}
+// Плагин берёт весь sourceSet.allSource: ресурсы и ~13k классов xjc из build/generated.
+// Заголовок нужен только в исходниках, написанных руками, поэтому и xjc проверке не нужен.
+tasks.named<License>("licenseMain") { setSource("src/main/java") }
+tasks.named<License>("licenseFormatMain") { setSource("src/main/java") }
+tasks.named<License>("licenseTest") { setSource("src/test/java") }
+tasks.named<License>("licenseFormatTest") { setSource("src/test/java") }
