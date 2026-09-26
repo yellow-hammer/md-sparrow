@@ -35,11 +35,11 @@ import java.util.regex.Pattern;
  * Scaffold нового объекта метаданных из канонического эталона «голого» объекта, забандленного в jar.
  *
  * <p>В jar лежит один набор эталонов - выгрузка платформы самого нового формата (ресурсы
- * {@code golden/cf/…}, {@code golden/cfe/…} и внешние объекты {@code golden/ext/…}, формат - в
- * {@code golden/format.txt}; см. build.gradle.kts, источник - submodule samples-1c-platform). Файл
- * формата V получается проекцией канонического ({@link FormatProjection}), новый объект -
- * параметризацией результата (имя и детерминированные UUID, {@link GoldenObjectTemplate}).
- * Значения по умолчанию - из выгрузки платформы: в XSD их нет.
+ * {@code golden/cf/…}, {@code golden/cfe/…}, внешние объекты {@code golden/ext/…} и пустая управляемая
+ * форма {@code golden/form/…}, формат - в {@code golden/format.txt}; см. build.gradle.kts, источник -
+ * submodule samples-1c-platform). Файл формата V получается проекцией канонического
+ * ({@link FormatProjection}), новый объект - параметризацией результата (имя и детерминированные UUID,
+ * {@link GoldenObjectTemplate}). Значения по умолчанию - из выгрузки платформы: в XSD их нет.
  */
 public final class GoldenScaffold {
 
@@ -84,6 +84,12 @@ public final class GoldenScaffold {
 
   /** Канонический набор: голые внешние отчёт и обработка (external-files/empty). */
   private static final String CANONICAL_EXT = "golden/ext/";
+
+  /** Канонический набор: пустая управляемая форма внешнего отчёта (external-files/empty-full-objects). */
+  private static final String CANONICAL_FORM = "golden/form/";
+
+  /** Имя формы-прототипа в эталоне. */
+  private static final String FORM_PROTO = "Форма";
 
   /** Формат канонического набора. */
   private static final String CANONICAL_FORMAT = "golden/format.txt";
@@ -152,6 +158,32 @@ public final class GoldenScaffold {
     String golden = projected(CANONICAL_EXT + proto + "/" + proto + ".xml", version);
     String seed = "scaffoldExt|" + version.name() + "|" + kind + "|" + targetName;
     return GoldenObjectTemplate.parametrize(golden, proto, targetName, seed);
+  }
+
+  /**
+   * Описание новой управляемой формы ({@code Forms/<имя>.xml}) в формате {@code version}: проекция
+   * эталона пустой формы, имя {@code formName} и детерминированные UUID.
+   *
+   * @param formName имя формы
+   * @param version формат
+   * @return текст описания формы
+   * @throws IOException если эталона нет в jar или формат новее канонического
+   */
+  public static String generateFormDescriptor(String formName, SchemaVersion version) throws IOException {
+    String golden = projected(CANONICAL_FORM + FORM_PROTO + ".xml", version);
+    String seed = "form|" + version.name() + "|" + formName;
+    return GoldenObjectTemplate.parametrize(golden, FORM_PROTO, formName, seed);
+  }
+
+  /**
+   * Содержимое пустой управляемой формы ({@code Ext/Form.xml}) в формате {@code version}.
+   *
+   * @param version формат
+   * @return текст содержимого формы
+   * @throws IOException если эталона нет в jar или формат новее канонического
+   */
+  public static String generateFormContent(SchemaVersion version) throws IOException {
+    return projected(CANONICAL_FORM + FORM_PROTO + "/Ext/Form.xml", version);
   }
 
   /** {@code Ext/Rights.xml} новой роли из эталона (пустые права нужной версии формата). */

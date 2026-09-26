@@ -40,14 +40,12 @@ import java.util.Map;
  * Создание форм объектов из эталона платформы и сборка содержимого формы из
  * JSON-описания элементов.
  *
- * <p>Эталон - пустая управляемая форма, выгруженная платформой: описание
- * параметризуется именем, содержимое собирается текстом по образцам выгрузки и
- * проверяется обратным чтением JAXB-моделью схемы logform.
+ * <p>Эталон - пустая управляемая форма, выгруженная платформой ({@link GoldenScaffold}):
+ * файл формата - проекция канонического, описание параметризуется именем, содержимое
+ * собирается текстом по образцам выгрузки и проверяется обратным чтением JAXB-моделью
+ * схемы logform.
  */
 public final class FormScaffold {
-
-  private static final String GOLDEN_DESCRIPTOR = "Форма.xml";
-  private static final String GOLDEN_CONTENT = "Ext.xml";
 
   private FormScaffold() {
   }
@@ -80,12 +78,8 @@ public final class FormScaffold {
       throw new IllegalArgumentException("Форма уже объявлена в составе: " + formName);
     }
 
-    String descriptorXml = GoldenObjectTemplate.parametrize(
-      readGolden(GOLDEN_DESCRIPTOR, version),
-      "Форма",
-      formName,
-      "form|" + version.name() + "|" + formName);
-    String contentXml = readGolden(GOLDEN_CONTENT, version);
+    String descriptorXml = GoldenScaffold.generateFormDescriptor(formName, version);
+    String contentXml = GoldenScaffold.generateFormContent(version);
 
     String updated = insertFormEntry(objectText, formName);
     MdObjectStructureRead.read(updated.getBytes(StandardCharsets.UTF_8), version);
@@ -149,8 +143,8 @@ public final class FormScaffold {
   }
 
   private static String buildContent(SchemaVersion version, FormDefinition definition) throws IOException {
-    String golden = readGolden(GOLDEN_CONTENT, version);
-    String eol = golden.contains("\r\n") ? "\r\n" : "\n";
+    String golden = GoldenScaffold.generateFormContent(version);
+    String eol = XmlLines.newline(golden);
     int open = golden.indexOf('>', golden.indexOf("<Form"));
     StringBuilder body = new StringBuilder();
     body.append(eol).append("\t<AutoCommandBar name=\"ФормаКоманднаяПанель\" id=\"-1\"/>").append(eol);
@@ -324,18 +318,6 @@ public final class FormScaffold {
     Path normalized = objectXml.toAbsolutePath().normalize();
     String stem = normalized.getFileName().toString().replaceFirst("[.][Xx][Mm][Ll]$", "");
     return normalized.getParent().resolve(stem).resolve("Forms");
-  }
-
-  private static String readGolden(String file, SchemaVersion version) throws IOException {
-    String resource = "golden-form/" + version.metadataObjectVersionAttribute() + "/" + file;
-    try (InputStream in = FormScaffold.class.getClassLoader().getResourceAsStream(resource)) {
-      if (in == null) {
-        throw new IOException(
-          "Нет эталона формы формата " + version.metadataObjectVersionAttribute()
-            + ". Добавьте выгрузку в samples-1c-platform (external-files/empty-full-objects).");
-      }
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-    }
   }
 
   private static String escape(String value) {

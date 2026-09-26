@@ -391,9 +391,12 @@ public final class FormatProjection {
     if (DEFAULT_NAME.equals(ref.name())) {
       return;
     }
-    Class<?> type = fieldType != null && fieldType != Object.class && fieldType != JAXBElement.class
-      ? fieldType
-      : declaredValueType(owner, ref.name());
+    // Тип поля - общий предок вариантов (List<JAXBElement<? extends FormItemBase>> у элементов формы),
+    // тип самого элемента объявлен в ObjectFactory
+    Class<?> declared = declaredValueType(owner, ref.name());
+    Class<?> type = declared != null || fieldType == Object.class || fieldType == JAXBElement.class
+      ? declared
+      : fieldType;
     elements.putIfAbsent(ref.name(), bean(type));
   }
 

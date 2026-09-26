@@ -54,6 +54,9 @@ final class GoldenSnapshots {
   /** Голые внешние отчёт и обработка ({@code <имя>/<имя>.xml}). */
   static final String EXTERNAL = "external-files/empty";
 
+  /** Внешние отчёт и обработка с формами. */
+  static final String EXTERNAL_FULL = "external-files/empty-full-objects";
+
   private static final Pattern UUID = Pattern.compile(
     "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 

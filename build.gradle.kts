@@ -402,9 +402,15 @@ val prepareCanonicalGolden = tasks.register("prepareCanonicalGolden") {
         }
         val cfe = required("cfe-empty")
         val external = required("external-files/empty")
+        // Пустая управляемая форма - форма внешнего отчёта, как её записала платформа
+        val forms = "external-files/empty-full-objects/ВнешнийОтчет1/ВнешнийОтчет1/Forms"
+        val formDescriptor = required("$forms/Форма.xml")
+        val formContent = required("$forms/Форма/Ext/Form.xml")
         File(base, "cf-bare-objects").copyRecursively(output.resolve("cf"))
         cfe.copyRecursively(output.resolve("cfe"))
         external.copyRecursively(output.resolve("ext"))
+        formDescriptor.copyTo(output.resolve("form/Форма.xml"))
+        formContent.copyTo(output.resolve("form/Форма/Ext/Form.xml"))
         output.resolve("format.txt").writeText("$version\n")
 
         // 2.10 пишет непустой список разрешений, которого в XSD не вывести: берём блок из эталона 2.10
@@ -432,26 +438,9 @@ tasks.named<Copy>("processResources") {
     from(prepareDesignerTypeSchemas) {
         into("designer-schemas")
     }
-    // Канонический набор: golden/{cf,cfe,ext}/…, golden/format.txt, golden/rules/…
+    // Канонический набор: golden/{cf,cfe,ext,form}/…, golden/format.txt, golden/rules/…
     from(prepareCanonicalGolden) {
         into("golden")
-    }
-    // Пустая управляемая форма платформы: golden-form/<формат>/{Форма.xml, Ext.xml}
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/external-files/empty-full-objects/ВнешнийОтчет1/ВнешнийОтчет1/Forms/Форма.xml")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden-form", segs[0], "Форма.xml")
-        }
-    }
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/external-files/empty-full-objects/ВнешнийОтчет1/ВнешнийОтчет1/Forms/Форма/Ext/Form.xml")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden-form", segs[0], "Ext.xml")
-        }
     }
 }
 

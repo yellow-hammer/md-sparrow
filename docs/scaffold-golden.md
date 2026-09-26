@@ -22,6 +22,8 @@
      `Languages/Русский.xml`, `Roles/Роль1/Ext/Rights.xml`;
    - `golden/cfe/…` — `cfe-empty`: пустое расширение;
    - `golden/ext/…` — `external-files/empty`: голые `ВнешнийОтчет1` и `ВнешняяОбработка1`;
+   - `golden/form/…` — пустая управляемая форма `Форма` внешнего отчёта из
+     `external-files/empty-full-objects`: описание и `Ext/Form.xml`;
    - `golden/format.txt` — формат набора;
    - `golden/rules/2.10/RequiredMobileApplicationPermissions.xml` — блок из эталона 2.10, который
      проекцией не получить (см. правила `Configuration.xml`).
@@ -131,7 +133,8 @@
 Параметризация файла формата V без повторной сборки через JAXB (сохраняет форматирование):
 подстановка имени как целого токена + детерминированный ремап UUID.
 - `cf/GoldenScaffold` — фасад: `generateObject`, `generateEmptyConfiguration`, `generateEmptyExtension`,
-  `generateRoleRights`, `generateRussianLanguage`, `generateExternalArtifact`.
+  `generateRoleRights`, `generateRussianLanguage`, `generateExternalArtifact`, `generateFormDescriptor`,
+  `generateFormContent`.
 - `cf/GoldenObjectTemplate.parametrize(goldenXml, sourceName, targetName, uuidSeed)` — ядро
   (имя: граница `(?<![\p{L}\p{N}_])…(?![\p{L}\p{N}_])`; UUID: `DistinctUuidRewrite.remapDeterministic`).
 - `DistinctUuidRewrite` ремапит все UUID, **кроме `<xr:ClassId>`** — это фиксированный идентификатор
@@ -146,9 +149,6 @@
 с `snapshots/<формат>/cf-bare-objects` побайтно после замены имени и UUID; `EmptyCfeScaffoldTest`,
 `EmptyCfScaffoldTest`, `GoldenScaffoldTest`, `GoldenObjectTemplateTest`.
 
-Пустая форма (`golden-form/<формат>/…`) пока берётся из эталона своего формата; проекция её корень
-уже поддерживает.
-
 ### Внешние отчёты и обработки
 `external-artifact-add` (`GoldenScaffold.generateExternalArtifact`) устроен так же, как
 `add-md-object`: проекция канонического `external-files/empty` в формат V, затем имя и
@@ -162,6 +162,27 @@ BOM и CRLF (до перехода на канонический эталон в
 созданный файл после замены имени и UUID; в остальных форматах файл проверяется моделью формата
 и XSD. Эталоны 2.16, 2.17 и 2.20 различаются только версией, в 2.21 добавились
 `AuxiliaryVariantForm` у отчёта и `xmlns:pal` в заголовке.
+
+Проверено и на платформах 8.3.23, 8.3.24, 8.3.27 и 8.5.1: отчёт и обработка из
+`external-artifact-add` своего формата (и они же с формой из `cf-form-add` или `cf-form-compile`)
+собираются `config import --out`, а разобранные `config export --file` совпадают с исходными
+файлами байт в байт.
+
+### Управляемые формы
+`cf-form-add` работает во всех 12 форматах. Эталон пустой формы - форма `Форма` внешнего отчёта
+из канонического `external-files/empty-full-objects` (выгрузка 8.5.1): описание `Forms/Форма.xml`
+и содержимое `Forms/Форма/Ext/Form.xml`. Файл формата V - проекция (корни `MetaDataObject`
+и `Form` logform), описание затем получает имя и детерминированные UUID. Как форма встаёт в состав
+объекта и чем описание формы объекта отличается от формы отчёта - в
+[form-content.md](form-content.md#создание-формы-cf-form-add).
+
+`FormatProjectionTest` сверяет проекцию всех файлов `empty-full-objects` с выгрузками 2.16, 2.17,
+2.20 и 2.21 побайтно, `FormAddGoldenTest` - новую форму внешнего отчёта с формой `Форма` эталона
+формата после замены имени и UUID. Проекция содержимого формы восстанавливает не всё: 8.5.1 у
+таблицы пишет `HorizontalLinesBWA`, `VerticalLinesBWA` и `UseAlternationRowColorBWA` вместо прежних
+`HorizontalLines`, `VerticalLines` и `UseAlternationRowColor`, а у флажка не пишет `CheckBoxType`
+со значением `Auto`. В пустой форме этих свойств нет, в сложной (`ФормаВарианта` отчёта) проекция
+их не вернёт.
 
 ## Как получены эталоны
 Эталоны снимает с платформы нужной версии инструмент

@@ -34,7 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -155,7 +154,8 @@ class FormatProjectionTest {
 
   @Test
   void каноническийФайлВСвоёмФорматеНеМеняется() {
-    for (String set : List.of(GoldenSnapshots.CF, GoldenSnapshots.CFE, GoldenSnapshots.EXTERNAL)) {
+    for (String set : List.of(
+      GoldenSnapshots.CF, GoldenSnapshots.CFE, GoldenSnapshots.EXTERNAL, GoldenSnapshots.EXTERNAL_FULL)) {
       for (String file : canonicalFiles(set)) {
         String source = GoldenSnapshots.read(canonical(), set, file);
         assertThat(FormatProjection.project(source, canonical())).as(file).isEqualTo(source);
@@ -239,24 +239,49 @@ class FormatProjectionTest {
       .isSubsetOf(canonicalFiles(GoldenSnapshots.EXTERNAL));
   }
 
+  /**
+   * Внешние объекты с формами: описания объектов и форм ({@code MetaDataObject}) и содержимое форм
+   * ({@code Form} logform), в том числе пустая форма - эталон cf-form-add.
+   *
+   * <p>Содержимое формы проекция восстанавливает не всё: 8.5.1 (2.21) у таблицы пишет
+   * {@code HorizontalLinesBWA}, {@code VerticalLinesBWA} и {@code UseAlternationRowColorBWA} вместо
+   * {@code HorizontalLines}, {@code VerticalLines} и {@code UseAlternationRowColor}, а у флажка не пишет
+   * {@code CheckBoxType} со значением {@code Auto}. Прежние свойства есть в моделях всех форматов, но
+   * в каноническом эталоне их нет, поэтому в проекции их нет тоже; при сверке их строки убираются из
+   * эталона формата, если в каноническом файле такого элемента нет вовсе. В пустой форме их нет.
+   */
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
-  void управляемаяФормаПроецируетсяВМодельФормата(SchemaVersion version) throws Exception {
-    SchemaVersion platform = SchemaVersion.V2_20;
-    if (version.compareTo(platform) > 0) {
-      return;
-    }
-    Path forms = GoldenSnapshots.format(platform).resolve("external-files").resolve("empty-full-objects");
-    List<Path> contents;
-    try (Stream<Path> walk = Files.walk(forms)) {
-      contents = walk.filter(path -> path.endsWith(Path.of("Ext", "Form.xml"))).toList();
-    }
-    assertThat(contents).isNotEmpty();
-    for (Path content : contents) {
-      String projected = FormatProjection.project(GoldenSnapshots.read(content), version);
-      assertThat(projected).contains("version=\"" + version.metadataObjectVersionAttribute() + "\"");
+  void формыСовпадаютСВыгрузкойПлатформыПобайтно(SchemaVersion version) throws Exception {
+    SoftAssertions softly = new SoftAssertions();
+    List<String> platformFiles = GoldenSnapshots.files(version, GoldenSnapshots.EXTERNAL_FULL);
+    List<String> canonicalFiles = canonicalFiles(GoldenSnapshots.EXTERNAL_FULL);
+    assertThat(canonicalFiles).as("содержимое форм").anyMatch(file -> file.endsWith("/Ext/Form.xml"));
+    for (String file : canonicalFiles) {
+      String source = GoldenSnapshots.read(canonical(), GoldenSnapshots.EXTERNAL_FULL, file);
+      String projected = FormatProjection.project(source, version);
+      softly.assertThat(projected).as("%s в формате %s", file, version)
+        .contains("version=\"" + version.metadataObjectVersionAttribute() + "\"");
       unmarshal(version, projected);
+      if (platformFiles.contains(file)) {
+        softly.assertThat(projected)
+          .as("%s в формате %s", file, version)
+          .isEqualTo(withoutFormPropertiesRenamedIn221(
+            GoldenSnapshots.read(version, GoldenSnapshots.EXTERNAL_FULL, file), source));
+      }
     }
+    softly.assertAll();
+    assertThat(platformFiles).as("эталоны формата %s", version).isSubsetOf(canonicalFiles);
+  }
+
+  private static String withoutFormPropertiesRenamedIn221(String platform, String canonical) {
+    String result = platform;
+    for (String name : List.of("HorizontalLines", "VerticalLines", "UseAlternationRowColor", "CheckBoxType")) {
+      if (!canonical.contains("<" + name + ">")) {
+        result = result.replaceAll("(?m)^[ \\t]*<" + name + ">[^<]*</" + name + ">\\r?\\n", "");
+      }
+    }
+    return result;
   }
 
   /** Читает текст моделью формата; BOM разбирается из байтов, а не из символов. */
