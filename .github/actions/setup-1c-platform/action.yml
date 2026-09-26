@@ -1,0 +1,114 @@
+name: Установить платформу 1С
+description: >-
+  Скачивает дистрибутив платформы 1С:Предприятие с releases.1c.ru через yard и ставит его
+  (как в namespace-forest: .run или .deb для Linux). Конфигуратор и лицензия не нужны:
+  дальше работает ibcmd. Для ubuntu-22.04.
+
+inputs:
+  version:
+    description: Версия платформы, например 8.3.27.2214
+    required: true
+  login:
+    description: Логин releases.1c.ru (секрет ONEC_LOGIN)
+    required: true
+  password:
+    description: Пароль releases.1c.ru (секрет ONEC_PASSWORD)
+    required: true
+
+outputs:
+  bin:
+    description: Каталог установленной платформы с ibcmd
+    value: ${{ steps.install.outputs.bin }}
+
+runs:
+  using: composite
+  steps:
+    - name: Установить OneScript
+      uses: otymko/setup-onescript@v1.5.1
+      with:
+        version: stable
+
+    - name: Установить yard
+      id: yard
+      shell: bash
+      run: |
+        opm install opm
+        opm install yard
+        # Шаги с shell: bash идут под bash -eo pipefail: ненулевой код find (нет каталога) оборвал бы шаг
+        # без сообщения, поэтому результат поиска проверяется явно
+        YARD_OS=$( { find "$HOME/.local/share/ovm" -path '*/yard/src/yard.os' 2>/dev/null || true; } | head -1)
+        if [ -z "$YARD_OS" ]; then echo "::error::yard.os не найден"; exit 1; fi
+        echo "os=$YARD_OS" >> "$GITHUB_OUTPUT"
+
+    - name: Установить зависимости платформы
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+          fontconfig libgsf-1-114 libglib2.0-0 libodbc1 libwebkit2gtk-4.0-37 \
+          xvfb unzip curl locales
+        LE_BASE=http://archive.ubuntu.com/ubuntu/pool/universe/e/enchant/
+        LE_FILE=$(curl -s "$LE_BASE" | grep -oE 'libenchant1c2a_[^"]*_amd64\.deb' | head -1)
+        curl -sL "$LE_BASE$LE_FILE" -o /tmp/libenchant.deb
+        sudo apt-get install -y /tmp/libenchant.deb
+        # Русская локаль: от языка процесса зависят имена по умолчанию (роль расширения и т.п.)
+        sudo localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8 || true
+
+    - name: Скачать и установить платформу
+      id: install
+      shell: bash
+      env:
+        YARD_OS: ${{ steps.yard.outputs.os }}
+        YARD_RELEASES_USER: ${{ inputs.login }}
+        YARD_RELEASES_PWD: ${{ inputs.password }}
+        PLATFORM_VERSION: ${{ inputs.version }}
+      run: |
+        DISTR_DIR=$(mktemp -d); chmod 777 "$DISTR_DIR"
+        ESCAPED_VERSION=$(echo "$PLATFORM_VERSION" | sed 's/\./\\./g')
+        APP_MAJOR=$(echo "$PLATFORM_VERSION" | cut -d. -f1,2)
+        DISTR_FILTERS=(
+          "[CС]ервер.+\(64-bit\) для DEB-based Linux-систем$"
+          "Технологическая платформа.+\(64-bit\) для Linux$"
+        )
+        OK=0
+        for ATTEMPT in 1 2 3; do
+          for DF in "${DISTR_FILTERS[@]}"; do
+            timeout 900 oscript "$YARD_OS" releases get \
+              --app-filter "Технологическая платформа $APP_MAJOR\$" \
+              --version-filter "$ESCAPED_VERSION" \
+              --distr-filter "$DF" \
+              --path "$DISTR_DIR" --download-limit 1 --extract || true
+            if find "$DISTR_DIR" -type f \( -name 'setup-full*.run' -o -name '*.deb' \) | grep -q .; then OK=1; break; fi
+          done
+          [ "$OK" -eq 1 ] && break
+          echo "Попытка $ATTEMPT: дистрибутив не получен, пауза 20 с"; sleep 20
+        done
+        [ "$OK" -eq 1 ] || { echo "::error::Дистрибутив платформы $PLATFORM_VERSION не скачан"; exit 1; }
+
+        sudo rm -rf /opt/1cv8 /opt/1C 2>/dev/null || true
+        RUN_INSTALLER=$(find "$DISTR_DIR" -name 'setup-full*.run' | head -1)
+        if [ -n "$RUN_INSTALLER" ]; then
+          chmod +x "$RUN_INSTALLER"
+          for COMPONENTS in server,client_full,v8_install_deps server,client_full; do
+            if timeout 900 xvfb-run -a sudo "$RUN_INSTALLER" --mode unattended \
+              --enable-components "$COMPONENTS" > /tmp/install.log 2>&1; then break; fi
+          done
+        else
+          DEBS=$(find "$DISTR_DIR" -name '*.deb' | sort)
+          # Итог установки проверяет поиск ibcmd ниже, он же печатает журнал
+          timeout 600 sudo dpkg -i $DEBS > /tmp/install.log 2>&1 \
+            || timeout 600 sudo apt-get install -f -y >> /tmp/install.log 2>&1 \
+            || echo "::warning::Пакеты платформы $PLATFORM_VERSION установились с ошибкой"
+        fi
+        rm -rf "$DISTR_DIR"
+
+        # Установщик создаёт один из двух каталогов (пакеты 8.3.20+ - только /opt/1cv8), а find по отсутствующему
+        # возвращает 1: под -eo pipefail шаг оборвался бы до сообщения об ошибке
+        IBCMD=$( { find /opt/1cv8 /opt/1C -name 'ibcmd' -type f 2>/dev/null || true; } | sort -V | tail -1)
+        if [ -z "$IBCMD" ]; then
+          echo "::error::ibcmd не найден после установки платформы $PLATFORM_VERSION"
+          tail -40 /tmp/install.log
+          exit 1
+        fi
+        echo "Установлено: $("$IBCMD" --version 2>/dev/null) ($IBCMD)"
+        echo "bin=$(dirname "$IBCMD")" >> "$GITHUB_OUTPUT"

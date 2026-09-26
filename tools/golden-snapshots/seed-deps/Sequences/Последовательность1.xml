@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.10">
+	<Sequence uuid="02c1de37-acd4-59e6-9a54-007ffd54a698">
+		<InternalInfo>
+			<xr:GeneratedType name="SequenceRecord.Последовательность1" category="Record">
+				<xr:TypeId>be60c906-0e94-5bfd-8c79-709c2685ef9d</xr:TypeId>
+				<xr:ValueId>a12a2323-2423-5605-ac64-1b93668cb58f</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="SequenceManager.Последовательность1" category="Manager">
+				<xr:TypeId>391dcead-ada3-5b2f-825f-d930afdcee39</xr:TypeId>
+				<xr:ValueId>d468dcc3-7263-5ac6-a388-7bb775c08314</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="SequenceRecordSet.Последовательность1" category="RecordSet">
+				<xr:TypeId>59e94190-43d9-51b2-b272-2f35b4816ad2</xr:TypeId>
+				<xr:ValueId>38495313-fc9e-5047-9459-7c2adbc0c961</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>Последовательность1</Name>
+			<Documents>
+				<xr:Item xsi:type="xr:MDObjectRef">Document.ВспомогательныйДокумент</xr:Item>
+			</Documents>
+		</Properties>
+		<ChildObjects/>
+	</Sequence>
+</MetaDataObject>

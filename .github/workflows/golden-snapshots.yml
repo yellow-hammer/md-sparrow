@@ -1,0 +1,254 @@
+name: "Вспомогательный: эталоны по версиям платформы (ibcmd)"
+
+# Назначение: снять с платформы нужных версий эталоны выгрузки для scaffold - голые объекты всех
+# видов, конфигурацию пустой ИБ, пустое расширение, внешние отчёт и обработку. Работает через
+# ibcmd, без конфигуратора и лицензии: tools/golden-snapshots/dump.sh (подробности в README рядом).
+#
+# На каждую версию платформы - своя задача матрицы и артефакт snapshots-<версия> с каталогом
+# <формат>/... в раскладке fixtures/samples-1c-platform/snapshots и сводкой summary-<версия>.txt.
+# Внешние объекты с формами собираются в .epf/.erf один раз платформой builder_version (исходник
+# в формате 2.20 читают только 8.3.27+), а разбирает их платформа каждой версии.
+#
+# Если задан edt_version, снятые эталоны импортируются в проекты 1C:EDT этой версии:
+# артефакт edt-<версия EDT> (src/**/*.mdo, формы, права). EDT CLI требует Java 17: JDK 17 ставит
+# setup-java, путь к java передаётся 1cedtcli ключом -vm (EDT_JAVA).
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: 'Версии платформы через пробел, например "8.3.23.2040 8.3.27.2214 8.5.1.1343"'
+        required: true
+      builder_version:
+        description: 'Версия платформы 8.3.27+ для сборки .epf/.erf (external-files/empty-full-objects)'
+        required: false
+        default: '8.3.27.2214'
+      edt_version:
+        description: 'Версия 1C:EDT, например "2026.1.2"; пусто - без импорта в EDT'
+        required: false
+        default: ''
+
+concurrency:
+  group: golden-snapshots
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    name: Список версий
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      list: ${{ steps.pick.outputs.list }}
+    steps:
+      - name: Разобрать список версий
+        id: pick
+        env:
+          VERSIONS: ${{ inputs.versions }}
+        run: |
+          LIST=$(printf '%s\n' $VERSIONS | jq -R . | jq -s -c 'map(select(length > 0))')
+          [ "$LIST" != "[]" ] || { echo "::error::Не задано ни одной версии платформы"; exit 1; }
+          echo "list=$LIST" >> "$GITHUB_OUTPUT"
+
+  external:
+    name: Сборка .epf/.erf (${{ inputs.builder_version }})
+    if: inputs.builder_version != ''
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v7
+
+      - name: Получить эталоны samples-1c-platform
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --depth 1 fixtures/samples-1c-platform
+
+      - name: Установить платформу
+        id: platform
+        uses: ./.github/actions/setup-1c-platform
+        with:
+          version: ${{ inputs.builder_version }}
+          login: ${{ secrets.ONEC_LOGIN }}
+          password: ${{ secrets.ONEC_PASSWORD }}
+
+      - name: Собрать внешние отчёт и обработку
+        env:
+          BIN: ${{ steps.platform.outputs.bin }}
+        run: EXT_BIN="$PWD/external-bin" bash tools/golden-snapshots/dump.sh build-external
+
+      - name: Передать .epf/.erf дальше
+        uses: actions/upload-artifact@v7
+        with:
+          name: external-bin
+          path: external-bin/
+          if-no-files-found: error
+          retention-days: 1
+
+  snapshots:
+    name: Эталоны ${{ matrix.version }}
+    needs: [versions, external]
+    if: ${{ !cancelled() && needs.versions.result == 'success' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      # Больше трёх параллельных загрузок с releases.1c.ru не просим
+      max-parallel: 3
+      matrix:
+        version: ${{ fromJson(needs.versions.outputs.list) }}
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v7
+
+      - name: Получить эталоны samples-1c-platform
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --depth 1 fixtures/samples-1c-platform
+
+      - name: Забрать .epf/.erf
+        if: needs.external.result == 'success'
+        uses: actions/download-artifact@v7
+        with:
+          name: external-bin
+          path: external-bin
+
+      - name: Установить платформу
+        id: platform
+        uses: ./.github/actions/setup-1c-platform
+        with:
+          version: ${{ matrix.version }}
+          login: ${{ secrets.ONEC_LOGIN }}
+          password: ${{ secrets.ONEC_PASSWORD }}
+
+      - name: Снять эталоны
+        env:
+          BIN: ${{ steps.platform.outputs.bin }}
+        run: |
+          if [ -d external-bin ]; then export EXT_BIN="$PWD/external-bin"; fi
+          OUT="$PWD/snapshots" KEEP_WORK=1 WORK="$RUNNER_TEMP/golden" bash tools/golden-snapshots/dump.sh
+
+      - name: Сохранить журналы ibcmd
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: logs-${{ matrix.version }}
+          path: ${{ runner.temp }}/golden/logs
+          retention-days: 7
+
+      - name: Загрузить эталоны как артефакт
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: snapshots-${{ matrix.version }}
+          path: snapshots/
+          if-no-files-found: error
+          retention-days: 30
+
+  edt:
+    name: Проекты 1C:EDT ${{ inputs.edt_version }}
+    needs: snapshots
+    if: ${{ !cancelled() && inputs.edt_version != '' && needs.snapshots.result != 'skipped' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v7
+
+      - name: Забрать эталоны
+        uses: actions/download-artifact@v7
+        with:
+          pattern: snapshots-*
+          path: snapshots
+          merge-multiple: true
+
+      # EDT 2026.1 работает только на Java 17: с другой версией 1cedtcli ждёт ответа в диалоге
+      - name: Установить JDK 17 для EDT
+        id: java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Установить OneScript
+        uses: otymko/setup-onescript@v1.5.1
+        with:
+          version: stable
+
+      - name: Установить yard
+        run: |
+          opm install opm
+          opm install yard
+          YARD_OS=$(find "$HOME/.local/share/ovm" -path '*/yard/src/yard.os' 2>/dev/null | head -1)
+          if [ -z "$YARD_OS" ]; then echo "::error::yard.os не найден"; exit 1; fi
+          echo "YARD_OS=$YARD_OS" >> "$GITHUB_ENV"
+
+      - name: Системные зависимости EDT
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libgtk-3-0 locales xvfb
+          sudo localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8 || true
+
+      # Как в namespace-forest (update-edt-schemas.yml): yard + 1ce-installer-cli
+      - name: Установить 1C:EDT
+        id: edt
+        env:
+          YARD_RELEASES_USER: ${{ secrets.ONEC_LOGIN }}
+          YARD_RELEASES_PWD: ${{ secrets.ONEC_PASSWORD }}
+          VERSION: ${{ inputs.edt_version }}
+        run: |
+          set -eo pipefail
+          SHORT=$(echo "$VERSION" | cut -d. -f1,2)
+          DISTR_DIR=$(mktemp -d); chmod 777 "$DISTR_DIR"
+          ESCAPED_VERSION=$(echo "$VERSION" | sed 's/[.]/\\./g')
+          DISTR_FILTERS=(
+            "Дистрибутив для оффлайн установки 1C:EDT для ОС Linux 64 бит"
+            "Дистрибутив 1C:EDT для ОС Linux для установки без интернета"
+            "Linux"
+          )
+          for DF in "${DISTR_FILTERS[@]}"; do
+            timeout 1800 oscript "$YARD_OS" releases get \
+              --app-filter "1C:Enterprise Development Tools" \
+              --version-filter "$ESCAPED_VERSION" \
+              --distr-filter "$DF" \
+              --path "$DISTR_DIR" --download-limit 1 --extract || true
+            if find "$DISTR_DIR" -name '1ce-installer-cli' -o -name '*.tar.gz' | grep -q .; then break; fi
+          done
+          if ! find "$DISTR_DIR" -name '1ce-installer-cli' | grep -q .; then
+            ARCHIVE=$(find "$DISTR_DIR" -name '*.tar.gz' | head -1)
+            [ -n "$ARCHIVE" ] || { echo "::error::Дистрибутив EDT $VERSION не получен"; exit 1; }
+            tar -xzf "$ARCHIVE" -C "$DISTR_DIR"
+          fi
+          INSTALLER=$(find "$DISTR_DIR" -name '1ce-installer-cli' | head -1)
+          [ -n "$INSTALLER" ] || { echo "::error::В дистрибутиве EDT $VERSION нет 1ce-installer-cli"; exit 1; }
+          (cd "$(dirname "$INSTALLER")" && chmod -R +x . && sudo ./1ce-installer-cli install all \
+            --ignore-hardware-checks --ignore-signature-warnings)
+          rm -rf "$DISTR_DIR"
+          # Каталог установки назван по версии: с загрузчиком EDT не спутать - у него свой bundles.info
+          BUNDLES=$(sudo find /opt/1C -path "*1c-edt-$SHORT*/configuration/org.eclipse.equinox.simpleconfigurator/bundles.info" 2>/dev/null | head -1)
+          [ -n "$BUNDLES" ] || { echo "::error::EDT $VERSION не установилась"; sudo ls /opt/1C/1CE/components 2>/dev/null || true; exit 1; }
+          INSTALLATION=$(dirname "$(dirname "$(dirname "$BUNDLES")")")
+          sudo chmod -R a+rX "$INSTALLATION"
+          EDTCLI=$(find "$INSTALLATION" -maxdepth 3 -type f -name '1cedtcli' | head -1)
+          [ -n "$EDTCLI" ] || { echo "::error::В установке EDT нет 1cedtcli"; find "$INSTALLATION" -maxdepth 2 | head -40; exit 1; }
+          sudo chmod a+x "$EDTCLI"
+          echo "cli=$EDTCLI" >> "$GITHUB_OUTPUT"
+
+      - name: Импортировать эталоны в проекты EDT
+        env:
+          EDTCLI: ${{ steps.edt.outputs.cli }}
+          EDT_JAVA: ${{ steps.java.outputs.path }}/bin/java
+        run: |
+          export LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
+          SNAPSHOTS="$PWD/snapshots" OUT="$PWD/edt" xvfb-run -a bash tools/golden-snapshots/edt-import.sh
+
+      - name: Загрузить проекты EDT как артефакт
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: edt-${{ inputs.edt_version }}
+          path: edt/
+          if-no-files-found: error
+          retention-days: 30

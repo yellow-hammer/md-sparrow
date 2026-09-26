@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" version="2.10">
+	<ExternalReport uuid="f5e1aea6-3419-4655-93a1-3fc1ecdb146a">
+		<InternalInfo>
+			<xr:ContainedObject>
+				<xr:ClassId>e41aff26-25cf-4bb6-b6c1-3f478a75f374</xr:ClassId>
+				<xr:ObjectId>1dbf66cd-42ae-4942-a79e-058155e19583</xr:ObjectId>
+			</xr:ContainedObject>
+			<xr:GeneratedType name="ExternalReportObject.ВнешнийОтчет1" category="Object">
+				<xr:TypeId>849ee749-06af-47af-adae-ce4511e65a17</xr:TypeId>
+				<xr:ValueId>0dea1b2c-6bcf-4ef6-8ed1-22576caec8d2</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>ВнешнийОтчет1</Name>
+		</Properties>
+		<ChildObjects/>
+	</ExternalReport>
+</MetaDataObject>
