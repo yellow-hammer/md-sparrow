@@ -63,6 +63,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import jakarta.xml.bind.JAXBException;
+import org.xml.sax.SAXParseException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -195,7 +196,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     System.exit(exit);
   }
 
-  @Command(name = "validate", description = "Проверить XML по XSD (корень resources/namespace-forest + каталог schemas/designer/…).")
+  @Command(name = "validate", description = "Проверить описание объекта по XSD формата (корень resources/namespace-forest).")
   static final class ValidateCmd implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к .xml")
     Path xml;
@@ -213,6 +214,10 @@ public final class DesignerXmlCli implements Callable<Integer> {
       } catch (IllegalArgumentException e) {
         System.err.println(e.getMessage());
         return 2;
+      } catch (SAXParseException e) {
+        // Несоответствие схеме — ожидаемый исход проверки, а не сбой: место и текст без трассы стека.
+        System.err.println(xml + ":" + e.getLineNumber() + ":" + e.getColumnNumber() + ": " + e.getMessage());
+        return 1;
       }
       System.out.println("OK");
       return 0;

@@ -42,9 +42,11 @@ submodule **`fixtures/samples-1c-platform`** (см. [scaffold-golden.md](scaffol
 в каталоге. Затем имя добавляется в `Configuration.xml`.
 
 Строка в `Configuration.xml` вставляется **точечно** (без JAXB), с тем же отступом, что у строк `ChildObjects`.
-Порядок как в выгрузке и в XSD `ConfigurationChildObjects`: **сначала** все типы до `Catalog`
-(`Language`, `Subsystem`, …, `CommonForm`), **затем** блок справочников; внутри блока — **по имени**
-(локаль `ru`, см. `ConfigurationChildObjectsOrder`). Дубликат имени проверяется по тексту `ChildObjects`.
+Состав идёт блоками по виду (`ConfigurationChildObjectsOrder`): набор видов — из `ConfigurationChildObjects`
+схемы формата, порядок блоков — как в выгрузке платформы. У поздних видов он расходится со схемой: `Bot` и
+`PaletteColor` платформа пишет после `DefinedType`, `WebSocketClient` — после `WSReference`. Первый объект вида
+встаёт перед блоком следующего вида, остальные — в **конец** своего блока, без сортировки по имени.
+Дубликат имени проверяется по тексту `ChildObjects`.
 
 ## Пустая выгрузка (`init-empty-cf`)
 
@@ -68,7 +70,7 @@ init-empty-cf path/to/src/cf -v V2_20 --name МояБаза --synonym-ru "Моя
 
 > **`Configuration/@formatVersion`:** в XSD атрибут обязателен, но в реальной выгрузке платформы на
 > `<Configuration>` его нет (версия только в `MetaDataObject/@version`). Golden-эталоны повторяют поведение
-> платформы; при чтении/валидации расхождение сглаживает `XmlValidator` (подстановка из `MetaDataObject/@version`).
+> платформы; проверка по XSD (`validate`, `XmlValidator`) считает атрибут необязательным.
 
 ## `fixtures/ssl31` vs `fixtures/samples-1c-platform`
 

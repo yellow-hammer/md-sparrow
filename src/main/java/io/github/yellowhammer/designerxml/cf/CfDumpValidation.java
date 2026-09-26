@@ -121,7 +121,7 @@ public final class CfDumpValidation {
     }
 
     List<ChildObjectEntry> declared = readDeclared(configurationText);
-    checkTypes(declared, findings);
+    checkTypes(declared, version.get(), findings);
     Set<String> declaredKeys = checkDuplicates(declared, findings);
     checkDeclaredFiles(cfRoot, declared, findings);
     checkOrphanFiles(cfRoot, declared, findings);
@@ -155,9 +155,9 @@ public final class CfDumpValidation {
     return declared;
   }
 
-  /** Неизвестные типы и нарушенный порядок типов в составе. */
-  private static void checkTypes(List<ChildObjectEntry> declared, List<CfDumpFinding> findings) {
-    List<String> order = ConfigurationChildObjectsOrder.tagOrder();
+  /** Неизвестные формату типы и нарушенный порядок типов в составе. */
+  private static void checkTypes(List<ChildObjectEntry> declared, SchemaVersion version, List<CfDumpFinding> findings) {
+    List<String> order = ConfigurationChildObjectsOrder.tagOrder(version);
     String previousType = null;
     int previousIndex = -1;
     Set<String> reportedUnknown = new HashSet<>();
@@ -167,7 +167,8 @@ public final class CfDumpValidation {
         if (reportedUnknown.add(entry.objectType())) {
           findings.add(CfDumpFinding.ofObject(
             CfLayout.CONFIGURATION_XML, entry.objectType(), entry.name(), KIND_UNKNOWN_TYPE,
-            "неизвестный тип объекта в составе: " + entry.objectType()));
+            "тип объекта " + entry.objectType() + " неизвестен формату "
+              + version.metadataObjectVersionAttribute()));
         }
         continue;
       }
@@ -178,7 +179,7 @@ public final class CfDumpValidation {
         findings.add(CfDumpFinding.ofObject(
           CfLayout.CONFIGURATION_XML, entry.objectType(), entry.name(), KIND_CHILD_OBJECTS_ORDER,
           "тип " + entry.objectType() + " стоит после " + previousType
-            + ", а по схеме формата должен идти раньше"));
+            + ", а в выгрузке формата должен идти раньше"));
       }
       previousType = entry.objectType();
       previousIndex = index;

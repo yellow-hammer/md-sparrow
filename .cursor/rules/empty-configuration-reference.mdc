@@ -13,4 +13,4 @@ alwaysApply: true
 ## XSD и `Configuration/@formatVersion`
 
 - В **XSD** (`resources/namespace-forest`) атрибут **`Configuration/@formatVersion`** задан как обязательный.
-- В реальной выгрузке платформы на `<Configuration>` его **нет** (версия только в `MetaDataObject/@version`) — это расхождение схемы и поведения конфигуратора. Golden-эталоны повторяют поведение платформы; при чтении/валидации расхождение сглаживает **`XmlValidator`** (подстановка из `MetaDataObject/@version`).
+- В реальной выгрузке платформы на `<Configuration>` его **нет** (версия только в `MetaDataObject/@version`) — это расхождение схемы и поведения конфигуратора. Golden-эталоны повторяют поведение платформы; проверка по XSD (**`XmlValidator`**, подмена схемы в `XsdPlatformShims`) считает атрибут необязательным, документ перед проверкой не меняется.
