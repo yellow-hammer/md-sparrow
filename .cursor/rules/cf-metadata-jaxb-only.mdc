@@ -10,8 +10,8 @@ alwaysApply: false
 (значений по умолчанию в XSD нет) и не копированием файлов из рабочего `src/cf`. См. [docs/scaffold-golden.md](../../docs/scaffold-golden.md).
 
 - Эталоны — забандленные ресурсы, собранные из submodule **`fixtures/samples-1c-platform`**: один
-  канонический набор самого нового формата (`golden/cf/…`, `golden/cfe/…` из `snapshots/<версия>/cf-bare-objects`
-  и `cfe-empty`) и `golden-ext/<формат>/…` (`external-files`). Файл формата V — проекция канонического
+  канонический набор самого нового формата (`golden/cf/…`, `golden/cfe/…`, `golden/ext/…` из
+  `snapshots/<версия>/cf-bare-objects`, `cfe-empty` и `external-files/empty`). Файл формата V — проекция канонического
   (`cf/FormatProjection`): состав по JAXB-модели формата, порядок и значения из эталона.
 - Генерация — `cf/GoldenScaffold` поверх `cf/GoldenObjectTemplate.parametrize` (имя как целый токен +
   детерминированный ремап UUID; `<xr:ClassId>` сохраняется как идентификатор класса платформы).

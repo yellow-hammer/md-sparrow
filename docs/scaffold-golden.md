@@ -21,6 +21,7 @@
    - `golden/cf/…` — `cf-bare-objects`: голый объект каждого из 19 видов, `Configuration.xml`,
      `Languages/Русский.xml`, `Roles/Роль1/Ext/Rights.xml`;
    - `golden/cfe/…` — `cfe-empty`: пустое расширение;
+   - `golden/ext/…` — `external-files/empty`: голые `ВнешнийОтчет1` и `ВнешняяОбработка1`;
    - `golden/format.txt` — формат набора;
    - `golden/rules/2.10/RequiredMobileApplicationPermissions.xml` — блок из эталона 2.10, который
      проекцией не получить (см. правила `Configuration.xml`).
@@ -145,21 +146,30 @@
 с `snapshots/<формат>/cf-bare-objects` побайтно после замены имени и UUID; `EmptyCfeScaffoldTest`,
 `EmptyCfScaffoldTest`, `GoldenScaffoldTest`, `GoldenObjectTemplateTest`.
 
-Внешние отчёты и обработки (`golden-ext/<формат>/…`) и пустая форма (`golden-form/<формат>/…`) пока
-берутся из эталона своего формата; проекция их корни уже поддерживает.
+Пустая форма (`golden-form/<формат>/…`) пока берётся из эталона своего формата; проекция её корень
+уже поддерживает.
+
+### Внешние отчёты и обработки
+`external-artifact-add` (`GoldenScaffold.generateExternalArtifact`) устроен так же, как
+`add-md-object`: проекция канонического `external-files/empty` в формат V, затем имя и
+детерминированные UUID; `xr:ClassId` сохраняется. Файл пишется так, как его выгружает платформа:
+BOM и CRLF (до перехода на канонический эталон внешние объекты писались с LF и без BOM).
+
+Эталоны внешних объектов сняты платформой для 2.16, 2.17, 2.20 и 2.21: ibcmd собирает файл
+(`infobase config import --out=<файл.erf|.epf> <корневой XML>`) и разбирает его
+(`infobase config export --file=<файл> <каталог>`), конфигуратор не нужен. В этих форматах
+`FormatProjectionTest` сверяет проекцию с эталоном побайтно, а `ExternalArtifactAddGoldenTest` -
+созданный файл после замены имени и UUID; в остальных форматах файл проверяется моделью формата
+и XSD. Эталоны 2.16, 2.17 и 2.20 различаются только версией, в 2.21 добавились
+`AuxiliaryVariantForm` у отчёта и `xmlns:pal` в заголовке.
 
 ## Как получены эталоны
-Вспомогательный re-runnable workflow `.github/workflows/diagnose-golden-cf.yml` (workflow_dispatch):
-на каждой версии ставит платформу (как в namespace-forest: yard → `.run`/`.deb`), `ibcmd infobase create`,
-`ibcmd config import <seed>` + `apply --force`, затем **дамп через `ibcmd infobase config export`**
-(НЕ DESIGNER → без лицензии 1С) → `cf-bare-objects/<формат>/…` одним артефактом.
-
-- **Семя** — один голый объект каждого вида (`fixtures/samples-1c-platform/seed/src/cf`),
-  **сгенерировано самим md-sparrow** (`init-empty-cf` + `add-md-object` по 19 видам, формат 2.20).
-- **Понижение версии.** Семя 2.20 импортируется в платформы 2.20+; для форматов < 2.20 семя понижается
-  `cf/VersionTranscoder` (рефлексивный транскод 2.20→2.10, CLI `transcode`), затем экспортируется ibcmd.
-- **Внешние объекты.** ibcmd не выгружает отдельные `.erf`/`.epf` (только DESIGNER/лицензия), поэтому
-  эталон 2.20 транскодируется во все версии и проверяется round-trip (без сверки с платформой).
+Эталоны снимает с платформы нужной версии инструмент
+[tools/golden-snapshots](../tools/golden-snapshots/README.md) (локально `dump.sh`, на CI workflow
+`golden-snapshots.yml`): `ibcmd infobase create`, `config import` семени и `config export`, для
+внешних объектов - `config import --out` и `config export --file`. Конфигуратор и лицензия не нужны.
+Семя, маршрут съёмки и ограничения по версиям платформы описаны в README инструмента. Все эталоны
+записаны платформой; перекодированных `transcode` эталонов в submodule нет (почему - ниже).
 
 ### Критерий корректности: ibcmd import, не XSD-валидация
 XSD из namespace-forest описывают модель XDTO, а не файлы выгрузки: как есть они требуют `<ObjectBelonging>`

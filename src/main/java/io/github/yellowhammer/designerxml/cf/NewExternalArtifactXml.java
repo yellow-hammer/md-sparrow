@@ -32,9 +32,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Создание отдельного внешнего объекта (.erf/.epf) — параметризация эталона external-files/empty
- * нужной версии формата (см. {@link GoldenScaffold}): имя + детерминированные UUID, фиксированный
- * ClassId платформы сохраняется. Работает для любой версии, у которой есть эталон.
+ * Создание отдельного внешнего объекта (.erf/.epf): проекция канонического эталона
+ * external-files/empty в нужный формат и параметризация (см. {@link GoldenScaffold}) - имя и
+ * детерминированные UUID, фиксированный ClassId платформы сохраняется. Файл пишется так, как его
+ * выгружает платформа: BOM, CRLF.
  */
 public final class NewExternalArtifactXml {
 

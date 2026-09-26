@@ -393,12 +393,18 @@ val prepareCanonicalGolden = tasks.register("prepareCanonicalGolden") {
             throw GradleException("Эталоны не найдены: $snapshotsDir. Обновите submodule samples-1c-platform.")
         }
         val base = snapshotsDir.dir(version).asFile
-        val cfe = File(base, "cfe-empty")
-        if (!cfe.isDirectory) {
-            throw GradleException("В эталонах формата $version нет cfe-empty: канонический набор неполон.")
+        fun required(relative: String): File {
+            val file = File(base, relative)
+            if (!file.exists()) {
+                throw GradleException("В эталонах формата $version нет $relative: канонический набор неполон.")
+            }
+            return file
         }
+        val cfe = required("cfe-empty")
+        val external = required("external-files/empty")
         File(base, "cf-bare-objects").copyRecursively(output.resolve("cf"))
         cfe.copyRecursively(output.resolve("cfe"))
+        external.copyRecursively(output.resolve("ext"))
         output.resolve("format.txt").writeText("$version\n")
 
         // 2.10 пишет непустой список разрешений, которого в XSD не вывести: берём блок из эталона 2.10
@@ -426,7 +432,7 @@ tasks.named<Copy>("processResources") {
     from(prepareDesignerTypeSchemas) {
         into("designer-schemas")
     }
-    // Канонический набор: golden/{cf,cfe}/…, golden/format.txt, golden/rules/…
+    // Канонический набор: golden/{cf,cfe,ext}/…, golden/format.txt, golden/rules/…
     from(prepareCanonicalGolden) {
         into("golden")
     }
@@ -445,15 +451,6 @@ tasks.named<Copy>("processResources") {
         eachFile {
             val segs = relativePath.segments
             relativePath = RelativePath(true, "golden-form", segs[0], "Ext.xml")
-        }
-    }
-    // Голые внешние объекты (отчёт/обработка): golden-ext/<формат>/<Имя>/<Имя>.xml
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/external-files/empty/**")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden-ext", segs[0], *segs.drop(3).toTypedArray())
         }
     }
 }

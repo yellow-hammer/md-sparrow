@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Проекция канонического эталона в формат V равна выгрузке платформы формата V.
  *
  * <p>Эталоны всех форматов лежат в submodule samples-1c-platform: они и есть проверка проекции.
- * Объекты и {@code Configuration.xml} сверяются побайтно (BOM, CRLF, {@code <X/>}), пустое
+ * Объекты, внешние объекты и {@code Configuration.xml} сверяются побайтно (BOM, CRLF, {@code <X/>}), пустое
  * расширение - после замены UUID метками: платформа выдаёт их случайно в каждом снимке.
  */
 class FormatProjectionTest {
@@ -155,7 +155,7 @@ class FormatProjectionTest {
 
   @Test
   void каноническийФайлВСвоёмФорматеНеМеняется() {
-    for (String set : List.of(GoldenSnapshots.CF, GoldenSnapshots.CFE)) {
+    for (String set : List.of(GoldenSnapshots.CF, GoldenSnapshots.CFE, GoldenSnapshots.EXTERNAL)) {
       for (String file : canonicalFiles(set)) {
         String source = GoldenSnapshots.read(canonical(), set, file);
         assertThat(FormatProjection.project(source, canonical())).as(file).isEqualTo(source);
@@ -219,27 +219,24 @@ class FormatProjectionTest {
 
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
-  void внешниеОбъектыПлатформыПроецируютсяВниз(SchemaVersion version) throws Exception {
-    // платформой снят только эталон 2.20: в остальных форматах внешние объекты перекодированы
-    SchemaVersion platform = SchemaVersion.V2_20;
-    if (version.compareTo(platform) > 0) {
-      return;
-    }
-    Path base = GoldenSnapshots.format(platform).resolve("external-files").resolve("empty");
-    List<Path> objects;
-    try (Stream<Path> walk = Files.walk(base)) {
-      objects = walk.filter(Files::isRegularFile).filter(path -> path.toString().endsWith(".xml")).toList();
-    }
-    assertThat(objects).isNotEmpty();
-    for (Path object : objects) {
-      String source = GoldenSnapshots.read(object);
-      String projected = FormatProjection.project(source, version);
-      // в 2.10-2.20 состав внешних объектов не менялся: отличается только версия
-      assertThat(projected).as(object.toString()).isEqualTo(source.replace(
-        "version=\"" + platform.metadataObjectVersionAttribute() + "\"",
-        "version=\"" + version.metadataObjectVersionAttribute() + "\""));
+  void внешниеОбъектыСовпадаютСВыгрузкойПлатформыПобайтно(SchemaVersion version) throws Exception {
+    SoftAssertions softly = new SoftAssertions();
+    List<String> platformFiles = GoldenSnapshots.files(version, GoldenSnapshots.EXTERNAL);
+    for (String file : canonicalFiles(GoldenSnapshots.EXTERNAL)) {
+      String projected = FormatProjection.project(
+        GoldenSnapshots.read(canonical(), GoldenSnapshots.EXTERNAL, file), version);
+      // формат, которого нет среди снятых платформой, проверяется моделью
       unmarshal(version, projected);
+      if (platformFiles.contains(file)) {
+        softly.assertThat(projected)
+          .as("%s в формате %s", file, version)
+          .isEqualTo(GoldenSnapshots.read(version, GoldenSnapshots.EXTERNAL, file));
+      }
     }
+    softly.assertAll();
+    assertThat(platformFiles)
+      .as("эталоны формата %s - те же объекты, что в каноническом наборе", version)
+      .isSubsetOf(canonicalFiles(GoldenSnapshots.EXTERNAL));
   }
 
   @ParameterizedTest

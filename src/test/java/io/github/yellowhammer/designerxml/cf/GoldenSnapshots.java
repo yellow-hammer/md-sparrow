@@ -51,6 +51,9 @@ final class GoldenSnapshots {
   /** Выгрузка пустой базы платформы (снимается workflow golden-snapshots). */
   static final String EMPTY_INFOBASE = "cf-empty-infobase";
 
+  /** Голые внешние отчёт и обработка ({@code <имя>/<имя>.xml}). */
+  static final String EXTERNAL = "external-files/empty";
+
   private static final Pattern UUID = Pattern.compile(
     "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 

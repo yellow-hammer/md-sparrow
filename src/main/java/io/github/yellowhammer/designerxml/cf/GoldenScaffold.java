@@ -35,12 +35,11 @@ import java.util.regex.Pattern;
  * Scaffold нового объекта метаданных из канонического эталона «голого» объекта, забандленного в jar.
  *
  * <p>В jar лежит один набор эталонов - выгрузка платформы самого нового формата (ресурсы
- * {@code golden/cf/…} и {@code golden/cfe/…}, формат - в {@code golden/format.txt}; см. build.gradle.kts,
- * источник - submodule samples-1c-platform). Файл формата V получается проекцией канонического
- * ({@link FormatProjection}), новый объект - параметризацией результата (имя и детерминированные UUID,
- * {@link GoldenObjectTemplate}). Значения по умолчанию - из выгрузки платформы: в XSD их нет.
- *
- * <p>Внешние объекты ({@code golden-ext/<формат>/…}) пока берутся из эталона своего формата.
+ * {@code golden/cf/…}, {@code golden/cfe/…} и внешние объекты {@code golden/ext/…}, формат - в
+ * {@code golden/format.txt}; см. build.gradle.kts, источник - submodule samples-1c-platform). Файл
+ * формата V получается проекцией канонического ({@link FormatProjection}), новый объект -
+ * параметризацией результата (имя и детерминированные UUID, {@link GoldenObjectTemplate}).
+ * Значения по умолчанию - из выгрузки платформы: в XSD их нет.
  */
 public final class GoldenScaffold {
 
@@ -83,15 +82,13 @@ public final class GoldenScaffold {
   /** Канонический набор: пустое расширение (cfe-empty). */
   private static final String CANONICAL_CFE = "golden/cfe/";
 
+  /** Канонический набор: голые внешние отчёт и обработка (external-files/empty). */
+  private static final String CANONICAL_EXT = "golden/ext/";
+
   /** Формат канонического набора. */
   private static final String CANONICAL_FORMAT = "golden/format.txt";
 
   private static volatile SchemaVersion canonicalVersion;
-
-  /** InternalInfo внешнего объекта в «сыром» (транскодер) порядке: GeneratedType перед ContainedObject. */
-  private static final Pattern INTERNAL_INFO_GENERATED_THEN_CONTAINED = Pattern.compile(
-    "(?s)<InternalInfo>\\s*(<xr:GeneratedType\\b.*?</xr:GeneratedType>)\\s*"
-      + "(<xr:ContainedObject>.*?</xr:ContainedObject>)\\s*</InternalInfo>");
 
   private GoldenScaffold() {
   }
@@ -144,37 +141,17 @@ public final class GoldenScaffold {
     return GoldenObjectTemplate.parametrize(golden, protoName(type), targetName, seed);
   }
 
-  /** Есть ли в jar эталон внешнего объекта вида {@code kind} в этой версии формата. */
-  public static boolean hasExternalGolden(ExternalArtifactKind kind, SchemaVersion version) {
-    return resourceUrl(externalResource(kind, version)) != null;
-  }
-
   /**
    * XML отдельного внешнего объекта (отчёт/обработка) с именем {@code targetName} в формате
-   * {@code version} — параметризация эталона external-files/empty. ClassId платформы сохраняется.
-   * Эталоны не-2.20 версий получены транскодером (платформа их выгрузить не может), поэтому здесь
-   * приводятся к стилю конфигуратора: канонический заголовок, табы, порядок InternalInfo
-   * (ContainedObject перед GeneratedType). На уже чистом эталоне 2.20 нормализация идемпотентна.
+   * {@code version}: проекция канонического эталона external-files/empty, имя и детерминированные
+   * UUID. ClassId платформы сохраняется.
    */
   public static String generateExternalArtifact(ExternalArtifactKind kind, String targetName, SchemaVersion version)
     throws IOException {
     String proto = externalProtoName(kind);
-    String golden = readResource(externalResource(kind, version));
-    String normalized = reorderInternalInfoContainedFirst(
-      GoldenXmlPostProcessor.normalizeMetaDataObjectXml(golden, version));
+    String golden = projected(CANONICAL_EXT + proto + "/" + proto + ".xml", version);
     String seed = "scaffoldExt|" + version.name() + "|" + kind + "|" + targetName;
-    return GoldenObjectTemplate.parametrize(normalized, proto, targetName, seed);
-  }
-
-  /** Внешние объекты: ContainedObject перед GeneratedType внутри InternalInfo (как в выгрузке конфигуратора). */
-  private static String reorderInternalInfoContainedFirst(String xml) {
-    Matcher m = INTERNAL_INFO_GENERATED_THEN_CONTAINED.matcher(xml);
-    if (!m.find()) {
-      return xml;
-    }
-    return xml.substring(0, m.start())
-      + "<InternalInfo>\n\t\t\t" + m.group(2) + "\n\t\t\t" + m.group(1) + "\n\t\t</InternalInfo>"
-      + xml.substring(m.end());
+    return GoldenObjectTemplate.parametrize(golden, proto, targetName, seed);
   }
 
   /** {@code Ext/Rights.xml} новой роли из эталона (пустые права нужной версии формата). */
@@ -290,11 +267,6 @@ public final class GoldenScaffold {
       throw new IllegalArgumentException("нет прототипа внешнего объекта для " + kind);
     }
     return proto;
-  }
-
-  private static String externalResource(ExternalArtifactKind kind, SchemaVersion version) {
-    String proto = externalProtoName(kind);
-    return "golden-ext/" + version.metadataObjectVersionAttribute() + "/" + proto + "/" + proto + ".xml";
   }
 
   private static URL resourceUrl(String resource) {
