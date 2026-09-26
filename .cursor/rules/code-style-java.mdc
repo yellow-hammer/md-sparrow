@@ -9,7 +9,7 @@ alwaysApply: false
 ## Проект
 
 - **Java 21**, кодировка UTF-8, форматирование согласовано с существующими файлами.
-- Заголовок файла: **LGPL-3.0-or-later**, полный текст **`license/HEADER.txt`** в комментарии `/* … */` — как в `SchemaVersion.java`. Плагин **`cloud.rio.license`** сверяет его со `strictCheck` (`./gradlew check` → `license`): укороченная шапка из одной строки SPDX проверку не проходит. Добавить шапку: `./gradlew licenseFormat`.
+- Заголовок файла: **LGPL-3.0-or-later**, полный текст **`license/HEADER.txt`** в комментарии `/* … */` — как в `SchemaVersion.java`. Задача **`license`** из `build.gradle.kts` (входит в `./gradlew check`) сверяет начало файла с этим текстом буква в букву: укороченная шапка из одной строки SPDX проверку не проходит. Поставить шапку или заменить устаревшую: `./gradlew licenseFormat`.
 
 ## Javadoc
 
