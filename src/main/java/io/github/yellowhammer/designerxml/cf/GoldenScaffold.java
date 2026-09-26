@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -90,6 +91,17 @@ public final class GoldenScaffold {
 
   /** Имя формы-прототипа в эталоне. */
   private static final String FORM_PROTO = "Форма";
+
+  /**
+   * Виды владельцев, у форм которых платформа знает свойство {@code ExtendedPresentation}: отчёты и
+   * обработки, в том числе внешние. XSD описывает свойства формы одним типом для всех владельцев,
+   * поэтому состав задан здесь. Источник - выгрузки платформы: в ssl31 свойство есть у всех форм
+   * обработок, отчётов и внешних обработок и ни у одной формы прочих видов; форму справочника
+   * 8.3.23, 8.3.24, 8.3.27 и 8.5.1 выгружают без него, а при загрузке формы справочника с ним
+   * предупреждают, что свойство не входит в состав объекта метаданных, и отбрасывают его.
+   */
+  private static final Set<String> FORM_OWNERS_WITH_EXTENDED_PRESENTATION =
+    Set.of("Report", "DataProcessor", "ExternalReport", "ExternalDataProcessor");
 
   /** Формат канонического набора. */
   private static final String CANONICAL_FORMAT = "golden/format.txt";
@@ -162,17 +174,30 @@ public final class GoldenScaffold {
 
   /**
    * Описание новой управляемой формы ({@code Forms/<имя>.xml}) в формате {@code version}: проекция
-   * эталона пустой формы, имя {@code formName} и детерминированные UUID.
+   * эталона пустой формы, имя {@code formName} и детерминированные UUID. Состав свойств - по виду
+   * владельца ({@link #FORM_OWNERS_WITH_EXTENDED_PRESENTATION}).
    *
+   * @param ownerKind вид владельца - элемент под {@code MetaDataObject}: {@code Catalog}, {@code ExternalReport}
+   * @param ownerName имя владельца: одноимённые формы разных владельцев получают разные UUID
    * @param formName имя формы
    * @param version формат
    * @return текст описания формы
    * @throws IOException если эталона нет в jar или формат новее канонического
    */
-  public static String generateFormDescriptor(String formName, SchemaVersion version) throws IOException {
+  public static String generateFormDescriptor(String ownerKind, String ownerName, String formName, SchemaVersion version)
+    throws IOException {
     String golden = projected(CANONICAL_FORM + FORM_PROTO + ".xml", version);
-    String seed = "form|" + version.name() + "|" + formName;
+    if (!FORM_OWNERS_WITH_EXTENDED_PRESENTATION.contains(ownerKind)) {
+      golden = withoutEmptyElementLine(golden, "ExtendedPresentation");
+    }
+    String seed = "form|" + version.name() + "|" + ownerKind + "." + ownerName + "|" + formName;
     return GoldenObjectTemplate.parametrize(golden, FORM_PROTO, formName, seed);
+  }
+
+  /** Без строки пустого элемента {@code <localName/>}, если она есть; прочие строки - как были. */
+  private static String withoutEmptyElementLine(String xml, String localName) {
+    Matcher line = Pattern.compile("(?m)^[ \\t]*<" + Pattern.quote(localName) + "/>\\r?\\n").matcher(xml);
+    return line.find() ? xml.substring(0, line.start()) + xml.substring(line.end()) : xml;
   }
 
   /**

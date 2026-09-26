@@ -47,6 +47,37 @@ import java.util.Map;
  */
 public final class FormScaffold {
 
+  private static final String META_DATA_OBJECT = "MetaDataObject";
+  private static final String CHILD_OBJECTS = "ChildObjects";
+  private static final String FORM = "Form";
+
+  /** С какого формата платформа дописывает свойства формы по виду основного реквизита. */
+  private static final SchemaVersion MAIN_ATTRIBUTE_DEFAULTS_SINCE = SchemaVersion.V2_20;
+
+  private static final List<String> REPORT_FORM_DEFAULTS = List.of(
+    "<ReportFormType>Main</ReportFormType>",
+    "<AutoShowState>Auto</AutoShowState>",
+    "<ReportResultViewMode>Auto</ReportResultViewMode>",
+    "<ViewModeApplicationOnSetReportResult>Auto</ViewModeApplicationOnSetReportResult>");
+
+  /**
+   * Свойства корня формы, которые платформа 8.3.27 и 8.5.1 (форматы 2.20, 2.21) при загрузке
+   * дописывает форме с основным реквизитом такого вида, если их нет в файле, и потом выгружает.
+   * 8.3.23 и 8.3.24 (2.16, 2.17) форму выгружают как есть; 2.18 и 2.19 не проверены (платформ нет)
+   * и идут как 2.17. Источник - загрузка и выгрузка формы, собранной cf-form-compile, на этих
+   * платформах; у внешнего отчёта - форма отчёта в эталоне external-files 2.20 и 2.21. У обработки,
+   * задачи, плана счетов, плана видов расчёта и плана обмена платформа не дописывает ничего.
+   */
+  private static final Map<String, List<String>> MAIN_ATTRIBUTE_DEFAULTS = Map.of(
+    "CatalogObject", List.of("<UseForFoldersAndItems>Items</UseForFoldersAndItems>"),
+    "ChartOfCharacteristicTypesObject", List.of("<UseForFoldersAndItems>Items</UseForFoldersAndItems>"),
+    "DocumentObject", List.of(
+      "<AutoTime>CurrentOrLast</AutoTime>",
+      "<UsePostingMode>Auto</UsePostingMode>",
+      "<RepostOnWrite>true</RepostOnWrite>"),
+    "ReportObject", REPORT_FORM_DEFAULTS,
+    "ExternalReportObject", REPORT_FORM_DEFAULTS);
+
   private FormScaffold() {
   }
 
@@ -78,10 +109,16 @@ public final class FormScaffold {
       throw new IllegalArgumentException("Форма уже объявлена в составе: " + formName);
     }
 
-    String descriptorXml = GoldenScaffold.generateFormDescriptor(formName, version);
+    String ownerKind = ownerKind(objectText);
+    ChildObjectKinds.ensureAllowed(version, ownerKind, FORM);
+
+    // Эталон снят на русской конфигурации: подпись уезжает в язык той, к которой относится форма
+    String descriptorXml = LocalStringElement.retarget(
+      GoldenScaffold.generateFormDescriptor(ownerKind, stem(objectXml), formName, version),
+      ConfigurationLanguage.current());
     String contentXml = GoldenScaffold.generateFormContent(version);
 
-    String updated = insertFormEntry(objectText, formName);
+    String updated = insertFormEntry(objectText, ownerKind, formName, version);
     MdObjectStructureRead.read(updated.getBytes(StandardCharsets.UTF_8), version);
 
     Files.createDirectories(descriptor.getParent());
@@ -146,8 +183,13 @@ public final class FormScaffold {
     String golden = GoldenScaffold.generateFormContent(version);
     String eol = XmlLines.newline(golden);
     int open = golden.indexOf('>', golden.indexOf("<Form"));
-    StringBuilder body = new StringBuilder();
-    body.append(eol).append("\t<AutoCommandBar name=\"ФормаКоманднаяПанель\" id=\"-1\"/>").append(eol);
+    StringBuilder body = new StringBuilder(eol);
+    if (version.compareTo(MAIN_ATTRIBUTE_DEFAULTS_SINCE) >= 0 && definition.mainAttributeType != null) {
+      for (String property : MAIN_ATTRIBUTE_DEFAULTS.getOrDefault(typeKind(definition.mainAttributeType), List.of())) {
+        body.append('\t').append(property).append(eol);
+      }
+    }
+    body.append("\t<AutoCommandBar name=\"ФормаКоманднаяПанель\" id=\"-1\"/>").append(eol);
     IdCounter ids = new IdCounter();
     if (!definition.items.isEmpty()) {
       body.append("\t<ChildItems>").append(eol);
@@ -171,6 +213,13 @@ public final class FormScaffold {
       body.append("\t<Attributes/>").append(eol);
     }
     return golden.substring(0, open + 1) + body + "</Form>";
+  }
+
+  /** Вид типа без пространства и имени объекта: {@code cfg:CatalogObject.Товары} - {@code CatalogObject}. */
+  private static String typeKind(String type) {
+    String local = type.substring(type.indexOf(':') + 1);
+    int dot = local.indexOf('.');
+    return dot < 0 ? local : local.substring(0, dot);
   }
 
   private static void appendItem(StringBuilder out, FormItemDef item, IdCounter ids, int depth, String eol) {
@@ -275,35 +324,55 @@ public final class FormScaffold {
       .append("РасширеннаяПодсказка\" id=\"").append(ids.next()).append("\"/>").append(eol);
   }
 
-  /** Запись формы в ChildObjects: после последней формы либо первой строкой состава. */
-  private static String insertFormEntry(String objectXml, String formName) {
-    String eol = objectXml.contains("\r\n") ? "\r\n" : "\n";
-    String entry = "<Form>" + escape(formName) + "</Form>";
-    int lastForm = objectXml.lastIndexOf("</Form>");
-    if (lastForm >= 0 && objectXml.lastIndexOf("<Form>", lastForm) >= 0) {
-      int lineEnd = objectXml.indexOf('\n', lastForm);
-      int lineStart = objectXml.lastIndexOf('\n', lastForm);
-      String indent = objectXml.substring(lineStart + 1, objectXml.indexOf('<', lineStart));
-      return objectXml.substring(0, lineEnd + 1) + indent + entry + eol + objectXml.substring(lineEnd + 1);
+  /** Вид владельца: элемент под корнем {@code MetaDataObject} ({@code Catalog}, {@code ExternalReport}). */
+  private static String ownerKind(String objectXml) {
+    List<XmlLines.Node> roots = XmlLines.children(objectXml, List.of(META_DATA_OBJECT));
+    if (roots.isEmpty()) {
+      throw new IllegalArgumentException("Файл не описывает объект метаданных.");
     }
-    int selfClosed = objectXml.indexOf("<ChildObjects/>");
-    if (selfClosed >= 0) {
-      int lineStart = objectXml.lastIndexOf('\n', selfClosed);
-      String indent = objectXml.substring(lineStart + 1, selfClosed);
-      return objectXml.substring(0, selfClosed)
-        + "<ChildObjects>" + eol
+    return roots.get(0).name();
+  }
+
+  /**
+   * Запись формы в корневой ChildObjects владельца - там, где её пишет платформа.
+   *
+   * <p>Подчинённые узлы платформа выгружает в порядке схемы формата ({@link ChildObjectKinds}):
+   * у справочника формы идут за реквизитами и табличными частями, у документа - между
+   * реквизитами и табличными частями, у задачи - перед реквизитами адресации, макеты и команды -
+   * всегда после форм. Поэтому новая форма встаёт перед первым узлом, который в схеме идёт после
+   * форм, то есть и после уже объявленных форм. ChildObjects табличных частей не затрагиваются.
+   */
+  private static String insertFormEntry(String xml, String ownerKind, String formName, SchemaVersion version) {
+    String eol = XmlLines.newline(xml);
+    String entry = "<" + FORM + ">" + escape(formName) + "</" + FORM + ">";
+    XmlLines.Node childObjects = XmlLines.children(xml, List.of(META_DATA_OBJECT, ownerKind)).stream()
+      .filter(node -> CHILD_OBJECTS.equals(node.name()))
+      .findFirst()
+      .orElseThrow(() -> new IllegalArgumentException("В объекте нет узла ChildObjects."));
+    String indent = XmlLines.indentAt(xml, childObjects.start());
+    if (xml.startsWith("/>", childObjects.end() - 2)) {
+      return xml.substring(0, childObjects.start())
+        + "<" + CHILD_OBJECTS + ">" + eol
         + indent + '\t' + entry + eol
-        + indent + "</ChildObjects>"
-        + objectXml.substring(selfClosed + "<ChildObjects/>".length());
+        + indent + "</" + CHILD_OBJECTS + ">"
+        + xml.substring(childObjects.end());
     }
-    int openTag = objectXml.indexOf("<ChildObjects>");
-    if (openTag < 0) {
-      throw new IllegalArgumentException("В объекте нет узла ChildObjects.");
+    List<String> order = ChildObjectKinds.of(version, ownerKind);
+    int formRank = order.indexOf(FORM);
+    for (XmlLines.Node child : XmlLines.children(xml, List.of(META_DATA_OBJECT, ownerKind, CHILD_OBJECTS))) {
+      if (order.indexOf(child.name()) > formRank) {
+        return insertLineBefore(xml, child.start(), XmlLines.indentAt(xml, child.start()) + entry + eol);
+      }
     }
-    int lineEnd = objectXml.indexOf('\n', openTag);
-    int lineStart = objectXml.lastIndexOf('\n', openTag);
-    String indent = objectXml.substring(lineStart + 1, openTag);
-    return objectXml.substring(0, lineEnd + 1) + indent + '\t' + entry + eol + objectXml.substring(lineEnd + 1);
+    // Все узлы состава идут раньше форм: запись - последней строкой состава
+    int closing = xml.lastIndexOf("</", childObjects.end() - 1);
+    return insertLineBefore(xml, closing, indent + '\t' + entry + eol);
+  }
+
+  /** Вставляет строку {@code line} перед строкой, на которой стоит {@code offset}. */
+  private static String insertLineBefore(String xml, int offset, String line) {
+    int lineStart = xml.lastIndexOf('\n', offset - 1) + 1;
+    return xml.substring(0, lineStart) + line + xml.substring(lineStart);
   }
 
   private static Path formDescriptorPath(Path objectXml, String formName) {
@@ -316,8 +385,12 @@ public final class FormScaffold {
 
   private static Path formsDir(Path objectXml) {
     Path normalized = objectXml.toAbsolutePath().normalize();
-    String stem = normalized.getFileName().toString().replaceFirst("[.][Xx][Mm][Ll]$", "");
-    return normalized.getParent().resolve(stem).resolve("Forms");
+    return normalized.getParent().resolve(stem(normalized)).resolve("Forms");
+  }
+
+  /** Имя объекта по файлу описания: {@code Catalogs/Товары.xml} - {@code Товары}. */
+  private static String stem(Path objectXml) {
+    return objectXml.getFileName().toString().replaceFirst("[.][Xx][Mm][Ll]$", "");
   }
 
   private static String escape(String value) {
