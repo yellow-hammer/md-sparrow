@@ -5,13 +5,14 @@ alwaysApply: true
 
 # Контекст проекта md-sparrow
 
-Java-библиотека чтения/записи **Designer XML** (`MetaDataObject`) по XSD из submodule **`resources/namespace-forest`**. Тестовая **типовая** выгрузка (не пустая ИБ) — submodule **`fixtures/ssl31`**. Эталоны для scaffold (голые объекты, пустая ИБ) — submodule **`fixtures/samples-1c-platform`** (`snapshots/<версия>/cf-bare-objects`); правила — **`.cursor/rules/empty-configuration-reference.mdc`**.
+Java-библиотека чтения/записи **Designer XML** (`MetaDataObject`) по XSD из submodule **`resources/namespace-forest`**. Тестовая **типовая** выгрузка (не пустая ИБ) — submodule **`fixtures/ssl31`**, та же конфигурация в формате 1С:EDT — submodule **`fixtures/ssl31-edt`**. Эталоны для scaffold (голые объекты, пустая ИБ) — submodule **`fixtures/samples-1c-platform`** (`snapshots/<версия>/cf-bare-objects`); правила — **`.cursor/rules/empty-configuration-reference.mdc`**.
 
 ## Сборка и версии
 
 - **JDK 21** (`build.gradle.kts`: `JavaVersion.VERSION_21`).
 - **Gradle**: XJC-задачи `xjc_<modelId>` (например `xjc_v2_20`) → сгенерированный код в `build/generated/sources/xjc-*`; bindings/catalog генерируются в сборке.
-- Версии схем 2.10…2.21: enum **`SchemaVersion`**; набор обнаруживается автоматически по `resources/namespace-forest/schemas/*`.
+- Версии схем 2.10…2.21: enum **`SchemaVersion`**; набор обнаруживается автоматически по `resources/namespace-forest/schemas/designer/*`.
+- Схемы EDT: самая свежая `resources/namespace-forest/schemas/edt/<YYYY.N>/ecore`. Задача **`prepareEdtSchemas`** берёт замыкание от корней `mdclass`, `mdclass.extension`, `form`, `distribution.model` и кладёт в `build/generated/edt-schemas`, в jar — `edt-schemas/`.
 
 ## Точки входа кода
 
@@ -22,12 +23,13 @@ Java-библиотека чтения/записи **Designer XML** (`MetaDataO
 
 ## Submodules
 
-- Не вносить **случайные правки** в `resources/namespace-forest`, `fixtures/ssl31` или `fixtures/samples-1c-platform` без явной цели задачи.
+- Не вносить **случайные правки** в `resources/namespace-forest`, `fixtures/ssl31`, `fixtures/ssl31-edt` или `fixtures/samples-1c-platform` без явной цели задачи.
 - Инициализация: `git submodule update --init --recursive`.
 
 ## Тесты
 
-- Системные свойства: **`xsd.root`**, **`fixtures.ssl31.root`**, **`samples.root`** (задаются в `tasks.test` в `build.gradle.kts`).
+- Системные свойства задаются в `tasks.test` в `build.gradle.kts`: **`xsd.root`**, **`fixtures.ssl31.root`**, **`fixtures.ssl31edt.root`**, **`samples.root`**, **`fixtures.unsupportedExtension.root`**.
+- `fixtures/unsupported-extension` — каталог в репозитории, не submodule: основная конфигурация 2.20 и расширения `New` 2.20 и `Old` 2.9, только `Configuration.xml`. Доступ — `UnsupportedExtensionFixture`.
 - Пути к данным submodule в тестах: например **`Ssl31SubmodulePaths`**, свойство `fixtures.ssl31.root`.
 
 ## Соглашения
