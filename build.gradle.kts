@@ -2,7 +2,6 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.javadoc.Javadoc
 import java.io.File
 import java.security.MessageDigest
-import nl.javadude.gradle.plugins.license.License
 
 buildscript {
     repositories {
@@ -32,7 +31,6 @@ buildscript {
 plugins {
     `java-library`
     application
-    id("cloud.rio.license") version "0.18.0"
     id("com.gradleup.shadow") version "8.3.7"
 }
 
@@ -471,10 +469,6 @@ tasks.test {
     )
 }
 
-tasks.check {
-    dependsOn("license")
-}
-
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.release.set(21)
@@ -493,23 +487,84 @@ tasks.withType<Javadoc>().configureEach {
     }
 }
 
-license {
-    header = rootProject.file("license/HEADER.txt")
-    skipExistingHeaders = false
-    strictCheck = true
-    // По умолчанию плагин берёт file.encoding демона, а licenseFormat переписывает файлы с кириллицей
-    encoding = "UTF-8"
-    ext["year"] = "2026"
-    ext["name"] = "Ivan Karlo <i.karlo@outlook.com>"
-    ext["project"] = "md-sparrow"
-    mapping("java", "SLASHSTAR_STYLE")
-    // Шаблон сверяется с путём внутри каталога исходников (io/github/…), а не от корня проекта
-    include("**/*.java")
+// Заголовок лицензии: полный текст license/HEADER.txt в комментарии /* … */ в начале файла.
+// Нужен только исходникам, написанным руками: классы xjc из build/generated не проверяем.
+val licenseHeaderFile = layout.projectDirectory.file("license/HEADER.txt")
+val licenseHeaderValues = mapOf(
+    "project" to "md-sparrow",
+    "year" to "2026",
+    "name" to "Ivan Karlo <i.karlo@outlook.com>",
+)
+val licensedSources = fileTree("src/main/java").plus(fileTree("src/test/java")).matching { include("**/*.java") }
+
+/** Шапка из license/HEADER.txt с подставленными `${…}`, строки через `\n`. */
+fun licenseHeader(): String {
+    var text = licenseHeaderFile.asFile.readText()
+    licenseHeaderValues.forEach { (key, value) -> text = text.replace("\${$key}", value) }
+    Regex("""\$\{[^}]*}""").find(text)?.let { throw GradleException("license/HEADER.txt: нет значения для ${it.value}") }
+    return text.trimEnd().lines().joinToString("\n", "/*\n", "\n */") { line -> if (line.isBlank()) " *" else " * $line" }
 }
 
-// Плагин берёт весь sourceSet.allSource: ресурсы и ~13k классов xjc из build/generated.
-// Заголовок нужен только в исходниках, написанных руками, поэтому и xjc проверке не нужен.
-tasks.named<License>("licenseMain") { setSource("src/main/java") }
-tasks.named<License>("licenseFormatMain") { setSource("src/main/java") }
-tasks.named<License>("licenseTest") { setSource("src/test/java") }
-tasks.named<License>("licenseFormatTest") { setSource("src/test/java") }
+/** Начинается ли исходник с шапки [header]; переводы строк в файле любые. */
+fun hasLicenseHeader(text: String, header: String): Boolean =
+    text.replace("\r\n", "\n").startsWith(header + "\n")
+
+// Комментарий в начале файла: блочный (Javadoc не берём - в package-info он свой) или строки // подряд
+val leadingComment = Regex("""^(?:/\*(?!\*)[\s\S]*?\*/|(?://[^\n]*(?:\n|$))+)""")
+
+/**
+ * Исходник с шапкой [header]. Прежние шапки лицензии в начале файла (комментарии с Copyright
+ * или SPDX-License-Identifier) заменяются, остальное остаётся как было, с переводами строк файла.
+ */
+fun withLicenseHeader(text: String, header: String): String {
+    val eol = if ("\r\n" in text) "\r\n" else "\n"
+    var body = text.trimStart()
+    while (true) {
+        val comment = leadingComment.find(body)?.value ?: break
+        if (!Regex("copyright|spdx-license-identifier", RegexOption.IGNORE_CASE).containsMatchIn(comment)) {
+            break
+        }
+        body = body.substring(comment.length).trimStart()
+    }
+    return header.replace("\n", eol) + eol + body
+}
+
+val license = tasks.register("license") {
+    group = "license"
+    description = "Проверяет, что у исходников src/main/java и src/test/java стоит заголовок license/HEADER.txt."
+    val root = layout.projectDirectory.asFile
+    inputs.file(licenseHeaderFile)
+    inputs.property("values", licenseHeaderValues)
+    inputs.files(licensedSources)
+    doLast {
+        val header = licenseHeader()
+        val missing = licensedSources.files.filter { !hasLicenseHeader(it.readText(), header) }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Заголовок лицензии не совпадает с license/HEADER.txt:\n" +
+                    missing.sorted().joinToString("\n") { "  " + it.relativeTo(root).invariantSeparatorsPath } +
+                    "\nРасставить: ./gradlew licenseFormat",
+            )
+        }
+    }
+}
+
+tasks.register("licenseFormat") {
+    group = "license"
+    description = "Ставит заголовок license/HEADER.txt исходникам src/main/java и src/test/java, где его нет или он устарел."
+    val root = layout.projectDirectory.asFile
+    doLast {
+        val header = licenseHeader()
+        licensedSources.files.sorted().forEach { file ->
+            val text = file.readText()
+            if (!hasLicenseHeader(text, header)) {
+                file.writeText(withLicenseHeader(text, header))
+                logger.lifecycle("Заголовок лицензии: ${file.relativeTo(root).invariantSeparatorsPath}")
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(license)
+}
