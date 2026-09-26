@@ -597,7 +597,7 @@ public final class MdObjectPropertiesEdit {
     dto.quickChoice = JaxbReflect.enumNameOptional(props, "getQuickChoice");
     dto.createOnInput = JaxbReflect.enumNameOptional(props, "getCreateOnInput");
     dto.choiceHistoryOnInput = JaxbReflect.enumNameOptional(props, "getChoiceHistoryOnInput");
-    dto.choiceForm = JaxbReflect.getStringOptional(props, "getChoiceForm");
+    dto.choiceForm = JaxbReflect.getStringOptional(props, "getChoiceForm");
     readChoiceParameters(props, dto);
   }
 
