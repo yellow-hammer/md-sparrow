@@ -21,7 +21,10 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 public enum MdObjectAddType {
   CATALOG("Catalog", "Catalogs", "Справочник", List.of("Object", "Ref", "Selection", "List", "Manager"), false),
@@ -109,10 +112,29 @@ public enum MdObjectAddType {
     return roleWithExtRights;
   }
 
+  /**
+   * Вид по имени из CLI: {@code CATALOG}, {@code data-processor}, регистр не важен.
+   *
+   * @param s имя вида
+   * @return вид объекта
+   * @throws IllegalArgumentException если вид не указан или md-sparrow не умеет его создавать
+   */
   public static MdObjectAddType fromCliName(String s) {
     if (s == null || s.isBlank()) {
-      throw new IllegalArgumentException("type required");
+      throw new IllegalArgumentException("не указан вид объекта (допустимы: " + cliNames() + ")");
     }
-    return MdObjectAddType.valueOf(s.trim().toUpperCase().replace('-', '_'));
+    String normalized = s.trim().toUpperCase(Locale.ROOT).replace('-', '_');
+    for (MdObjectAddType type : values()) {
+      if (type.name().equals(normalized)) {
+        return type;
+      }
+    }
+    throw new IllegalArgumentException(
+      "неизвестный вид объекта: " + s.trim() + " (допустимы: " + cliNames() + ")");
+  }
+
+  /** Имена видов для CLI через запятую: список растёт вместе с перечислением. */
+  private static String cliNames() {
+    return Arrays.stream(values()).map(Enum::name).collect(Collectors.joining(", "));
   }
 }

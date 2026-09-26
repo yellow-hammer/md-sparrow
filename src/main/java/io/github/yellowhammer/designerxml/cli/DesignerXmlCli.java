@@ -821,7 +821,8 @@ public final class DesignerXmlCli implements Callable<Integer> {
             interfaceCompatibilityMode,
             version);
         }
-      } catch (IllegalArgumentException e) {
+      } catch (IllegalArgumentException | IOException e) {
+        // Отказ (нет эталона формата, не читается основная конфигурация) - одна строка, без стека
         System.err.println(e.getMessage());
         return 2;
       }
