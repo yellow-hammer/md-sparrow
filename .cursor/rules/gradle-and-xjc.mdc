@@ -9,7 +9,8 @@ alwaysApply: false
 ## Корень XSD
 
 - Свойство **`xsd.root`** (по умолчанию каталог submodule `resources/namespace-forest`). Переопределение: `./gradlew … -Pxsd.root=/абсолютный/путь`.
-- Версии форматов **автоматически** обнаруживаются по каталогам `resources/namespace-forest/schemas/*` (где есть `*-MDClasses.xsd`); идентичные наборы схем дедуплицируются в одну XJC-модель.
+- Версии форматов **автоматически** обнаруживаются по каталогам `resources/namespace-forest/schemas/designer/*`, в которых есть `v8.1c.ru-8.3-MDClasses.xsd`; идентичные наборы схем дедуплицируются в одну XJC-модель.
+- Метамодель EDT: `resources/namespace-forest/schemas/edt/<YYYY.N>/{ecore,xcore}`. Сборка берёт только самую свежую версию и только `ecore`.
 
 ## Bindings
 
@@ -23,7 +24,10 @@ alwaysApply: false
 ## Задачи
 
 - На каждую различную модель регистрируется задача **`xjc_<modelId>`** (например `xjc_v2_20`); `compileJava` зависит от них всех.
-- Новая версия набора схем: добавить каталог `schemas/<версия>/` в submodule `resources/namespace-forest` и константу в **`SchemaVersion`** — bindings/catalog и XJC-задача появятся сами.
+- Новая версия набора схем: добавить каталог `schemas/designer/<версия>/` в submodule `resources/namespace-forest` и константу в **`SchemaVersion`** — bindings/catalog и XJC-задача появятся сами.
+- Новая версия EDT: каталог `schemas/edt/<YYYY.N>/` в submodule; код не меняется.
+- **`prepareEdtSchemas`** → `build/generated/edt-schemas`, в jar `edt-schemas/`: замыкание по ссылкам между схемами от корней `g5.1c.ru.v8.dt.metadata.mdclass.ecore`, `g5.1c.ru.v8.dt.metadata.mdclass.extension.ecore`, `g5.1c.ru.v8.dt.form.ecore`, `g5.1c.ru.v8.dt.distribution.model.ecore`, плюс `index.txt` и `version.txt`. Читает `EdtModel`.
+- **`prepareDesignerTypeSchemas`** → `build/generated/designer-schemas`, в jar `designer-schemas/`: все `*.xsd` самой свежей `schemas/designer/<версия>` и `index.txt`. Читает `DesignerTypeSchemas`.
 - Тесты: `-Pxsd.root` и пути к фикстурам пробрасываются через `systemProperty` в `tasks.test`.
 
 **Эволюция:** `.cursor/rules/evolution-no-legacy.mdc`.

@@ -25,7 +25,7 @@
 
 Новая версия набора схем:
 
-- добавить каталог `schemas/<версия>/` в submodule `resources/namespace-forest` и обновить указатель submodule;
+- добавить каталог `schemas/designer/<версия>/` в submodule `resources/namespace-forest` и обновить указатель submodule;
 - добавить константу в `src/main/java/io/github/yellowhammer/designerxml/SchemaVersion.java`.
 
 `bindings.xjb`/`catalog.xml` для XJC и карта import'ов валидатора строятся автоматически

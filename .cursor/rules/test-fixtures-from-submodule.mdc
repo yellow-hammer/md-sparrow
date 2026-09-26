@@ -8,7 +8,7 @@ alwaysApply: false
 
 Входные данные тестов (XML-фрагменты, ссылки на объекты метаданных, имена реальных
 типов и т.п.) **не пишем литералами в коде**. Берём из submodule
-[`fixtures/ssl31`](mdc:fixtures/ssl31) или
+[`fixtures/ssl31`](mdc:fixtures/ssl31), [`fixtures/ssl31-edt`](mdc:fixtures/ssl31-edt) или
 [`fixtures/samples-1c-platform`](mdc:fixtures/samples-1c-platform) — см.
 `.cursor/rules/fixture-ssl31-policy.mdc` и `.cursor/rules/empty-configuration-reference.mdc`.
 
