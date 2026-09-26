@@ -60,6 +60,7 @@ public final class MdObjectChildMutations {
   public static void addAttribute(Path objectXml, SchemaVersion version, String newName)
     throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ChildObjectKinds.ensureAllowed(version, containerLocal, "Attribute");
       ensureNotBlank(newName, "Введите имя реквизита.");
       ensureMissingNamedChild(xml, containerLocal, "Attribute", newName, "Реквизит уже существует: " + newName);
       return insertIntoRootChildObjects(
@@ -354,6 +355,7 @@ public final class MdObjectChildMutations {
     String newName
   ) throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ChildObjectKinds.ensureAllowed(version, containerLocal, childLocal);
       ensureNotBlank(newName, "Введите имя: " + label.toLowerCase(java.util.Locale.ROOT) + ".");
       ensureMissingNamedChild(xml, containerLocal, childLocal, newName, label + " уже существует: " + newName);
       String snippet = "<" + childLocal + " uuid=\"" + UUID.randomUUID() + "\">\n"
@@ -383,6 +385,7 @@ public final class MdObjectChildMutations {
     String newName
   ) throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ChildObjectKinds.ensureAllowed(version, containerLocal, childLocal);
       ensureNotBlank(newName, "Введите имя: " + label.toLowerCase(java.util.Locale.ROOT) + ".");
       ensureMissingNamedChild(xml, containerLocal, childLocal, newName, label + " уже существует: " + newName);
       return insertIntoRootChildObjects(
@@ -450,6 +453,7 @@ public final class MdObjectChildMutations {
   public static void addCommand(Path objectXml, SchemaVersion version, String newName)
     throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ChildObjectKinds.ensureAllowed(version, containerLocal, "Command");
       ensureNotBlank(newName, "Введите имя команды.");
       ensureMissingNamedChild(xml, containerLocal, "Command", newName, "Команда уже существует: " + newName);
       return insertIntoRootChildObjects(xml, containerLocal, buildCommandSnippet(newName));
@@ -492,6 +496,7 @@ public final class MdObjectChildMutations {
   public static void addEnumValue(Path objectXml, SchemaVersion version, String newName)
     throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ChildObjectKinds.ensureAllowed(version, containerLocal, "EnumValue");
       ensureNotBlank(newName, "Введите имя значения.");
       ensureMissingNamedChild(xml, containerLocal, "EnumValue", newName, "Значение уже существует: " + newName);
       return insertIntoRootChildObjects(xml, containerLocal, buildEnumValueSnippet(newName, newName, ""));
@@ -557,6 +562,7 @@ public final class MdObjectChildMutations {
   public static void addTabularSection(Path objectXml, SchemaVersion version, String newName)
     throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ChildObjectKinds.ensureAllowed(version, containerLocal, "TabularSection");
       ensureNotBlank(newName, "Введите имя табличной части.");
       ensureMissingNamedChild(xml, containerLocal, "TabularSection", newName, "Табличная часть уже существует: " + newName);
       return insertIntoRootChildObjects(
@@ -646,6 +652,8 @@ public final class MdObjectChildMutations {
   public static void addTabularAttribute(Path objectXml, SchemaVersion version, String tabularSectionName, String newName)
     throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
+      ChildObjectKinds.ensureAllowed(version, containerLocal, "TabularSection");
+      ChildObjectKinds.ensureAllowed(version, "TabularSection", "Attribute");
       ensureNotBlank(newName, "Введите имя реквизита табличной части.");
       MdObjectXmlRegions.Region tsRegion = MdObjectXmlRegions.findNamedChildObjectRegion(
         xml,
