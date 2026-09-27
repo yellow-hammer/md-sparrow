@@ -267,7 +267,7 @@ final class ChildNodeNames {
           nested.name = text.toString().trim();
         } else if (propertyName && top != null && nested == null && depth == base + 3) {
           top.name = text.toString().trim();
-        } else if (nested != null && depth == base + 3) {
+        } else if (top != null && nested != null && depth == base + 3) {
           top.children.add(nested.build(text));
           nested = null;
         } else if (top != null && depth == base + 1) {

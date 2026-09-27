@@ -24,10 +24,13 @@ package io.github.yellowhammer.designerxml.cf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.yellowhammer.designerxml.SamplesSubmodulePaths;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -108,6 +111,39 @@ class CfeBorrowTest {
     }
     assertThat(withChildObjects).isPositive();
     assertThat(withoutChildObjects).isPositive();
+  }
+
+  /**
+   * Заимствованный объект встаёт в состав расширения в порядке видов платформы, как и свой: в пустом
+   * расширении платформы уже есть роль по умолчанию, и справочник или документ идут после неё, а
+   * подсистема - перед ней. Строки - с отступом роли, без пустых строк.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void заимствованныеОбъектыВстаютВСоставВПорядкеПлатформы(SchemaVersion version) throws Exception {
+    // пустое расширение платформа выгрузила с 2.14
+    if (GoldenSnapshots.files(version, GoldenSnapshots.CFE).isEmpty()) {
+      return;
+    }
+    Path cfe = SamplesSubmodulePaths.copy(
+      SamplesSubmodulePaths.snapshot(version, GoldenSnapshots.CFE), tempDir.resolve(version.name()));
+    Path extensionXml = cfe.resolve(CfLayout.CONFIGURATION_XML);
+    String indent = XmlLines.indentAt(GoldenSnapshots.read(extensionXml),
+      GoldenSnapshots.read(extensionXml).indexOf("<Role>"));
+    List<Path> objects = SamplesSubmodulePaths.objectXmls(SamplesSubmodulePaths.bareObjects(version));
+    for (Path objectXml : objects) {
+      CfeBorrow.borrowObject(objectXml, extensionXml, version);
+    }
+
+    String configuration = GoldenSnapshots.read(extensionXml);
+    int open = configuration.indexOf('\n', configuration.indexOf("<ChildObjects>")) + 1;
+    int close = configuration.lastIndexOf('\n', configuration.indexOf("</ChildObjects>")) + 1;
+    List<String> lines = configuration.substring(open, close).lines().toList();
+    assertThat(lines).as("строки состава").hasSize(objects.size() + 1)
+      .allSatisfy(line -> assertThat(line).startsWith(indent + "<"));
+    assertThat(CfDumpValidation.validate(cfe))
+      .as("порядок состава")
+      .noneMatch(finding -> CfDumpValidation.KIND_CHILD_OBJECTS_ORDER.equals(finding.kind()));
   }
 
   /** Расширение с самым коротким составом: в него ещё не заимствованы объекты фикстуры. */

@@ -30,6 +30,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,13 +72,11 @@ class GoldenScaffoldTest {
       if (type.existsIn(version)) {
         continue;
       }
-      SchemaVersion since = null;
-      for (SchemaVersion newer : SchemaVersion.values()) {
-        if (since == null && type.existsIn(newer)) {
-          since = newer;
-        }
-      }
-      assertThat(since).as("формат, где появился %s", type).isNotNull().isGreaterThan(version);
+      SchemaVersion since = Arrays.stream(SchemaVersion.values())
+        .filter(type::existsIn)
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("нет формата, где появился " + type));
+      assertThat(since).as("формат, где появился %s", type).isGreaterThan(version);
       assertThatThrownBy(() -> type.requireIn(version))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("вид " + type.configurationXmlTag() + " появился в формате "

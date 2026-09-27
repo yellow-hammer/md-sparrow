@@ -240,19 +240,45 @@ class EmptyCfeScaffoldTest {
     assertThat(EmptyCfeScaffold.overridesAdoptedProperties("Version8_3_13")).isFalse();
     assertThat(EmptyCfeScaffold.overridesAdoptedProperties("Version8_3_14")).isTrue();
     assertThat(EmptyCfeScaffold.overridesAdoptedProperties("Version8_5_1")).isTrue();
-    assertThat(EmptyCfeScaffold.overridesAdoptedProperties("DontUse")).isTrue();
   }
 
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
   void режимыСхемыФорматаНеДопускаютПереопределений(SchemaVersion version) throws Exception {
-    // В схемах перечисление режимов остановилось на 8.3.12: все его значения, кроме режима
-    // самой платформы, старые
+    // В перечислении режимов XDTO только DontUse и режимы до 8.3.12 включительно; DontUse
+    // платформа читает как 8.3.8
     List<String> modes = compatibilityModesOfSchema(version);
     assertThat(modes).contains("DontUse");
     for (String mode : modes) {
-      assertThat(EmptyCfeScaffold.overridesAdoptedProperties(mode)).as(mode).isEqualTo("DontUse".equals(mode));
+      assertThat(EmptyCfeScaffold.overridesAdoptedProperties(mode)).as(mode).isFalse();
     }
+  }
+
+  /**
+   * Режим {@code DontUse} основной конфигурации платформа читает как 8.3.8: расширение с основными
+   * ролями она в таком режиме отвергает, а сама создаёт его без ролей и с пустым составом.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void приРежимеDontUseОсновнойРасширениеБезРолей(SchemaVersion version) throws Exception {
+    Path main = SamplesSubmodulePaths.copy(
+      SamplesSubmodulePaths.bareObjects(version), workspace.resolve("Основная" + version.name()));
+    Path mainConfigurationXml = main.resolve(CfLayout.CONFIGURATION_XML);
+    List<String> modes = compatibilityModesOfSchema(version);
+    String dontUse = modes.stream().filter(mode -> !mode.startsWith("Version")).findFirst().orElseThrow();
+    FormNamespaceRulesTest.setCompatibilityMode(mainConfigurationXml, dontUse);
+
+    Path root = workspace.resolve("Расширение" + version.name());
+    EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
+      root, "НовоеРасширение", null, null, EmptyCfeScaffold.Purpose.CUSTOMIZATION, mainConfigurationXml, version);
+
+    String xml = Files.readString(root.resolve(CfLayout.CONFIGURATION_XML), StandardCharsets.UTF_8);
+    assertThat(xml).contains(
+      "<ConfigurationExtensionCompatibilityMode>" + dontUse + "</ConfigurationExtensionCompatibilityMode>");
+    assertThat(xml).doesNotContain("DefaultRoles").doesNotContain("InterfaceCompatibilityMode");
+    assertThat(xml).contains("<ChildObjects/>").doesNotContain("<Role>");
+    assertThat(root.resolve("Roles")).doesNotExist();
+    DesignerXml.read(root.resolve(CfLayout.CONFIGURATION_XML), version);
   }
 
   private static List<String> compatibilityModesOfSchema(SchemaVersion version) throws Exception {

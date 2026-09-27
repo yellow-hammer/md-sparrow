@@ -71,8 +71,6 @@ public final class EmptyCfeScaffold {
     }
   }
 
-  private static final Pattern COMPATIBILITY_MODE = Pattern.compile("Version(\\d+(?:_\\d+)*)");
-
   /** Режим 8.3.13: последний, в котором переопределять свойства заимствованных объектов нельзя. */
   private static final int[] LAST_MODE_WITHOUT_OVERRIDES = {8, 3, 13};
 
@@ -92,8 +90,9 @@ public final class EmptyCfeScaffold {
   /**
    * Пишет каркас расширения в каталог.
    *
-   * <p>В режиме совместимости 8.3.13 и ниже расширение не может переопределять свойства
-   * заимствованной конфигурации, поэтому каркас получается таким, каким его создаёт платформа:
+   * <p>В режиме совместимости 8.3.13 и ниже (и в {@code DontUse}, который платформа читает как 8.3.8)
+   * расширение не может переопределять свойства заимствованной конфигурации, поэтому каркас
+   * получается таким, каким его создаёт платформа:
    * без основных ролей, роли по умолчанию и режима совместимости интерфейса.
    *
    * @param targetCfeRoot каталог расширения (создаётся, содержимое очищается)
@@ -180,24 +179,15 @@ public final class EmptyCfeScaffold {
    *
    * <p>В режиме 8.3.13 и ниже платформа такое расширение не принимает («Переопределение свойств
    * заимствованных объектов в расширениях недопустимо в режиме совместимости 8.3.13 и ниже»).
-   * {@code DontUse} - режим самой платформы, то есть новый.
+   * {@code DontUse} платформа читает как 8.3.8: после загрузки выгружает {@code Version8_3_8} и
+   * отвергает расширение с ролями (ibcmd 8.3.23, 8.3.24, 8.5.1, {@code config check --extension}),
+   * а без ролей принимает, как и сама создаёт расширение к конфигурации в этом режиме.
    *
    * @param compatibilityMode значение {@code ConfigurationExtensionCompatibilityMode}, например {@code Version8_3_12}
-   * @return {@code false} для режима 8.3.13 и ниже
+   * @return {@code false} для режима 8.3.13 и ниже и для {@code DontUse}
    */
   static boolean overridesAdoptedProperties(String compatibilityMode) {
-    Matcher mode = COMPATIBILITY_MODE.matcher(compatibilityMode.trim());
-    if (!mode.matches()) {
-      return true;
-    }
-    String[] parts = mode.group(1).split("_");
-    for (int i = 0; i < LAST_MODE_WITHOUT_OVERRIDES.length; i++) {
-      int part = i < parts.length ? Integer.parseInt(parts[i]) : 0;
-      if (part != LAST_MODE_WITHOUT_OVERRIDES[i]) {
-        return part > LAST_MODE_WITHOUT_OVERRIDES[i];
-      }
-    }
-    return parts.length > LAST_MODE_WITHOUT_OVERRIDES.length;
+    return CompatibilityModes.compare(compatibilityMode, LAST_MODE_WITHOUT_OVERRIDES).orElse(-1) > 0;
   }
 
   /**

@@ -46,8 +46,6 @@ final class FormNamespaceRules {
   /** Первый режим совместимости, в котором форма объявляет {@code dcssch}. */
   private static final int[] COMPOSITION_SCHEMA_SINCE = {8, 3, 19};
 
-  private static final Pattern VERSION_MODE = Pattern.compile("Version(\\d+(?:_\\d+)*)");
-
   private static final Pattern PREFIXED_DECLARATION = Pattern.compile(" xmlns:([A-Za-z0-9]+)=\"[^\"]*\"");
 
   private FormNamespaceRules() {
@@ -105,18 +103,7 @@ final class FormNamespaceRules {
    * @return {@code true} с режима 8.3.19
    */
   static boolean declaresCompositionSchema(String compatibilityMode) {
-    Matcher mode = VERSION_MODE.matcher(compatibilityMode);
-    if (!mode.matches()) {
-      return false;
-    }
-    String[] parts = mode.group(1).split("_");
-    for (int i = 0; i < COMPOSITION_SCHEMA_SINCE.length; i++) {
-      int part = i < parts.length ? Integer.parseInt(parts[i]) : 0;
-      if (part != COMPOSITION_SCHEMA_SINCE[i]) {
-        return part > COMPOSITION_SCHEMA_SINCE[i];
-      }
-    }
-    return true;
+    return CompatibilityModes.compare(compatibilityMode, COMPOSITION_SCHEMA_SINCE).orElse(-1) >= 0;
   }
 
   /** Объявления с префиксом платформа пишет по алфавиту префиксов: {@code dcssch} - между соседями. */
