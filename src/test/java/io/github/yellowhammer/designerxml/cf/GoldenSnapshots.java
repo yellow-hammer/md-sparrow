@@ -51,6 +51,9 @@ final class GoldenSnapshots {
   /** Выгрузка пустой базы платформы (снимается workflow golden-snapshots). */
   static final String EMPTY_INFOBASE = "cf-empty-infobase";
 
+  /** Объекты-владельцы с дочерним узлом каждого вида. */
+  static final String NODES = "cf-object-nodes";
+
   /** Голые внешние отчёт и обработка ({@code <имя>/<имя>.xml}). */
   static final String EXTERNAL = "external-files/empty";
 

@@ -59,7 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MdObjectChildGoldenTest {
 
   /** Набор эталонов с узлами. */
-  private static final String NODES = "cf-object-nodes";
+  private static final String NODES = GoldenSnapshots.NODES;
 
   /** Приставка новых имён: владелец и узлы получают имена, которых в эталоне нет. */
   private static final String PREFIX = "Нов";

@@ -121,10 +121,6 @@ class CfeBorrowTest {
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
   void заимствованныеОбъектыВстаютВСоставВПорядкеПлатформы(SchemaVersion version) throws Exception {
-    // пустое расширение платформа выгрузила с 2.14
-    if (GoldenSnapshots.files(version, GoldenSnapshots.CFE).isEmpty()) {
-      return;
-    }
     Path cfe = SamplesSubmodulePaths.copy(
       SamplesSubmodulePaths.snapshot(version, GoldenSnapshots.CFE), tempDir.resolve(version.name()));
     Path extensionXml = cfe.resolve(CfLayout.CONFIGURATION_XML);
