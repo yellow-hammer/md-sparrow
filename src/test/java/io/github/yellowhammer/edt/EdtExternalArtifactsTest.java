@@ -175,6 +175,53 @@ class EdtExternalArtifactsTest {
         .hasMessageContaining("уже есть");
   }
 
+  /**
+   * Копия называет по-новому только каталог объекта и файл описания. Форма, в имени которой имя
+   * объекта стоит частью (ФормаОтчета у отчёта Отчет), и каталоги проекта (ExternalReports у
+   * отчёта Report) остаются под своими именами: там их ищет 1С:EDT по описанию.
+   */
+  @Test
+  void копияНеМеняетИменаФормИКаталоговПроекта() throws Exception {
+    Path base = baseConfiguration();
+    Path artifacts = workDir.resolve("erf");
+    Path report = EdtExternalArtifacts.create(artifacts, base, "Отчет", ExternalArtifactKind.REPORT);
+    EdtObjectScaffold.addForm(report, EdtModel.bundled(), "ФормаОтчета");
+    Path latin = EdtExternalArtifacts.create(artifacts, base, "Report", ExternalArtifactKind.REPORT);
+
+    Path copy = EdtExternalArtifacts.duplicate(report, "Сводка");
+    Path latinCopy = EdtExternalArtifacts.duplicate(latin, "Summary");
+
+    assertThat(copy).isEqualTo(artifacts.resolve("Сводка/src/ExternalReports/Сводка/Сводка.mdo")).isRegularFile();
+    assertThat(copy.resolveSibling("Forms/ФормаОтчета/Form.form"))
+        .hasSameTextualContentAs(report.resolveSibling("Forms/ФормаОтчета/Form.form"));
+    assertThat(Files.readString(copy, StandardCharsets.UTF_8)).contains("<name>ФормаОтчета</name>");
+    assertThat(latinCopy).isEqualTo(artifacts.resolve("Summary/src/ExternalReports/Summary/Summary.mdo")).isRegularFile();
+  }
+
+  /**
+   * Переименование и копия меняют имя объекта и его ссылки на себя, а форму с тем же именем, что у
+   * объекта, не трогают: её содержимое лежит в Forms/<имя формы>, и под новым именем 1С:EDT его бы
+   * не нашла.
+   */
+  @Test
+  void одноимённаяСОбъектомФормаОстаётсяСоСвоимИменем() throws Exception {
+    Path base = baseConfiguration();
+    Path artifacts = workDir.resolve("epf");
+    Path processor = EdtExternalArtifacts.create(artifacts, base, "Загрузка", ExternalArtifactKind.DATA_PROCESSOR);
+    EdtObjectScaffold.addForm(processor, EdtModel.bundled(), "Загрузка");
+
+    Path copy = EdtExternalArtifacts.duplicate(processor, "ЗагрузкаКопия");
+    Path renamed = EdtExternalArtifacts.rename(processor, "Выгрузка");
+
+    for (Path mdo : List.of(copy, renamed)) {
+      String text = Files.readString(mdo, StandardCharsets.UTF_8);
+      assertThat(EdtObjectReader.read(mdo).property("name")).isEqualTo(mdo.getParent().getFileName().toString());
+      assertThat(EdtObjectRegions.names(text, EdtObjectRegions.properties(text, "forms"))).as(mdo.toString())
+          .containsExactly("Загрузка");
+      assertThat(mdo.resolveSibling("Forms/Загрузка/Form.form")).isRegularFile();
+    }
+  }
+
   private static String uuidOf(Path objectMdo) throws IOException {
     java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("uuid=\"(" + UUID + ")\"")
         .matcher(Files.readString(objectMdo, StandardCharsets.UTF_8));

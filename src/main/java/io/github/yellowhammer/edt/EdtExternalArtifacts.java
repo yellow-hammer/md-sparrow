@@ -27,12 +27,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import javax.xml.stream.XMLStreamException;
+
 import io.github.yellowhammer.designerxml.cf.CatalogNameConstraints;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactKind;
+import io.github.yellowhammer.edt.EdtObjectRegions.Region;
 
 /**
  * Внешние обработки и отчёты проекта 1С:EDT.
@@ -51,6 +55,16 @@ public final class EdtExternalArtifacts {
       ".settings/org.eclipse.core.resources.prefs",
       "DT-INF/PROJECT.PMF");
   private static final Pattern RUNTIME_VERSION = Pattern.compile("^Runtime-Version:\\s*(.+)$", Pattern.MULTILINE);
+
+  /**
+   * Приставки ссылок внешнего объекта на себя по виду: путь к форме или макету и порождённые типы.
+   * Типы табличных частей внешнего объекта платформа называет без приставки External.
+   */
+  private static final Map<String, String> SELF_REFERENCE_PREFIXES = Map.of(
+      "ExternalDataProcessor",
+      "ExternalDataProcessor|ExternalDataProcessorObject|DataProcessorTabularSection|DataProcessorTabularSectionRow",
+      "ExternalReport",
+      "ExternalReport|ExternalReportObject|ReportTabularSection|ReportTabularSectionRow");
 
   private EdtExternalArtifacts() {
   }
@@ -137,10 +151,23 @@ public final class EdtExternalArtifacts {
     if (Files.exists(objectDir.resolveSibling(newName))) {
       throw new IllegalArgumentException("Объект уже есть: " + newName);
     }
+    Path sourceMdo = objectDir.resolve(oldName + ".mdo");
+    String kind = EdtObjectReader.read(sourceMdo).kind();
 
-    rewrite(objectMdo, oldName, newName);
+    Files.writeString(sourceMdo,
+        renamedObject(Files.readString(sourceMdo, StandardCharsets.UTF_8), kind, oldName, newName),
+        StandardCharsets.UTF_8);
+    try (Stream<Path> files = Files.walk(objectDir)) {
+      for (Path form : files.filter(EdtExternalArtifacts::isForm).toList()) {
+        String text = Files.readString(form, StandardCharsets.UTF_8);
+        String renamed = selfReferences(text, kind, oldName, newName);
+        if (!renamed.equals(text)) {
+          Files.writeString(form, renamed, StandardCharsets.UTF_8);
+        }
+      }
+    }
     rewrite(project.resolve(EdtLayout.PROJECT_FILE), oldName, newName);
-    Files.move(objectMdo, objectDir.resolve(newName + ".mdo"));
+    Files.move(sourceMdo, objectDir.resolve(newName + ".mdo"));
     Path renamedDir = objectDir.resolveSibling(newName);
     Files.move(objectDir, renamedDir);
     if (!renamedProject.equals(project)) {
@@ -167,16 +194,30 @@ public final class EdtExternalArtifacts {
     if (Files.exists(copy)) {
       throw new IllegalArgumentException("Каталог уже есть: " + copy);
     }
+    // Новое имя получают только каталог объекта и файл его описания: формы, макеты и модули
+    // называются своими именами, даже если имя объекта входит в них частью
+    Path sourceMdo = objectDir.resolve(oldName + ".mdo");
+    String kind = EdtObjectReader.read(sourceMdo).kind();
+    Path copyDir = copy.resolve(project.relativize(objectDir.getParent()).toString()).resolve(newName);
+    Path copyMdo = copyDir.resolve(newName + ".mdo");
     try (Stream<Path> files = Files.walk(project)) {
       for (Path file : files.toList()) {
-        String relative = project.relativize(file).toString();
-        Path target = copy.resolve(relative.replace(oldName, newName));
+        Path target;
+        if (file.equals(sourceMdo)) {
+          target = copyMdo;
+        } else if (file.startsWith(objectDir)) {
+          target = copyDir.resolve(objectDir.relativize(file).toString());
+        } else {
+          target = copy.resolve(project.relativize(file).toString());
+        }
         if (Files.isDirectory(file)) {
           Files.createDirectories(target);
-        } else if (file.getFileName().toString().endsWith(".mdo")) {
+        } else if (file.equals(sourceMdo)) {
           String text = Files.readString(file, StandardCharsets.UTF_8);
-          write(target, EdtObjectScaffold.parametrize(text, oldName, newName,
+          write(target, EdtObjectScaffold.freshUuids(renamedObject(text, kind, oldName, newName),
               EdtObjectScaffold.seed("duplicate|" + newName, text)));
+        } else if (file.startsWith(objectDir) && isForm(file)) {
+          write(target, selfReferences(Files.readString(file, StandardCharsets.UTF_8), kind, oldName, newName));
         } else if (file.getFileName().toString().equals(EdtLayout.PROJECT_FILE)) {
           write(target, EdtObjectScaffold.renamed(Files.readString(file, StandardCharsets.UTF_8), oldName, newName));
         } else {
@@ -185,7 +226,7 @@ public final class EdtExternalArtifacts {
         }
       }
     }
-    return copy.resolve(project.relativize(objectDir).toString().replace(oldName, newName)).resolve(newName + ".mdo");
+    return copyMdo;
   }
 
   /**
@@ -219,6 +260,45 @@ public final class EdtExternalArtifacts {
       throw new IllegalArgumentException("Внешний объект лежит не в проекте EDT: " + objectMdo);
     }
     return project;
+  }
+
+  /**
+   * Описание объекта под новым именем: меняются имя верхнего уровня и ссылки объекта на себя.
+   * Форма, реквизит или табличная часть с тем же именем, что у объекта, и текст синонима остаются
+   * как есть: форма под новым именем потеряла бы своё содержимое в {@code Forms/<имя формы>}.
+   */
+  private static String renamedObject(String text, String kind, String oldName, String newName) throws IOException {
+    Region name;
+    try {
+      name = EdtObjectRegions.property(text, "name");
+    } catch (XMLStreamException error) {
+      throw new IOException("Не удалось разобрать описание внешнего объекта", error);
+    }
+    if (!name.found()) {
+      throw new IllegalArgumentException("В описании внешнего объекта нет имени");
+    }
+    String renamed = text.substring(0, name.start()) + "<name>" + newName + "</name>" + text.substring(name.end());
+    return selfReferences(renamed, kind, oldName, newName);
+  }
+
+  /**
+   * Ссылки объекта на себя: путь к форме или макету ({@code ExternalDataProcessor.<Имя>.Form.<Форма>})
+   * и порождённые типы. Типы 1С:EDT пишет именами типов платформы (у обработки конфигурации в
+   * ssl31-edt - {@code DataProcessorObject.<Имя>}, как в выгрузке конфигуратора), поэтому в формах
+   * меняются те же ссылки, что в выгрузке.
+   */
+  private static String selfReferences(String text, String kind, String oldName, String newName) {
+    String prefixes = SELF_REFERENCE_PREFIXES.get(kind);
+    if (prefixes == null) {
+      return text;
+    }
+    Pattern self = Pattern.compile(
+        "(?<![\\p{L}\\p{N}_])(" + prefixes + ")\\." + Pattern.quote(oldName) + "(?![\\p{L}\\p{N}_])");
+    return self.matcher(text).replaceAll(match -> Matcher.quoteReplacement(match.group(1) + "." + newName));
+  }
+
+  private static boolean isForm(Path file) {
+    return Files.isRegularFile(file) && file.getFileName().toString().endsWith(".form");
   }
 
   private static void rewrite(Path file, String oldName, String newName) throws IOException {
