@@ -54,7 +54,7 @@ public enum SchemaVersion {
   }
 
   /**
-   * Поддерживаемый {@link SchemaVersion} по значению атрибута {@code version} (или {@link Optional#empty()}).
+   * Поддерживаемый {@link SchemaVersion} по значению атрибута {@code version} (или {@link java.util.Optional#empty()}).
    *
    * @param versionAttribute например {@code "2.17"}
    */

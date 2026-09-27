@@ -64,7 +64,7 @@ import java.util.Map;
  * свойств ({@code Name}, {@code Synonym}, …) в выгрузке платформы. Файлы на диске не меняются.
  * <p>
  * Зависимые XSD (перечисления, ссылки на объекты, мобильные возможности) подменяются в
- * {@link CatalogLsResourceResolver} — см. {@link #applyPlatformShimsToImportedSchema}.
+ * {@link SchemaImportResolver} — см. {@link #applyPlatformShimsToImportedSchema}.
  */
 public final class XmlValidator {
 
