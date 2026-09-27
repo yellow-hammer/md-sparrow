@@ -29,10 +29,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -160,6 +162,44 @@ class EdtConfigurationScaffoldTest {
     assertThat(read(mdo)).contains(
         "<compatibilityMode>8.3.27</compatibilityMode>",
         "<configurationExtensionCompatibilityMode>8.3.27</configurationExtensionCompatibilityMode>");
+  }
+
+  /** Поставщик и версия записаны так же, как у 1С:EDT: по порядку схемы и с её экранированием. */
+  @Test
+  void поставщикИВерсияКакУEDT() throws Exception {
+    Path real = Path.of(System.getProperty("fixtures.ssl31edt.root"), "ssl31", CONFIGURATION);
+    ConfigurationPropertiesDto source = EdtConfigurationProperties.read(real, model);
+    assertThat(source.vendor).contains("\"");
+
+    Path mdo = EdtConfigurationScaffold.create(workDir.resolve("Проект"), null, "Основа", null,
+        source.vendor, source.version, SchemaVersion.V2_21, model);
+
+    String expected = read(real).lines()
+        .filter(line -> line.startsWith("  <vendor>") || line.startsWith("  <version>"))
+        .collect(Collectors.joining("\n"));
+    assertThat(expected.lines()).hasSize(2);
+    assertThat(read(mdo)).contains(expected);
+  }
+
+  /**
+   * Новый проект не зависит от рабочей копии, из которой собран jar: все его
+   * файлы, вместе с дописанными свойствами, - с LF, как эталон, который
+   * записала 1С:EDT.
+   */
+  @Test
+  void файлыПроектаСПереводамиСтрокЭталона() throws Exception {
+    Path real = Path.of(System.getProperty("fixtures.ssl31edt.root"), "ssl31", CONFIGURATION);
+    ConfigurationPropertiesDto source = EdtConfigurationProperties.read(real, model);
+    Path project = workDir.resolve("Проект");
+
+    EdtConfigurationScaffold.create(project, null, "Основа", source.synonym, source.vendor, source.version,
+        SchemaVersion.V2_21, model);
+
+    for (String file : List.of(".project", ".settings/org.eclipse.core.resources.prefs", MANIFEST, CONFIGURATION)) {
+      assertThat(Files.readString(project.resolve(file), StandardCharsets.UTF_8)).as(file)
+          .contains("\n")
+          .doesNotContain("\r");
+    }
   }
 
   @Test

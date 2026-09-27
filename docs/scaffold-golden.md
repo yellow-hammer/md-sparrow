@@ -118,7 +118,9 @@
 платформы, что и выгрузка. Файлов четыре: `.project`, `.settings/org.eclipse.core.resources.prefs`,
 `DT-INF/PROJECT.PMF` и `src/Configuration/Configuration.mdo`. Больше EDT для пустой конфигурации не
 пишет: модули, командные интерфейсы и `Configuration.distr` появляются, когда их заводят. Каталог
-проекта должен быть пустым или отсутствовать: в отличие от `src/cf`, он не очищается.
+проекта должен быть пустым или отсутствовать: в отличие от `src/cf`, он не очищается. Файлы
+пишутся с LF, как эталон, который записала EDT: переводы строк и UUID не зависят от машины, на
+которой собран jar (в jar эталон попадает из рабочей копии, на Windows с `core.autocrlf` - с CRLF).
 
 **Эталон** — `edt-golden/Configuration/ЭталонСемя/`: проект, который 1С:EDT 2026.1 записала при
 импорте `snapshots/2.21/cf-bare-objects` (`1cedtcli import`, как в `tools/golden-snapshots/edt-import.sh`),
@@ -187,9 +189,10 @@ UUID; 2.10–2.13 проверены только моделью формата.
 ### Генерация объекта
 Параметризация файла формата V без повторной сборки через JAXB (сохраняет форматирование):
 подстановка имени как целого токена + детерминированный ремап UUID.
-- `cf/GoldenScaffold` — фасад: `generateObject`, `generateEmptyConfiguration`, `generateEmptyExtension`,
-  `generateRoleRights`, `generateRussianLanguage`, `generateExternalArtifact`, `generateFormDescriptor`,
-  `generateFormContent`.
+- `cf/GoldenScaffold` — фасад: `hasGolden`, `generateObject`, `generateObjectFiles` (все файлы прототипа
+  объекта), `generateEmptyConfiguration`, `generateEmptyExtension`, `extensionDefaultRoleName`,
+  `generateExtensionDefaultRole`, `generateRussianLanguage`, `generateExternalArtifact`,
+  `generateFormDescriptor`, `generateFormContent`.
 - `cf/GoldenObjectTemplate.parametrize(goldenXml, sourceName, targetName, uuidSeed)` — ядро
   (имя: граница `(?<![\p{L}\p{N}_])…(?![\p{L}\p{N}_])`; UUID: `DistinctUuidRewrite.remapDeterministic`).
 - `DistinctUuidRewrite` ремапит все UUID, **кроме `<xr:ClassId>`** — это фиксированный идентификатор

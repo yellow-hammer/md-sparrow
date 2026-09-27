@@ -172,6 +172,26 @@ public final class FormatProjection {
     return members(modelClass(Root.META_DATA_OBJECT, version)).elements().containsKey(kind);
   }
 
+  /**
+   * Есть ли элемент в модели формата.
+   *
+   * @param version формат
+   * @param path путь от {@code MetaDataObject}: вид объекта и вложенные элементы, например
+   *   {@code Catalog, ChildObjects, TabularSection, Properties, LineNumberLength}
+   * @return {@code true}, если модель формата знает элемент по этому пути
+   */
+  public static boolean hasElement(SchemaVersion version, List<String> path) {
+    Objects.requireNonNull(path, "path");
+    Class<?> type = modelClass(Root.META_DATA_OBJECT, version);
+    for (String name : path) {
+      if (type == null || !members(type).elements().containsKey(name)) {
+        return false;
+      }
+      type = members(type).elements().get(name);
+    }
+    return true;
+  }
+
   private static String projectChecked(String xml, SchemaVersion target) throws XMLStreamException {
     XMLStreamReader reader = XmlLines.reader(xml);
     try {

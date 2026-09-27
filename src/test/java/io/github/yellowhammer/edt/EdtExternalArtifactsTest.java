@@ -60,8 +60,9 @@ class EdtExternalArtifactsTest {
     return base.resolve("src/Configuration/Configuration.mdo");
   }
 
+  /** Текст без идентификаторов; переводы строк у проекта свои, у эталона - LF. */
   private static String withoutUuids(String text) {
-    return text.replaceAll(UUID, "uuid");
+    return text.replace("\r\n", "\n").replaceAll(UUID, "uuid");
   }
 
   @Test
@@ -219,6 +220,21 @@ class EdtExternalArtifactsTest {
       assertThat(EdtObjectRegions.names(text, EdtObjectRegions.properties(text, "forms"))).as(mdo.toString())
           .containsExactly("Загрузка");
       assertThat(mdo.resolveSibling("Forms/Загрузка/Form.form")).isRegularFile();
+    }
+  }
+
+  /** Проект внешнего объекта - с переводами строк проекта конфигурации, а не эталона в сборке. */
+  @Test
+  void проектСПереводамиСтрокПроектаКонфигурации() throws Exception {
+    for (String eol : List.of("\r\n", "\n")) {
+      Path directory = workDir.resolve("eol" + eol.length());
+      Path base = EdtExtensionScaffoldTest.baseWithEol(directory, eol);
+      Path artifacts = directory.resolve("epf");
+
+      EdtExternalArtifacts.create(artifacts, base, "Обработка1", ExternalArtifactKind.DATA_PROCESSOR);
+      EdtExternalArtifacts.create(artifacts, base, "Отчет1", ExternalArtifactKind.REPORT);
+
+      EdtExtensionScaffoldTest.assertEol(artifacts, eol);
     }
   }
 

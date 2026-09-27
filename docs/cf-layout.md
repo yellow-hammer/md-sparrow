@@ -90,8 +90,10 @@ init-empty-cf path/to/Основа -v V2_21 --format edt
 init-empty-cf path/to/project -v V2_20 --format edt --project-name Основа --name Основа
 ```
 
-На созданном проекте работают `add-md-object`, `init-empty-cfe` и `external-artifact-add`: формат
-EDT они узнают по файлу `src/Configuration/Configuration.mdo`.
+На созданном проекте работают `add-md-object`, `init-empty-cfe` и `external-artifact-add` канала
+`apply-mutation`: формат EDT они узнают по файлу `src/Configuration/Configuration.mdo` в поле
+`configurationXml` (`add-md-object`) или `mainConfigurationXml`, и переводы строк новых файлов берут у
+него же. Одноимённые подкоманды CLI работают только с выгрузкой конфигуратора.
 
 > **`Configuration/@formatVersion`:** в XSD атрибут обязателен, но в реальной выгрузке платформы на
 > `<Configuration>` его нет (версия только в `MetaDataObject/@version`). Golden-эталоны повторяют поведение

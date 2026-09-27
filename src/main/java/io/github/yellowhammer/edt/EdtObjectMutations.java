@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import static io.github.yellowhammer.edt.EdtXmlText.escape;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -358,9 +360,5 @@ public final class EdtObjectMutations {
       end++;
     }
     return xml.substring(line, end);
-  }
-
-  private static String escape(String value) {
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }

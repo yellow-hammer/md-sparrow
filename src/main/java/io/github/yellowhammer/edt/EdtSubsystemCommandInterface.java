@@ -213,6 +213,6 @@ public final class EdtSubsystemCommandInterface {
   }
 
   private static String escape(String value) {
-    return value == null ? "" : value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    return value == null ? "" : EdtXmlText.escape(value);
   }
 }

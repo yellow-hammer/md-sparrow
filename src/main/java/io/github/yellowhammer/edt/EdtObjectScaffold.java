@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import static io.github.yellowhammer.edt.EdtXmlText.escape;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -186,8 +188,11 @@ public final class EdtObjectScaffold {
     if (!files.contains(description)) {
       throw new IOException("В сборке нет эталона объекта EDT: " + description);
     }
+    String configuration = Files.readString(configurationMdo, StandardCharsets.UTF_8);
     // Одно зерно на все файлы объекта: общие идентификаторы остаются общими
-    String seed = seed("add|" + kind.name() + "|" + name, Files.readString(configurationMdo, StandardCharsets.UTF_8));
+    String seed = seed("add|" + kind.name() + "|" + name, configuration);
+    // Переводы строк - как у проекта: один проект не смешивает LF и CRLF
+    String eol = eol(configuration);
     String language = ConfigurationLanguage.codeOf(configurationMdo);
     Files.createDirectories(objectDir);
     for (String file : files) {
@@ -197,7 +202,7 @@ public final class EdtObjectScaffold {
       }
       Path target = objectDir.resolve(renamedPath(file.substring(directory.length()), proto, name));
       Files.createDirectories(target.getParent());
-      Files.writeString(target, text, StandardCharsets.UTF_8);
+      Files.writeString(target, text.replace("\n", eol), StandardCharsets.UTF_8);
     }
     appendReference(configurationMdo, model, kind.configurationXmlTag(), name);
   }
@@ -499,24 +504,26 @@ public final class EdtObjectScaffold {
     return attribute >= 0 && text.startsWith(CLASS_ID, attribute);
   }
 
-  /** Эталон из сборки: файл, который 1С:EDT записала при импорте пустой выгрузки. */
+  /**
+   * Эталон из сборки: файл, который 1С:EDT записала при импорте пустой выгрузки.
+   *
+   * Переводы строк - LF, как их записала 1С:EDT при съёмке и как эталон лежит в
+   * репозитории. В jar он попадает из рабочей копии, и на Windows с
+   * {@code core.autocrlf} там были бы CRLF: новый проект и зерно его
+   * идентификаторов зависели бы от машины, где собран jar.
+   */
   static String golden(String resource) throws IOException {
     try (InputStream stream = EdtObjectScaffold.class.getResourceAsStream(GOLDEN + resource)) {
       if (stream == null) {
         throw new IOException("В сборке нет эталона объекта EDT: " + resource);
       }
-      return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+      return new String(stream.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
   }
 
-  /**
-   * Эталон с переводами строк файла, в который он встаёт.
-   *
-   * В сборке эталон лежит с теми переводами строк, с какими его взяли из
-   * рабочей копии, поэтому сначала они приводятся к одному виду.
-   */
+  /** Эталон с переводами строк файла, в который он встаёт. */
   static String fragment(String resource, String eol) throws IOException {
-    return golden(resource).replace("\r\n", "\n").replace("\n", eol);
+    return golden(resource).replace("\n", eol);
   }
 
   private static int lineEnd(String xml, int end) {
@@ -526,9 +533,5 @@ public final class EdtObjectScaffold {
 
   private static String eol(String xml) {
     return xml.contains("\r\n") ? "\r\n" : "\n";
-  }
-
-  private static String escape(String value) {
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }

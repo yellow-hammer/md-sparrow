@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import static io.github.yellowhammer.edt.EdtXmlText.escape;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -118,7 +120,9 @@ public final class EdtChildMutations {
       String kind = kindOf(model, ownerClass, feature);
       String indent = parent == null ? INDENT : INDENT + INDENT;
       String seed = EdtObjectScaffold.seed("node|" + ownerName + "|" + kind + "|" + name, xml);
-      String node = EdtNodeGolden.node(kind, name, ConfigurationLanguage.current(), indent, eol(xml), seed);
+      String node = EdtNodeGolden.forProject(
+          EdtNodeGolden.node(kind, name, ConfigurationLanguage.current(), indent, eol(xml), seed),
+          objectMdo, objectClass, owner, feature);
       int at = insertionPoint(xml, model, parent, ownerClass, siblings, feature);
       List<Edit> edits = new ArrayList<>();
       edits.add(new Edit(at, at, node + eol(xml)));
@@ -474,9 +478,5 @@ public final class EdtChildMutations {
     if (name == null || name.isBlank()) {
       throw new IllegalArgumentException("Введите имя узла.");
     }
-  }
-
-  private static String escape(String value) {
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }

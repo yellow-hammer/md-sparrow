@@ -111,6 +111,9 @@ public final class EdtExternalArtifacts {
     }
     String baseName = EdtExtensionScaffold.projectName(baseProject);
     String runtime = runtimeVersion(baseProject);
+    String base = Files.readString(baseConfigurationMdo, StandardCharsets.UTF_8);
+    // Переводы строк - как у проекта конфигурации, к которой относится объект
+    String eol = base.contains("\r\n") ? "\r\n" : "\n";
     Proto proto = proto(kind);
     for (String file : PROJECT_FILES) {
       String text = EdtObjectScaffold.golden(proto.resource() + file);
@@ -118,14 +121,13 @@ public final class EdtExternalArtifacts {
       if (file.endsWith("PROJECT.PMF") && runtime != null) {
         text = RUNTIME_VERSION.matcher(text).replaceFirst("Runtime-Version: " + Matcher.quoteReplacement(runtime));
       }
-      write(project.resolve(file), text);
+      write(project.resolve(file), text.replace("\r\n", "\n").replace("\n", eol));
     }
-    String seed = EdtObjectScaffold.seed("external|" + kind.name() + "|" + name,
-        Files.readString(baseConfigurationMdo, StandardCharsets.UTF_8));
+    String seed = EdtObjectScaffold.seed("external|" + kind.name() + "|" + name, base);
     String object = EdtObjectScaffold.parametrize(
         EdtObjectScaffold.golden(proto.resource() + proto.objectFile()), proto.name(), name, seed);
     Path objectMdo = project.resolve("src").resolve(proto.directory()).resolve(name).resolve(name + ".mdo");
-    write(objectMdo, object);
+    write(objectMdo, object.replace("\r\n", "\n").replace("\n", eol));
     return objectMdo;
   }
 

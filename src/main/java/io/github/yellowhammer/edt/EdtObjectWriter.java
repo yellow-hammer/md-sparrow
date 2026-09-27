@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import static io.github.yellowhammer.edt.EdtXmlText.escape;
+
 import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
 import io.github.yellowhammer.designerxml.cf.LocalString;
 
@@ -495,11 +497,22 @@ public final class EdtObjectWriter {
       throws XMLStreamException {
     List<String> order = order(eClass);
     List<Edit> edits = new ArrayList<>();
-    for (Change change : changes) {
-      edits.add(edit(xml, change, order, model));
+    for (int index = 0; index < changes.size(); index++) {
+      Change change = changes.get(index);
+      // Новые свойства объекта в одной точке встают по порядку схемы, свойства
+      // узла - в порядке правок
+      int rank = change.node() == null && order.contains(change.name())
+          ? order.indexOf(change.name())
+          : order.size() + index;
+      edits.add(edit(xml, change, order, model).ranked(rank));
     }
     edits.addAll(stateEdits(xml, changes, model));
-    edits.sort(Comparator.comparingInt(Edit::start).reversed());
+    // С конца файла: смещения посчитаны по исходному тексту. В одной точке
+    // сначала меняется прежний текст, потом вставляется новый, и вставки идут от
+    // последней по порядку к первой: каждая следующая встаёт перед предыдущей
+    edits.sort(Comparator.comparingInt(Edit::start).reversed()
+        .thenComparing(Edit::insertion)
+        .thenComparing(Comparator.comparingInt(Edit::rank).reversed()));
 
     StringBuilder text = new StringBuilder(xml);
     for (Edit edit : edits) {
@@ -508,8 +521,25 @@ public final class EdtObjectWriter {
     return text.toString();
   }
 
-  /** Правка участка файла. */
-  private record Edit(int start, int end, String text) {
+  /**
+   * Правка участка файла.
+   *
+   * @param rank место среди вставок в ту же точку
+   */
+  private record Edit(int start, int end, String text, int rank) {
+
+    Edit(int start, int end, String text) {
+      this(start, end, text, 0);
+    }
+
+    Edit ranked(int value) {
+      return new Edit(start, end, text, value);
+    }
+
+    /** Вставка нового текста, а не замена прежнего. */
+    boolean insertion() {
+      return start == end;
+    }
   }
 
   /** Замена значения или вставка нового свойства. */
@@ -804,10 +834,5 @@ public final class EdtObjectWriter {
   /** Перевод строки файла: смешивать переводы в одном файле нельзя. */
   private static String eol(String xml) {
     return xml.contains("\r\n") ? "\r\n" : "\n";
-  }
-
-  /** Экранирование значения: в файле оно лежит текстом элемента. */
-  private static String escape(String value) {
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }

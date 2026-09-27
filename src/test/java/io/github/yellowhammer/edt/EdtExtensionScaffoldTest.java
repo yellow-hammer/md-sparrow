@@ -181,6 +181,51 @@ class EdtExtensionScaffoldTest {
     return found;
   }
 
+  /**
+   * Расширяемый проект с заданными переводами строк.
+   *
+   * @param directory каталог, в котором встаёт проект «Основа»
+   * @param eol переводы строк описания конфигурации
+   * @return описание конфигурации
+   */
+  static Path baseWithEol(Path directory, String eol) throws IOException {
+    Path base = directory.resolve("Основа");
+    copy(Path.of("src", "test", "resources", "edt-extension", "Основа").toAbsolutePath(), base);
+    Path configuration = base.resolve("src/Configuration/Configuration.mdo");
+    Files.writeString(configuration,
+        Files.readString(configuration, StandardCharsets.UTF_8).replace("\r\n", "\n").replace("\n", eol),
+        StandardCharsets.UTF_8);
+    return configuration;
+  }
+
+  /** Все файлы каталога - с одними и теми же переводами строк. */
+  static void assertEol(Path directory, String eol) throws IOException {
+    try (Stream<Path> files = Files.walk(directory)) {
+      for (Path file : files.filter(Files::isRegularFile).toList()) {
+        String text = Files.readString(file, StandardCharsets.UTF_8);
+        assertThat(text).as(file + " " + eol.length()).contains(eol);
+        assertThat(text.replace(eol, "")).as(file + " " + eol.length()).doesNotContain("\n", "\r");
+      }
+    }
+  }
+
+  /**
+   * Расширение лежит рядом с расширяемым проектом и получает заимствованные
+   * объекты из него, поэтому переводы строк у него те же, а не эталона в сборке.
+   */
+  @Test
+  void расширениеСПереводамиСтрокРасширяемогоПроекта() throws Exception {
+    for (String eol : List.of("\r\n", "\n")) {
+      Path directory = workDir.resolve("eol" + eol.length());
+      Path baseConfiguration = baseWithEol(directory, eol);
+      Path extension = directory.resolve("Основа.Надстройка");
+
+      EdtExtensionScaffold.create(baseConfiguration, extension, "Надстройка", null, null, Purpose.CUSTOMIZATION, model);
+
+      assertEol(extension, eol);
+    }
+  }
+
   @Test
   void повторноеЗаимствованиеИЗанятыйКаталогОтклоняются() throws Exception {
     Path base = base();

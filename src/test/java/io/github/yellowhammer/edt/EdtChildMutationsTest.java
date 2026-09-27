@@ -33,8 +33,14 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.designerxml.cf.GoldenScaffold;
 import io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto;
+import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
+import io.github.yellowhammer.designerxml.cf.MdObjectChildMutations;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 
 /** Правка состава объекта 1С:EDT. */
@@ -291,5 +297,32 @@ class EdtChildMutationsTest {
 
     assertThat(Files.readString(file, StandardCharsets.UTF_8)).doesNotContain("\r");
     assertThat(attributesOf(file)).endsWith("НовыйРеквизит");
+  }
+
+  /**
+   * Свойства новой табличной части - те, что знает формат платформы проекта:
+   * длины номера строки нет в форматах до 2.20, и 1С:EDT при импорте их
+   * выгрузки её не пишет. Узел проекта совпадает в этом с узлом выгрузки
+   * конфигуратора того же формата.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void табличнаяЧастьПоФорматуПлатформыПроекта(SchemaVersion version) throws Exception {
+    Path configuration = EdtConfigurationScaffold.create(
+        workDir.resolve("Проект"), null, "Основа", null, null, null, version, model);
+    EdtObjectScaffold.add(configuration, model, MdObjectAddType.CATALOG, "Товары");
+    Path catalog = configuration.getParent().getParent().resolve("Catalogs/Товары/Товары.mdo");
+    EdtChildMutations.add(catalog, model, "tabularSections", "Состав");
+
+    Path dump = workDir.resolve("Товары.xml");
+    Files.writeString(dump, GoldenScaffold.generateObject(MdObjectAddType.CATALOG, "Товары", version),
+        StandardCharsets.UTF_8);
+    MdObjectChildMutations.addTabularSection(dump, version, "Состав");
+
+    assertThat(Files.readString(catalog, StandardCharsets.UTF_8).contains("<lineNumberLength>"))
+        .as(version.name())
+        .isEqualTo(Files.readString(dump, StandardCharsets.UTF_8).contains("<LineNumberLength>"));
+    assertThat(EdtObjectProperties.readDto(catalog, model).tabularSections)
+        .extracting(node -> node.name).containsExactly("Состав");
   }
 }

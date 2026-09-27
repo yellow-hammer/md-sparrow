@@ -187,6 +187,31 @@ class EdtObjectScaffoldTest {
     }
   }
 
+  /**
+   * Синоним пишется с экранированием 1С:EDT: текст подсказки из ssl31 с
+   * кавычками и угловыми скобками встаёт той же строкой, что в её файле.
+   */
+  @Test
+  void синонимЭкранируетсяКакУEDT() throws Exception {
+    Path root = source();
+    Path real = fixture.resolve(
+        "InformationRegisters/ПериодическиеСерверныеОповещения/ПериодическиеСерверныеОповещения.mdo");
+    String line = Files.readString(real, StandardCharsets.UTF_8).lines().map(String::trim)
+        .filter(text -> text.startsWith("<value>") && text.endsWith("</value>"))
+        .filter(text -> {
+          String inner = text.substring("<value>".length(), text.length() - "</value>".length());
+          return inner.contains("&quot;") && inner.contains("&lt;") && inner.contains(">");
+        })
+        .findFirst().orElseThrow();
+    String synonym = EdtObjectReader.parse(line).value();
+
+    EdtObjectScaffold.add(configuration(root), model, MdObjectAddType.CATALOG, "Склад", synonym, false);
+
+    Path mdo = root.resolve("Catalogs/Склад/Склад.mdo");
+    assertThat(Files.readString(mdo, StandardCharsets.UTF_8)).contains(line);
+    assertThat(EdtObjectProperties.readDto(mdo, model).synonym).isEqualTo(synonym);
+  }
+
   @Test
   void занятоеИмяОтклоняется() throws Exception {
     Path root = source();
@@ -253,6 +278,48 @@ class EdtObjectScaffoldTest {
       }
       EdtObjectScaffold.deleteForm(mdo, "ФормаПроверки");
       deleteTree(root);
+    }
+  }
+
+  /**
+   * Файлы нового объекта пишутся с переводами строк проекта, а не той рабочей
+   * копии, из которой собран jar: проект с LF и проект с CRLF не смешивают их.
+   */
+  @Test
+  void объектПишетсяСПереводамиСтрокПроекта() throws Exception {
+    for (String eol : List.of("\r\n", "\n")) {
+      Path root = source();
+      Path configuration = configuration(root);
+      Files.writeString(configuration,
+          Files.readString(configuration, StandardCharsets.UTF_8).replace("\r\n", "\n").replace("\n", eol),
+          StandardCharsets.UTF_8);
+
+      EdtObjectScaffold.add(configuration, model, MdObjectAddType.ROLE, "Кладовщик");
+      EdtObjectScaffold.add(configuration, model, MdObjectAddType.CATALOG, "Склады");
+
+      List<Path> files = new ArrayList<>(List.of(configuration));
+      for (Path directory : List.of(root.resolve("Roles/Кладовщик"), root.resolve("Catalogs/Склады"))) {
+        try (Stream<Path> walk = Files.walk(directory)) {
+          walk.filter(Files::isRegularFile).forEach(files::add);
+        }
+      }
+      assertThat(files).hasSizeGreaterThan(3);
+      for (Path file : files) {
+        String text = Files.readString(file, StandardCharsets.UTF_8);
+        assertThat(text).as(file + " " + eol.length()).contains(eol);
+        assertThat(text.replace(eol, "")).as(file + " " + eol.length()).doesNotContain("\n", "\r");
+      }
+      deleteTree(root);
+    }
+  }
+
+  /** Эталоны читаются с LF, как в репозитории, на какой бы машине ни собирался jar. */
+  @Test
+  void эталоныЧитаютсяСПереводамиСтрокРепозитория() throws Exception {
+    List<String> files = EdtObjectScaffold.goldenFiles("");
+    assertThat(files).isNotEmpty();
+    for (String file : files) {
+      assertThat(EdtObjectScaffold.golden(file)).as(file).doesNotContain("\r");
     }
   }
 
@@ -354,7 +421,8 @@ class EdtObjectScaffoldTest {
       assertThat(files).as(kind.name()).isNotEmpty().containsExactlyInAnyOrderElementsOf(golden);
       for (String file : golden) {
         Path written = root.resolve(file.replace(proto, name));
-        assertThat(normalized(Files.readString(written, StandardCharsets.UTF_8), name, proto))
+        // Переводы строк у файла - проекта, у эталона - LF
+        assertThat(normalized(Files.readString(written, StandardCharsets.UTF_8).replace("\r\n", "\n"), name, proto))
             .as(file)
             .isEqualTo(normalized(EdtObjectScaffold.golden(file), proto, proto));
       }

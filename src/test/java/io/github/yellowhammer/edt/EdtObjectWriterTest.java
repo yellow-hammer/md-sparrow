@@ -37,6 +37,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdCatalogPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
@@ -428,5 +429,94 @@ class EdtObjectWriterTest {
     assertThat(after.split("<key>ru</key>", -1)).hasSize(2);
     assertThat(EdtObjectProperties.readDto(file, model).synonym).isEqualTo("Данные предприятия");
     assertThat(after.lines().count()).isEqualTo(before.lines().count());
+  }
+
+  /** Строки свойства верхнего уровня уходят из файла целиком: так, будто его не было. */
+  private static void removeProperty(Path file, String name) throws Exception {
+    String xml = Files.readString(file, StandardCharsets.UTF_8);
+    EdtObjectRegions.Region region = EdtObjectRegions.property(xml, name);
+    assertThat(region.found()).as(name).isTrue();
+    int start = EdtObjectRegions.lineStart(xml, region.start());
+    int end = xml.indexOf('\n', region.end()) + 1;
+    Files.writeString(file, xml.substring(0, start) + xml.substring(end), StandardCharsets.UTF_8);
+  }
+
+  /**
+   * Новые свойства с одной точкой вставки встают по порядку схемы: объект без
+   * синонима и комментария после их записи совпадает с тем, что записала 1С:EDT.
+   */
+  @Test
+  void новыеСвойстваВОднойТочкеВстаютПоПорядкуСхемы() throws Exception {
+    Path file = copyOf("Catalogs/_ДемоКонтрагенты/_ДемоКонтрагенты.mdo");
+    String written = Files.readString(file, StandardCharsets.UTF_8);
+    MdObjectPropertiesDto original = EdtObjectProperties.readDto(file, model);
+    removeProperty(file, "synonym");
+    removeProperty(file, "comment");
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    dto.synonym = original.synonym;
+    dto.comment = original.comment;
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo(written);
+  }
+
+  @Test
+  void новыеСвойстваКонфигурацииВОднойТочкеВстаютПоПорядкуСхемы() throws Exception {
+    Path file = copyOf("Configuration/Configuration.mdo");
+    String written = Files.readString(file, StandardCharsets.UTF_8);
+    ConfigurationPropertiesDto original = EdtConfigurationProperties.read(file, model);
+    removeProperty(file, "version");
+    removeProperty(file, "updateCatalogAddress");
+
+    ConfigurationPropertiesDto dto = EdtConfigurationProperties.read(file, model);
+    dto.version = original.version;
+    dto.updateCatalogAddress = original.updateCatalogAddress;
+    EdtConfigurationProperties.write(file, dto, model);
+
+    assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo(written);
+  }
+
+  /** Кавычки в тексте 1С:EDT пишет {@code &quot;}: комментарий после записи совпадает с её файлом. */
+  @Test
+  void кавычкиВТекстеЭкранируютсяКакУEDT() throws Exception {
+    Path file = copyOf("Constants/ПараметрыХраненияФайловВИБ/ПараметрыХраненияФайловВИБ.mdo");
+    String written = Files.readString(file, StandardCharsets.UTF_8);
+    MdObjectPropertiesDto original = EdtObjectProperties.readDto(file, model);
+    assertThat(original.comment).contains("\"");
+    removeProperty(file, "comment");
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    dto.comment = original.comment;
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo(written);
+  }
+
+  /**
+   * «Больше» в тексте 1С:EDT не экранирует: подсказка измерения с кавычками и
+   * угловыми скобками после записи совпадает с её файлом.
+   */
+  @Test
+  void большеВТекстеОстаётсяКакУEDT() throws Exception {
+    Path file = copyOf(
+        "InformationRegisters/ПериодическиеСерверныеОповещения/ПериодическиеСерверныеОповещения.mdo");
+    String written = Files.readString(file, StandardCharsets.UTF_8);
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    MdNamedPropertyDto node = dto.dimensions.stream()
+        .filter(dimension -> dimension.toolTip != null && dimension.toolTip.contains(">")
+            && dimension.toolTip.contains("\""))
+        .findFirst().orElseThrow();
+    String toolTip = node.toolTip;
+    node.toolTip = node.name;
+    EdtObjectWriter.writeDto(file, dto, model);
+    assertThat(Files.readString(file, StandardCharsets.UTF_8)).isNotEqualTo(written);
+
+    MdObjectPropertiesDto again = EdtObjectProperties.readDto(file, model);
+    again.dimensions.stream().filter(dimension -> dimension.name.equals(node.name)).findFirst().orElseThrow()
+        .toolTip = toolTip;
+    EdtObjectWriter.writeDto(file, again, model);
+
+    assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo(written);
   }
 }

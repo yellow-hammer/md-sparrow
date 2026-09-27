@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import static io.github.yellowhammer.edt.EdtXmlText.escape;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -395,9 +397,5 @@ final class EdtTypeDescription {
   private static EdtNode first(EdtNode node, String kind) {
     List<EdtNode> nodes = node.list(kind);
     return nodes.isEmpty() ? null : nodes.get(0);
-  }
-
-  private static String escape(String value) {
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }
