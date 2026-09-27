@@ -31,28 +31,15 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.EnumSet;
-import java.util.Set;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Пустая выгрузка одинакова от запуска к запуску, переписывается идемпотентно и читается моделью
- * своей версии — в каждом поддерживаемом формате.
+ * Пустая выгрузка одинакова от запуска к запуску, переписывается идемпотентно, читается моделью
+ * своей версии и проходит проверку по XSD — в каждом поддерживаемом формате.
  */
 class GoldenWriterCreateDeterminismTest {
-
-  /**
-   * Форматы, где XSD из {@code namespace-forest} расходятся с выводом самой платформы, поэтому
-   * эталон не проходит проверку по схеме (#6):
-   * <ul>
-   *   <li>2.10 — {@code app:permission} платформа пишет без {@code app:description};</li>
-   *   <li>2.21 — {@code ConfigurationExtensionCompatibilityMode} имеет значение {@code Version8_5_1},
-   *       которого нет в перечислении схемы.</li>
-   * </ul>
-   */
-  private static final Set<SchemaVersion> XSD_MISMATCH_WITH_PLATFORM =
-    EnumSet.of(SchemaVersion.V2_10, SchemaVersion.V2_21);
 
   @TempDir
   Path workspace;
@@ -77,8 +64,10 @@ class GoldenWriterCreateDeterminismTest {
     assertThat(third).isEqualTo(first);
 
     DesignerXml.read(cfgA, version);
-    if (!XSD_MISMATCH_WITH_PLATFORM.contains(version)) {
-      XmlValidator.validate(cfgA, version, Path.of(System.getProperty("xsd.root")));
+    try (Stream<Path> written = Files.walk(cfA)) {
+      for (Path xml : written.filter(p -> p.toString().endsWith(".xml")).toList()) {
+        XmlValidator.validate(xml, version, Path.of(System.getProperty("xsd.root")));
+      }
     }
   }
 }

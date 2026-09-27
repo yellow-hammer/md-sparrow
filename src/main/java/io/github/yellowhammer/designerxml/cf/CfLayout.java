@@ -50,11 +50,6 @@ public final class CfLayout {
     return cfRoot.resolve(subdir).resolve(objectName + ".xml");
   }
 
-  /** {@code .../src/cf/Roles/&lt;роль&gt;/Ext/Rights.xml}. */
-  public static Path roleExtRightsXml(Path cfRoot, String roleName) {
-    return cfRoot.resolve("Roles").resolve(roleName).resolve("Ext").resolve("Rights.xml");
-  }
-
   /**
    * Каталог объекта рядом с {@code <имя>.xml}: {@code <имя>/}.
    *

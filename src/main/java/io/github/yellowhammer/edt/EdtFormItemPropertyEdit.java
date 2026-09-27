@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import static io.github.yellowhammer.edt.EdtXmlText.escape;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -454,10 +456,6 @@ public final class EdtFormItemPropertyEdit {
 
   private static String eol(String xml) {
     return xml.contains("\r\n") ? "\r\n" : "\n";
-  }
-
-  private static String escape(String value) {
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 
   private static String required(String value, String field) {

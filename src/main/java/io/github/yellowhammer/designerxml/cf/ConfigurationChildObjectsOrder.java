@@ -21,26 +21,29 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
-import java.text.Collator;
+import io.github.yellowhammer.designerxml.SchemaVersion;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 /**
- * Порядок дочерних ссылок в {@code Configuration/ChildObjects} по XSD {@code ConfigurationChildObjects}
- * (совпадает с выгрузкой конфигуратора: блоки по типу метаданных, внутри блока — по имени).
+ * Порядок видов в {@code Configuration/ChildObjects}: блоками по виду, как пишет выгрузку платформа.
+ * Внутри блока объекты идут в порядке добавления: новый встаёт в конец своего блока.
+ *
+ * <p>Набор видов у каждого формата свой и берётся из {@code ConfigurationChildObjects} его схемы.
+ * Порядок блоков - порядок записи платформы, а он у новых видов расходится со схемой: схема
+ * дописывает {@code Bot}, {@code WebSocketClient} и {@code PaletteColor} в конец, а платформа
+ * ставит бота и цвет палитры за определяемыми типами, клиент WebSocket - за WS-ссылками.
  */
 final class ConfigurationChildObjectsOrder {
 
-  private ConfigurationChildObjectsOrder() {
-  }
+  private static final String CONFIGURATION = "Configuration";
 
-  /**
-   * Порядок имён элементов в {@code ConfigurationChildObjects} (как в JAXB {@code propOrder} / XSD sequence).
-   */
-  private static final List<String> TAG_ORDER = List.of(
+  /** Виды всех форматов в порядке записи платформы (выгрузка 8.5.1, формат 2.21). */
+  private static final List<String> PLATFORM_ORDER = List.of(
     "Language",
     "Subsystem",
     "StyleItem",
@@ -58,12 +61,15 @@ final class ConfigurationChildObjectsOrder {
     "WebService",
     "HTTPService",
     "WSReference",
+    "WebSocketClient",
     "EventSubscription",
     "ScheduledJob",
     "SettingsStorage",
     "FunctionalOption",
     "FunctionalOptionsParameter",
     "DefinedType",
+    "Bot",
+    "PaletteColor",
     "CommonCommand",
     "CommandGroup",
     "Constant",
@@ -86,45 +92,46 @@ final class ConfigurationChildObjectsOrder {
     "BusinessProcess",
     "Task",
     "ExternalDataSource",
-    "IntegrationService",
-    "Bot",
-    "WebSocketClient");
+    "IntegrationService");
 
-  /** Порядок имён элементов в {@code ChildObjects}: индекс в списке - место в sequence схемы. */
-  public static List<String> tagOrder() {
-    return TAG_ORDER;
+  private ConfigurationChildObjectsOrder() {
   }
 
   /**
-   * Имена элементов, стоящих в sequence <strong>строго до</strong> {@code xmlTag} (для первой вставки объекта
-   * этого типа, когда ещё нет ни одной строки {@code <xmlTag>…</xmlTag>}).
+   * Виды состава формата в порядке записи платформы.
+   *
+   * <p>Вид, которого платформа ещё не выгружала, встаёт в конец: там новые виды дописывает схема.
+   *
+   * @param version версия формата
+   * @return имена элементов {@code ChildObjects}: индекс в списке - место блока
+   */
+  static List<String> tagOrder(SchemaVersion version) {
+    List<String> kinds = ChildObjectKinds.of(version, CONFIGURATION);
+    List<String> order = new ArrayList<>();
+    for (String kind : PLATFORM_ORDER) {
+      if (kinds.contains(kind)) {
+        order.add(kind);
+      }
+    }
+    for (String kind : kinds) {
+      if (!order.contains(kind)) {
+        order.add(kind);
+      }
+    }
+    return List.copyOf(order);
+  }
+
+  /**
+   * Виды, блоки которых стоят <strong>строго до</strong> {@code xmlTag}: по ним ищется место
+   * первого объекта вида, пока его блока в составе нет.
+   *
+   * <p>Формат здесь не нужен: вида, которого у формата нет, в его составе не бывает.
    */
   static Set<String> tagsStrictlyBefore(String xmlTag) {
-    int idx = tagOrder().indexOf(xmlTag);
+    int idx = PLATFORM_ORDER.indexOf(xmlTag);
     if (idx < 0) {
       throw new IllegalArgumentException("unknown ChildObjects tag: " + xmlTag);
     }
-    if (idx == 0) {
-      return Set.of();
-    }
-    return Collections.unmodifiableSet(new HashSet<>(TAG_ORDER.subList(0, idx)));
-  }
-
-  /**
-   * Локальные имена элементов, которые в схеме идут в {@code sequence} <strong>до</strong> {@code Catalog}.
-   */
-  static final Set<String> TAGS_BEFORE_CATALOG = tagsStrictlyBefore("Catalog");
-
-  private static final Collator NAME_ORDER = Collator.getInstance(Locale.forLanguageTag("ru"));
-
-  static {
-    NAME_ORDER.setStrength(Collator.TERTIARY);
-  }
-
-  /**
-   * Сравнение имён объектов в духе списка в типовой выгрузке (русская локаль).
-   */
-  static int compareObjectNames(String a, String b) {
-    return NAME_ORDER.compare(a, b);
+    return Collections.unmodifiableSet(new HashSet<>(PLATFORM_ORDER.subList(0, idx)));
   }
 }

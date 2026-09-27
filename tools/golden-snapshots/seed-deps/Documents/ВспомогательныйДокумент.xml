@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.10">
+	<Document uuid="84228cea-93d5-5730-bf8c-6f97b93bb594">
+		<InternalInfo>
+			<xr:GeneratedType name="DocumentObject.ВспомогательныйДокумент" category="Object">
+				<xr:TypeId>ad35692f-7338-5237-bf8f-514b61a8c4ee</xr:TypeId>
+				<xr:ValueId>3e62314b-1bed-5ed8-b08e-6f22de79368f</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="DocumentRef.ВспомогательныйДокумент" category="Ref">
+				<xr:TypeId>0fa00636-3d41-5097-b5a4-26d1ed0d91ee</xr:TypeId>
+				<xr:ValueId>bfe1b5ad-5dcb-5990-b9e1-48822d53ca5f</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="DocumentSelection.ВспомогательныйДокумент" category="Selection">
+				<xr:TypeId>ccc7c2e9-4c92-5b4e-8f6b-b3daff12ff96</xr:TypeId>
+				<xr:ValueId>ad38df36-4792-5114-a6ff-f1c5f6da5367</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="DocumentList.ВспомогательныйДокумент" category="List">
+				<xr:TypeId>eefe6fb4-5dae-5c83-acc6-8315a699fbf5</xr:TypeId>
+				<xr:ValueId>2fc48e7f-551b-589f-8412-3ffd013efd58</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="DocumentManager.ВспомогательныйДокумент" category="Manager">
+				<xr:TypeId>fe0989c9-bf18-5d9f-9d1a-f8776e38ade8</xr:TypeId>
+				<xr:ValueId>e6ffa4a1-2d30-51c4-bd4e-8b82ca6b6f52</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>ВспомогательныйДокумент</Name>
+			<RegisterRecords>
+				<xr:Item xsi:type="xr:MDObjectRef">AccumulationRegister.РегистрНакопления1</xr:Item>
+				<xr:Item xsi:type="xr:MDObjectRef">AccountingRegister.РегистрБухгалтерии1</xr:Item>
+				<xr:Item xsi:type="xr:MDObjectRef">CalculationRegister.РегистрРасчета1</xr:Item>
+			</RegisterRecords>
+		</Properties>
+		<ChildObjects/>
+	</Document>
+</MetaDataObject>

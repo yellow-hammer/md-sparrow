@@ -1,0 +1,9 @@
+  <commands uuid="3592985f-07a7-35aa-8e64-c61ef7a60741">
+    <name>Команда1</name>
+    <synonym>
+      <key>ru</key>
+      <value>Команда1</value>
+    </synonym>
+    <group>FormCommandBarImportant</group>
+    <representation>Auto</representation>
+  </commands>

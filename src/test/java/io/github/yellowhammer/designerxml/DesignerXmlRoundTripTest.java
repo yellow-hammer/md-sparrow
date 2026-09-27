@@ -21,10 +21,8 @@
  */
 package io.github.yellowhammer.designerxml;
 
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.xml.sax.SAXException;
 
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
@@ -71,18 +69,11 @@ class DesignerXmlRoundTripTest {
     assertThat(((JAXBElement<?>) again).getDeclaredType()).isEqualTo(((JAXBElement<?>) root).getDeclaredType());
   }
 
+  /** Выгрузка ssl_3_1 сделана в формате 2.20 и проверяется схемой своего формата. */
   @Test
   void validateSsl31ConfigurationAgainstXsd() throws Exception {
-    Path input = Ssl31SubmodulePaths.configurationXml();
-    Path xsdRoot = Path.of(System.getProperty("xsd.root", "resources/namespace-forest")).toAbsolutePath().normalize();
-    Assumptions.assumeTrue(Files.isDirectory(xsdRoot), "xsd.root exists: " + xsdRoot);
-
-    try {
-      XmlValidator.validate(input, SchemaVersion.V2_21, xsdRoot);
-    } catch (SAXException e) {
-      // Выгрузка может ссылаться на namespace вне набора схем (например current-config); API валиден, схема — частичная.
-      Assumptions.abort("XSD validation skipped for fixture: " + e.getMessage());
-    }
+    XmlValidator.validate(
+      Ssl31SubmodulePaths.configurationXml(), SchemaVersion.V2_20, Path.of(System.getProperty("xsd.root")));
   }
 
   @Test

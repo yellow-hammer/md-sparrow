@@ -30,22 +30,79 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Scaffold по golden работает для ЛЮБОГО формата, у которого есть эталон (а не только 2.20/2.21):
- * эталоны забандлены в jar (golden/&lt;формат&gt;/…), объект параметризуется именем и читается JAXB-моделью версии.
+ * Scaffold по golden работает для ЛЮБОГО формата (а не только 2.20/2.21): в jar канонический набор
+ * эталонов (golden/cf/…), файл формата - его проекция, объект параметризуется именем и читается
+ * JAXB-моделью версии.
  */
 class GoldenScaffoldTest {
 
+  @Test
+  void jarCarriesNewestPlatformSnapshotAsCanonicalSet() {
+    assertThat(GoldenScaffold.canonicalVersion()).isEqualTo(GoldenSnapshots.canonical());
+  }
+
+  /** Эталон вида есть в каждом формате, где вид существует; в более старом формате его нет. */
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
-  void everyAddTypeHasGoldenInEveryVersion(SchemaVersion version) {
+  void everyAddTypeHasGoldenWhereKindExists(SchemaVersion version) {
     for (MdObjectAddType type : MdObjectAddType.values()) {
       assertThat(GoldenScaffold.hasGolden(type, version))
         .as("эталон %s в формате %s", type, version)
+        .isEqualTo(type.existsIn(version));
+    }
+    for (MdObjectAddType type : MdObjectAddType.values()) {
+      assertThat(GoldenScaffold.hasGolden(type, GoldenScaffold.canonicalVersion()))
+        .as("эталон %s в каноническом наборе", type)
         .isTrue();
+    }
+  }
+
+  /** Вид, появившийся позже формата, не создаётся: отказ называет формат, где он появился. */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void kindAbsentInFormatIsRefused(SchemaVersion version) {
+    for (MdObjectAddType type : MdObjectAddType.values()) {
+      if (type.existsIn(version)) {
+        continue;
+      }
+      SchemaVersion since = Arrays.stream(SchemaVersion.values())
+        .filter(type::existsIn)
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("нет формата, где появился " + type));
+      assertThat(since).as("формат, где появился %s", type).isGreaterThan(version);
+      assertThatThrownBy(() -> type.requireIn(version))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("вид " + type.configurationXmlTag() + " появился в формате "
+          + since.metadataObjectVersionAttribute());
+      assertThatThrownBy(() -> GoldenScaffold.generateObjectFiles(type, "Тест", version))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("появился в формате " + since.metadataObjectVersionAttribute());
+    }
+  }
+
+  /** Файлы нового объекта - все файлы прототипа: описание первым, под новым именем. */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void generatesEveryPrototypeFile(SchemaVersion version) throws Exception {
+    for (MdObjectAddType type : MdObjectAddType.values()) {
+      if (!type.existsIn(version)) {
+        continue;
+      }
+      String proto = GoldenScaffold.protoName(type);
+      Map<String, String> files = GoldenScaffold.generateObjectFiles(type, "Тест", version);
+      assertThat(files.keySet()).as("%s в формате %s", type, version)
+        .first().isEqualTo(type.cfSubdir() + "/Тест.xml");
+      assertThat(files.keySet().stream().map(path -> path.replace("/Тест", "/" + proto)).toList())
+        .as("%s в формате %s", type, version)
+        .containsExactlyElementsOf(GoldenScaffold.prototypeFiles(type));
+      assertThat(files.get(type.cfSubdir() + "/Тест.xml")).contains("<Name>Тест</Name>");
     }
   }
 
@@ -83,20 +140,12 @@ class GoldenScaffoldTest {
 
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
-  void everyVersionHasExternalGolden(SchemaVersion version) {
-    assertThat(GoldenScaffold.hasExternalGolden(ExternalArtifactKind.REPORT, version)).isTrue();
-    assertThat(GoldenScaffold.hasExternalGolden(ExternalArtifactKind.DATA_PROCESSOR, version)).isTrue();
-  }
-
-  @ParameterizedTest
-  @EnumSource(SchemaVersion.class)
-  void generatesNormalizedExternalReportInEveryFormat(SchemaVersion version) throws Exception {
+  void generatesExternalReportInEveryFormat(SchemaVersion version) throws Exception {
     String xml = GoldenScaffold.generateExternalArtifact(ExternalArtifactKind.REPORT, "ТестВнешнийОтчет", version);
     assertThat(xml)
       .contains("version=\"" + version.metadataObjectVersionAttribute() + "\"")
       .contains("<Name>ТестВнешнийОтчет</Name>")
-      .doesNotContain("standalone=\"yes\"")
-      // ClassId платформы сохранён (не ремапнут), порядок InternalInfo — как у конфигуратора
+      // ClassId платформы сохранён (не ремапнут), порядок InternalInfo - как у конфигуратора
       .contains("<xr:ClassId>e41aff26-25cf-4bb6-b6c1-3f478a75f374</xr:ClassId>");
     assertThat(xml.indexOf("<xr:ContainedObject")).isLessThan(xml.indexOf("<xr:GeneratedType"));
     DesignerXml.unmarshal(version, new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
@@ -104,13 +153,12 @@ class GoldenScaffoldTest {
 
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
-  void generatesNormalizedExternalDataProcessorInEveryFormat(SchemaVersion version) throws Exception {
+  void generatesExternalDataProcessorInEveryFormat(SchemaVersion version) throws Exception {
     String xml =
       GoldenScaffold.generateExternalArtifact(ExternalArtifactKind.DATA_PROCESSOR, "ТестВнешняяОбработка", version);
     assertThat(xml)
       .contains("version=\"" + version.metadataObjectVersionAttribute() + "\"")
       .contains("<Name>ТестВнешняяОбработка</Name>")
-      .doesNotContain("standalone=\"yes\"")
       .contains("<xr:ClassId>c3831ec8-d8d5-4f93-8a22-f9bfae07327f</xr:ClassId>");
     DesignerXml.unmarshal(version, new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
   }

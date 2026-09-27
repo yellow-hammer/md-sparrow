@@ -63,6 +63,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import jakarta.xml.bind.JAXBException;
+import org.xml.sax.SAXParseException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -195,7 +196,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     System.exit(exit);
   }
 
-  @Command(name = "validate", description = "Проверить XML по XSD (корень resources/namespace-forest + каталог schemas/designer/…).")
+  @Command(name = "validate", description = "Проверить описание объекта по XSD формата (корень resources/namespace-forest).")
   static final class ValidateCmd implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к .xml")
     Path xml;
@@ -213,6 +214,10 @@ public final class DesignerXmlCli implements Callable<Integer> {
       } catch (IllegalArgumentException e) {
         System.err.println(e.getMessage());
         return 2;
+      } catch (SAXParseException e) {
+        // Несоответствие схеме — ожидаемый исход проверки, а не сбой: место и текст без трассы стека.
+        System.err.println(xml + ":" + e.getLineNumber() + ":" + e.getColumnNumber() + ": " + e.getMessage());
+        return 1;
       }
       System.out.println("OK");
       return 0;
@@ -335,7 +340,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
-    @Option(names = "--type", required = true, description = "CATALOG, ENUM, CONSTANT, DOCUMENT, REPORT, DATA_PROCESSOR, TASK, CHART_OF_ACCOUNTS, …")
+    @Option(names = "--type", required = true, description = "Вид объекта: CATALOG, DOCUMENT, INFORMATION_REGISTER, COMMON_FORM, … (перечень - docs/cf-md-object.md)")
     String type;
 
     @Option(names = "--auto-name", description = "Подобрать имя вида ПрефиксN на стороне md-sparrow (без кириллицы в argv)")
@@ -709,14 +714,20 @@ public final class DesignerXmlCli implements Callable<Integer> {
 
   @Command(
     name = "init-empty-cf",
-    description = "Инициализировать каталог пустой выгрузки конфигурации."
+    description = "Инициализировать пустую конфигурацию: выгрузку конфигуратора или проект 1С:EDT."
   )
   static final class InitEmptyCfCmd implements Callable<Integer> {
-    @Parameters(index = "0", description = "Каталог целевой выгрузки src/cf")
+    @Parameters(index = "0", description = "Каталог выгрузки src/cf либо каталог проекта EDT")
     Path targetCfRoot;
 
     @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
+
+    @Option(names = "--format", description = "Формат исходников: designer (по умолчанию) или edt")
+    String format;
+
+    @Option(names = "--project-name", description = "Имя проекта EDT; по умолчанию имя каталога")
+    String projectName;
 
     @Option(
       names = "--name",
@@ -740,8 +751,15 @@ public final class DesignerXmlCli implements Callable<Integer> {
           configurationName == null || configurationName.isEmpty()
             ? CfLayout.DEFAULT_CONFIGURATION_NAME
             : configurationName;
-        io.github.yellowhammer.designerxml.cf.EmptyCfScaffold.writeEmptyTree(
-          targetCfRoot, name, synonym, vendor, appVersion, version);
+        if (SourceFormat.fromCliName(format) == SourceFormat.EDT) {
+          io.github.yellowhammer.edt.EdtConfigurationScaffold.create(
+            targetCfRoot, projectName, name, synonym, vendor, appVersion, version, EdtModel.bundled());
+        } else if (projectName != null && !projectName.isBlank()) {
+          throw new IllegalArgumentException("--project-name задаётся только для --format edt");
+        } else {
+          io.github.yellowhammer.designerxml.cf.EmptyCfScaffold.writeEmptyTree(
+            targetCfRoot, name, synonym, vendor, appVersion, version);
+        }
       } catch (IllegalArgumentException e) {
         System.err.println(e.getMessage());
         return 2;
@@ -792,7 +810,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     )
     Path mainConfigurationXml;
 
-    @Option(names = "--synonym-ru", description = "Синоним ru; по умолчанию имя расширения")
+    @Option(names = "--synonym-ru", description = "Синоним ru; по умолчанию пустой, как у платформы")
     String synonym;
 
     @Override
@@ -816,7 +834,8 @@ public final class DesignerXmlCli implements Callable<Integer> {
             interfaceCompatibilityMode,
             version);
         }
-      } catch (IllegalArgumentException e) {
+      } catch (IllegalArgumentException | IOException e) {
+        // Отказ (нет эталона формата, не читается основная конфигурация) - одна строка, без стека
         System.err.println(e.getMessage());
         return 2;
       }

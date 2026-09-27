@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.10">
+	<Enum uuid="8db493e2-9dc3-3fc0-a699-3c49483c35d0">
+		<InternalInfo>
+			<xr:GeneratedType name="EnumRef.Перечисление1" category="Ref">
+				<xr:TypeId>6ae076f9-576a-3670-9e7f-44f6e5614bbe</xr:TypeId>
+				<xr:ValueId>2264b5e4-26c6-308c-81a7-5a8eb092ddb7</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="EnumManager.Перечисление1" category="Manager">
+				<xr:TypeId>3620d56d-e032-3633-a47f-be1a341efe18</xr:TypeId>
+				<xr:ValueId>58de5cc1-436a-3bb9-978b-4e94db54e269</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="EnumList.Перечисление1" category="List">
+				<xr:TypeId>d6c88d4c-c0a6-39cc-bec4-0ce3359043ed</xr:TypeId>
+				<xr:ValueId>d316f3eb-2bfa-361d-a890-f346cae9b0c7</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>Перечисление1</Name>
+		</Properties>
+		<ChildObjects/>
+	</Enum>
+</MetaDataObject>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:WebSocketClient xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="d4d1b202-8028-513f-aa2e-5b7da31596d7">
+  <name>WebSocketКлиент1</name>
+  <timeout>30</timeout>
+</mdclass:WebSocketClient>

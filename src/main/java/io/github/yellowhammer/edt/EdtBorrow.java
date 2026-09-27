@@ -101,7 +101,9 @@ public final class EdtBorrow {
 
     Files.createDirectories(target.getParent());
     // Идентификаторы у заимствованного объекта свои: связь с оригиналом держится на имени
-    Files.writeString(target, EdtObjectScaffold.freshUuids(adopted), StandardCharsets.UTF_8);
+    String seed = EdtObjectScaffold.seed("borrow|" + kind + "|" + objectName,
+        Files.readString(extensionConfigurationMdo, StandardCharsets.UTF_8));
+    Files.writeString(target, EdtObjectScaffold.freshUuids(adopted, seed), StandardCharsets.UTF_8);
     EdtObjectScaffold.appendReference(extensionConfigurationMdo, model, kind, objectName);
     return target;
   }

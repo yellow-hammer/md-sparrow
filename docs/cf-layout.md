@@ -37,14 +37,24 @@ submodule **`fixtures/samples-1c-platform`** (см. [scaffold-golden.md](scaffol
 
 ## Добавление объекта (`add-md-object`)
 
-Создание объекта (`MdObjectAdd`) формирует `<Подкаталог>/<имя>.xml` параметризацией golden-эталона нужной
-версии (см. [scaffold-golden.md](scaffold-golden.md)) — **не** читает и **не** копирует структуру других файлов
-в каталоге. Затем имя добавляется в `Configuration.xml`.
+Создание объекта (`MdObjectAdd`) пишет `<Подкаталог>/<имя>.xml` и файлы из каталога прототипа
+(`<Подкаталог>/<имя>/Ext/…`) параметризацией golden-эталона нужной версии (см.
+[scaffold-golden.md](scaffold-golden.md#виды-объектов)) — **не** читает и **не** копирует структуру других
+файлов в каталоге. Затем имя добавляется в `Configuration.xml`. Перечень видов и форматов —
+[cf-md-object.md](cf-md-object.md#создание-объектов-add-md-object).
+
+Новый текст `Configuration.xml` готовится до записи файлов объекта, поэтому отказ состава ничего
+не пишет. Если не удалась запись файла объекта или самого `Configuration.xml`, уже записанные файлы
+и созданные для них каталоги удаляются: файлов объекта без ссылки в составе не остаётся.
 
 Строка в `Configuration.xml` вставляется **точечно** (без JAXB), с тем же отступом, что у строк `ChildObjects`.
-Порядок как в выгрузке и в XSD `ConfigurationChildObjects`: **сначала** все типы до `Catalog`
-(`Language`, `Subsystem`, …, `CommonForm`), **затем** блок справочников; внутри блока — **по имени**
-(локаль `ru`, см. `ConfigurationChildObjectsOrder`). Дубликат имени проверяется по тексту `ChildObjects`.
+Состав идёт блоками по виду (`ConfigurationChildObjectsOrder`): набор видов — из `ConfigurationChildObjects`
+схемы формата, порядок блоков — как в выгрузке платформы. У поздних видов он расходится со схемой: `Bot` и
+`PaletteColor` платформа пишет после `DefinedType`, `WebSocketClient` — после `WSReference`. Первый объект вида
+встаёт перед блоком следующего вида, остальные — в **конец** своего блока, без сортировки по имени.
+Дубликат имени проверяется по тексту `ChildObjects`. Пустой состав платформа пишет самозакрытым
+`<ChildObjects/>` (так выглядит расширение в режиме совместимости 8.3.13 и ниже, пока в нём нет объектов):
+первый объект раскрывает тег, а его строка встаёт на уровень глубже `ChildObjects`.
 
 ## Пустая выгрузка (`init-empty-cf`)
 
@@ -66,9 +76,28 @@ init-empty-cf path/to/src/cf -v V2_21
 init-empty-cf path/to/src/cf -v V2_20 --name МояБаза --synonym-ru "Моя база" --vendor "ООО Ромашка" --app-version 1.0.0
 ```
 
+### Проект 1С:EDT
+
+С **`--format edt`** (по умолчанию `designer`) та же команда создаёт проект конфигурации 1С:EDT:
+позиционный аргумент — каталог проекта, он должен быть пустым или отсутствовать. Имя проекта —
+**`--project-name`**, по умолчанию имя каталога; версия платформы проекта (`Runtime-Version`) —
+линейка платформы формата `-v`. Остальные параметры те же. В канале `apply-mutation` это поля
+`format` и `projectName` рядом с `targetCfRoot`. Состав проекта и значения новой конфигурации — в
+[scaffold-golden.md](scaffold-golden.md#пустой-проект-1сedt).
+
+```text
+init-empty-cf path/to/Основа -v V2_21 --format edt
+init-empty-cf path/to/project -v V2_20 --format edt --project-name Основа --name Основа
+```
+
+На созданном проекте работают `add-md-object`, `init-empty-cfe` и `external-artifact-add` канала
+`apply-mutation`: формат EDT они узнают по файлу `src/Configuration/Configuration.mdo` в поле
+`configurationXml` (`add-md-object`) или `mainConfigurationXml`, и переводы строк новых файлов берут у
+него же. Одноимённые подкоманды CLI работают только с выгрузкой конфигуратора.
+
 > **`Configuration/@formatVersion`:** в XSD атрибут обязателен, но в реальной выгрузке платформы на
 > `<Configuration>` его нет (версия только в `MetaDataObject/@version`). Golden-эталоны повторяют поведение
-> платформы; при чтении/валидации расхождение сглаживает `XmlValidator` (подстановка из `MetaDataObject/@version`).
+> платформы; проверка по XSD (`validate`, `XmlValidator`) считает атрибут необязательным.
 
 ## `fixtures/ssl31` vs `fixtures/samples-1c-platform`
 

@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import static io.github.yellowhammer.edt.EdtXmlText.escape;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +34,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -43,9 +46,11 @@ import javax.xml.stream.XMLStreamException;
 import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
+import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.cf.CatalogNameConstraints;
 import io.github.yellowhammer.designerxml.cf.UiLabels;
 import io.github.yellowhammer.designerxml.cf.ChildObjectEntry;
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
 import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 import io.github.yellowhammer.edt.EdtObjectRegions.Region;
 
@@ -63,17 +68,30 @@ import io.github.yellowhammer.edt.EdtObjectRegions.Region;
 public final class EdtObjectScaffold {
 
   private static final String GOLDEN = "/edt-golden/";
+  /** Перечень эталонов: каталог ресурсов в jar не перечислить. */
+  private static final String GOLDEN_INDEX = "index.txt";
   private static final String CONFIGURATION = "Configuration";
   private static final String FORMS = "forms";
   private static final String FORMS_DIRECTORY = "Forms";
   private static final String FORM_FILE = "Form.form";
   private static final String FORM_PROTO = "ФормаЭлемента";
-  private static final String RIGHTS_FILE = "Rights.rights";
   private static final String INDENT = "  ";
   private static final int MAX_SUFFIX = 999_999;
 
   private static final Pattern UUID_TOKEN = Pattern.compile(
       "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+
+  /** Атрибут с идентификатором класса платформы: {@code <containedObjects classId="..."/>}. */
+  private static final String CLASS_ID = "classId=\"";
+
+  /** Синоним объекта: элемент верхнего уровня целыми строками. */
+  private static final Pattern SYNONYM = Pattern.compile("(?m)^  <synonym>\\r?\\n(?:.*\\r?\\n)*?  </synonym>\\r?\\n");
+  private static final Pattern SYNONYM_VALUE = Pattern.compile("<value>[^<]*</value>");
+
+  /** Код языка подписи: {@code <synonym><key>ru</key><value>...</value></synonym>}. */
+  private static final Pattern LOCAL_STRING_KEY = Pattern.compile("<key>[^<]*</key>(?=\\s*<value>)");
+
+  private static volatile List<String> goldenIndex;
 
   private EdtObjectScaffold() {
   }
@@ -89,11 +107,31 @@ public final class EdtObjectScaffold {
    */
   public static String addWithNextAvailableName(Path configurationMdo, EdtModel model, MdObjectAddType kind)
       throws IOException {
+    return addWithNextAvailableName(configurationMdo, model, kind, null, false);
+  }
+
+  /**
+   * Добавляет объект с первым свободным именем вида и заданным синонимом.
+   *
+   * @param configurationMdo описание конфигурации
+   * @param model метамодель EDT
+   * @param kind вид объекта
+   * @param synonym синоним; пустой оставляет синонимом имя
+   * @param synonymEmpty объект без синонима; важнее {@code synonym}
+   * @return имя созданного объекта
+   * @throws IOException если файлы не читаются или не пишутся
+   */
+  public static String addWithNextAvailableName(
+      Path configurationMdo,
+      EdtModel model,
+      MdObjectAddType kind,
+      String synonym,
+      boolean synonymEmpty) throws IOException {
     Set<String> taken = takenNames(configurationMdo, model, kind);
     for (int suffix = 1; suffix <= MAX_SUFFIX; suffix++) {
       String candidate = kind.namePrefix() + suffix;
       if (!taken.contains(candidate)) {
-        add(configurationMdo, model, kind, candidate);
+        add(configurationMdo, model, kind, candidate, synonym, synonymEmpty);
         return candidate;
       }
     }
@@ -111,21 +149,140 @@ public final class EdtObjectScaffold {
    */
   public static void add(Path configurationMdo, EdtModel model, MdObjectAddType kind, String name)
       throws IOException {
+    add(configurationMdo, model, kind, name, null, false);
+  }
+
+  /**
+   * Добавляет объект с заданным именем и синонимом.
+   *
+   * Объект получает все файлы каталога прототипа из эталона: описание, права
+   * роли, разметку общей формы, описание WS-ссылки. Подписи эталона записаны
+   * по-русски и переносятся на основной язык конфигурации.
+   *
+   * @param configurationMdo описание конфигурации
+   * @param model метамодель EDT
+   * @param kind вид объекта
+   * @param name имя объекта
+   * @param synonym синоним; пустой оставляет синонимом имя
+   * @param synonymEmpty объект без синонима; важнее {@code synonym}
+   * @throws IOException если файлы не читаются или не пишутся
+   */
+  public static void add(
+      Path configurationMdo,
+      EdtModel model,
+      MdObjectAddType kind,
+      String name,
+      String synonym,
+      boolean synonymEmpty) throws IOException {
     CatalogNameConstraints.check(name);
     Path sourceRoot = sourceRoot(configurationMdo);
+    requireKindInProject(kind, sourceRoot.getParent());
     Path objectDir = sourceRoot.resolve(kind.cfSubdir()).resolve(name);
     if (Files.exists(objectDir)) {
       throw new IllegalArgumentException(UiLabels.alreadyExists(kind.configurationXmlTag(), name));
     }
     String proto = kind.namePrefix() + "1";
-    String golden = golden(kind.cfSubdir() + "/" + proto + "/" + proto + ".mdo");
+    String directory = kind.cfSubdir() + "/" + proto + "/";
+    String description = directory + proto + ".mdo";
+    List<String> files = goldenFiles(directory);
+    if (!files.contains(description)) {
+      throw new IOException("В сборке нет эталона объекта EDT: " + description);
+    }
+    String configuration = Files.readString(configurationMdo, StandardCharsets.UTF_8);
+    // Одно зерно на все файлы объекта: общие идентификаторы остаются общими
+    String seed = seed("add|" + kind.name() + "|" + name, configuration);
+    // Переводы строк - как у проекта: один проект не смешивает LF и CRLF
+    String eol = eol(configuration);
+    String language = ConfigurationLanguage.codeOf(configurationMdo);
     Files.createDirectories(objectDir);
-    Files.writeString(objectDir.resolve(name + ".mdo"), parametrize(golden, proto, name), StandardCharsets.UTF_8);
-    if (kind.roleWithExtRights()) {
-      Files.writeString(objectDir.resolve(RIGHTS_FILE),
-          golden(kind.cfSubdir() + "/" + proto + "/" + RIGHTS_FILE), StandardCharsets.UTF_8);
+    for (String file : files) {
+      String text = retargeted(parametrize(golden(file), proto, name, seed), language);
+      if (file.equals(description)) {
+        text = withSynonym(text, name, synonym, synonymEmpty);
+      }
+      Path target = objectDir.resolve(renamedPath(file.substring(directory.length()), proto, name));
+      Files.createDirectories(target.getParent());
+      Files.writeString(target, text.replace("\n", eol), StandardCharsets.UTF_8);
     }
     appendReference(configurationMdo, model, kind.configurationXmlTag(), name);
+  }
+
+  /**
+   * Вид должен быть у платформы проекта: формат берётся по {@code Runtime-Version}
+   * манифеста. Без манифеста проверки нет: эталоны записаны 1С:EDT для самой
+   * новой платформы и годятся любому виду.
+   */
+  private static void requireKindInProject(MdObjectAddType kind, Path projectDir) throws IOException {
+    if (projectDir == null) {
+      return;
+    }
+    Optional<String> runtime = EdtProjectManifest.runtimeVersion(projectDir);
+    if (runtime.isEmpty()) {
+      return;
+    }
+    try {
+      kind.requireIn(SchemaVersion.ofPlatform(runtime.get()));
+    } catch (IllegalArgumentException absent) {
+      throw new IllegalArgumentException("Платформа проекта " + runtime.get() + ": " + absent.getMessage(), absent);
+    }
+  }
+
+  /**
+   * Файлы эталона в каталоге.
+   *
+   * @param directory каталог относительно корня эталонов, с «/» в конце
+   * @return пути относительно корня эталонов
+   * @throws IOException если перечня эталонов нет в сборке
+   */
+  static List<String> goldenFiles(String directory) throws IOException {
+    List<String> index = goldenIndex;
+    if (index == null) {
+      index = golden(GOLDEN_INDEX).lines().filter(line -> !line.isBlank()).toList();
+      goldenIndex = index;
+    }
+    List<String> files = new ArrayList<>();
+    for (String file : index) {
+      if (file.startsWith(directory)) {
+        files.add(file);
+      }
+    }
+    return files;
+  }
+
+  /** Путь файла прототипа под именем нового объекта: имя меняется в имени описания и в каталогах. */
+  private static String renamedPath(String relative, String proto, String name) {
+    String[] segments = relative.split("/");
+    for (int i = 0; i < segments.length; i++) {
+      if (segments[i].equals(proto)) {
+        segments[i] = name;
+      } else if (segments[i].startsWith(proto + ".")) {
+        segments[i] = name + segments[i].substring(proto.length());
+      }
+    }
+    return String.join("/", segments);
+  }
+
+  /**
+   * Синоним нового объекта.
+   *
+   * Пустой синоним 1С:EDT не пишет вовсе, поэтому без синонима элемент
+   * убирается; заданный текст встаёт вместо имени, а код языка остаётся.
+   */
+  private static String withSynonym(String text, String name, String synonym, boolean synonymEmpty) {
+    Matcher block = SYNONYM.matcher(text);
+    if (!block.find()) {
+      return text;
+    }
+    if (synonymEmpty) {
+      return text.substring(0, block.start()) + text.substring(block.end());
+    }
+    String value = synonym == null ? "" : synonym.trim();
+    if (value.isEmpty() || value.equals(name)) {
+      return text;
+    }
+    String replaced = SYNONYM_VALUE.matcher(block.group())
+        .replaceFirst(Matcher.quoteReplacement("<value>" + escape(value) + "</value>"));
+    return text.substring(0, block.start()) + replaced + text.substring(block.end());
   }
 
   /**
@@ -141,6 +298,12 @@ public final class EdtObjectScaffold {
     if (!Files.isRegularFile(objectMdo)) {
       throw new IllegalArgumentException("Файл объекта не найден: " + objectMdo);
     }
+    // Форма, записанная виду без форм, 1С:EDT не загружается: объект её отбрасывает
+    String kind = EdtObjectReader.read(objectMdo).kind();
+    EClass eClass = model.classOf(kind);
+    if (eClass == null || eClass.getEStructuralFeature(FORMS) == null) {
+      throw new IllegalArgumentException("У вида " + kind + " нет форм.");
+    }
     Path formDir = objectMdo.getParent().resolve(FORMS_DIRECTORY).resolve(formName);
     if (Files.exists(formDir)) {
       throw new IllegalArgumentException("Форма уже есть: " + formName);
@@ -152,14 +315,16 @@ public final class EdtObjectScaffold {
       if (EdtObjectRegions.names(xml, forms).contains(formName)) {
         throw new IllegalArgumentException("Форма уже объявлена в описании объекта: " + formName);
       }
-      String entry = parametrize(golden(FORMS_DIRECTORY + "/" + FORM_PROTO + ".xml"), FORM_PROTO, formName)
-          .replace("\n", eol);
+      String entry = retargeted(
+          parametrize(fragment(FORMS_DIRECTORY + "/" + FORM_PROTO + ".xml", eol), FORM_PROTO, formName,
+              seed("form|" + formName, xml)),
+          ConfigurationLanguage.codeOf(objectMdo));
       int at = forms.isEmpty()
-          ? EdtObjectRegions.insertionPoint(xml, order(model, EdtObjectReader.read(objectMdo).kind()), FORMS)
+          ? EdtObjectRegions.insertionPoint(xml, order(model, kind), FORMS)
           : lineEnd(xml, forms.get(forms.size() - 1).end());
       Files.createDirectories(formDir);
       Files.writeString(formDir.resolve(FORM_FILE),
-          golden(FORMS_DIRECTORY + "/" + FORM_PROTO + "/" + FORM_FILE).replace("\n", eol), StandardCharsets.UTF_8);
+          fragment(FORMS_DIRECTORY + "/" + FORM_PROTO + "/" + FORM_FILE, eol), StandardCharsets.UTF_8);
       Files.writeString(objectMdo, xml.substring(0, at) + entry + xml.substring(at), StandardCharsets.UTF_8);
     } catch (XMLStreamException error) {
       throw new IOException("Не удалось разобрать файл объекта: " + objectMdo, error);
@@ -259,10 +424,36 @@ public final class EdtObjectScaffold {
    * Эталон под именем нового объекта.
    *
    * Имя заменяется целым словом, чтобы не задеть похожие; каждый идентификатор
-   * эталона получает свой новый: по ним платформа отличает объекты и типы.
+   * эталона, кроме идентификаторов класса, получает свой новый: по ним
+   * платформа отличает объекты и типы.
    */
-  static String parametrize(String golden, String protoName, String name) {
-    return freshUuids(renamed(golden, protoName, name));
+  static String parametrize(String golden, String protoName, String name, String seed) {
+    return freshUuids(renamed(golden, protoName, name), seed);
+  }
+
+  /**
+   * Зерно идентификаторов правки.
+   *
+   * Как у выгрузки конфигуратора: из того, что создаётся, и из текста файла,
+   * к которому оно добавляется. Одна и та же правка одного и того же проекта
+   * даёт те же идентификаторы, а другая правка или другой проект - другие.
+   *
+   * @param what что создаётся: действие, вид и имя
+   * @param context текст файла, к которому добавляется новое
+   * @return зерно для {@link #freshUuids(String, String)}
+   */
+  static String seed(String what, String context) {
+    return nameUuid(what + "|" + context);
+  }
+
+  /**
+   * Подписи эталона на языке конфигурации.
+   *
+   * Эталоны записаны в русской конфигурации; меняется только код языка, текст
+   * подписи остаётся.
+   */
+  static String retargeted(String golden, String language) {
+    return LOCAL_STRING_KEY.matcher(golden).replaceAll(Matcher.quoteReplacement("<key>" + language + "</key>"));
   }
 
   /** Имя эталона заменяется целым словом: похожие имена остаются нетронутыми. */
@@ -271,27 +462,68 @@ public final class EdtObjectScaffold {
     return token.matcher(golden).replaceAll(Matcher.quoteReplacement(escape(name)));
   }
 
-  /** Каждый идентификатор получает свой новый; одинаковые в тексте остаются одинаковыми. */
-  static String freshUuids(String renamed) {
+  /**
+   * Каждый идентификатор получает свой новый; одинаковые в тексте остаются одинаковыми.
+   *
+   * Идентификатор в {@code classId} не меняется: это не идентификатор объекта,
+   * а номер класса хранимых данных платформы, один у всех расширений и у всех
+   * внешних обработок. С другим номером платформа файл не принимает.
+   */
+  static String freshUuids(String renamed, String seed) {
     Map<String, String> fresh = new HashMap<>();
     Matcher uuids = UUID_TOKEN.matcher(renamed);
     StringBuilder out = new StringBuilder();
     while (uuids.find()) {
-      String next = fresh.computeIfAbsent(uuids.group(), old -> UUID.randomUUID().toString());
+      // Новый идентификатор выводится из зерна и старого: без случайности
+      String next = isClassId(renamed, uuids.start())
+          ? uuids.group()
+          : fresh.computeIfAbsent(uuids.group(), old -> derivedUuid(seed, old));
       uuids.appendReplacement(out, Matcher.quoteReplacement(next));
     }
     uuids.appendTail(out);
     return out.toString();
   }
 
-  /** Эталон из сборки: файл, который 1С:EDT записала при импорте пустой выгрузки. */
+  /**
+   * Новый идентификатор вместо старого: один и тот же при том же зерне.
+   *
+   * @param seed зерно правки, см. {@link #seed(String, String)}
+   * @param old идентификатор эталона или источника
+   * @return новый идентификатор
+   */
+  static String derivedUuid(String seed, String old) {
+    return nameUuid(seed + "|" + old);
+  }
+
+  private static String nameUuid(String text) {
+    return UUID.nameUUIDFromBytes(text.getBytes(StandardCharsets.UTF_8)).toString();
+  }
+
+  private static boolean isClassId(String text, int valueStart) {
+    int attribute = valueStart - CLASS_ID.length();
+    return attribute >= 0 && text.startsWith(CLASS_ID, attribute);
+  }
+
+  /**
+   * Эталон из сборки: файл, который 1С:EDT записала при импорте пустой выгрузки.
+   *
+   * Переводы строк - LF, как их записала 1С:EDT при съёмке и как эталон лежит в
+   * репозитории. В jar он попадает из рабочей копии, и на Windows с
+   * {@code core.autocrlf} там были бы CRLF: новый проект и зерно его
+   * идентификаторов зависели бы от машины, где собран jar.
+   */
   static String golden(String resource) throws IOException {
     try (InputStream stream = EdtObjectScaffold.class.getResourceAsStream(GOLDEN + resource)) {
       if (stream == null) {
         throw new IOException("В сборке нет эталона объекта EDT: " + resource);
       }
-      return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+      return new String(stream.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
+  }
+
+  /** Эталон с переводами строк файла, в который он встаёт. */
+  static String fragment(String resource, String eol) throws IOException {
+    return golden(resource).replace("\n", eol);
   }
 
   private static int lineEnd(String xml, int end) {
@@ -301,9 +533,5 @@ public final class EdtObjectScaffold {
 
   private static String eol(String xml) {
     return xml.contains("\r\n") ? "\r\n" : "\n";
-  }
-
-  private static String escape(String value) {
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }

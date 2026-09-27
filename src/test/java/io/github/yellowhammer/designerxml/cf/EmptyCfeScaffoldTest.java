@@ -21,17 +21,26 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import io.github.yellowhammer.designerxml.DesignerXml;
+import io.github.yellowhammer.designerxml.SamplesSubmodulePaths;
 import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.io.TempDir;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -41,9 +50,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Пустое расширение: каркас из эталона выгрузки плюс свойства вызывающего.
  *
- * Эталоны сняты с платформы, поэтому проверка идёт по всем версиям формата, для которых
- * платформа умеет создать расширение. Для более старых операция честно отказывается,
- * вместо того чтобы собирать XML из головы.
+ * Каркас формата V - проекция канонического эталона, поэтому расширение создаётся во всех
+ * форматах. Где платформа сняла эталон (2.14-2.21), результат сверяется с ним с точностью до UUID.
  */
 class EmptyCfeScaffoldTest {
 
@@ -76,20 +84,17 @@ class EmptyCfeScaffoldTest {
       root, "Пустое", null, "пу_", EmptyCfeScaffold.Purpose.CUSTOMIZATION, null, null, VERSION);
 
     String xml = Files.readString(root.resolve(CfLayout.CONFIGURATION_XML), StandardCharsets.UTF_8);
-    assertThat(xml).contains("<Role>" + GoldenScaffold.extensionDefaultRoleName(VERSION) + "</Role>");
-    assertThat(xml).contains("Role." + GoldenScaffold.extensionDefaultRoleName(VERSION));
+    assertThat(xml).contains("<Role>" + GoldenScaffold.extensionDefaultRoleName() + "</Role>");
+    assertThat(xml).contains("Role." + GoldenScaffold.extensionDefaultRoleName());
     assertThat(xml).doesNotContain("<Language>");
     assertThat(xml).doesNotContain("<CommonModule>");
-    assertThat(root.resolve("Roles").resolve(GoldenScaffold.extensionDefaultRoleName(VERSION) + ".xml")).exists();
+    assertThat(root.resolve("Roles").resolve(GoldenScaffold.extensionDefaultRoleName() + ".xml")).exists();
     assertThat(root.resolve(CfLayout.LANGUAGES_DIR)).doesNotExist();
   }
 
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
-  void эталонЕстьИДаётРабочийКаркас(SchemaVersion version) throws IOException {
-    if (!GoldenScaffold.hasExtensionGolden(version)) {
-      return;
-    }
+  void каркасЕстьВоВсехФорматах(SchemaVersion version) throws Exception {
     Path root = workspace.resolve("Расширение" + version.name());
     EmptyCfeScaffold.writeEmptyTree(
       root, "Расширение", null, "рас_", EmptyCfeScaffold.Purpose.ADD_ON, null, null, version);
@@ -99,30 +104,32 @@ class EmptyCfeScaffoldTest {
     assertThat(xml).contains("<Name>Расширение</Name>");
     assertThat(xml).contains("<ObjectBelonging>Adopted</ObjectBelonging>");
     assertThat(xml).contains("<NamePrefix>рас_</NamePrefix>");
-    String role = GoldenScaffold.extensionDefaultRoleName(version);
+    String role = GoldenScaffold.extensionDefaultRoleName();
     assertThat(xml).contains("<Role>" + role + "</Role>");
-    assertThat(root.resolve("Roles").resolve(role + ".xml")).exists();
+    Path roleXml = root.resolve("Roles").resolve(role + ".xml");
+    assertThat(roleXml).exists();
+    DesignerXml.read(root.resolve(CfLayout.CONFIGURATION_XML), version);
+    DesignerXml.read(roleXml, version);
   }
 
-  @Test
-  void эталоныЕстьДляВсехФорматовГдеПлатформаУмеетСоздатьРасширение() {
-    // ibcmd научился создавать расширения с 8.3.21, то есть с формата 2.14; для более старых
-    // платформ эталон снять нечем: в ibcmd тех версий режима расширений нет вовсе.
-    List<String> covered = Arrays.stream(SchemaVersion.values())
-      .filter(GoldenScaffold::hasExtensionGolden)
-      .map(SchemaVersion::metadataObjectVersionAttribute)
-      .toList();
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void совпадаетСРасширениемПлатформыСТочностьюДоUuid(SchemaVersion version) throws IOException {
+    // эталоны есть с 2.14: ibcmd более старых платформ расширений не создаёт
+    if (GoldenSnapshots.files(version, GoldenSnapshots.CFE).isEmpty()) {
+      return;
+    }
+    String platform = GoldenSnapshots.read(version, GoldenSnapshots.CFE, CfLayout.CONFIGURATION_XML);
+    String name = ScaffoldPropertyEdit.leaf(platform, "Name").orElseThrow();
+    Path root = workspace.resolve("Платформа" + version.name());
+    // эталон снят с назначением «дополнение», без префикса и режимов вызывающего
+    EmptyCfeScaffold.writeEmptyTree(root, name, null, null, EmptyCfeScaffold.Purpose.ADD_ON, null, null, version);
 
-    assertThat(covered).containsExactly("2.14", "2.15", "2.16", "2.17", "2.18", "2.19", "2.20", "2.21");
-  }
-
-  @Test
-  void безЭталонаФорматаОперацияОтказывается() {
-    assertThatThrownBy(() -> EmptyCfeScaffold.writeEmptyTree(
-      workspace.resolve("Старое"),
-      "Старое", null, "ст_", EmptyCfeScaffold.Purpose.ADD_ON, null, null, SchemaVersion.V2_10))
-      .isInstanceOf(IOException.class)
-      .hasMessageContaining("2.10");
+    assertThat(GoldenSnapshots.normalizeUuids(GoldenSnapshots.read(root.resolve(CfLayout.CONFIGURATION_XML))))
+      .isEqualTo(GoldenSnapshots.normalizeUuids(platform));
+    String role = "Roles/" + GoldenScaffold.extensionDefaultRoleName() + ".xml";
+    assertThat(GoldenSnapshots.normalizeUuids(GoldenSnapshots.read(root.resolve(role))))
+      .isEqualTo(GoldenSnapshots.normalizeUuids(GoldenSnapshots.read(version, GoldenSnapshots.CFE, role)));
   }
 
   @Test
@@ -177,10 +184,10 @@ class EmptyCfeScaffoldTest {
 
   @Test
   void режимыСовместимостиБерутсяИзОсновнойКонфигурации() throws IOException {
-    Path mainCf = workspace.resolve("cf");
-    EmptyCfScaffold.writeEmptyTree(mainCf, CfLayout.DEFAULT_CONFIGURATION_NAME, null, null, null, VERSION);
-    Path mainConfigurationXml = mainCf.resolve(CfLayout.CONFIGURATION_XML);
+    // Типовая конфигурация в новом режиме совместимости: расширение может переопределять её свойства
+    Path mainConfigurationXml = Ssl31SubmodulePaths.configurationXml();
     String main = Files.readString(mainConfigurationXml, StandardCharsets.UTF_8);
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties(leaf(main, "CompatibilityMode"))).isTrue();
 
     Path root = workspace.resolve("РасширениеПоКонфигурации");
     EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
@@ -188,13 +195,111 @@ class EmptyCfeScaffoldTest {
       mainConfigurationXml, VERSION);
 
     String xml = Files.readString(root.resolve(CfLayout.CONFIGURATION_XML), StandardCharsets.UTF_8);
-    // платформа не принимает расширение с режимом выше, чем у расширяемой конфигурации
+    // режим расширения платформа сама берёт из режима совместимости основной конфигурации
     assertThat(xml).contains(
       "<ConfigurationExtensionCompatibilityMode>" + leaf(main, "CompatibilityMode")
         + "</ConfigurationExtensionCompatibilityMode>");
     assertThat(xml).contains(
       "<InterfaceCompatibilityMode>" + leaf(main, "InterfaceCompatibilityMode")
         + "</InterfaceCompatibilityMode>");
+    String role = GoldenScaffold.extensionDefaultRoleName();
+    assertThat(xml).contains("<DefaultRoles>").contains("<Role>" + role + "</Role>");
+    assertThat(root.resolve("Roles").resolve(role + ".xml")).exists();
+  }
+
+  /**
+   * В режиме совместимости 8.3.13 и ниже платформа не принимает расширение, которое переопределяет
+   * свойства заимствованной конфигурации, а основные роли - такое свойство. Сама она создаёт в этом
+   * режиме расширение без основных ролей, роли по умолчанию и режима совместимости интерфейса.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void приСтаромРежимеОсновнойРасширениеКакУПлатформы(SchemaVersion version) throws Exception {
+    // Голые объекты сняты с базы в режиме совместимости 8.3.12
+    Path mainConfigurationXml = SamplesSubmodulePaths.bareObjects(version).resolve(CfLayout.CONFIGURATION_XML);
+    String main = Files.readString(mainConfigurationXml, StandardCharsets.UTF_8);
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties(leaf(main, "CompatibilityMode"))).isFalse();
+
+    Path root = workspace.resolve("Старое" + version.name());
+    EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
+      root, "НовоеРасширение", null, null, EmptyCfeScaffold.Purpose.CUSTOMIZATION, mainConfigurationXml, version);
+
+    String xml = Files.readString(root.resolve(CfLayout.CONFIGURATION_XML), StandardCharsets.UTF_8);
+    assertThat(xml).contains(
+      "<ConfigurationExtensionCompatibilityMode>" + leaf(main, "CompatibilityMode")
+        + "</ConfigurationExtensionCompatibilityMode>");
+    assertThat(xml).doesNotContain("DefaultRoles").doesNotContain("InterfaceCompatibilityMode");
+    assertThat(xml).contains("<ChildObjects/>").doesNotContain("<Role>");
+    assertThat(root.resolve("Roles")).doesNotExist();
+    DesignerXml.read(root.resolve(CfLayout.CONFIGURATION_XML), version);
+  }
+
+  @Test
+  void переопределятьСвойстваМожноСРежима8_3_14() {
+    // Граница из сообщения платформы: «недопустимо в режиме совместимости 8.3.13 и ниже»
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties("Version8_3_13")).isFalse();
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties("Version8_3_14")).isTrue();
+    assertThat(EmptyCfeScaffold.overridesAdoptedProperties("Version8_5_1")).isTrue();
+  }
+
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void режимыСхемыФорматаНеДопускаютПереопределений(SchemaVersion version) throws Exception {
+    // В перечислении режимов XDTO только DontUse и режимы до 8.3.12 включительно; DontUse
+    // платформа читает как 8.3.8
+    List<String> modes = compatibilityModesOfSchema(version);
+    assertThat(modes).contains("DontUse");
+    for (String mode : modes) {
+      assertThat(EmptyCfeScaffold.overridesAdoptedProperties(mode)).as(mode).isFalse();
+    }
+  }
+
+  /**
+   * Режим {@code DontUse} основной конфигурации платформа читает как 8.3.8: расширение с основными
+   * ролями она в таком режиме отвергает, а сама создаёт его без ролей и с пустым составом.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void приРежимеDontUseОсновнойРасширениеБезРолей(SchemaVersion version) throws Exception {
+    Path main = SamplesSubmodulePaths.copy(
+      SamplesSubmodulePaths.bareObjects(version), workspace.resolve("Основная" + version.name()));
+    Path mainConfigurationXml = main.resolve(CfLayout.CONFIGURATION_XML);
+    List<String> modes = compatibilityModesOfSchema(version);
+    String dontUse = modes.stream().filter(mode -> !mode.startsWith("Version")).findFirst().orElseThrow();
+    FormNamespaceRulesTest.setCompatibilityMode(mainConfigurationXml, dontUse);
+
+    Path root = workspace.resolve("Расширение" + version.name());
+    EmptyCfeScaffold.writeEmptyTreeFromConfiguration(
+      root, "НовоеРасширение", null, null, EmptyCfeScaffold.Purpose.CUSTOMIZATION, mainConfigurationXml, version);
+
+    String xml = Files.readString(root.resolve(CfLayout.CONFIGURATION_XML), StandardCharsets.UTF_8);
+    assertThat(xml).contains(
+      "<ConfigurationExtensionCompatibilityMode>" + dontUse + "</ConfigurationExtensionCompatibilityMode>");
+    assertThat(xml).doesNotContain("DefaultRoles").doesNotContain("InterfaceCompatibilityMode");
+    assertThat(xml).contains("<ChildObjects/>").doesNotContain("<Role>");
+    assertThat(root.resolve("Roles")).doesNotExist();
+    DesignerXml.read(root.resolve(CfLayout.CONFIGURATION_XML), version);
+  }
+
+  private static List<String> compatibilityModesOfSchema(SchemaVersion version) throws Exception {
+    Path xsd = Path.of(System.getProperty("xsd.root"), version.xsdDirectoryName(), "v8.1c.ru-8.3-xcf-enums.xsd");
+    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    factory.setNamespaceAware(true);
+    NodeList types = factory.newDocumentBuilder().parse(xsd.toFile())
+      .getElementsByTagNameNS(XMLConstants.W3C_XML_SCHEMA_NS_URI, "simpleType");
+    for (int i = 0; i < types.getLength(); i++) {
+      Element type = (Element) types.item(i);
+      if (!"CompatibilityMode".equals(type.getAttribute("name"))) {
+        continue;
+      }
+      NodeList values = type.getElementsByTagNameNS(XMLConstants.W3C_XML_SCHEMA_NS_URI, "enumeration");
+      List<String> modes = new ArrayList<>();
+      for (int j = 0; j < values.getLength(); j++) {
+        modes.add(((Element) values.item(j)).getAttribute("value"));
+      }
+      return modes;
+    }
+    throw new IllegalStateException("нет перечисления CompatibilityMode в " + xsd);
   }
 
   private static String leaf(String xml, String tag) {

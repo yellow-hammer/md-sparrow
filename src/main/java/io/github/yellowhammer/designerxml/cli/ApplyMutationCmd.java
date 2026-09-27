@@ -58,6 +58,7 @@ import picocli.CommandLine.ParentCommand;
 
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
+import io.github.yellowhammer.edt.EdtConfigurationScaffold;
 import io.github.yellowhammer.edt.EdtExchangePlanContent;
 import io.github.yellowhammer.edt.EdtExtensionFeatures;
 import io.github.yellowhammer.edt.EdtModel;
@@ -178,12 +179,17 @@ final class ApplyMutationCmd implements Callable<Integer> {
   private static String applyEdtMutation(CliParams p) throws IOException {
     if ("add-md-object".equals(p.op) && EdtLayout.isObjectFile(p.configurationXml)) {
       MdObjectAddType kind = MdObjectAddType.fromCliName(p.req(p.type, "type"));
+      // Контракт синонима тот же, что у выгрузки конфигуратора
+      if (kind != MdObjectAddType.CATALOG && (p.synonymEmpty || p.synonym != null)) {
+        throw new IllegalArgumentException("synonym/synonymEmpty поддерживаются только для type CATALOG");
+      }
       java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
       if (p.autoName) {
-        return EdtObjectScaffold.addWithNextAvailableName(configuration, EdtModel.bundled(), kind);
+        return EdtObjectScaffold.addWithNextAvailableName(
+          configuration, EdtModel.bundled(), kind, p.synonym, p.synonymEmpty);
       }
       String name = p.req(p.name, "name");
-      EdtObjectScaffold.add(configuration, EdtModel.bundled(), kind, name);
+      EdtObjectScaffold.add(configuration, EdtModel.bundled(), kind, name, p.synonym, p.synonymEmpty);
       return name;
     }
     if ("cf-form-item-properties-set".equals(p.op) && EdtLayout.isFormFile(p.formXml)) {
@@ -840,6 +846,15 @@ final class ApplyMutationCmd implements Callable<Integer> {
       case "init-empty-cf": {
         String cfgName = p.name == null || p.name.isEmpty() ? CfLayout.DEFAULT_CONFIGURATION_NAME : p.name;
         Path target = p.reqPath(p.targetCfRoot, "targetCfRoot");
+        if (SourceFormat.fromCliName(p.format) == SourceFormat.EDT) {
+          // У проекта EDT целевой каталог - каталог проекта, а не src/cf
+          EdtConfigurationScaffold.create(
+            target, p.projectName, cfgName, p.synonym, null, null, p.version(), EdtModel.bundled());
+          return "OK: " + target.toAbsolutePath();
+        }
+        if (p.projectName != null && !p.projectName.isBlank()) {
+          throw new IllegalArgumentException("projectName задаётся только для format edt");
+        }
         EmptyCfScaffold.writeEmptyTree(target, cfgName, p.synonym, null, null, p.version());
         return "OK: " + target.toAbsolutePath();
       }

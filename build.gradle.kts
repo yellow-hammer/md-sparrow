@@ -366,6 +366,128 @@ val prepareDesignerTypeSchemas = tasks.register("prepareDesignerTypeSchemas") {
     }
 }
 
+// Эталоны выгрузки платформы: snapshots/<формат>/… в submodule samples-1c-platform
+val snapshotsDir = layout.projectDirectory.dir("fixtures/samples-1c-platform/snapshots")
+
+/** Формат канонического набора: самый новый каталог снимков, у которого есть cf-bare-objects. */
+fun canonicalGoldenVersion(): String? =
+    snapshotsDir.asFile.listFiles { file: File -> file.isDirectory && File(file, "cf-bare-objects").isDirectory }
+        ?.map { it.name }
+        ?.filter { it.matches(Regex("[0-9]+[.][0-9]+")) }
+        ?.maxWithOrNull(compareBy({ it.substringBefore('.').toInt() }, { it.substringAfter('.').toInt() }))
+
+/**
+ * Канонический набор эталонов для scaffold: в jar один формат, остальные получаются проекцией
+ * (cf/FormatProjection). Плюс то, что проекцией не получить: разрешения мобильного приложения 2.10.
+ */
+val prepareCanonicalGolden = tasks.register("prepareCanonicalGolden") {
+    val version = canonicalGoldenVersion()
+    val target = layout.buildDirectory.dir("generated/golden")
+    inputs.dir(snapshotsDir).withPropertyName("эталоны")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        if (version == null) {
+            throw GradleException("Эталоны не найдены: $snapshotsDir. Обновите submodule samples-1c-platform.")
+        }
+        val base = snapshotsDir.dir(version).asFile
+        fun required(relative: String): File {
+            val file = File(base, relative)
+            if (!file.exists()) {
+                throw GradleException("В эталонах формата $version нет $relative: канонический набор неполон.")
+            }
+            return file
+        }
+        val cfe = required("cfe-empty")
+        val external = required("external-files/empty")
+        // Пустая управляемая форма - форма внешнего отчёта, как её записала платформа
+        val forms = "external-files/empty-full-objects/ВнешнийОтчет1/ВнешнийОтчет1/Forms"
+        val formDescriptor = required("$forms/Форма.xml")
+        val formContent = required("$forms/Форма/Ext/Form.xml")
+        File(base, "cf-bare-objects").copyRecursively(output.resolve("cf"))
+        cfe.copyRecursively(output.resolve("cfe"))
+        external.copyRecursively(output.resolve("ext"))
+        formDescriptor.copyTo(output.resolve("form/Форма.xml"))
+        formContent.copyTo(output.resolve("form/Форма/Ext/Form.xml"))
+        output.resolve("format.txt").writeText("$version\n")
+
+        // 2.10 пишет непустой список разрешений, которого в XSD не вывести: берём блок из эталона 2.10
+        val configuration210 = snapshotsDir.file("2.10/cf-bare-objects/Configuration.xml").asFile
+        val text = configuration210.readText()
+        val opening = text.indexOf("<RequiredMobileApplicationPermissions>")
+        val closing = "</RequiredMobileApplicationPermissions>"
+        val end = text.indexOf(closing)
+        if (opening < 0 || end < 0) {
+            throw GradleException("В $configuration210 нет списка RequiredMobileApplicationPermissions.")
+        }
+        val block = text.substring(text.lastIndexOf('\n', opening) + 1, end + closing.length)
+        val rules = output.resolve("rules/2.10")
+        rules.mkdirs()
+        rules.resolve("RequiredMobileApplicationPermissions.xml").writeText(block)
+        output.resolve("index.txt").writeText(resourceIndex(output))
+    }
+}
+
+/**
+ * Перечень файлов каталога для index.txt: каталог ресурсов в jar не перечислить, а scaffold
+ * берёт все файлы объекта-прототипа (описание и файлы рядом с ним). Пути относительные, через «/».
+ */
+fun resourceIndex(directory: File): String =
+    directory.walkTopDown()
+        .filter { it.isFile }
+        .map { it.relativeTo(directory).invariantSeparatorsPath }
+        .sorted()
+        .joinToString("\n", postfix = "\n")
+
+/** Перечень эталонов, записанных 1С:EDT: edt-golden/index.txt. */
+val indexEdtGolden = tasks.register("indexEdtGolden") {
+    val source = layout.projectDirectory.dir("src/main/resources/edt-golden")
+    val target = layout.buildDirectory.dir("generated/edt-golden-index")
+    inputs.dir(source).withPropertyName("эталоны EDT")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        output.resolve("index.txt").writeText(resourceIndex(source.asFile))
+    }
+}
+
+/**
+ * Эталоны дочерних узлов (реквизит, табличная часть, команда…) канонического формата: объекты-владельцы
+ * из cf-object-nodes, по файлу на вид владельца - golden/nodes/<Вид>.xml (cf/GoldenNodes).
+ */
+val prepareCanonicalNodes = tasks.register("prepareCanonicalNodes") {
+    val version = canonicalGoldenVersion()
+    val target = layout.buildDirectory.dir("generated/golden-nodes")
+    inputs.dir(snapshotsDir).withPropertyName("эталоны")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        if (version == null) {
+            throw GradleException("Эталоны не найдены: $snapshotsDir. Обновите submodule samples-1c-platform.")
+        }
+        val nodes = snapshotsDir.dir("$version/cf-object-nodes").asFile
+        if (!nodes.isDirectory) {
+            throw GradleException("В эталонах формата $version нет cf-object-nodes: канонический набор неполон.")
+        }
+        val kindOf = Regex("<MetaDataObject\\b[^>]*>\\s*<(\\w+)\\b")
+        nodes.walkTopDown().filter { it.isFile && it.name.endsWith(".xml") }.sortedBy { it.path }.forEach { file ->
+            val kind = kindOf.find(file.readText())?.groupValues?.get(1)
+                ?: throw GradleException("$file: не объект метаданных")
+            val copy = output.resolve("$kind.xml")
+            if (copy.exists()) {
+                throw GradleException("В $nodes два владельца вида $kind")
+            }
+            file.copyTo(copy)
+        }
+    }
+}
+
 tasks.named<Copy>("processResources") {
     // Метамодель EDT: edt-schemas/<файлы схем>
     from(prepareEdtSchemas) {
@@ -375,49 +497,17 @@ tasks.named<Copy>("processResources") {
     from(prepareDesignerTypeSchemas) {
         into("designer-schemas")
     }
-    // Голые объекты конфигурации: golden/<формат>/<подкаталог>/…
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/cf-bare-objects/**")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden", segs[0], *segs.drop(2).toTypedArray())
-        }
+    // Канонический набор: golden/{cf,cfe,ext,form}/…, golden/format.txt, golden/rules/…, golden/index.txt
+    from(prepareCanonicalGolden) {
+        into("golden")
     }
-    // Пустое расширение: golden-cfe/<формат>/…
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/cfe-empty/**")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden-cfe", segs[0], *segs.drop(2).toTypedArray())
-        }
+    // Перечень эталонов EDT: edt-golden/index.txt
+    from(indexEdtGolden) {
+        into("edt-golden")
     }
-    // Пустая управляемая форма платформы: golden-form/<формат>/{Форма.xml, Ext.xml}
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/external-files/empty-full-objects/ВнешнийОтчет1/ВнешнийОтчет1/Forms/Форма.xml")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden-form", segs[0], "Форма.xml")
-        }
-    }
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/external-files/empty-full-objects/ВнешнийОтчет1/ВнешнийОтчет1/Forms/Форма/Ext/Form.xml")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden-form", segs[0], "Ext.xml")
-        }
-    }
-    // Голые внешние объекты (отчёт/обработка): golden-ext/<формат>/<Имя>/<Имя>.xml
-    from("fixtures/samples-1c-platform/snapshots") {
-        include("*/external-files/empty/**")
-        includeEmptyDirs = false
-        eachFile {
-            val segs = relativePath.segments
-            relativePath = RelativePath(true, "golden-ext", segs[0], *segs.drop(3).toTypedArray())
-        }
+    // Эталоны дочерних узлов: golden/nodes/<вид владельца>.xml
+    from(prepareCanonicalNodes) {
+        into("golden/nodes")
     }
 }
 

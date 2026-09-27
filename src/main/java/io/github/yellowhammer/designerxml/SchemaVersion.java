@@ -24,6 +24,7 @@ package io.github.yellowhammer.designerxml;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,8 +33,64 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public enum SchemaVersion {
 
-  V2_10, V2_11, V2_12, V2_13, V2_14, V2_15,
-  V2_16, V2_17, V2_18, V2_19, V2_20, V2_21;
+  // Линейка платформы формата - по schemas/designer/processed-versions.json (namespace-forest):
+  // каждой линейке x.y.z соответствует ровно один формат
+  V2_10("8.3.17"), V2_11("8.3.18"), V2_12("8.3.19"), V2_13("8.3.20"), V2_14("8.3.21"), V2_15("8.3.22"),
+  V2_16("8.3.23"), V2_17("8.3.24"), V2_18("8.3.25"), V2_19("8.3.26"), V2_20("8.3.27"), V2_21("8.5.1");
+
+  private final String platformLine;
+
+  SchemaVersion(String platformLine) {
+    this.platformLine = platformLine;
+  }
+
+  /**
+   * Линейка платформы, которая пишет выгрузку этого формата.
+   *
+   * @return например {@code "8.3.27"} для {@link #V2_20} и {@code "8.5.1"} для {@link #V2_21}
+   */
+  public String platformLine() {
+    return platformLine;
+  }
+
+  /**
+   * Формат, в котором пишет выгрузку платформа этой версии: формат самой новой линейки, не новее её.
+   *
+   * <p>Так выбирается формат проекта 1С:EDT по его {@code Runtime-Version}. Платформа новее последней
+   * линейки получает самый новый известный формат, старше первой - самый старый: других моделей
+   * формата в md-sparrow нет.
+   *
+   * @param platformVersion версия платформы: {@code 8.3.27}, {@code 8.3.27.1859}, {@code 8.5.1}
+   * @return формат выгрузки
+   * @throws IllegalArgumentException если версия не разбирается
+   */
+  public static SchemaVersion ofPlatform(String platformVersion) {
+    int[] version = platformNumbers(platformVersion);
+    SchemaVersion format = values()[0];
+    for (SchemaVersion candidate : values()) {
+      if (Arrays.compare(platformNumbers(candidate.platformLine), version) <= 0) {
+        format = candidate;
+      }
+    }
+    return format;
+  }
+
+  /** Первые три числа версии платформы: номер сборки на формат не влияет. */
+  private static int[] platformNumbers(String platformVersion) {
+    String[] parts = platformVersion == null ? new String[0] : platformVersion.trim().split("\\.");
+    if (parts.length < 3) {
+      throw new IllegalArgumentException("версия платформы не разбирается: " + platformVersion);
+    }
+    int[] numbers = new int[3];
+    try {
+      for (int i = 0; i < numbers.length; i++) {
+        numbers[i] = Integer.parseInt(parts[i]);
+      }
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("версия платформы не разбирается: " + platformVersion, e);
+    }
+    return numbers;
+  }
 
   /**
    * Подкаталог с {@code *.xsd} относительно корня {@code resources/namespace-forest} (например {@code schemas/designer/2.21}).

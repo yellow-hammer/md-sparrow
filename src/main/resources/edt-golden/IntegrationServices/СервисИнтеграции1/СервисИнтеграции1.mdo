@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:IntegrationService xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="f26ece27-3b00-5d03-825a-d807517291c3">
+  <producedTypes>
+    <managerType typeId="33620188-9750-5846-875d-57ddf6561119" valueTypeId="cba47bf5-9762-5e8b-ac9d-f64b328f0f88"/>
+  </producedTypes>
+  <name>СервисИнтеграции1</name>
+</mdclass:IntegrationService>

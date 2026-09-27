@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.10">
+	<InformationRegister uuid="5dcd1e41-167f-5abd-8d2a-9d75aa345ace">
+		<InternalInfo>
+			<xr:GeneratedType name="InformationRegisterRecord.РегистрСведений1" category="Record">
+				<xr:TypeId>7243ef6a-9e4f-5142-8d5e-54e5d6fd8ffa</xr:TypeId>
+				<xr:ValueId>b3958c08-40c4-5f03-9903-5bb124098805</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterManager.РегистрСведений1" category="Manager">
+				<xr:TypeId>a7ad46f6-6104-5d58-88f3-ee120baefb42</xr:TypeId>
+				<xr:ValueId>5d192e36-cc01-5632-9f90-4e7a20dffa9c</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterSelection.РегистрСведений1" category="Selection">
+				<xr:TypeId>4088a311-1c6b-59a1-8a1a-92f9a77b8c3d</xr:TypeId>
+				<xr:ValueId>eb47fa66-7221-55e5-bfe4-c52ab9a48c58</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterList.РегистрСведений1" category="List">
+				<xr:TypeId>4f0917c5-e6f8-586d-a80e-3a9611775b80</xr:TypeId>
+				<xr:ValueId>942d87ee-e339-5822-8766-882c8db9f3c8</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterRecordSet.РегистрСведений1" category="RecordSet">
+				<xr:TypeId>c9a7cff7-e465-51ad-aacf-11227b04af1a</xr:TypeId>
+				<xr:ValueId>5022c180-7404-5015-8a89-61c8e9a6d3a6</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterRecordKey.РегистрСведений1" category="RecordKey">
+				<xr:TypeId>04241206-94c5-5bde-8629-bd2ecb5db276</xr:TypeId>
+				<xr:ValueId>8a0f6b36-f63a-5318-acc7-3391c254a811</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="InformationRegisterRecordManager.РегистрСведений1" category="RecordManager">
+				<xr:TypeId>b6f48782-74fe-5ce8-87ad-f42914c99f6d</xr:TypeId>
+				<xr:ValueId>a6fa3f99-8cb5-544c-bf8f-4fba254cd25d</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>РегистрСведений1</Name>
+		</Properties>
+		<ChildObjects/>
+	</InformationRegister>
+</MetaDataObject>

@@ -21,13 +21,22 @@
  */
 package io.github.yellowhammer.designerxml;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.github.yellowhammer.designerxml.cf.SupportedSchemaVersions;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Set;
+import java.util.TreeSet;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Регрессия на #106: метадерево падало на 2.17 («Поддерживаются только 2.20 и 2.21»). Проверяем, что
@@ -47,6 +56,60 @@ class SchemaVersionSupportTest {
     String attr = version.metadataObjectVersionAttribute();
     assertThat(SchemaVersion.byVersionAttribute(attr)).hasValue(version);
     assertThat(SupportedSchemaVersions.requireSupported(attr)).isEqualTo(version);
+  }
+
+  /** Линейка платформы формата - по таблице «версия платформы → формат» хранилища схем. */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void platformLineMatchesProcessedVersions(SchemaVersion version) throws Exception {
+    Path table = Path.of(System.getProperty("xsd.root"), "schemas", "designer", "processed-versions.json");
+    JsonObject versions = JsonParser.parseString(Files.readString(table, StandardCharsets.UTF_8)).getAsJsonObject();
+    Set<String> lines = new TreeSet<>();
+    for (String platform : versions.keySet()) {
+      if (!platform.startsWith("_")
+        && versions.get(platform).getAsString().equals(version.metadataObjectVersionAttribute())) {
+        String[] parts = platform.split("\\.");
+        lines.add(parts[0] + "." + parts[1] + "." + parts[2]);
+      }
+    }
+
+    assertThat(lines).containsExactly(version.platformLine());
+  }
+
+  /** Каждая версия платформы из таблицы хранилища схем получает свой формат, в том числе по номеру сборки. */
+  @Test
+  void formatOfPlatformMatchesProcessedVersions() throws Exception {
+    Path table = Path.of(System.getProperty("xsd.root"), "schemas", "designer", "processed-versions.json");
+    JsonObject versions = JsonParser.parseString(Files.readString(table, StandardCharsets.UTF_8)).getAsJsonObject();
+    int checked = 0;
+    for (String platform : versions.keySet()) {
+      if (platform.startsWith("_")) {
+        continue;
+      }
+      assertThat(SchemaVersion.ofPlatform(platform).metadataObjectVersionAttribute())
+        .as(platform)
+        .isEqualTo(versions.get(platform).getAsString());
+      checked++;
+    }
+    assertThat(checked).isPositive();
+  }
+
+  /** За пределами известных линеек - ближайший известный формат: самый старый или самый новый. */
+  @Test
+  void formatOfPlatformOutsideKnownLinesIsNearestKnown() {
+    SchemaVersion[] all = SchemaVersion.values();
+    SchemaVersion oldest = all[0];
+    SchemaVersion newest = all[all.length - 1];
+
+    assertThat(oldest.platformLine()).isEqualTo("8.3.17");
+    assertThat(SchemaVersion.ofPlatform("8.3.16.1876")).isEqualTo(oldest);
+    assertThat(SchemaVersion.ofPlatform("8.2.19.130")).isEqualTo(oldest);
+    assertThat(SchemaVersion.ofPlatform("8.5.99.1")).isEqualTo(newest);
+    assertThat(SchemaVersion.ofPlatform("9.0.0")).isEqualTo(newest);
+    assertThatThrownBy(() -> SchemaVersion.ofPlatform(newest.metadataObjectVersionAttribute()))
+      .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> SchemaVersion.ofPlatform("8.3.99999999999"))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

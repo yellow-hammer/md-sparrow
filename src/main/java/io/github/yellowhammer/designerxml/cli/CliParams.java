@@ -49,7 +49,12 @@ final class CliParams {
   /** Файл содержимого формы: {@code Forms/<Имя>/Ext/Form.xml}. */
   String formXml;
   String artifactsRoot;
+  /** Каталог новой конфигурации для init-empty-cf: {@code src/cf} либо каталог проекта EDT. */
   String targetCfRoot;
+  /** Формат новых исходников: {@code designer} (по умолчанию) или {@code edt}. */
+  String format;
+  /** Имя нового проекта EDT; по умолчанию имя его каталога. */
+  String projectName;
 
   /** Каталог расширения для init-empty-cfe. */
   String targetCfeRoot;

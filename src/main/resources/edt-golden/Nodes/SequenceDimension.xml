@@ -1,0 +1,13 @@
+  <dimensions uuid="7a2392c9-a5ce-3824-9d54-50e725594525">
+    <name>Измерение1</name>
+    <synonym>
+      <key>ru</key>
+      <value>Измерение1</value>
+    </synonym>
+    <type>
+      <types>String</types>
+      <stringQualifiers>
+        <length>10</length>
+      </stringQualifiers>
+    </type>
+  </dimensions>

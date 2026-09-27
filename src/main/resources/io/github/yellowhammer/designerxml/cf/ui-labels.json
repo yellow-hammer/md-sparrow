@@ -160,6 +160,22 @@
     "Subsystem": "Подсистема",
     "SubsystemRef": "Подсистема",
     "Command": "Команда",
-    "CommandRef": "Команда"
+    "CommandRef": "Команда",
+    "DocumentNumerator": "Нумератор документов",
+    "Sequence": "Последовательность",
+    "EventSubscription": "Подписка на событие",
+    "ScheduledJob": "Регламентное задание",
+    "FunctionalOption": "Функциональная опция",
+    "FunctionalOptionsParameter": "Параметр функциональных опций",
+    "DefinedType": "Определяемый тип",
+    "CommonCommand": "Общая команда",
+    "CommandGroup": "Группа команд",
+    "XDTOPackage": "XDTO-пакет",
+    "WSReference": "WS-ссылка",
+    "WebSocketClient": "WebSocket-клиент",
+    "Bot": "Бот",
+    "StyleItem": "Элемент стиля",
+    "Style": "Стиль",
+    "PaletteColor": "Цвет палитры"
   }
 }

@@ -103,6 +103,7 @@ public final class MdObjectPropertiesEdit {
     new SimpleKindDef("interface", "getInterface"),
     new SimpleKindDef("bot", "getBot"),
     new SimpleKindDef("webSocketClient", "getWebSocketClient"),
+    new SimpleKindDef("paletteColor", "getPaletteColor"),
     new SimpleKindDef("sequence", "getSequence")
   );
 
@@ -774,7 +775,7 @@ public final class MdObjectPropertiesEdit {
     "integrationService", "filterCriterion", "settingsStorage",
     "functionalOption", "functionalOptionsParameter", "definedType",
     "commandGroup", "xdtoPackage", "wsReference", "style", "styleItem",
-    "language", "interface", "bot", "webSocketClient", "sequence",
+    "language", "interface", "bot", "webSocketClient", "paletteColor", "sequence",
     "accountingRegister", "calculationRegister");
 
   /**

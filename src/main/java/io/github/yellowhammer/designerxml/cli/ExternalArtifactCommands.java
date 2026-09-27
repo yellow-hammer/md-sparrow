@@ -55,7 +55,7 @@ final class ExternalArtifactCommands {
     @Option(names = "--kind", required = true, description = "REPORT | DATA_PROCESSOR")
     String kind;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -80,7 +80,7 @@ final class ExternalArtifactCommands {
     @Parameters(index = "0", description = "Путь к XML внешнего отчёта/обработки")
     Path objectXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -108,7 +108,7 @@ final class ExternalArtifactCommands {
     @Parameters(index = "1", description = "Путь к JSON")
     Path jsonFile;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -142,7 +142,7 @@ final class ExternalArtifactCommands {
     @Option(names = "--new-name", required = true, description = "Новое имя")
     String newName;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override
@@ -190,7 +190,7 @@ final class ExternalArtifactCommands {
     @Option(names = "--new-name", required = true, description = "Имя копии")
     String newName;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "V2_20 | V2_21")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
     SchemaVersion version;
 
     @Override

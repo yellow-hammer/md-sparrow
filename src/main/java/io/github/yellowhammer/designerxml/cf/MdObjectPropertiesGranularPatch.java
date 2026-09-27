@@ -291,6 +291,7 @@ public final class MdObjectPropertiesGranularPatch {
       case "interface" -> "Interface";
       case "bot" -> "Bot";
       case "webSocketClient" -> "WebSocketClient";
+      case "paletteColor" -> "PaletteColor";
       case "sequence" -> "Sequence";
       case "accountingRegister" -> "AccountingRegister";
       case "calculationRegister" -> "CalculationRegister";

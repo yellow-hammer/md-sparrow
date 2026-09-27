@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import static io.github.yellowhammer.edt.EdtXmlText.escape;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -28,13 +30,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import javax.xml.stream.XMLStreamException;
 
+import io.github.yellowhammer.designerxml.cf.CatalogNameConstraints;
 import io.github.yellowhammer.designerxml.cf.UiLabels;
 import io.github.yellowhammer.edt.EdtObjectRegions.Region;
 
@@ -46,14 +48,18 @@ import io.github.yellowhammer.edt.EdtObjectRegions.Region;
  * копирует его целиком с новыми идентификаторами, а удаление уносит вместе с
  * ним. Ссылка на объект в составе конфигурации правится тем же точечным
  * способом, что и любое другое свойство.
+ *
+ * Каталог не вернуть, поэтому до первой записи на диск объект сверяется с
+ * тем, что о нём сказано: вид, имя, место файла и ссылка в составе. Отказ
+ * оставляет проект нетронутым.
  */
 public final class EdtObjectMutations {
 
-  /** Идентификатор объекта или узла в файле. */
-  private static final Pattern UUID_ATTRIBUTE = Pattern.compile("uuid=\"[0-9a-fA-F-]{36}\"");
+  /** Класс конфигурации в схеме: по нему ищется элемент состава. */
+  private static final String CONFIGURATION = "Configuration";
 
-  /** Идентификаторы порождаемых типов. */
-  private static final Pattern TYPE_ID = Pattern.compile("(typeId|valueTypeId)=\"[0-9a-fA-F-]{36}\"");
+  /** Идентификатор объекта или узла и идентификаторы порождаемых типов. */
+  private static final Pattern IDENTIFIER = Pattern.compile("\\b(uuid|typeId|valueTypeId)=\"([0-9a-fA-F-]{36})\"");
 
   private EdtObjectMutations() {
   }
@@ -67,6 +73,7 @@ public final class EdtObjectMutations {
    * @param oldName текущее имя
    * @param newName новое имя
    * @throws IOException если файлы не читаются или не пишутся
+   * @throws IllegalArgumentException если объект не совпадает со сведениями о нём или имя занято
    */
   public static void rename(
       Path configurationMdo,
@@ -74,23 +81,24 @@ public final class EdtObjectMutations {
       String objectType,
       String oldName,
       String newName) throws IOException {
-    requireName(newName);
-    requireObject(objectMdo, oldName);
+    requireNewName(newName);
+    Located object = locate(configurationMdo, objectMdo, objectType, oldName);
     if (oldName.equals(newName)) {
       return;
     }
 
     Path objectDir = objectMdo.getParent();
     Path targetDir = objectDir.resolveSibling(newName);
-    if (Files.exists(targetDir)) {
-      throw new IllegalArgumentException(UiLabels.alreadyExists(objectType, newName));
-    }
+    requireFree(object, targetDir, objectType, newName);
 
-    writeName(objectMdo, newName);
-    rewriteQualifiedName(objectMdo, objectType, oldName, newName);
+    // Всё новое собирается до первой записи: отказ посреди правки оставил бы
+    // проект наполовину переименованным
+    String configuration = object.replaced(reference(objectType, newName));
+    String description = renamed(Files.readString(objectMdo, StandardCharsets.UTF_8), objectType, oldName, newName);
+    Files.writeString(objectMdo, description, StandardCharsets.UTF_8);
     Files.move(objectMdo, objectDir.resolve(newName + ".mdo"));
     Files.move(objectDir, targetDir);
-    replaceReference(configurationMdo, objectType, oldName, newName);
+    Files.writeString(configurationMdo, configuration, StandardCharsets.UTF_8);
   }
 
   /**
@@ -102,6 +110,7 @@ public final class EdtObjectMutations {
    * @param sourceName имя копируемого объекта
    * @param newName имя копии
    * @throws IOException если файлы не читаются или не пишутся
+   * @throws IllegalArgumentException если объект не совпадает со сведениями о нём или имя занято
    */
   public static void duplicate(
       Path configurationMdo,
@@ -109,25 +118,24 @@ public final class EdtObjectMutations {
       String objectType,
       String sourceName,
       String newName) throws IOException {
-    requireName(newName);
-    requireObject(objectMdo, sourceName);
+    requireNewName(newName);
+    Located source = locate(configurationMdo, objectMdo, objectType, sourceName);
 
     Path objectDir = objectMdo.getParent();
     Path targetDir = objectDir.resolveSibling(newName);
-    if (Files.exists(targetDir)) {
-      throw new IllegalArgumentException(UiLabels.alreadyExists(objectType, newName));
-    }
+    requireFree(source, targetDir, objectType, newName);
 
-    copyDirectory(objectDir, targetDir);
-    Path copyMdo = targetDir.resolve(sourceName + ".mdo");
-    Files.move(copyMdo, targetDir.resolve(newName + ".mdo"));
-    Path renamed = targetDir.resolve(newName + ".mdo");
+    String configuration = source.appended(reference(objectType, newName));
     // У копии свои идентификаторы: по ним платформа отличает объекты друг от друга
-    Files.writeString(renamed, freshIdentifiers(Files.readString(renamed, StandardCharsets.UTF_8)),
-        StandardCharsets.UTF_8);
-    writeName(renamed, newName);
-    rewriteQualifiedName(renamed, objectType, sourceName, newName);
-    appendReference(configurationMdo, objectType, newName);
+    String seed = EdtObjectScaffold.seed("duplicate|" + objectType + "|" + sourceName + "|" + newName,
+        source.configuration());
+    String description = renamed(freshIdentifiers(Files.readString(objectMdo, StandardCharsets.UTF_8), seed),
+        objectType, sourceName, newName);
+    copyDirectory(objectDir, targetDir);
+    Path copyMdo = targetDir.resolve(newName + ".mdo");
+    Files.move(targetDir.resolve(sourceName + ".mdo"), copyMdo);
+    Files.writeString(copyMdo, description, StandardCharsets.UTF_8);
+    Files.writeString(configurationMdo, configuration, StandardCharsets.UTF_8);
   }
 
   /**
@@ -138,131 +146,145 @@ public final class EdtObjectMutations {
    * @param objectType вид объекта
    * @param name имя объекта
    * @throws IOException если файлы не читаются или не пишутся
+   * @throws IllegalArgumentException если объект не совпадает со сведениями о нём
    */
   public static void delete(Path configurationMdo, Path objectMdo, String objectType, String name)
       throws IOException {
-    requireObject(objectMdo, name);
+    Located object = locate(configurationMdo, objectMdo, objectType, name);
+    // Сначала состав, потом файлы: как у выгрузки
+    Files.writeString(configurationMdo, object.removed(), StandardCharsets.UTF_8);
     deleteDirectory(objectMdo.getParent());
-    removeReference(configurationMdo, objectType, name);
   }
 
   /**
-   * Ссылки вида {@code Catalog.СтароеИмя} и {@code CatalogRef.СтароеИмя}.
-   * Текст синонима не меняется: это отдельное свойство, а не путь к объекту.
+   * Объект, сверенный с диском и с составом конфигурации.
+   *
+   * @param configuration текст конфигурации
+   * @param feature элемент состава для вида объекта
+   * @param references ссылки этого вида в составе, в порядке файла
+   * @param reference ссылка на сам объект
    */
-  private static void rewriteQualifiedName(Path objectMdo, String objectType, String oldName, String newName)
+  private record Located(String configuration, String feature, List<Region> references, Region reference) {
+
+    /** Конфигурация с другой ссылкой на месте прежней. */
+    String replaced(String value) {
+      return configuration.substring(0, reference.start()) + element(value) + configuration.substring(reference.end());
+    }
+
+    /** Конфигурация без ссылки на объект: её строка уходит целиком. */
+    String removed() {
+      int start = EdtObjectRegions.lineStart(configuration, reference.start());
+      return configuration.substring(0, start) + configuration.substring(lineEnd(configuration, reference.end()));
+    }
+
+    /** Конфигурация с новой ссылкой последней среди своего вида. */
+    String appended(String value) {
+      Region last = references.get(references.size() - 1);
+      int at = lineEnd(configuration, last.end());
+      String eol = configuration.contains("\r\n") ? "\r\n" : "\n";
+      return configuration.substring(0, at) + indentOf(configuration, last.start()) + element(value) + eol
+          + configuration.substring(at);
+    }
+
+    private String element(String value) {
+      return "<" + feature + ">" + value + "</" + feature + ">";
+    }
+  }
+
+  /**
+   * Сверяет объект со сведениями о нём до любой записи на диск.
+   *
+   * Каталог объекта уносит с собой модули, формы и макеты, поэтому операция идёт
+   * только над тем объектом, о котором спрашивают: файл лежит в
+   * {@code <Имя>/<Имя>.mdo}, описывает объект этого вида и с этим именем, а
+   * ссылка на него есть в составе конфигурации.
+   */
+  private static Located locate(Path configurationMdo, Path objectMdo, String objectType, String name)
       throws IOException {
-    String xml = Files.readString(objectMdo, StandardCharsets.UTF_8);
+    if (!Files.isRegularFile(objectMdo)) {
+      throw new IllegalArgumentException("Файл объекта не найден: " + objectMdo);
+    }
+    if (name == null || name.isBlank()) {
+      throw new IllegalArgumentException("Не задано имя объекта.");
+    }
+    if (objectType == null || objectType.isBlank()) {
+      throw new IllegalArgumentException("Не задан вид объекта.");
+    }
+    Path directory = objectMdo.getParent();
+    if (directory == null || !directory.getFileName().toString().equals(name)
+        || !objectMdo.getFileName().toString().equals(name + ".mdo")) {
+      throw new IllegalArgumentException("Описание объекта " + name + " лежит в " + name + "/" + name
+          + ".mdo, а не в " + objectMdo);
+    }
+    EdtObjectReader.EdtNode object = EdtObjectReader.read(objectMdo);
+    if (!object.kind().equals(objectType) || !object.name().equals(name)) {
+      throw new IllegalArgumentException("Файл описывает объект " + object.kind() + "." + object.name()
+          + ", а не " + objectType + "." + name + ": " + objectMdo);
+    }
+
+    String xml = Files.readString(configurationMdo, StandardCharsets.UTF_8);
+    try {
+      String feature = featureOf(objectType);
+      List<Region> references = EdtObjectRegions.properties(xml, feature);
+      Region reference = referenceRegion(xml, references, objectType, name);
+      if (reference == null) {
+        throw new IllegalArgumentException("В составе конфигурации нет объекта: " + objectType + "." + name);
+      }
+      return new Located(xml, feature, references, reference);
+    } catch (XMLStreamException error) {
+      throw new IOException("Не удалось разобрать состав конфигурации: " + configurationMdo, error);
+    }
+  }
+
+  /** Новое имя не занято ни каталогом, ни ссылкой в составе. */
+  private static void requireFree(Located object, Path targetDir, String objectType, String newName) {
+    if (Files.exists(targetDir)
+        || referenceRegion(object.configuration(), object.references(), objectType, newName) != null) {
+      throw new IllegalArgumentException(UiLabels.alreadyExists(objectType, newName));
+    }
+  }
+
+  /**
+   * Описание объекта под новым именем: его имя и ссылки вида
+   * {@code Catalog.СтароеИмя} и {@code CatalogRef.СтароеИмя}. Текст синонима не
+   * меняется: это отдельное свойство, а не путь к объекту.
+   */
+  private static String renamed(String xml, String objectType, String oldName, String newName) throws IOException {
+    Region region;
+    try {
+      region = EdtObjectRegions.property(xml, "name");
+    } catch (XMLStreamException error) {
+      throw new IOException("Не удалось разобрать описание объекта " + oldName, error);
+    }
+    if (!region.found()) {
+      throw new IllegalArgumentException("В описании объекта нет имени: " + oldName);
+    }
+    String named = xml.substring(0, region.start()) + "<name>" + escape(newName) + "</name>"
+        + xml.substring(region.end());
     Pattern token = Pattern.compile("(?<![\\p{L}\\p{N}_])(" + Pattern.quote(objectType) + "[\\p{L}\\p{N}]*\\.)"
         + Pattern.quote(oldName) + "(?![\\p{L}\\p{N}_])");
-    String updated = token.matcher(xml).replaceAll(match -> match.group(1) + newName);
-    if (!updated.equals(xml)) {
-      Files.writeString(objectMdo, updated, StandardCharsets.UTF_8);
-    }
+    return token.matcher(named).replaceAll(match -> match.group(1) + newName);
   }
 
-  /** Имя объекта в его описании. */
-  private static void writeName(Path objectMdo, String name) throws IOException {
-    String xml = Files.readString(objectMdo, StandardCharsets.UTF_8);
-    try {
-      Region region = EdtObjectRegions.property(xml, "name");
-      if (!region.found()) {
-        throw new IllegalArgumentException("В описании объекта нет имени: " + objectMdo);
-      }
-      Files.writeString(objectMdo,
-          xml.substring(0, region.start()) + "<name>" + escape(name) + "</name>" + xml.substring(region.end()),
-          StandardCharsets.UTF_8);
-    } catch (XMLStreamException error) {
-      throw new IOException("Не удалось разобрать описание объекта: " + objectMdo, error);
-    }
-  }
-
-  /** Новые идентификаторы объекта и его узлов: копия не должна повторять исходник. */
-  private static String freshIdentifiers(String xml) {
-    String withUuids = replaceAll(UUID_ATTRIBUTE.matcher(xml), () -> "uuid=\"" + UUID.randomUUID() + "\"");
-    Matcher types = TYPE_ID.matcher(withUuids);
+  /**
+   * Новые идентификаторы объекта и его узлов: копия не должна повторять исходник.
+   *
+   * Меняются только идентификаторы самой копии, а не ссылки на другие объекты;
+   * новый выводится из зерна и старого, поэтому повтор той же копии даёт те же.
+   */
+  private static String freshIdentifiers(String xml, String seed) {
+    Matcher identifiers = IDENTIFIER.matcher(xml);
     StringBuilder out = new StringBuilder();
-    while (types.find()) {
-      types.appendReplacement(out, Matcher.quoteReplacement(types.group(1) + "=\"" + UUID.randomUUID() + "\""));
+    while (identifiers.find()) {
+      identifiers.appendReplacement(out, Matcher.quoteReplacement(identifiers.group(1) + "=\""
+          + EdtObjectScaffold.derivedUuid(seed, identifiers.group(2)) + "\""));
     }
-    types.appendTail(out);
+    identifiers.appendTail(out);
     return out.toString();
-  }
-
-  private static String replaceAll(Matcher matcher, java.util.function.Supplier<String> value) {
-    StringBuilder out = new StringBuilder();
-    while (matcher.find()) {
-      matcher.appendReplacement(out, Matcher.quoteReplacement(value.get()));
-    }
-    matcher.appendTail(out);
-    return out.toString();
-  }
-
-  /** Ссылка на объект в составе конфигурации. */
-  private static void replaceReference(Path configurationMdo, String objectType, String oldName, String newName)
-      throws IOException {
-    editConfiguration(configurationMdo, objectType, oldName, reference(objectType, newName), false);
-  }
-
-  private static void removeReference(Path configurationMdo, String objectType, String name) throws IOException {
-    editConfiguration(configurationMdo, objectType, name, null, false);
-  }
-
-  private static void appendReference(Path configurationMdo, String objectType, String name) throws IOException {
-    editConfiguration(configurationMdo, objectType, null, reference(objectType, name), true);
   }
 
   private static String reference(String objectType, String name) {
     return objectType + "." + escape(name);
-  }
-
-  /**
-   * Правит состав конфигурации.
-   *
-   * @param anchorName имя объекта, чью ссылку правим; {@code null} при добавлении
-   * @param value новое значение ссылки; {@code null} при удалении
-   * @param append добавить ссылку последней среди своего вида
-   */
-  private static void editConfiguration(
-      Path configurationMdo,
-      String objectType,
-      String anchorName,
-      String value,
-      boolean append) throws IOException {
-    String xml = Files.readString(configurationMdo, StandardCharsets.UTF_8);
-    try {
-      String feature = featureOf(xml, objectType);
-      List<Region> regions = EdtObjectRegions.properties(xml, feature);
-      String eol = xml.contains("\r\n") ? "\r\n" : "\n";
-
-      if (append) {
-        int at = regions.isEmpty()
-            ? EdtObjectRegions.lineStart(xml, xml.lastIndexOf("</"))
-            : lineEnd(xml, regions.get(regions.size() - 1).end());
-        String indent = regions.isEmpty() ? "  " : indentOf(xml, regions.get(regions.size() - 1).start());
-        String element = indent + "<" + feature + ">" + value + "</" + feature + ">" + eol;
-        Files.writeString(configurationMdo, xml.substring(0, at) + element + xml.substring(at),
-            StandardCharsets.UTF_8);
-        return;
-      }
-
-      Region target = referenceRegion(xml, regions, objectType, anchorName);
-      if (target == null) {
-        throw new IllegalArgumentException("В составе конфигурации нет объекта: " + anchorName);
-      }
-      if (value == null) {
-        int start = EdtObjectRegions.lineStart(xml, target.start());
-        int end = lineEnd(xml, target.end());
-        Files.writeString(configurationMdo, xml.substring(0, start) + xml.substring(end), StandardCharsets.UTF_8);
-        return;
-      }
-      Files.writeString(configurationMdo,
-          xml.substring(0, target.start()) + "<" + feature + ">" + value + "</" + feature + ">"
-              + xml.substring(target.end()),
-          StandardCharsets.UTF_8);
-    } catch (XMLStreamException error) {
-      throw new IOException("Не удалось разобрать состав конфигурации: " + configurationMdo, error);
-    }
   }
 
   /** Границы ссылки на объект среди одноимённых элементов состава. */
@@ -279,20 +301,19 @@ public final class EdtObjectMutations {
     return null;
   }
 
-  /** Имя элемента состава для вида объекта: его подсказывает сам файл конфигурации. */
-  private static String featureOf(String xml, String objectType) throws XMLStreamException {
-    for (String feature : EdtObjectRegions.propertyNames(xml)) {
-      List<Region> regions = EdtObjectRegions.properties(xml, feature);
-      for (Region region : regions) {
-        String element = xml.substring(region.start(), region.end());
-        int open = element.indexOf('>');
-        int close = element.lastIndexOf("</");
-        if (open >= 0 && close > open && element.substring(open + 1, close).trim().startsWith(objectType + ".")) {
-          return feature;
-        }
+  /**
+   * Элемент состава для вида объекта по схеме.
+   *
+   * Ссылками записаны и свойства конфигурации: роли по умолчанию идут в файле
+   * раньше состава, и первый элемент со ссылкой нужного вида был бы не тем.
+   */
+  private static String featureOf(String objectType) throws IOException {
+    for (EdtModel.Composition item : EdtModel.bundled().composition(CONFIGURATION)) {
+      if (!item.inline() && item.objectType().equals(objectType)) {
+        return item.feature();
       }
     }
-    throw new IllegalArgumentException("В конфигурации нет объектов вида " + objectType);
+    throw new IllegalArgumentException("Схема конфигурации не знает вид объекта " + objectType);
   }
 
   private static void copyDirectory(Path source, Path target) throws IOException {
@@ -319,19 +340,12 @@ public final class EdtObjectMutations {
     }
   }
 
-  private static void requireObject(Path objectMdo, String name) {
-    if (!Files.isRegularFile(objectMdo)) {
-      throw new IllegalArgumentException("Файл объекта не найден: " + objectMdo);
-    }
-    if (name == null || name.isBlank()) {
-      throw new IllegalArgumentException("Не задано имя объекта.");
-    }
-  }
-
-  private static void requireName(String name) {
+  /** Новое имя - имя каталога объекта, поэтому оно проверяется как идентификатор. */
+  private static void requireNewName(String name) {
     if (name == null || name.isBlank()) {
       throw new IllegalArgumentException("Введите имя объекта.");
     }
+    CatalogNameConstraints.check(name);
   }
 
   private static int lineEnd(String xml, int end) {
@@ -346,9 +360,5 @@ public final class EdtObjectMutations {
       end++;
     }
     return xml.substring(line, end);
-  }
-
-  private static String escape(String value) {
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }

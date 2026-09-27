@@ -84,6 +84,7 @@ public final class MdObjectStructureRead {
     new KindDef("interface", "getInterface"),
     new KindDef("wsReference", "getWSReference"),
     new KindDef("webSocketClient", "getWebSocketClient"),
+    new KindDef("paletteColor", "getPaletteColor"),
     new KindDef("integrationService", "getIntegrationService"),
     new KindDef("bot", "getBot"),
     new KindDef("styleItem", "getStyleItem"),

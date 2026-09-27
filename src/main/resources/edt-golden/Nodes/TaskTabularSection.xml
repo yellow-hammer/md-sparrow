@@ -1,0 +1,12 @@
+  <tabularSections uuid="5ab4cef4-a783-3d16-b229-02d7a1ab379a">
+    <producedTypes>
+      <objectType typeId="631d8726-9992-3802-86be-b9d7977bcd44" valueTypeId="99711e6a-b8bf-3191-a993-cad4d19ed99b"/>
+      <rowType typeId="8149391e-1ff4-3b39-8e6b-0241178b2f05" valueTypeId="f6ea45c7-a7f9-3496-b25b-eab144cc4d19"/>
+    </producedTypes>
+    <name>ТабличнаяЧасть1</name>
+    <synonym>
+      <key>ru</key>
+      <value>ТабличнаяЧасть1</value>
+    </synonym>
+    <lineNumberLength>9</lineNumberLength>
+  </tabularSections>

@@ -181,41 +181,16 @@ public final class CfeBorrow {
     return out.toString();
   }
 
-  /** Запись в состав расширения: после последнего тега того же вида либо перед закрытием. */
+  /**
+   * Запись в состав расширения там же, где её пишет платформа: в блоке своего вида в порядке видов
+   * ({@link ConfigurationChildObjectAppender}), как у своего объекта расширения.
+   */
   private static String insertChildEntry(String configurationXml, String containerLocal, String name) {
-    String eol = configurationXml.contains("\r\n") ? "\r\n" : "\n";
     String entry = "<" + containerLocal + ">" + name + "</" + containerLocal + ">";
     if (configurationXml.contains(entry)) {
       throw new IllegalArgumentException("Объект уже в составе расширения: " + name);
     }
-    String closing = "</" + containerLocal + ">";
-    int last = configurationXml.lastIndexOf(closing + eol.charAt(0));
-    int childObjectsStart = configurationXml.indexOf("<ChildObjects>");
-    if (childObjectsStart < 0) {
-      int selfClosed = configurationXml.indexOf("<ChildObjects/>");
-      if (selfClosed < 0) {
-        throw new IllegalArgumentException("В Configuration.xml расширения нет узла ChildObjects.");
-      }
-      int lineStart = configurationXml.lastIndexOf('\n', selfClosed);
-      String indent = configurationXml.substring(lineStart + 1, selfClosed);
-      return configurationXml.substring(0, selfClosed)
-        + "<ChildObjects>" + eol
-        + indent + '\t' + entry + eol
-        + indent + "</ChildObjects>"
-        + configurationXml.substring(selfClosed + "<ChildObjects/>".length());
-    }
-    if (last > childObjectsStart) {
-      int lineEnd = configurationXml.indexOf('\n', last);
-      int lineStart = configurationXml.lastIndexOf('\n', last);
-      String indent = configurationXml.substring(lineStart + 1, configurationXml.indexOf('<', lineStart));
-      return configurationXml.substring(0, lineEnd + 1) + indent + entry + eol
-        + configurationXml.substring(lineEnd + 1);
-    }
-    int lineEnd = configurationXml.indexOf('\n', childObjectsStart);
-    int lineStart = configurationXml.lastIndexOf('\n', childObjectsStart);
-    String indent = configurationXml.substring(lineStart + 1, childObjectsStart);
-    return configurationXml.substring(0, lineEnd + 1) + indent + '\t' + entry + eol
-      + configurationXml.substring(lineEnd + 1);
+    return ConfigurationChildObjectAppender.appended(configurationXml, containerLocal, name);
   }
 
   private static String seededUuid(String seed) {

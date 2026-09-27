@@ -47,44 +47,46 @@ final class ConfigurationChildObjectAppender {
   private static final Pattern OPENING_CHILD_TAG = Pattern.compile(
     "^\\s*<(?:[\\w.-]+:)?([A-Za-z][A-Za-z0-9]*)>");
 
+  private static final String CHILD_OBJECTS_OPEN = "<ChildObjects>";
+
+  private static final String CHILD_OBJECTS_CLOSE = "</ChildObjects>";
+
+  private static final String CHILD_OBJECTS_EMPTY = "<ChildObjects/>";
+
   static void append(Path configurationXml, String xmlTag, String objectName) throws IOException {
+    String content = new String(Files.readAllBytes(configurationXml), StandardCharsets.UTF_8);
+    replace(configurationXml, appended(content, xmlTag, objectName));
+    // Состав изменился - служебный файл версий объектов не должен от него отставать.
+    ConfigDumpInfoSync.sync(configurationXml.getParent());
+  }
+
+  /**
+   * Текст {@code Configuration.xml} со строкой нового объекта в составе. Файл не меняется: все
+   * отказы (нет состава, объект уже в нём) случаются до записи.
+   *
+   * @param content текст {@code Configuration.xml}
+   * @return новый текст
+   */
+  static String appended(String content, String xmlTag, String objectName) {
     Objects.requireNonNull(xmlTag, "xmlTag");
     if (xmlTag.isEmpty()) {
       throw new IllegalArgumentException("xmlTag must not be empty");
     }
-    byte[] raw = Files.readAllBytes(configurationXml);
-    String content = new String(raw, StandardCharsets.UTF_8);
-
     int cfgClose = content.lastIndexOf("</Configuration>");
     if (cfgClose < 0) {
       throw new IllegalArgumentException("Configuration.xml: not found </Configuration>");
     }
-    int coClose = content.lastIndexOf("</ChildObjects>", cfgClose);
-    if (coClose < 0) {
-      throw new IllegalArgumentException("Configuration.xml: not found </ChildObjects> before </Configuration>");
-    }
-    int childOpen = findMatchingChildObjectsOpen(content, coClose);
-    if (childOpen < 0) {
-      throw new IllegalArgumentException("Configuration.xml: not found <ChildObjects> for closing tag");
-    }
-    String childRegion = content.substring(childOpen, coClose);
-    if (childRegionContainsTagEntry(childRegion, xmlTag, objectName)) {
-      throw new IllegalArgumentException(xmlTag + " already in Configuration: " + objectName);
-    }
+    int coClose = content.lastIndexOf(CHILD_OBJECTS_CLOSE, cfgClose);
+    return coClose < 0
+      ? intoEmptyChildObjects(content, cfgClose, xmlTag, objectName)
+      : intoChildObjects(content, cfgClose, coClose, xmlTag, objectName);
+  }
 
-    String gap = content.substring(coClose + "</ChildObjects>".length(), cfgClose);
-    if (!gap.matches("\\R\\s*")) {
-      throw new IllegalArgumentException("Configuration.xml: unexpected content before </Configuration>");
-    }
-
-    Pattern linePattern = linePatternForTag(xmlTag);
-    int insertAt = findInsertIndex(content, childOpen, coClose, xmlTag, linePattern);
-    String indentPrefix = detectLineIndent(childRegion, linePattern);
-    String newline = content.contains("\r\n") ? "\r\n" : "\n";
-    String newLine =
-      indentPrefix + "<" + xmlTag + ">" + escapeXmlText(objectName) + "</" + xmlTag + ">" + newline;
-    String newContent = content.substring(0, insertAt) + newLine + content.substring(insertAt);
-
+  /**
+   * Заменяет {@code Configuration.xml} новым текстом целиком, через временный файл рядом: файл не
+   * остаётся записанным наполовину. {@code ConfigDumpInfo.xml} не сверяется.
+   */
+  static void replace(Path configurationXml, String newContent) throws IOException {
     Path parent = configurationXml.getParent();
     if (parent == null) {
       throw new IllegalArgumentException("configuration XML has no parent directory");
@@ -104,14 +106,70 @@ final class ConfigurationChildObjectAppender {
         /* */
       }
     }
-    // Состав изменился - служебный файл версий объектов не должен от него отставать.
-    ConfigDumpInfoSync.sync(parent);
   }
 
+  private static String intoChildObjects(
+    String content, int cfgClose, int coClose, String xmlTag, String objectName) {
+    int childOpen = findMatchingChildObjectsOpen(content, coClose);
+    if (childOpen < 0) {
+      throw new IllegalArgumentException("Configuration.xml: not found <ChildObjects> for closing tag");
+    }
+    String childRegion = content.substring(childOpen, coClose);
+    if (childRegionContainsTagEntry(childRegion, xmlTag, objectName)) {
+      throw new IllegalArgumentException(xmlTag + " already in Configuration: " + objectName);
+    }
+    requireNothingBeforeConfigurationClose(content, coClose + CHILD_OBJECTS_CLOSE.length(), cfgClose);
+
+    Pattern linePattern = linePatternForTag(xmlTag);
+    int insertAt = findInsertIndex(content, childOpen, coClose, xmlTag, linePattern);
+    String indentPrefix = detectLineIndent(childRegion, linePattern);
+    String newLine = indentPrefix + entry(xmlTag, objectName) + newline(content);
+    return content.substring(0, insertAt) + newLine + content.substring(insertAt);
+  }
+
+  /**
+   * Пустой состав платформа пишет самозакрытым тегом: так выглядит расширение в режиме
+   * совместимости 8.3.13 и ниже, пока в нём нет объектов. Тег раскрывается, а строка встаёт на
+   * уровень глубже него, как её пишет платформа.
+   */
+  private static String intoEmptyChildObjects(String content, int cfgClose, String xmlTag, String objectName) {
+    int empty = content.lastIndexOf(CHILD_OBJECTS_EMPTY, cfgClose);
+    if (empty < 0) {
+      throw new IllegalArgumentException("Configuration.xml: not found <ChildObjects> before </Configuration>");
+    }
+    int emptyEnd = empty + CHILD_OBJECTS_EMPTY.length();
+    requireNothingBeforeConfigurationClose(content, emptyEnd, cfgClose);
+    String newline = newline(content);
+    String indent = XmlLines.indentAt(content, empty);
+    return content.substring(0, empty)
+      + CHILD_OBJECTS_OPEN + newline
+      + indent + '\t' + entry(xmlTag, objectName) + newline
+      + indent + CHILD_OBJECTS_CLOSE
+      + content.substring(emptyEnd);
+  }
+
+  private static void requireNothingBeforeConfigurationClose(String content, int childObjectsEnd, int cfgClose) {
+    if (!content.substring(childObjectsEnd, cfgClose).matches("\\R\\s*")) {
+      throw new IllegalArgumentException("Configuration.xml: unexpected content before </Configuration>");
+    }
+  }
+
+  private static String entry(String xmlTag, String objectName) {
+    return "<" + xmlTag + ">" + escapeXmlText(objectName) + "</" + xmlTag + ">";
+  }
+
+  private static String newline(String content) {
+    return content.contains("\r\n") ? "\r\n" : "\n";
+  }
+
+  /**
+   * Строка состава с тегом {@code xmlTag}; группа 1 - её отступ. Отступ - только пробелы и табуляция:
+   * с переводами строк он захватил бы и пустую строку перед строкой, и новая строка пришла бы с ней.
+   */
   private static Pattern linePatternForTag(String xmlTag) {
     String q = Pattern.quote(xmlTag);
     return Pattern.compile(
-      "(?m)^(\\s*)<(?:[\\w.-]+:)?" + q + ">\\s*([^<]*)\\s*</(?:[\\w.-]+:)?" + q + ">\\h*\\R?");
+      "(?m)^(\\h*)<(?:[\\w.-]+:)?" + q + ">\\s*([^<]*)\\s*</(?:[\\w.-]+:)?" + q + ">\\h*\\R?");
   }
 
   private record TagLine(int lineStart, int lineEnd) {
@@ -199,7 +257,7 @@ final class ConfigurationChildObjectAppender {
     if (indent != null) {
       return indent;
     }
-    Pattern langIndent = Pattern.compile("(?m)^(\\s*)<(?:[\\w.-]+:)?Language>");
+    Pattern langIndent = Pattern.compile("(?m)^(\\h*)<(?:[\\w.-]+:)?Language>");
     Matcher ml = langIndent.matcher(childRegion);
     while (ml.find()) {
       indent = ml.group(1);
@@ -207,10 +265,12 @@ final class ConfigurationChildObjectAppender {
     if (indent != null) {
       return indent;
     }
+    // Ни строк этого вида, ни языка (состав расширения): отступ первой строки состава. Хвост
+    // начинается переводом строки за <ChildObjects>, и он в отступ не входит
     int afterOpen = childRegion.indexOf('>');
     if (afterOpen >= 0) {
       String tail = childRegion.substring(afterOpen + 1);
-      Matcher firstEl = Pattern.compile("(?m)^(\\s*)<(?:[\\w.-]+:)?[A-Za-z]").matcher(tail);
+      Matcher firstEl = Pattern.compile("(?m)^(\\h*)<(?:[\\w.-]+:)?[A-Za-z]").matcher(tail);
       if (firstEl.find()) {
         return firstEl.group(1);
       }

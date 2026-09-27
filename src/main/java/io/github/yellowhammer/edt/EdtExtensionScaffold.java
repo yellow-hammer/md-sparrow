@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.edt;
 
+import static io.github.yellowhammer.edt.EdtXmlText.escape;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -100,6 +102,11 @@ public final class EdtExtensionScaffold {
     String language = ConfigurationLanguage.codeOf(baseConfigurationMdo);
     String compatibility = compatibilityMode(baseConfigurationMdo);
     String runtime = runtimeVersion(baseProject);
+    String base = Files.readString(baseConfigurationMdo, StandardCharsets.UTF_8);
+    String seed = EdtObjectScaffold.seed("extension|" + name, base);
+    // Переводы строк - как у расширяемого проекта: расширение лежит рядом с ним,
+    // и заимствованные объекты приходят из него
+    String eol = base.contains("\r\n") ? "\r\n" : "\n";
 
     for (String file : FILES) {
       String text = EdtObjectScaffold.golden(GOLDEN + file);
@@ -110,10 +117,10 @@ public final class EdtExtensionScaffold {
       } else if (file.endsWith("Configuration.mdo")) {
         text = configuration(text, name, label, namePrefix, purpose, compatibility, language, model);
       }
-      text = EdtObjectScaffold.freshUuids(text);
+      text = EdtObjectScaffold.freshUuids(text, seed);
       Path target = targetProjectDir.resolve(file);
       Files.createDirectories(target.getParent());
-      Files.writeString(target, text, StandardCharsets.UTF_8);
+      Files.writeString(target, text.replace("\r\n", "\n").replace("\n", eol), StandardCharsets.UTF_8);
     }
   }
 
@@ -184,9 +191,5 @@ public final class EdtExtensionScaffold {
       }
     }
     return projectDir.getFileName().toString();
-  }
-
-  private static String escape(String value) {
-    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }
