@@ -10,7 +10,8 @@
   external   внешние отчёт и обработка с формами: config import --out, config export --file (ibcmd 8.3.23+)
   all-kinds  объекты всех видов формата с дочерними узлами: язык обычным config import, остальное
              config import files --no-check (ibcmd 8.3.20+: голые регистры и планы проверку не проходят)
-  extension  расширение к конфигурации сценария forms: свой справочник и заимствованный
+  extension  расширение к своей конфигурации: свой справочник и заимствованный объект каждого вида,
+             который голым проходит config import с проверкой
 
 В каждом сценарии каждый файл, записанный md-sparrow, сверяется с выгрузкой платформы байт в байт;
 файл, который платформа выгрузила сверх записанного, тоже считается различием (кроме ConfigDumpInfo.xml).
@@ -62,6 +63,24 @@ ALL_KINDS = (
     'SETTINGS_STORAGE FUNCTIONAL_OPTION FUNCTIONAL_OPTIONS_PARAMETER DEFINED_TYPE BOT PALETTE_COLOR COMMON_COMMAND '
     'COMMAND_GROUP COMMON_FORM SEQUENCE DOCUMENT_JOURNAL INFORMATION_REGISTER ACCUMULATION_REGISTER '
     'ACCOUNTING_REGISTER CALCULATION_REGISTER BUSINESS_PROCESS INTEGRATION_SERVICE').split()
+
+# Виды основной конфигурации сценария extension: голыми они проходят config import с проверкой. Веб- и
+# HTTP-сервисы, подписки на события, регламентные задания, функциональные опции и их параметры, общие
+# команды, последовательности, журналы, регистры и бизнес-процессы без содержимого её не проходят
+BORROW_KINDS = (
+    'CATALOG DOCUMENT SUBSYSTEM COMMON_FORM ENUM CONSTANT REPORT DATA_PROCESSOR TASK CHART_OF_ACCOUNTS '
+    'CHART_OF_CHARACTERISTIC_TYPES CHART_OF_CALCULATION_TYPES EXCHANGE_PLAN COMMON_MODULE SESSION_PARAMETER '
+    'COMMON_ATTRIBUTE COMMON_PICTURE DOCUMENT_NUMERATOR EXTERNAL_DATA_SOURCE ROLE STYLE_ITEM STYLE COMMON_TEMPLATE '
+    'FILTER_CRITERION XDTO_PACKAGE WS_REFERENCE SETTINGS_STORAGE DEFINED_TYPE BOT COMMAND_GROUP '
+    'INTEGRATION_SERVICE').split()
+
+# Свойства, которые заимствованный объект берёт у оригинала: в основной конфигурации сценария extension
+# они меняются в файле, чтобы отличаться от того, что md-sparrow пишет у нового объекта
+ORIGINAL_VALUES = (
+    ('CommonTemplates', b'<TemplateType>SpreadsheetDocument</TemplateType>', b'<TemplateType>TextDocument</TemplateType>'),
+    ('CommonPictures', b'<AvailabilityForAppearance>false</AvailabilityForAppearance>',
+     b'<AvailabilityForAppearance>true</AvailabilityForAppearance>'),
+)
 
 # Дочерние узлы сценария all-kinds: вид владельца, каталог, имя владельца, операции
 NODES = (
@@ -242,13 +261,12 @@ class Roundtrip:
         self.create('forms')
         if not self.ib_ok('forms', ['config', 'import'], [str(cf)], 'config import'):
             self.record('forms', 'rejected')
-            return False
+            return
         out = self.work / 'forms-out'
         if not self.ib_ok('forms', ['config', 'export'], [str(out)], 'config export'):
             raise Failure('выгрузка конфигурации forms')
         same, diffs = self.compare('forms', cf, out)
         self.record('forms', 'ok' if not diffs else 'diff', same, diffs)
-        return True
 
     def external(self):
         log('--- external: внешние отчёт и обработка с формами')
@@ -330,20 +348,36 @@ class Roundtrip:
         same, diffs = self.compare('all-kinds', cf, out)
         self.record('all-kinds', 'ok' if not diffs else 'diff', same, diffs)
 
-    def extension(self, forms_loaded):
-        log('--- extension: расширение со своим и заимствованным справочником')
-        if not forms_loaded:
-            log('  пропущено: основная конфигурация сценария forms не загрузилась')
-            self.record('extension', 'skipped', note='нет основной конфигурации')
+    def extension(self):
+        log('--- extension: расширение со своим справочником и заимствованными объектами всех видов своей конфигурации')
+        main = self.work / 'cfe-main'
+        self.ms({'op': 'init-empty-cf', 'targetCfRoot': str(main)})
+        conf = str(main / 'Configuration.xml')
+        absent = []
+        for kind in BORROW_KINDS:
+            try:
+                self.ms({'op': 'add-md-object', 'configurationXml': conf, 'type': kind, 'autoName': True})
+            except Failure as e:
+                if 'появился в формате' in str(e):
+                    absent.append(kind)
+                    continue
+                raise
+        log('  видов нет в формате:', ', '.join(absent) or 'нет')
+        for folder, default, changed in ORIGINAL_VALUES:
+            for obj in (main / folder).glob('*.xml'):
+                obj.write_bytes(obj.read_bytes().replace(default, changed))
+        self.create('cfe-main')
+        if not self.ib_ok('cfe-main', ['config', 'import'], [str(main)], 'config import основной конфигурации'):
+            self.record('extension', 'rejected', note='основная конфигурация')
             return
-        main = self.work / 'forms'
         cfe = self.work / 'cfe'
         self.ms({'op': 'init-empty-cfe', 'targetCfeRoot': str(cfe), 'name': 'Расширение', 'namePrefix': 'расш_',
-                 'mainConfigurationXml': str(main / 'Configuration.xml')})
-        conf = str(cfe / 'Configuration.xml')
-        self.ms({'op': 'add-md-object', 'configurationXml': conf, 'type': 'CATALOG', 'name': 'расш_Справочник'})
-        self.ms({'op': 'cfe-borrow-object', 'objectXml': str(main / 'Catalogs' / 'Спр.xml'), 'configurationXml': conf})
-        rc, out = self.ib('forms', ['config', 'import'], ['--extension=Расширение', str(cfe)])
+                 'mainConfigurationXml': conf})
+        cfe_conf = str(cfe / 'Configuration.xml')
+        self.ms({'op': 'add-md-object', 'configurationXml': cfe_conf, 'type': 'CATALOG', 'name': 'расш_Справочник'})
+        for obj in sorted(p for p in main.glob('*/*.xml')):
+            self.ms({'op': 'cfe-borrow-object', 'objectXml': str(obj), 'configurationXml': cfe_conf})
+        rc, out = self.ib('cfe-main', ['config', 'import'], ['--extension=Расширение', str(cfe)])
         if rc != 0 and self.has_extension_create:
             # ibcmd 8.3.20 не загружает этим путём даже выгрузку расширения самой платформы
             # («Роль.ОсновнаяРоль - Дублирование имени»). Ограничением версии отказ считается, только если
@@ -363,7 +397,7 @@ class Roundtrip:
             self.record('extension', 'rejected')
             return
         exported = self.work / 'cfe-out'
-        if not self.ib_ok('forms', ['config', 'export'], ['--extension=Расширение', str(exported)],
+        if not self.ib_ok('cfe-main', ['config', 'export'], ['--extension=Расширение', str(exported)],
                           'export --extension'):
             raise Failure('выгрузка расширения')
         same, diffs = self.compare('extension', cfe, exported)
@@ -448,8 +482,8 @@ def main():
     code = 0
     try:
         rt.detect_format()
-        forms_loaded = rt.forms()
-        rt.extension(forms_loaded)
+        rt.forms()
+        rt.extension()
         rt.external()
         rt.all_kinds()
     except Failure as e:

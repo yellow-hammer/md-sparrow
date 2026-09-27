@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -39,9 +41,12 @@ import java.util.regex.Pattern;
  *
  * <p>Платформа связывает заимствованный объект с оригиналом по имени, а все
  * идентификаторы у него свои: шапка и список порождаемых типов берутся из
- * оригинала, идентификаторы заменяются детерминированными новыми, свойства
- * сводятся к принадлежности, имени и комментарию. Пустой {@code ChildObjects}
- * пишется только у видов, в схеме которых он есть.
+ * оригинала, идентификаторы заменяются детерминированными новыми, к типам
+ * добавляются состояния, которые платформа ставит при заимствовании, а без них
+ * {@code InternalInfo} пишется пустым. Свойства сводятся к принадлежности, имени,
+ * комментарию и свойствам, которые платформа пишет у заимствованного объекта
+ * этого вида в этом формате ({@link #KIND_PROPERTIES}). Пустой
+ * {@code ChildObjects} пишется только у видов, в схеме которых он есть.
  */
 public final class CfeBorrow {
 
@@ -87,6 +92,44 @@ public final class CfeBorrow {
     "Task",
     "URLTemplate",
     "WebService");
+
+  /**
+   * Свойства, которые платформа пишет у заимствованного объекта вида сверх принадлежности, имени и
+   * комментария, в конце {@code Properties}: движения документа и состав подсистемы - пустыми, в них
+   * попадает только добавленное расширением; тип определяемого типа - пустым, пока его не контролируют
+   * и не дополняют; остальное - как у оригинала. Набор зависит от формата: так выгружает расширение
+   * ibcmd всех линеек (tools/golden-snapshots/roundtrip.py; 2.13 выведен из 2.12 и 2.14, ibcmd 8.3.20
+   * расширение с ролью не загружает).
+   */
+  private static final List<KindProperty> KIND_PROPERTIES = List.of(
+    new KindProperty("Document", "RegisterRecords", false, SchemaVersion.V2_10, SchemaVersion.V2_21),
+    new KindProperty("Subsystem", "Content", false, SchemaVersion.V2_10, SchemaVersion.V2_21),
+    new KindProperty("DefinedType", "Type", false, SchemaVersion.V2_10, SchemaVersion.V2_21),
+    new KindProperty("CommonForm", "FormType", true, SchemaVersion.V2_10, SchemaVersion.V2_21),
+    new KindProperty("CommonTemplate", "TemplateType", true, SchemaVersion.V2_15, SchemaVersion.V2_21),
+    new KindProperty("CommonPicture", "AvailabilityForChoice", true, SchemaVersion.V2_10, SchemaVersion.V2_14),
+    new KindProperty("CommonPicture", "AvailabilityForAppearance", true, SchemaVersion.V2_10, SchemaVersion.V2_14),
+    new KindProperty("XDTOPackage", "Namespace", true, SchemaVersion.V2_10, SchemaVersion.V2_18));
+
+  /**
+   * Свойство, которое платформа при заимствовании объекта вида сразу отмечает изменённым расширением,
+   * хотя самого содержимого у расширения ещё нет: права роли, форма общей формы, командный интерфейс
+   * подсистемы. Так с {@link #EXTENDED_ON_BORROW_SINCE}; раньше платформа такое состояние без
+   * содержимого не хранит и выгружает пустой {@code InternalInfo}.
+   */
+  private static final Map<String, String> EXTENDED_ON_BORROW = Map.of(
+    "Role", "Rights",
+    "CommonForm", "Form",
+    "Subsystem", "CommandInterface");
+  private static final SchemaVersion EXTENDED_ON_BORROW_SINCE = SchemaVersion.V2_19;
+
+  /** Свойство вида, берётся ли его значение у оригинала и в каких форматах платформа его пишет. */
+  private record KindProperty(String kind, String name, boolean fromOriginal, SchemaVersion since, SchemaVersion until) {
+
+    boolean writtenIn(String containerLocal, SchemaVersion version) {
+      return kind.equals(containerLocal) && version.compareTo(since) >= 0 && version.compareTo(until) <= 0;
+    }
+  }
 
   private CfeBorrow() {
   }
@@ -146,10 +189,7 @@ public final class CfeBorrow {
     StringBuilder out = new StringBuilder(header);
     out.append('<').append(containerLocal).append(" uuid=\"")
       .append(seededUuid("borrow|" + containerLocal + '|' + name + "|root")).append("\">").append(eol);
-    String internalInfo = internalInfoWithNewIds(original, containerLocal, name, eol);
-    if (!internalInfo.isEmpty()) {
-      out.append(internalInfo);
-    }
+    out.append(internalInfo(original, containerLocal, name, version, eol));
     // до 2.14 включительно платформа пишет принадлежность после комментария, с 2.15 - первой
     String belonging = "\t\t\t<ObjectBelonging>Adopted</ObjectBelonging>" + eol;
     boolean belongingFirst = ConfigurationFormatRules.belongingFirst(version);
@@ -162,6 +202,7 @@ public final class CfeBorrow {
     if (!belongingFirst) {
       out.append(belonging);
     }
+    out.append(kindProperties(original, containerLocal, version, eol));
     out.append("\t\t</Properties>").append(eol);
     if (CHILD_OBJECT_TYPES.contains(containerLocal)) {
       out.append("\t\t<ChildObjects/>").append(eol);
@@ -171,15 +212,62 @@ public final class CfeBorrow {
     return out.toString();
   }
 
-  /** Порождаемые типы оригинала с новыми детерминированными идентификаторами. */
-  private static String internalInfoWithNewIds(String original, String containerLocal, String name, String eol) {
-    int start = original.indexOf("<InternalInfo>");
-    int end = original.indexOf("</InternalInfo>");
-    if (start < 0 || end < 0) {
+  /**
+   * Строки {@code Properties} со свойствами вида из {@link #KIND_PROPERTIES}, которые платформа пишет в
+   * этом формате. Свойства, которого у оригинала нет, не будет и у заимствованного.
+   */
+  private static String kindProperties(String original, String containerLocal, SchemaVersion version, String eol) {
+    StringBuilder out = new StringBuilder();
+    List<XmlLines.Node> originalProperties = null;
+    for (KindProperty property : KIND_PROPERTIES) {
+      if (!property.writtenIn(containerLocal, version)) {
+        continue;
+      }
+      if (!property.fromOriginal()) {
+        out.append("\t\t\t<").append(property.name()).append("/>").append(eol);
+        continue;
+      }
+      if (originalProperties == null) {
+        originalProperties = XmlLines.children(original, List.of("MetaDataObject", containerLocal, "Properties"));
+      }
+      originalProperties.stream()
+        .filter(node -> node.name().equals(property.name()))
+        .findFirst()
+        .ifPresent(node -> out.append("\t\t\t").append(original, node.start(), node.end()).append(eol));
+    }
+    return out.toString();
+  }
+
+  /**
+   * {@code InternalInfo} заимствованного объекта: порождаемые типы оригинала с новыми
+   * детерминированными идентификаторами, за ними состояние из {@link #EXTENDED_ON_BORROW}. Если нет ни
+   * того, ни другого, платформа всё равно пишет элемент, пустым.
+   */
+  private static String internalInfo(
+    String original, String containerLocal, String name, SchemaVersion version, String eol) {
+    StringBuilder content = new StringBuilder(generatedTypesWithNewIds(original, containerLocal, name));
+    String extended = EXTENDED_ON_BORROW.get(containerLocal);
+    if (extended != null && version.compareTo(EXTENDED_ON_BORROW_SINCE) >= 0) {
+      content.append("\t\t\t<xr:PropertyState>").append(eol)
+        .append("\t\t\t\t<xr:Property>").append(extended).append("</xr:Property>").append(eol)
+        .append("\t\t\t\t<xr:State>").append(AdoptedStates.EXTENDED).append("</xr:State>").append(eol)
+        .append("\t\t\t</xr:PropertyState>").append(eol);
+    }
+    if (content.isEmpty()) {
+      return "\t\t<InternalInfo/>" + eol;
+    }
+    return "\t\t<InternalInfo>" + eol + content + "\t\t</InternalInfo>" + eol;
+  }
+
+  /** Строки {@code InternalInfo} оригинала (порождаемые типы) с новыми детерминированными идентификаторами. */
+  private static String generatedTypesWithNewIds(String original, String containerLocal, String name) {
+    int open = original.indexOf("<InternalInfo>");
+    if (open < 0 || open > original.indexOf("<Properties>")) {
       return "";
     }
-    String block = "\t\t" + original.substring(start, end + "</InternalInfo>".length()) + eol;
-    Matcher matcher = ANY_UUID.matcher(block);
+    int from = original.indexOf('\n', open) + 1;
+    int to = original.lastIndexOf('\n', original.indexOf("</InternalInfo>", open)) + 1;
+    Matcher matcher = ANY_UUID.matcher(original.substring(from, to));
     StringBuilder out = new StringBuilder();
     int index = 0;
     while (matcher.find()) {
