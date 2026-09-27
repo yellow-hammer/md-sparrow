@@ -29,9 +29,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -247,6 +250,126 @@ class EdtObjectMutationsTest {
         () -> EdtObjectMutations.duplicate(configuration, object, "Catalog", "Валюты", "ВалютыКопия"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("ВалютыКопия");
+  }
+
+  /**
+   * Неверные сведения об объекте: имя другого объекта состава, имя, которого в
+   * составе нет, чужой вид и имя каталога вида вместо вида.
+   */
+  private static List<Target> mismatches(Path root, Path object, String type, String name) throws IOException {
+    String other = catalogs(root).stream().filter(candidate -> !candidate.equals(name)).findFirst().orElseThrow();
+    String absent = name.substring(0, name.length() - 1);
+    assertThat(catalogs(root)).doesNotContain(absent);
+    String otherType = EdtConfigurationReader.listChildObjects(root.resolve("Configuration/Configuration.mdo"), model)
+        .stream().map(ChildObjectEntry::objectType).filter(candidate -> !candidate.equals(type))
+        .findFirst().orElseThrow();
+    return List.of(
+        new Target(type, other),
+        new Target(type, absent),
+        new Target(otherType, name),
+        new Target(object.getParent().getParent().getFileName().toString(), name));
+  }
+
+  private record Target(String type, String name) {
+  }
+
+  /** Содержимое всех файлов среза побайтно. */
+  private static Map<String, String> snapshot(Path root) throws IOException {
+    Map<String, String> files = new TreeMap<>();
+    try (Stream<Path> walk = Files.walk(root)) {
+      for (Path file : walk.filter(Files::isRegularFile).toList()) {
+        files.put(root.relativize(file).toString(), HexFormat.of().formatHex(Files.readAllBytes(file)));
+      }
+    }
+    return files;
+  }
+
+  /**
+   * Опечатка в имени или виде отклоняется до первой записи: ответ «ошибка»
+   * означает, что проект не тронут, а каталог объекта с модулями и формами
+   * иначе пропал бы безвозвратно.
+   */
+  @Test
+  void удалениеНеСовпадающегоОбъектаНичегоНеМеняет() throws Exception {
+    Path root = source();
+    Path configuration = root.resolve("Configuration/Configuration.mdo");
+    Path object = root.resolve("Catalogs/Валюты/Валюты.mdo");
+    Map<String, String> before = snapshot(root);
+
+    for (Target wrong : mismatches(root, object, "Catalog", "Валюты")) {
+      assertThatThrownBy(() -> EdtObjectMutations.delete(configuration, object, wrong.type(), wrong.name()))
+          .as(wrong.toString())
+          .isInstanceOf(IllegalArgumentException.class);
+      assertThat(snapshot(root)).as(wrong.toString()).isEqualTo(before);
+    }
+  }
+
+  @Test
+  void переименованиеНеСовпадающегоОбъектаНичегоНеМеняет() throws Exception {
+    Path root = source();
+    Path configuration = root.resolve("Configuration/Configuration.mdo");
+    Path object = root.resolve("Catalogs/Валюты/Валюты.mdo");
+    Map<String, String> before = snapshot(root);
+
+    for (Target wrong : mismatches(root, object, "Catalog", "Валюты")) {
+      assertThatThrownBy(
+          () -> EdtObjectMutations.rename(configuration, object, wrong.type(), wrong.name(), "ДенежныеЕдиницы"))
+          .as(wrong.toString())
+          .isInstanceOf(IllegalArgumentException.class);
+      assertThat(snapshot(root)).as(wrong.toString()).isEqualTo(before);
+    }
+    // Новое имя - путь: объект ушёл бы из каталога своего вида
+    assertThatThrownBy(
+        () -> EdtObjectMutations.rename(configuration, object, "Catalog", "Валюты", "../ДенежныеЕдиницы"))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThat(snapshot(root)).isEqualTo(before);
+  }
+
+  @Test
+  void копированиеНеСовпадающегоОбъектаНичегоНеМеняет() throws Exception {
+    Path root = source();
+    Path configuration = root.resolve("Configuration/Configuration.mdo");
+    Path object = root.resolve("Catalogs/Валюты/Валюты.mdo");
+    Map<String, String> before = snapshot(root);
+
+    for (Target wrong : mismatches(root, object, "Catalog", "Валюты")) {
+      assertThatThrownBy(
+          () -> EdtObjectMutations.duplicate(configuration, object, wrong.type(), wrong.name(), "ВалютыКопия"))
+          .as(wrong.toString())
+          .isInstanceOf(IllegalArgumentException.class);
+      assertThat(snapshot(root)).as(wrong.toString()).isEqualTo(before);
+    }
+  }
+
+  /**
+   * Ссылки на роли лежат и в составе, и среди ролей по умолчанию, которые идут
+   * в файле раньше: правится состав.
+   */
+  @Test
+  void рольПравитсяВСоставеАНеСредиРолейПоУмолчанию() throws Exception {
+    Path root = source();
+    Path configuration = root.resolve("Configuration/Configuration.mdo");
+    String role = EdtConfigurationLists.names(configuration, model, "Role").get(0);
+    copy(fixture.resolve("Roles").resolve(role), root.resolve("Roles").resolve(role));
+    String defaults = defaultRoles(configuration);
+
+    EdtObjectMutations.duplicate(configuration, root.resolve("Roles").resolve(role).resolve(role + ".mdo"),
+        "Role", role, role + "Копия");
+    EdtObjectMutations.rename(configuration, root.resolve("Roles").resolve(role + "Копия").resolve(role + "Копия.mdo"),
+        "Role", role + "Копия", role + "Новая");
+    assertThat(EdtConfigurationLists.names(configuration, model, "Role")).contains(role, role + "Новая")
+        .doesNotContain(role + "Копия");
+    EdtObjectMutations.delete(configuration, root.resolve("Roles").resolve(role).resolve(role + ".mdo"), "Role", role);
+
+    assertThat(EdtConfigurationLists.names(configuration, model, "Role")).contains(role + "Новая")
+        .doesNotContain(role);
+    assertThat(root.resolve("Roles").resolve(role)).doesNotExist();
+    assertThat(defaultRoles(configuration)).isEqualTo(defaults);
+  }
+
+  private static String defaultRoles(Path configuration) throws IOException {
+    return Files.readString(configuration, StandardCharsets.UTF_8).lines()
+        .filter(line -> line.contains("<defaultRoles>")).reduce("", (all, line) -> all + line + "\n");
   }
 
   @Test
