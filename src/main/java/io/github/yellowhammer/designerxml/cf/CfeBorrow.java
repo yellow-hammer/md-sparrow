@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -40,8 +41,9 @@ import java.util.regex.Pattern;
  * <p>Платформа связывает заимствованный объект с оригиналом по имени, а все
  * идентификаторы у него свои: шапка и список порождаемых типов берутся из
  * оригинала, идентификаторы заменяются детерминированными новыми, свойства
- * сводятся к принадлежности, имени и комментарию. Пустой {@code ChildObjects}
- * пишется только у видов, в схеме которых он есть.
+ * сводятся к принадлежности, имени, комментарию и свойствам, которые платформа
+ * пишет у заимствованного объекта этого вида в этом формате ({@link #KIND_PROPERTIES}).
+ * Пустой {@code ChildObjects} пишется только у видов, в схеме которых он есть.
  */
 public final class CfeBorrow {
 
@@ -87,6 +89,32 @@ public final class CfeBorrow {
     "Task",
     "URLTemplate",
     "WebService");
+
+  /**
+   * Свойства, которые платформа пишет у заимствованного объекта вида сверх принадлежности, имени и
+   * комментария, в конце {@code Properties}: движения документа и состав подсистемы - пустыми, в них
+   * попадает только добавленное расширением; тип определяемого типа - пустым, пока его не контролируют
+   * и не дополняют; остальное - как у оригинала. Набор зависит от формата: так выгружает расширение
+   * ibcmd всех линеек (tools/golden-snapshots/roundtrip.py; 2.13 выведен из 2.12 и 2.14, ibcmd 8.3.20
+   * расширение с ролью не загружает).
+   */
+  private static final List<KindProperty> KIND_PROPERTIES = List.of(
+    new KindProperty("Document", "RegisterRecords", false, SchemaVersion.V2_10, SchemaVersion.V2_21),
+    new KindProperty("Subsystem", "Content", false, SchemaVersion.V2_10, SchemaVersion.V2_21),
+    new KindProperty("DefinedType", "Type", false, SchemaVersion.V2_10, SchemaVersion.V2_21),
+    new KindProperty("CommonForm", "FormType", true, SchemaVersion.V2_10, SchemaVersion.V2_21),
+    new KindProperty("CommonTemplate", "TemplateType", true, SchemaVersion.V2_15, SchemaVersion.V2_21),
+    new KindProperty("CommonPicture", "AvailabilityForChoice", true, SchemaVersion.V2_10, SchemaVersion.V2_14),
+    new KindProperty("CommonPicture", "AvailabilityForAppearance", true, SchemaVersion.V2_10, SchemaVersion.V2_14),
+    new KindProperty("XDTOPackage", "Namespace", true, SchemaVersion.V2_10, SchemaVersion.V2_18));
+
+  /** Свойство вида, берётся ли его значение у оригинала и в каких форматах платформа его пишет. */
+  private record KindProperty(String kind, String name, boolean fromOriginal, SchemaVersion since, SchemaVersion until) {
+
+    boolean writtenIn(String containerLocal, SchemaVersion version) {
+      return kind.equals(containerLocal) && version.compareTo(since) >= 0 && version.compareTo(until) <= 0;
+    }
+  }
 
   private CfeBorrow() {
   }
@@ -162,12 +190,39 @@ public final class CfeBorrow {
     if (!belongingFirst) {
       out.append(belonging);
     }
+    out.append(kindProperties(original, containerLocal, version, eol));
     out.append("\t\t</Properties>").append(eol);
     if (CHILD_OBJECT_TYPES.contains(containerLocal)) {
       out.append("\t\t<ChildObjects/>").append(eol);
     }
     out.append("\t</").append(containerLocal).append('>').append(eol);
     out.append("</MetaDataObject>");
+    return out.toString();
+  }
+
+  /**
+   * Строки {@code Properties} со свойствами вида из {@link #KIND_PROPERTIES}, которые платформа пишет в
+   * этом формате. Свойства, которого у оригинала нет, не будет и у заимствованного.
+   */
+  private static String kindProperties(String original, String containerLocal, SchemaVersion version, String eol) {
+    StringBuilder out = new StringBuilder();
+    List<XmlLines.Node> originalProperties = null;
+    for (KindProperty property : KIND_PROPERTIES) {
+      if (!property.writtenIn(containerLocal, version)) {
+        continue;
+      }
+      if (!property.fromOriginal()) {
+        out.append("\t\t\t<").append(property.name()).append("/>").append(eol);
+        continue;
+      }
+      if (originalProperties == null) {
+        originalProperties = XmlLines.children(original, List.of("MetaDataObject", containerLocal, "Properties"));
+      }
+      originalProperties.stream()
+        .filter(node -> node.name().equals(property.name()))
+        .findFirst()
+        .ifPresent(node -> out.append("\t\t\t").append(original, node.start(), node.end()).append(eol));
+    }
     return out.toString();
   }
 

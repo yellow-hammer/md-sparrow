@@ -61,10 +61,11 @@ public final class AdoptedStates {
   /**
    * Элементы, которые платформа пишет у заимствованного узла всегда, а не по
    * состоянию: имя, комментарий, принадлежность, движения документа, состав
-   * подсистемы, тип формы. По проекту EDT того же расширения у них состояния нет.
+   * подсистемы, тип формы, вид макета. По проекту EDT того же расширения у них
+   * состояния нет, у макета его нет и в метамодели EDT.
    */
   private static final Set<String> STATELESS = Set.of(
-      "Name", "Comment", "ObjectBelonging", "RegisterRecords", "Content", "FormType");
+      "Name", "Comment", "ObjectBelonging", "RegisterRecords", "Content", "FormType", "TemplateType");
   /** Узлы, у которых тип пишется всегда: у реквизита, измерения, ресурса и определяемого типа. */
   private static final Set<String> TYPED_ALWAYS = Set.of("Attribute", "Dimension", "Resource", "DefinedType");
   /**
