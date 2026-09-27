@@ -48,6 +48,8 @@ public final class MdObjectChildMutations {
 
   private static final String CLOSE_CHILD_OBJECTS = "</ChildObjects>";
   private static final Pattern NAME_TAG = Pattern.compile("<Name>([\\s\\S]*?)</Name>");
+  private static final Pattern EMPTY_CHILD_OBJECTS = Pattern.compile("<ChildObjects>\\s*</ChildObjects>");
+  private static final String COLLAPSED_CHILD_OBJECTS = "<ChildObjects/>";
 
   private MdObjectChildMutations() {
   }
@@ -65,8 +67,9 @@ public final class MdObjectChildMutations {
     throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
       ChildObjectKinds.ensureAllowed(version, containerLocal, "Attribute");
+      ensureAllowedInOwner(xml, containerLocal, "Attribute");
       ensureNotBlank(newName, "Введите имя реквизита.");
-      ensureMissingNamedChild(xml, containerLocal, "Attribute", newName, "Реквизит уже существует: " + newName);
+      ChildNodeNames.ensureFree(xml, containerLocal, "Attribute", newName, null, "Реквизит");
       return insertGoldenNode(xml, containerLocal, version, "Attribute", newName);
     });
   }
@@ -319,14 +322,14 @@ public final class MdObjectChildMutations {
       if (at < 0) {
         throw new IllegalArgumentException("Форма не найдена: " + formName);
       }
-      int lineStart = xml.lastIndexOf('\n', at);
-      String updated = xml.substring(0, lineStart) + xml.substring(at + entry.length());
+      // Запись занимает свою строку: уходит строка целиком, с отступом и переводом строки после неё
+      String updated = removeRegion(xml, new MdObjectXmlRegions.Region(at, at + entry.length()));
       // Слоты основных и вспомогательных форм, указывающие на удаляемую,
       // становятся пустыми самозакрывающимися элементами
       updated = updated.replaceAll(
         "<([A-Za-z]*Form)>[^<]*[.]Form[.]" + java.util.regex.Pattern.quote(formName) + "</\\1>",
         "<$1/>");
-      return updated;
+      return collapseRootChildObjects(updated, containerLocal);
     });
     Path formsDir = objectXml.toAbsolutePath().normalize().getParent()
       .resolve(stemOf(objectXml))
@@ -356,8 +359,9 @@ public final class MdObjectChildMutations {
   ) throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
       ChildObjectKinds.ensureAllowed(version, containerLocal, childLocal);
+      ensureAllowedInOwner(xml, containerLocal, childLocal);
       ensureNotBlank(newName, "Введите имя: " + label.toLowerCase(java.util.Locale.ROOT) + ".");
-      ensureMissingNamedChild(xml, containerLocal, childLocal, newName, label + " уже существует: " + newName);
+      ChildNodeNames.ensureFree(xml, containerLocal, childLocal, newName, null, label);
       return insertGoldenNode(xml, containerLocal, version, childLocal, newName);
     });
   }
@@ -371,8 +375,9 @@ public final class MdObjectChildMutations {
   ) throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
       ChildObjectKinds.ensureAllowed(version, containerLocal, childLocal);
+      ensureAllowedInOwner(xml, containerLocal, childLocal);
       ensureNotBlank(newName, "Введите имя: " + label.toLowerCase(java.util.Locale.ROOT) + ".");
-      ensureMissingNamedChild(xml, containerLocal, childLocal, newName, label + " уже существует: " + newName);
+      ChildNodeNames.ensureFree(xml, containerLocal, childLocal, newName, null, label);
       return insertGoldenNode(xml, containerLocal, version, childLocal, newName);
     });
   }
@@ -431,7 +436,7 @@ public final class MdObjectChildMutations {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
       ChildObjectKinds.ensureAllowed(version, containerLocal, "Command");
       ensureNotBlank(newName, "Введите имя команды.");
-      ensureMissingNamedChild(xml, containerLocal, "Command", newName, "Команда уже существует: " + newName);
+      ChildNodeNames.ensureFree(xml, containerLocal, "Command", newName, null, "Команда");
       return insertGoldenNode(xml, containerLocal, version, "Command", newName);
     });
   }
@@ -483,7 +488,7 @@ public final class MdObjectChildMutations {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
       ChildObjectKinds.ensureAllowed(version, containerLocal, "EnumValue");
       ensureNotBlank(newName, "Введите имя значения.");
-      ensureMissingNamedChild(xml, containerLocal, "EnumValue", newName, "Значение уже существует: " + newName);
+      ChildNodeNames.ensureFree(xml, containerLocal, "EnumValue", newName, null, "Значение");
       return insertGoldenNode(xml, containerLocal, version, "EnumValue", newName);
     });
   }
@@ -548,8 +553,9 @@ public final class MdObjectChildMutations {
     throws IOException, JAXBException {
     mutateAndWrite(objectXml, version, (xml, containerLocal) -> {
       ChildObjectKinds.ensureAllowed(version, containerLocal, "TabularSection");
+      ensureAllowedInOwner(xml, containerLocal, "TabularSection");
       ensureNotBlank(newName, "Введите имя табличной части.");
-      ensureMissingNamedChild(xml, containerLocal, "TabularSection", newName, "Табличная часть уже существует: " + newName);
+      ChildNodeNames.ensureFree(xml, containerLocal, "TabularSection", newName, null, "Табличная часть");
       return insertGoldenNode(xml, containerLocal, version, "TabularSection", newName);
     });
   }
@@ -645,17 +651,7 @@ public final class MdObjectChildMutations {
       if (!tsRegion.isValid()) {
         throw new IllegalArgumentException("Табличная часть не найдена: " + tabularSectionName);
       }
-      MdObjectXmlRegions.Region existing = MdObjectXmlRegions.findNamedNestedChildObjectRegion(
-        xml,
-        containerLocal,
-        "TabularSection",
-        tabularSectionName,
-        "Attribute",
-        newName
-      );
-      if (existing.isValid()) {
-        throw new IllegalArgumentException("Реквизит ТЧ уже существует: " + newName);
-      }
+      ChildNodeNames.ensureFreeInTabularSection(xml, containerLocal, tabularSectionName, newName, null);
       String snippet = GoldenNodes.tabularAttribute(
         version,
         containerLocal,
@@ -700,17 +696,7 @@ public final class MdObjectChildMutations {
       if (!target.isValid()) {
         throw new IllegalArgumentException("Реквизит ТЧ не найден: " + oldName);
       }
-      MdObjectXmlRegions.Region duplicate = MdObjectXmlRegions.findNamedNestedChildObjectRegion(
-        xml,
-        containerLocal,
-        "TabularSection",
-        tabularSectionName,
-        "Attribute",
-        newName
-      );
-      if (duplicate.isValid() && !oldName.equals(newName)) {
-        throw new IllegalArgumentException("Реквизит ТЧ уже существует: " + newName);
-      }
+      ChildNodeNames.ensureFreeInTabularSection(xml, containerLocal, tabularSectionName, newName, oldName);
       String nodeXml = xml.substring(target.start(), target.end());
       String replaced = replaceName(nodeXml, oldName, newName);
       return xml.substring(0, target.start()) + replaced + xml.substring(target.end());
@@ -743,7 +729,10 @@ public final class MdObjectChildMutations {
       if (!target.isValid()) {
         throw new IllegalArgumentException("Реквизит ТЧ не найден: " + name);
       }
-      return removeRegion(xml, target);
+      String updated = removeRegion(xml, target);
+      MdObjectXmlRegions.Region section = MdObjectXmlRegions.findNamedChildObjectRegion(
+        updated, containerLocal, "TabularSection", tabularSectionName);
+      return collapseIfEmpty(updated, section.start(), section.end());
     });
     FormDataPathCleanup.afterChildDelete(objectXml, tabularSectionName + "." + name);
   }
@@ -778,17 +767,7 @@ public final class MdObjectChildMutations {
       if (!source.isValid()) {
         throw new IllegalArgumentException("Реквизит ТЧ не найден: " + sourceName);
       }
-      MdObjectXmlRegions.Region duplicate = MdObjectXmlRegions.findNamedNestedChildObjectRegion(
-        xml,
-        containerLocal,
-        "TabularSection",
-        tabularSectionName,
-        "Attribute",
-        newName
-      );
-      if (duplicate.isValid()) {
-        throw new IllegalArgumentException("Реквизит ТЧ уже существует: " + newName);
-      }
+      ChildNodeNames.ensureFreeInTabularSection(xml, containerLocal, tabularSectionName, newName, null);
       return duplicateRegion(xml, source, sourceName, newName,
         nodeSeed("duplicate|" + containerLocal + ".TabularSection." + tabularSectionName + ".Attribute|"
           + sourceName + "|" + newName, xml));
@@ -843,10 +822,7 @@ public final class MdObjectChildMutations {
     if (!target.isValid()) {
       throw new IllegalArgumentException(label + " не найден(а): " + oldName);
     }
-    MdObjectXmlRegions.Region duplicate = MdObjectXmlRegions.findNamedChildObjectRegion(xml, containerLocal, childTag, newName);
-    if (duplicate.isValid() && !oldName.equals(newName)) {
-      throw new IllegalArgumentException(label + " уже существует: " + newName);
-    }
+    ChildNodeNames.ensureFree(xml, containerLocal, childTag, newName, oldName, label);
     String nodeXml = xml.substring(target.start(), target.end());
     String replaced = replaceName(nodeXml, oldName, newName);
     replaced = renameGeneratedTypeTail(replaced, oldName, newName);
@@ -888,7 +864,28 @@ public final class MdObjectChildMutations {
     if (!target.isValid()) {
       throw new IllegalArgumentException(label + " не найден(а): " + name);
     }
-    return removeRegion(xml, target);
+    return collapseRootChildObjects(removeRegion(xml, target), containerLocal);
+  }
+
+  private static String collapseRootChildObjects(String xml, String containerLocal) throws XMLStreamException {
+    MdObjectXmlRegions.Region childObjects = MdObjectXmlRegions.findChildObjectsRegion(xml, containerLocal);
+    return collapseIfEmpty(xml, childObjects.start(), childObjects.end());
+  }
+
+  /**
+   * Опустевший {@code ChildObjects} в {@code [from, to)} сворачивается в {@code <ChildObjects/>}: так
+   * его пишет платформа, и удаление последнего узла возвращает файл, каким он был до добавления.
+   */
+  private static String collapseIfEmpty(String xml, int from, int to) {
+    int open = from < 0 ? -1 : xml.indexOf("<ChildObjects>", from);
+    if (open < 0 || open >= to) {
+      return xml;
+    }
+    Matcher empty = EMPTY_CHILD_OBJECTS.matcher(xml).region(open, to);
+    if (!empty.lookingAt()) {
+      return xml;
+    }
+    return xml.substring(0, open) + COLLAPSED_CHILD_OBJECTS + xml.substring(empty.end());
   }
 
   private static String duplicateNamedChild(
@@ -900,29 +897,14 @@ public final class MdObjectChildMutations {
     String label
   ) throws XMLStreamException {
     ensureNotBlank(newName, "Введите имя копии.");
+    ensureAllowedInOwner(xml, containerLocal, childTag);
     MdObjectXmlRegions.Region source = MdObjectXmlRegions.findNamedChildObjectRegion(xml, containerLocal, childTag, sourceName);
     if (!source.isValid()) {
       throw new IllegalArgumentException(label + " не найден(а): " + sourceName);
     }
-    MdObjectXmlRegions.Region duplicate = MdObjectXmlRegions.findNamedChildObjectRegion(xml, containerLocal, childTag, newName);
-    if (duplicate.isValid()) {
-      throw new IllegalArgumentException(label + " уже существует: " + newName);
-    }
+    ChildNodeNames.ensureFree(xml, containerLocal, childTag, newName, null, label);
     return duplicateRegion(xml, source, sourceName, newName,
       nodeSeed("duplicate|" + containerLocal + "." + childTag + "|" + sourceName + "|" + newName, xml));
-  }
-
-  private static void ensureMissingNamedChild(
-    String xml,
-    String containerLocal,
-    String childTag,
-    String name,
-    String message
-  ) throws XMLStreamException {
-    MdObjectXmlRegions.Region region = MdObjectXmlRegions.findNamedChildObjectRegion(xml, containerLocal, childTag, name);
-    if (region.isValid()) {
-      throw new IllegalArgumentException(message);
-    }
   }
 
   private static String duplicateRegion(
@@ -931,8 +913,21 @@ public final class MdObjectChildMutations {
     String copy = replaceName(DistinctUuidRewrite.remapDeterministic(sourceXml, uuidSeed), oldName, newName);
     copy = renameGeneratedTypeTail(copy, oldName, newName);
     String indent = currentLineIndent(xml, source.start());
-    String normalizedCopy = normalizeBlockIndent(copy, indent);
+    // Узел вырезан от своего тега: у первой строки отступа нет, у вложенных он из файла. Его
+    // снимаем, иначе выравнивание прибавит вложенным строкам отступ узла ещё раз.
+    String dedented = indent.isEmpty() ? copy : copy.replace("\n" + indent, "\n");
+    String normalizedCopy = normalizeBlockIndent(dedented, indent);
     return xml.substring(0, source.end()) + "\n" + normalizedCopy + xml.substring(source.end());
+  }
+
+  /** Отказ, если к владельцу, заимствованному в расширении, такой узел не добавить. */
+  private static void ensureAllowedInOwner(String xml, String containerLocal, String nodeLocal)
+    throws XMLStreamException {
+    MdObjectXmlRegions.Region belonging =
+      MdObjectXmlRegions.findDirectChildOfPropertiesRegion(xml, containerLocal, "ObjectBelonging");
+    boolean adopted = belonging.isValid()
+      && xml.substring(belonging.start(), belonging.end()).contains(">Adopted<");
+    ChildObjectKinds.ensureAllowedInAdopted(containerLocal, nodeLocal, adopted);
   }
 
   /**

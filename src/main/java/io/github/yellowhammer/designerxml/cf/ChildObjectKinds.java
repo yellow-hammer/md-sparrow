@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -45,6 +46,25 @@ final class ChildObjectKinds {
   private static final String CHILD_OBJECTS = "ChildObjects";
 
   private static final Map<String, List<String>> CACHE = new ConcurrentHashMap<>();
+
+  /**
+   * Виды, заимствованному объекту которых расширение не добавляет своих полей данных.
+   *
+   * <p>Схема такие узлы допускает, {@code config import --extension} их принимает, но проверка
+   * расширения ({@code ibcmd infobase config check --extension}, 8.3.27 и 8.5.1) отвечает «Добавление
+   * дочерних объектов этого типа к заимствованным в расширениях недопустимо в режиме совместимости
+   * 8.3.27 и ниже» (на 8.5.1 - «8.5.1 и ниже», в режимах 8.3.24 - «8.3.24 и ниже»), и расширение не
+   * применяется. Проверено на ssl31: к заимствованным справочнику, документу, перечислению,
+   * обработке, отчёту, плану обмена, бизнес-процессу и задаче поля и табличные части добавляются,
+   * команды - к заимствованному объекту любого вида.
+   */
+  private static final Set<String> ADOPTED_WITHOUT_OWN_FIELDS = Set.of(
+    "InformationRegister", "AccumulationRegister", "AccountingRegister", "CalculationRegister", "Sequence",
+    "ChartOfAccounts", "ChartOfCharacteristicTypes", "ChartOfCalculationTypes");
+
+  /** Поля данных, которые расширение не добавляет к заимствованным объектам {@link #ADOPTED_WITHOUT_OWN_FIELDS}. */
+  private static final Set<String> OWN_FIELDS = Set.of(
+    "Attribute", "TabularSection", "Dimension", "Resource", "AccountingFlag", "ExtDimensionAccountingFlag");
 
   private ChildObjectKinds() {
   }
@@ -71,6 +91,21 @@ final class ChildObjectKinds {
   static void ensureAllowed(SchemaVersion version, String ownerLocal, String childLocal) {
     if (!of(version, ownerLocal).contains(childLocal)) {
       throw new IllegalArgumentException("У вида " + ownerLocal + " нет подчинённых " + childLocal);
+    }
+  }
+
+  /**
+   * Отказ, если к заимствованному в расширении объекту такого вида платформа не даёт добавить свой узел.
+   *
+   * @param ownerLocal элемент владельца: {@code InformationRegister}
+   * @param childLocal элемент нового узла: {@code Dimension}
+   * @param adopted владелец заимствован ({@code ObjectBelonging} - {@code Adopted})
+   * @throws IllegalArgumentException если платформа такое расширение не применит
+   */
+  static void ensureAllowedInAdopted(String ownerLocal, String childLocal, boolean adopted) {
+    if (adopted && ADOPTED_WITHOUT_OWN_FIELDS.contains(ownerLocal) && OWN_FIELDS.contains(childLocal)) {
+      throw new IllegalArgumentException("К заимствованному объекту вида " + ownerLocal
+        + " расширение не добавляет подчинённых " + childLocal + ": платформа такое расширение не применяет");
     }
   }
 

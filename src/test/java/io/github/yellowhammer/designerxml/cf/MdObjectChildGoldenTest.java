@@ -189,6 +189,83 @@ class MdObjectChildGoldenTest {
     softly.assertAll();
   }
 
+  /**
+   * Копия узла пишется так же, как узел-источник: те же строки с тем же отступом, другие только имя
+   * и UUID. Источник - узел выгрузки платформы, поэтому такая копия совпадает с тем, как её выгрузит
+   * платформа (у копии с другим отступом платформа при выгрузке переписывает весь блок).
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void копияУзлаПишетсяКакИсточник(SchemaVersion version) throws Exception {
+    List<String> owners = GoldenSnapshots.files(version, NODES);
+    Assumptions.assumeFalse(owners.isEmpty(), "узлов этого формата платформа не снимала");
+
+    SoftAssertions softly = new SoftAssertions();
+    for (String relative : owners) {
+      String golden = GoldenSnapshots.read(version, NODES, relative);
+      Owner owner = Owner.of(golden);
+      Path file = workspace.resolve(version.name()).resolve(relative);
+      Files.createDirectories(file.getParent());
+      Files.writeString(file, golden, StandardCharsets.UTF_8);
+      for (Node node : owner.nodes()) {
+        String copy = node.name() + COPY;
+        if (duplicate(file, version, node.kind(), node.name(), copy)) {
+          String xml = GoldenSnapshots.read(file);
+          softly.assertThat(copyLines(xml, owner.kind(), node.kind(), copy, node.name()))
+            .as("копия %s %s в %s, формат %s", node.kind(), node.name(), relative, version)
+            .isEqualTo(sourceLines(xml, owner.kind(), node.kind(), node.name()));
+        }
+        for (String attribute : node.attributes()) {
+          MdObjectChildMutations.duplicateTabularAttribute(file, version, node.name(), attribute, attribute + COPY);
+          String xml = GoldenSnapshots.read(file);
+          softly.assertThat(nestedLines(xml, owner.kind(), node.name(), attribute + COPY, attribute))
+            .as("копия реквизита %s.%s в %s, формат %s", node.name(), attribute, relative, version)
+            .isEqualTo(nestedLines(xml, owner.kind(), node.name(), attribute, attribute));
+        }
+      }
+    }
+    softly.assertAll();
+  }
+
+  /** Копирует узел, если у вида есть копирование. */
+  private static boolean duplicate(Path file, SchemaVersion version, String kind, String source, String copy)
+    throws Exception {
+    switch (kind) {
+      case "Attribute" -> MdObjectChildMutations.duplicateAttribute(file, version, source, copy);
+      case "TabularSection" -> MdObjectChildMutations.duplicateTabularSection(file, version, source, copy);
+      case "EnumValue" -> MdObjectChildMutations.duplicateEnumValue(file, version, source, copy);
+      case "Dimension" -> MdObjectChildMutations.duplicateDimension(file, version, source, copy);
+      case "Resource" -> MdObjectChildMutations.duplicateResource(file, version, source, copy);
+      default -> {
+        // команды и признаки учёта не копируются
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Строки узла от начала строки его тега, имя копии возвращено имени источника, UUID - метки. */
+  private static String copyLines(String xml, String owner, String kind, String name, String sourceName)
+    throws Exception {
+    return GoldenSnapshots.normalizeUuids(rename(lines(xml,
+      MdObjectXmlRegions.findNamedChildObjectRegion(xml, owner, kind, name)), Map.of(name, sourceName)));
+  }
+
+  private static String sourceLines(String xml, String owner, String kind, String name) throws Exception {
+    return GoldenSnapshots.normalizeUuids(lines(xml, MdObjectXmlRegions.findNamedChildObjectRegion(xml, owner, kind, name)));
+  }
+
+  private static String nestedLines(String xml, String owner, String section, String name, String sourceName)
+    throws Exception {
+    return GoldenSnapshots.normalizeUuids(rename(lines(xml, MdObjectXmlRegions.findNamedNestedChildObjectRegion(
+      xml, owner, "TabularSection", section, "Attribute", name)), Map.of(name, sourceName)));
+  }
+
+  private static String lines(String xml, MdObjectXmlRegions.Region region) {
+    assertThat(region.isValid()).as("узел найден").isTrue();
+    return xml.substring(xml.lastIndexOf('\n', region.start()) + 1, region.end());
+  }
+
   /** UUID, которые встречаются в файле не один раз; {@code xr:ClassId} - класс платформы, он не в счёт. */
   private static List<String> repeatedUuids(String xml) {
     Matcher matcher = UUID.matcher(xml);
