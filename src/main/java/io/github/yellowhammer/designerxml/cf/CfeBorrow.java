@@ -115,7 +115,7 @@ public final class CfeBorrow {
       throw new IllegalArgumentException("Объект уже заимствован: " + name);
     }
 
-    String adopted = buildAdoptedXml(original, containerLocal, name);
+    String adopted = buildAdoptedXml(original, containerLocal, name, version);
     MdObjectStructureRead.read(adopted.getBytes(StandardCharsets.UTF_8), version);
 
     String configuration = Files.readString(extensionConfigurationXml, StandardCharsets.UTF_8);
@@ -137,7 +137,8 @@ public final class CfeBorrow {
     return matcher.group(1).trim();
   }
 
-  private static String buildAdoptedXml(String original, String containerLocal, String name) {
+  private static String buildAdoptedXml(
+    String original, String containerLocal, String name, SchemaVersion version) {
     String eol = original.contains("\r\n") ? "\r\n" : "\n";
     int rootStart = original.indexOf("<" + containerLocal + " uuid=");
     String header = original.substring(0, rootStart);
@@ -149,10 +150,18 @@ public final class CfeBorrow {
     if (!internalInfo.isEmpty()) {
       out.append(internalInfo);
     }
+    // до 2.14 включительно платформа пишет принадлежность после комментария, с 2.15 - первой
+    String belonging = "\t\t\t<ObjectBelonging>Adopted</ObjectBelonging>" + eol;
+    boolean belongingFirst = ConfigurationFormatRules.belongingFirst(version);
     out.append("\t\t<Properties>").append(eol);
-    out.append("\t\t\t<ObjectBelonging>Adopted</ObjectBelonging>").append(eol);
+    if (belongingFirst) {
+      out.append(belonging);
+    }
     out.append("\t\t\t<Name>").append(name).append("</Name>").append(eol);
     out.append("\t\t\t<Comment/>").append(eol);
+    if (!belongingFirst) {
+      out.append(belonging);
+    }
     out.append("\t\t</Properties>").append(eol);
     if (CHILD_OBJECT_TYPES.contains(containerLocal)) {
       out.append("\t\t<ChildObjects/>").append(eol);
