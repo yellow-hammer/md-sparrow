@@ -28,6 +28,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -107,6 +113,7 @@ public final class MdObjectAdd {
     String seed = GoldenUuid.from("add|" + version.name() + "|" + type + "|" + name, configuration);
     String compatibilityMode = ScaffoldPropertyEdit.leaf(configuration, "CompatibilityMode").orElse(null);
     String description = GoldenScaffold.objectRelative(type, name);
+    Map<Path, String> texts = new LinkedHashMap<>();
     for (Map.Entry<String, String> file : files.entrySet()) {
       String text = file.getValue();
       if (type == MdObjectAddType.CATALOG && file.getKey().equals(description)) {
@@ -116,11 +123,56 @@ public final class MdObjectAdd {
       text = FormNamespaceRules.forCompatibility(text, compatibilityMode);
       // Эталон снят на русской конфигурации: подписи нового объекта уезжают в язык этой
       text = DistinctUuidRewrite.remapDeterministic(LocalStringElement.retarget(text, language), seed);
-      Path target = cfRoot.resolve(file.getKey());
-      Files.createDirectories(target.getParent());
-      Files.writeString(target, text, StandardCharsets.UTF_8);
+      texts.put(cfRoot.resolve(file.getKey()), text);
     }
-    ConfigurationChildObjectAppender.append(configurationXml, type.configurationXmlTag(), name);
+    // Состав готовится до записи: его отказ не оставляет на диске файлов объекта без ссылки
+    String updated = ConfigurationChildObjectAppender.appended(configuration, type.configurationXmlTag(), name);
+
+    CreatedFiles created = new CreatedFiles();
+    try {
+      for (Map.Entry<Path, String> file : texts.entrySet()) {
+        created.write(file.getKey(), file.getValue());
+      }
+      ConfigurationChildObjectAppender.replace(configurationXml, updated);
+    } catch (IOException | RuntimeException e) {
+      created.rollback(e);
+      throw e;
+    }
+    // Состав изменился - служебный файл версий объектов не должен от него отставать
+    ConfigDumpInfoSync.sync(cfRoot);
+  }
+
+  /**
+   * Файлы и каталоги, созданные добавлением объекта. Если запись не дошла до конца, они удаляются:
+   * на диске не остаётся файлов объекта, на которые не ссылается состав.
+   */
+  private static final class CreatedFiles {
+
+    private final Deque<Path> created = new ArrayDeque<>();
+
+    void write(Path target, String text) throws IOException {
+      List<Path> missing = new ArrayList<>();
+      for (Path dir = target.getParent(); dir != null && !Files.exists(dir); dir = dir.getParent()) {
+        missing.add(0, dir);
+      }
+      for (Path dir : missing) {
+        Files.createDirectory(dir);
+        created.push(dir);
+      }
+      Files.writeString(target, text, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+      created.push(target);
+    }
+
+    /** Удаляет созданное: сначала файлы, затем каталоги от вложенных к внешним. */
+    void rollback(Exception failure) {
+      while (!created.isEmpty()) {
+        try {
+          Files.deleteIfExists(created.pop());
+        } catch (IOException e) {
+          failure.addSuppressed(e);
+        }
+      }
+    }
   }
 
   private static String resolveNonConflictingName(
