@@ -339,6 +339,98 @@ class CfeBorrowTest {
     return xml.substring(start, end).replace("\r\n", "\n");
   }
 
+  /**
+   * {@code InternalInfo} заимствованного объекта как у платформы формата: порождаемые типы оригинала,
+   * а у вида без них - пустой элемент. Права роли, форму общей формы и командный интерфейс подсистемы
+   * платформа с 2.19 сразу отмечает изменёнными, раньше - нет (загрузка расширения ibcmd всех линеек).
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void internalInfoЗаимствованногоОбъектаКакУПлатформыФормата(SchemaVersion version) throws Exception {
+    Path cfe = SamplesSubmodulePaths.copy(
+      SamplesSubmodulePaths.snapshot(version, GoldenSnapshots.CFE), tempDir.resolve(version.name()));
+    boolean extendedOnBorrow = version.compareTo(SchemaVersion.V2_19) >= 0;
+    for (BorrowedKind kind : KINDS) {
+      Path objectXml = SamplesSubmodulePaths.bareObjects(version).resolve(kind.folder()).resolve(kind.file());
+
+      Path created = CfeBorrow.borrowObject(objectXml, cfe.resolve(CfLayout.CONFIGURATION_XML), version);
+
+      String internalInfo = internalInfoBlock(GoldenSnapshots.read(created));
+      String extended = switch (kind.element()) {
+        case "Role" -> "Rights";
+        case "CommonForm" -> "Form";
+        case "Subsystem" -> "CommandInterface";
+        default -> null;
+      };
+      MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(created, version);
+      if (extended != null && extendedOnBorrow) {
+        assertThat(internalInfo).as("%s, формат %s", kind.element(), version).isEqualTo(String.join("\n",
+          "<InternalInfo>",
+          "\t\t\t<xr:PropertyState>",
+          "\t\t\t\t<xr:Property>" + extended + "</xr:Property>",
+          "\t\t\t\t<xr:State>Extended</xr:State>",
+          "\t\t\t</xr:PropertyState>",
+          "\t\t</InternalInfo>"));
+        assertThat(dto.propertyStates).as("%s, формат %s", kind.element(), version)
+          .isEqualTo(Map.of(AdoptedStates.key(extended), AdoptedStates.EXTENDED));
+      } else if (GoldenSnapshots.read(objectXml).contains("<xr:GeneratedType")) {
+        assertThat(internalInfo).as("%s, формат %s", kind.element(), version)
+          .startsWith("<InternalInfo>")
+          .contains("<xr:GeneratedType")
+          .doesNotContain("PropertyState");
+      } else {
+        assertThat(internalInfo).as("%s, формат %s", kind.element(), version).isEqualTo("<InternalInfo/>");
+      }
+      if (extended == null || !extendedOnBorrow) {
+        assertThat(dto.propertyStates == null ? Map.of() : dto.propertyStates)
+          .as("%s, формат %s", kind.element(), version)
+          .doesNotContainValue(AdoptedStates.EXTENDED);
+      }
+    }
+  }
+
+  /**
+   * Заимствованный объект целиком такой же, как у платформы в _ДемоРасширение (ssl31, формат 2.20), с
+   * точностью до UUID - у объектов, которые расширение ничем не дополнило: порождаемые типы оригинала,
+   * пустой {@code InternalInfo} у вида без них, форма общей формы - {@code Extended}. У роли и подсистемы
+   * демо-расширение дописало комментарий и вложенные подсистемы, поэтому у них сверяется
+   * {@code InternalInfo}: права и командный интерфейс - {@code Extended}.
+   */
+  @Test
+  void заимствованныйОбъектКакВДемоРасширении() throws Exception {
+    Path src = Ssl31SubmodulePaths.projectRoot().resolve("src");
+    Path platform = src.resolve("cfe/_ДемоРасширение");
+    Path extensionXml = tempDir.resolve("Configuration.xml");
+    Files.copy(src.resolve("cfe/_ДемоПустоеРасширение/Configuration.xml"), extensionXml,
+      StandardCopyOption.REPLACE_EXISTING);
+    for (String object : List.of(
+      "Catalogs/_ДемоКонтрагенты.xml",
+      "Documents/_ДемоПоступлениеТоваров.xml",
+      "CommonForms/РедактированиеТабличногоДокумента.xml",
+      "CommonPictures/ГраницаВокруг.xml",
+      "DefinedTypes/ДенежнаяСуммаНеотрицательная.xml",
+      "SettingsStorages/ХранилищеВариантовОтчетов.xml")) {
+      String created = borrow(src.resolve("cf").resolve(object), extensionXml, SchemaVersion.V2_20);
+
+      assertThat(GoldenSnapshots.normalizeUuids(created).replace("\r\n", "\n")).as(object)
+        .isEqualTo(GoldenSnapshots.normalizeUuids(GoldenSnapshots.read(platform.resolve(object))).replace("\r\n", "\n"));
+    }
+    for (String object : List.of("Roles/_ДемоЧтениеНСИ.xml", "Subsystems/_ДемоОрганайзер.xml")) {
+      String created = borrow(src.resolve("cf").resolve(object), extensionXml, SchemaVersion.V2_20);
+
+      assertThat(internalInfoBlock(created)).as(object)
+        .isEqualTo(internalInfoBlock(GoldenSnapshots.read(platform.resolve(object))));
+    }
+  }
+
+  /** Блок {@code InternalInfo} объекта с переводами строк LF, без отступов по краям. */
+  private static String internalInfoBlock(String xml) {
+    int start = xml.indexOf("<InternalInfo");
+    int end = xml.indexOf("<Properties>");
+    assertThat(start).isNotNegative().isLessThan(end);
+    return xml.substring(start, end).replace("\r\n", "\n").strip();
+  }
+
   /** Расширение с самым коротким составом: в него ещё не заимствованы объекты фикстуры. */
   private static Path smallestExtensionConfiguration() throws IOException {
     Path cfe = Ssl31SubmodulePaths.projectRoot().resolve("src").resolve("cfe");
