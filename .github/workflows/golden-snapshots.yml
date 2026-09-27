@@ -9,6 +9,11 @@ name: "Вспомогательный: эталоны по версиям пла
 # Внешние объекты с формами собираются в .epf/.erf один раз платформой builder_version (исходник
 # в формате 2.20 читают только 8.3.27+), а разбирает их платформа каждой версии.
 #
+# Если включён roundtrip, на той же платформе проверяется загрузкой сам md-sparrow
+# (tools/golden-snapshots/roundtrip.py): конфигурация с формами, внешние объекты, все виды с узлами и
+# расширение, которые он пишет в формате этой платформы, загружаются ibcmd, выгружаются обратно и
+# сверяются байт в байт. Отчёт - артефакт roundtrip-<версия>; различие роняет задачу.
+#
 # Если задан edt_version, снятые эталоны импортируются в проекты 1C:EDT этой версии:
 # артефакт edt-<версия EDT> (src/**/*.mdo, формы, права). EDT CLI требует Java 17: JDK 17 ставит
 # setup-java, путь к java передаётся 1cedtcli ключом -vm (EDT_JAVA).
@@ -27,6 +32,16 @@ on:
         description: 'Версия 1C:EDT, например "2026.1.2"; пусто - без импорта в EDT'
         required: false
         default: ''
+      snapshots:
+        description: 'Снять эталоны'
+        type: boolean
+        required: false
+        default: true
+      roundtrip:
+        description: 'Проверить загрузкой: всё, что пишет md-sparrow, платформа выгружает теми же байтами'
+        type: boolean
+        required: false
+        default: true
 
 concurrency:
   group: golden-snapshots
@@ -47,14 +62,20 @@ jobs:
         id: pick
         env:
           VERSIONS: ${{ inputs.versions }}
+          SNAPSHOTS: ${{ inputs.snapshots }}
+          ROUNDTRIP: ${{ inputs.roundtrip }}
         run: |
+          # Иначе матрица скачает и поставит каждую платформу, ничего с ней не сделав
+          if [ "$SNAPSHOTS" != "true" ] && [ "$ROUNDTRIP" != "true" ]; then
+            echo "::error::Выключены и съёмка эталонов, и проверка загрузкой"; exit 1
+          fi
           LIST=$(printf '%s\n' $VERSIONS | jq -R . | jq -s -c 'map(select(length > 0))')
           [ "$LIST" != "[]" ] || { echo "::error::Не задано ни одной версии платформы"; exit 1; }
           echo "list=$LIST" >> "$GITHUB_OUTPUT"
 
   external:
     name: Сборка .epf/.erf (${{ inputs.builder_version }})
-    if: inputs.builder_version != ''
+    if: inputs.snapshots && inputs.builder_version != ''
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
@@ -87,9 +108,42 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  jar:
+    name: Сборка md-sparrow
+    if: inputs.roundtrip
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v7
+
+      # Сборке нужны схемы (JAXB-модели) и эталоны (ресурсы jar), ssl31 не нужен
+      - name: Получить схемы и эталоны
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --depth 1 resources/namespace-forest fixtures/samples-1c-platform
+
+      - name: Установить JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Собрать jar
+        run: ./gradlew shadowJar --no-daemon
+
+      - name: Передать jar дальше
+        uses: actions/upload-artifact@v7
+        with:
+          name: md-sparrow-jar
+          path: build/libs/*-all.jar
+          if-no-files-found: error
+          retention-days: 1
+
   snapshots:
-    name: Эталоны ${{ matrix.version }}
-    needs: [versions, external]
+    name: Платформа ${{ matrix.version }}
+    needs: [versions, external, jar]
     if: ${{ !cancelled() && needs.versions.result == 'success' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 120
@@ -124,6 +178,7 @@ jobs:
           password: ${{ secrets.ONEC_PASSWORD }}
 
       - name: Снять эталоны
+        if: inputs.snapshots
         env:
           BIN: ${{ steps.platform.outputs.bin }}
         run: |
@@ -138,8 +193,40 @@ jobs:
           path: ${{ runner.temp }}/golden/logs
           retention-days: 7
 
+      - name: Забрать md-sparrow
+        if: ${{ !cancelled() && inputs.roundtrip && needs.jar.result == 'success' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: md-sparrow-jar
+          path: md-sparrow-jar
+
+      - name: Установить JDK 21 для md-sparrow
+        if: ${{ !cancelled() && inputs.roundtrip && needs.jar.result == 'success' }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Проверить загрузкой
+        if: ${{ !cancelled() && inputs.roundtrip && needs.jar.result == 'success' && steps.platform.outcome == 'success' }}
+        env:
+          BIN: ${{ steps.platform.outputs.bin }}
+        run: |
+          JAR=$(ls md-sparrow-jar/*-all.jar | head -1)
+          python3 tools/golden-snapshots/roundtrip.py --jar "$JAR" --bin "$BIN" \
+            --work "$RUNNER_TEMP/roundtrip" --out "roundtrip-out"
+
+      - name: Загрузить отчёт проверки загрузкой
+        if: ${{ !cancelled() && inputs.roundtrip }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: roundtrip-${{ matrix.version }}
+          path: roundtrip-out/
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Загрузить эталоны как артефакт
-        if: always()
+        if: ${{ always() && inputs.snapshots }}
         uses: actions/upload-artifact@v7
         with:
           name: snapshots-${{ matrix.version }}
@@ -150,7 +237,7 @@ jobs:
   edt:
     name: Проекты 1C:EDT ${{ inputs.edt_version }}
     needs: snapshots
-    if: ${{ !cancelled() && inputs.edt_version != '' && needs.snapshots.result != 'skipped' }}
+    if: ${{ !cancelled() && inputs.snapshots && inputs.edt_version != '' && needs.snapshots.result != 'skipped' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
