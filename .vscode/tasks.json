@@ -54,6 +54,12 @@
 			"command": "git-cliff --config cliff.toml --output CHANGELOG.md",
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "Подтянуть submodules",
+			"type": "shell",
+			"command": "git submodule update --init --recursive",
+			"problemMatcher": []
 		}
 	]
 }
