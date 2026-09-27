@@ -33,8 +33,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Создание форм объектов из эталона платформы и сборка содержимого формы из
@@ -51,8 +53,13 @@ public final class FormScaffold {
   private static final String CHILD_OBJECTS = "ChildObjects";
   private static final String FORM = "Form";
 
-  /** С какого формата платформа дописывает свойства формы по виду основного реквизита. */
-  private static final SchemaVersion MAIN_ATTRIBUTE_DEFAULTS_SINCE = SchemaVersion.V2_20;
+  /**
+   * Форматы, в которых платформа выгружает форму с основным реквизитом как есть: 8.3.22-8.3.24
+   * (2.15-2.17). Остальные линейки, 8.3.17-8.3.21 и 8.3.25-8.5.1, дописывают свойства по виду
+   * основного реквизита ({@link #MAIN_ATTRIBUTE_DEFAULTS}).
+   */
+  private static final Set<SchemaVersion> MAIN_ATTRIBUTE_AS_IS =
+    EnumSet.of(SchemaVersion.V2_15, SchemaVersion.V2_16, SchemaVersion.V2_17);
 
   private static final List<String> REPORT_FORM_DEFAULTS = List.of(
     "<ReportFormType>Main</ReportFormType>",
@@ -61,12 +68,14 @@ public final class FormScaffold {
     "<ViewModeApplicationOnSetReportResult>Auto</ViewModeApplicationOnSetReportResult>");
 
   /**
-   * Свойства корня формы, которые платформа 8.3.27 и 8.5.1 (форматы 2.20, 2.21) при загрузке
-   * дописывает форме с основным реквизитом такого вида, если их нет в файле, и потом выгружает.
-   * 8.3.23 и 8.3.24 (2.16, 2.17) форму выгружают как есть; 2.18 и 2.19 не проверены (загрузку на
-   * 8.3.25 и 8.3.26 не прогоняли) и идут как 2.17. Источник - загрузка и выгрузка формы, собранной cf-form-compile, на этих
-   * платформах; у внешнего отчёта - форма отчёта в эталоне external-files 2.20 и 2.21. У обработки,
-   * задачи, плана счетов, плана видов расчёта и плана обмена платформа не дописывает ничего.
+   * Свойства корня формы, которые платформа при загрузке дописывает форме с основным реквизитом такого
+   * вида, если их нет в файле, и потом выгружает; кроме форматов {@link #MAIN_ATTRIBUTE_AS_IS}.
+   * В формат попадают только свойства, которые знает его модель: {@code ViewModeApplicationOnSetReportResult}
+   * есть с 2.12, и 8.3.17-8.3.18 его не пишут. Источник - загрузка и выгрузка форм, собранных
+   * cf-form-compile, ibcmd всех двенадцати линеек (tools/golden-snapshots/roundtrip.py). Форму внешнего
+   * отчёта так проверить можно только с 8.3.23 (раньше ibcmd внешние объекты не собирает): там она ведёт
+   * себя как форма отчёта той же платформы, и в 2.10-2.15 правило для неё взято с формы отчёта. У
+   * обработки, задачи, плана счетов, плана видов расчёта и плана обмена платформа не дописывает ничего.
    */
   private static final Map<String, List<String>> MAIN_ATTRIBUTE_DEFAULTS = Map.of(
     "CatalogObject", List.of("<UseForFoldersAndItems>Items</UseForFoldersAndItems>"),
@@ -214,7 +223,7 @@ public final class FormScaffold {
     String eol = XmlLines.newline(golden);
     int open = golden.indexOf('>', golden.indexOf("<Form"));
     StringBuilder body = new StringBuilder(eol);
-    if (version.compareTo(MAIN_ATTRIBUTE_DEFAULTS_SINCE) >= 0 && definition.mainAttributeType != null) {
+    if (!MAIN_ATTRIBUTE_AS_IS.contains(version) && definition.mainAttributeType != null) {
       for (String property : MAIN_ATTRIBUTE_DEFAULTS.getOrDefault(typeKind(definition.mainAttributeType), List.of())) {
         body.append('\t').append(property).append(eol);
       }
@@ -242,7 +251,8 @@ public final class FormScaffold {
     } else {
       body.append("\t<Attributes/>").append(eol);
     }
-    return golden.substring(0, open + 1) + body + "</Form>";
+    // свойства, которых модель формата не знает, проекция убирает
+    return FormatProjection.project(golden.substring(0, open + 1) + body + "</Form>", version);
   }
 
   /** Вид типа без пространства и имени объекта: {@code cfg:CatalogObject.Товары} - {@code CatalogObject}. */

@@ -334,21 +334,58 @@ class FormAddGoldenTest {
     softly.assertAll();
   }
 
-  /** В 2.16 и 2.17 платформа ничего не дописывает (загрузка и выгрузка на 8.3.23 и 8.3.24). */
+  /**
+   * Свойства корня формы с основным реквизитом, которые платформа формата дописывает при загрузке и
+   * выгружает: загрузка и выгрузка форм cf-form-compile ibcmd всех двенадцати линеек
+   * (tools/golden-snapshots/roundtrip.py). 8.3.22-8.3.24 (2.15-2.17) не дописывают ничего, остальные -
+   * по виду реквизита. {@code ViewModeApplicationOnSetReportResult} модель знает с 2.12, 8.3.17 и
+   * 8.3.18 его не пишут. Форма внешнего отчёта проверена загрузкой только с 8.3.23 (раньше ibcmd
+   * внешние объекты не собирает); в 2.10-2.15 для неё взято правило формы отчёта той же платформы.
+   */
+  private static Map<String, List<String>> platformRootProperties(SchemaVersion version) {
+    if (version.compareTo(SchemaVersion.V2_15) >= 0 && version.compareTo(SchemaVersion.V2_17) <= 0) {
+      return Map.of();
+    }
+    List<String> report = version.compareTo(SchemaVersion.V2_12) < 0
+      ? List.of("ReportFormType", "AutoShowState", "ReportResultViewMode")
+      : List.of("ReportFormType", "AutoShowState", "ReportResultViewMode", "ViewModeApplicationOnSetReportResult");
+    return Map.of(
+      "CatalogObject", List.of("UseForFoldersAndItems"),
+      "ChartOfCharacteristicTypesObject", List.of("UseForFoldersAndItems"),
+      "DocumentObject", List.of("AutoTime", "UsePostingMode", "RepostOnWrite"),
+      "ReportObject", report,
+      "ExternalReportObject", report);
+  }
+
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
-  void свойстваФормыОтчётаКакУПлатформыФормата(SchemaVersion version) throws Exception {
+  void свойстваФормыПоОсновномуРеквизитуКакУПлатформыФормата(SchemaVersion version) throws Exception {
+    Path owner = compileOwner(version);
+    SoftAssertions softly = new SoftAssertions();
+    for (String kind : List.of("CatalogObject", "ChartOfCharacteristicTypesObject", "DocumentObject", "ReportObject",
+      "DataProcessorObject", "TaskObject", "ChartOfAccountsObject", "ChartOfCalculationTypesObject",
+      "ExchangePlanObject")) {
+      softly.assertThat(rootProperties(compiled(owner, version, "Форма" + kind, "cfg:" + kind + ".Объект1")))
+        .as("форма с основным реквизитом %s в формате %s", kind, version)
+        .containsExactlyElementsOf(platformRootProperties(version).getOrDefault(kind, List.of()));
+    }
+    softly.assertAll();
+  }
+
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void свойстваФормыВнешнегоОтчётаКакУПлатформыФормата(SchemaVersion version) throws Exception {
     String owner = "Нов" + GoldenScaffold.externalProtoName(ExternalArtifactKind.REPORT);
     Path ownerXml = NewExternalArtifactXml.create(workspace, owner, ExternalArtifactKind.REPORT, version);
 
     String ours = compiled(ownerXml, version, "ФормаОтчета", "cfg:ExternalReportObject." + owner);
 
-    if (version.compareTo(SchemaVersion.V2_17) <= 0) {
-      assertThat(rootProperties(ours)).as("формат %s", version).isEmpty();
-    }
+    List<String> expected = platformRootProperties(version).getOrDefault("ExternalReportObject", List.of());
+    assertThat(rootProperties(ours)).as("формат %s", version).containsExactlyElementsOf(expected);
+    // Эталоны внешних объектов собраны 8.3.27 и только разобраны своей платформой: с выгрузкой
+    // сравнимы там, где платформа формата сама дописывает те же свойства
     String report = REPORT_FORMS + "ФормаОтчета/Ext/Form.xml";
-    if (version.compareTo(SchemaVersion.V2_20) >= 0
-      && GoldenSnapshots.files(version, GoldenSnapshots.EXTERNAL_FULL).contains(report)) {
+    if (!expected.isEmpty() && GoldenSnapshots.files(version, GoldenSnapshots.EXTERNAL_FULL).contains(report)) {
       assertThat(rootLines(ours))
         .as("формат %s", version)
         .isEqualTo(rootLines(GoldenSnapshots.read(version, GoldenSnapshots.EXTERNAL_FULL, report)));
