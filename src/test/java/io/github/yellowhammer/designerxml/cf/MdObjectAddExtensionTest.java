@@ -163,15 +163,8 @@ class MdObjectAddExtensionTest {
     return configuration.substring(open, close).lines().toList();
   }
 
-  /**
-   * Новое расширение: выгрузка пустого расширения платформой, где она снята (с 2.14), иначе
-   * {@code init-empty-cfe}, который пишет то же самое.
-   */
+  /** Новое расширение: выгрузка пустого расширения платформой этого формата. */
   private static Path newExtension(SchemaVersion version, Path cfe) throws Exception {
-    if (GoldenSnapshots.files(version, GoldenSnapshots.CFE).isEmpty()) {
-      EmptyCfeScaffold.writeEmptyTree(cfe, "Расширение", null, null, EmptyCfeScaffold.Purpose.ADD_ON, null, null, version);
-      return cfe;
-    }
     return SamplesSubmodulePaths.copy(SamplesSubmodulePaths.snapshot(version, GoldenSnapshots.CFE), cfe);
   }
 

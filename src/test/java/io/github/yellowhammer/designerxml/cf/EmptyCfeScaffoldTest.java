@@ -41,7 +41,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,7 +50,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Пустое расширение: каркас из эталона выгрузки плюс свойства вызывающего.
  *
  * Каркас формата V - проекция канонического эталона, поэтому расширение создаётся во всех
- * форматах. Где платформа сняла эталон (2.14-2.21), результат сверяется с ним с точностью до UUID.
+ * форматах. Результат сверяется с расширением, которое выгрузила платформа этого формата, с точностью
+ * до UUID.
  */
 class EmptyCfeScaffoldTest {
 
@@ -115,10 +115,6 @@ class EmptyCfeScaffoldTest {
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
   void совпадаетСРасширениемПлатформыСТочностьюДоUuid(SchemaVersion version) throws IOException {
-    // эталоны есть с 2.14: ibcmd более старых платформ расширений не создаёт
-    if (GoldenSnapshots.files(version, GoldenSnapshots.CFE).isEmpty()) {
-      return;
-    }
     String platform = GoldenSnapshots.read(version, GoldenSnapshots.CFE, CfLayout.CONFIGURATION_XML);
     String name = ScaffoldPropertyEdit.leaf(platform, "Name").orElseThrow();
     Path root = workspace.resolve("Платформа" + version.name());

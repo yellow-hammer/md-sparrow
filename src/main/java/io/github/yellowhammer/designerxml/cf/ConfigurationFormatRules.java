@@ -50,7 +50,9 @@ import java.util.Optional;
  *       с 2.11 элемент пустой. Список из XSD не выводится (пять значений перечисления не
  *       пишутся, два переставлены), поэтому берётся из эталона 2.10 ресурсом сборки;</li>
  *   <li>расширение: до 2.14 включительно {@code ObjectBelonging} стоит после
- *       {@code ConfigurationExtensionPurpose} (эталон 2.14 и сериализатор EDT), с 2.15 - первым;</li>
+ *       {@code ConfigurationExtensionPurpose} (эталоны 2.10-2.14 и сериализатор EDT), с 2.15 - первым;
+ *       у заимствованного объекта так же - после {@code Comment} до 2.14 и первым с 2.15
+ *       ({@link #belongingFirst});</li>
  *   <li>расширение 2.19: в {@code InternalInfo} два {@code xr:PropertyState}
  *       ({@code CommandInterface} и {@code MainSectionCommandInterface} = {@code Extended}),
  *       которых нет ни в 2.18, ни в 2.20.</li>
@@ -81,12 +83,15 @@ final class ConfigurationFormatRules {
   /** Последний формат с непустым списком разрешений мобильного приложения. */
   private static final SchemaVersion LAST_LISTED_PERMISSIONS = SchemaVersion.V2_10;
 
-  /** Последний формат, где у расширения {@code ObjectBelonging} стоит после назначения. */
+  /**
+   * Последний формат, где {@code ObjectBelonging} стоит не первым: у расширения - после назначения,
+   * у заимствованного объекта - после {@code Comment}.
+   */
   private static final SchemaVersion LAST_BELONGING_AFTER_PURPOSE = SchemaVersion.V2_14;
 
   /**
    * Формат, в эталоне расширения которого есть {@code xr:PropertyState} командного интерфейса.
-   * Правило снято с единственного снимка 8.3.26, перепроверить workflow golden-snapshots.
+   * Подтверждено двумя сборками 8.3.26 и загрузкой расширения ibcmd 8.3.25-8.3.27 (roundtrip.py).
    */
   private static final SchemaVersion EXTENDED_COMMAND_INTERFACE = SchemaVersion.V2_19;
 
@@ -184,8 +189,24 @@ final class ConfigurationFormatRules {
     return xml.substring(0, lineStart) + block + xml.substring(permissions.get().end());
   }
 
+  /**
+   * Пишет ли платформа {@code ObjectBelonging} первым свойством.
+   *
+   * <p>С 2.15 - да. До 2.14 включительно у самого расширения он стоит после
+   * {@code ConfigurationExtensionPurpose}, а у заимствованного объекта - после {@code Comment}: так
+   * выгружают ibcmd 8.3.17-8.3.19 и 8.3.21 после загрузки (tools/golden-snapshots/roundtrip.py), 8.3.22
+   * и новее пишут его первым. 8.3.20 (2.13) расширение с ролью не загружает вовсе, даже своё: для 2.13
+   * место выведено из соседних 2.12 и 2.14.
+   *
+   * @param version формат
+   * @return {@code true} с 2.15
+   */
+  static boolean belongingFirst(SchemaVersion version) {
+    return version.compareTo(LAST_BELONGING_AFTER_PURPOSE) > 0;
+  }
+
   private static String extensionObjectBelonging(String xml, SchemaVersion target) {
-    if (target.compareTo(LAST_BELONGING_AFTER_PURPOSE) > 0) {
+    if (belongingFirst(target)) {
       return xml;
     }
     Optional<XmlLines.Node> belonging = property(xml, "ObjectBelonging");

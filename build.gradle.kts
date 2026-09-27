@@ -548,6 +548,15 @@ tasks.test {
         "samples.root",
         layout.projectDirectory.dir("fixtures/samples-1c-platform").asFile.absolutePath,
     )
+    // Тесты сверяют результат с эталонами, схемами и фикстурами: их смена должна перезапускать тесты, а
+    // не отдавать прошлый результат. ssl31 и ssl31-edt не объявлены: они большие (по 270 МБ), хешировать
+    // их на каждой сборке дорого; после обновления этих submodule нужен ./gradlew test --rerun.
+    inputs.dir(snapshotsDir).withPropertyName("эталоны samples-1c-platform")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(xsdRootPath).withPropertyName("схемы namespace-forest")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir("fixtures/unsupported-extension").withPropertyName("расширение чужого формата")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     // Расширение чужого формата рядом с читаемыми: только Configuration.xml
     systemProperty(
         "fixtures.unsupportedExtension.root",

@@ -118,7 +118,8 @@ final class XsdPlatformShims {
    *       {@code Name}.</li>
    *   <li>Порядок свойств в выводе платформы не совпадает с порядком XDTO: новые свойства XDTO дописывает в конец
    *       типа ({@code UseOneCommand} подсистемы, {@code UpdateDataHistoryImmediatelyAfterWrite} плана счетов),
-   *       а {@code ObjectBelonging} заимствованного объекта платформа пишет перед {@code Name}.</li>
+   *       а {@code ObjectBelonging} заимствованного объекта платформа пишет перед {@code Name} (до 2.14 -
+   *       после {@code Comment}).</li>
    *   <li>{@code ConfigurationProperties} и {@code CommonModuleProperties} XDTO описывает одиночным
    *       {@code xs:choice} (ровно одно свойство), а платформа пишет все свойства подряд.</li>
    * </ul>

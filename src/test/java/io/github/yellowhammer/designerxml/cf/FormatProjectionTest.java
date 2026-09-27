@@ -143,7 +143,7 @@ class FormatProjectionTest {
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
   void пустоеРасширениеЧитаетсяМодельюФормата(SchemaVersion version) throws Exception {
-    // эталонов 2.10-2.13 нет: ibcmd тех версий расширений не создаёт, проверяем хотя бы модель
+    // проекция канонического расширения читается моделью каждого формата
     for (String file : canonicalFiles(GoldenSnapshots.CFE)) {
       String projected = FormatProjection.project(
         GoldenSnapshots.read(canonical(), GoldenSnapshots.CFE, file), version);

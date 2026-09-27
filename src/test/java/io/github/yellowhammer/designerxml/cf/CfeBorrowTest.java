@@ -121,10 +121,6 @@ class CfeBorrowTest {
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
   void заимствованныеОбъектыВстаютВСоставВПорядкеПлатформы(SchemaVersion version) throws Exception {
-    // пустое расширение платформа выгрузила с 2.14
-    if (GoldenSnapshots.files(version, GoldenSnapshots.CFE).isEmpty()) {
-      return;
-    }
     Path cfe = SamplesSubmodulePaths.copy(
       SamplesSubmodulePaths.snapshot(version, GoldenSnapshots.CFE), tempDir.resolve(version.name()));
     Path extensionXml = cfe.resolve(CfLayout.CONFIGURATION_XML);
@@ -144,6 +140,31 @@ class CfeBorrowTest {
     assertThat(CfDumpValidation.validate(cfe))
       .as("порядок состава")
       .noneMatch(finding -> CfDumpValidation.KIND_CHILD_OBJECTS_ORDER.equals(finding.kind()));
+  }
+
+  /**
+   * Свойства заимствованного объекта в порядке платформы формата: загрузка и выгрузка расширения ibcmd
+   * всех линеек, кроме 8.3.20 (tools/golden-snapshots/roundtrip.py; 8.3.20 расширение с ролью не
+   * загружает, 2.13 выведен из 2.12 и 2.14). До 2.14 включительно принадлежность стоит после
+   * комментария, с 2.15 - первой.
+   */
+  @ParameterizedTest
+  @EnumSource(SchemaVersion.class)
+  void свойстваЗаимствованногоОбъектаВПорядкеПлатформыФормата(SchemaVersion version) throws Exception {
+    Path cfe = SamplesSubmodulePaths.copy(
+      SamplesSubmodulePaths.snapshot(version, GoldenSnapshots.CFE), tempDir.resolve(version.name()));
+    Path objectXml = SamplesSubmodulePaths.bareObjects(version).resolve("Catalogs").resolve("Справочник1.xml");
+
+    Path created = CfeBorrow.borrowObject(objectXml, cfe.resolve(CfLayout.CONFIGURATION_XML), version);
+
+    List<String> properties = XmlLines.children(GoldenSnapshots.read(created),
+        List.of("MetaDataObject", "Catalog", "Properties")).stream()
+      .map(XmlLines.Node::name)
+      .toList();
+    assertThat(properties).as("формат %s", version).containsExactlyElementsOf(
+      version.compareTo(SchemaVersion.V2_14) <= 0
+        ? List.of("Name", "Comment", "ObjectBelonging")
+        : List.of("ObjectBelonging", "Name", "Comment"));
   }
 
   /** Расширение с самым коротким составом: в него ещё не заимствованы объекты фикстуры. */
