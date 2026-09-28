@@ -14,15 +14,26 @@
              config import files --no-check (ibcmd 8.3.20+: голые регистры и планы проверку не проходят)
   extension  расширение к своей конфигурации: свой справочник и заимствованный объект каждого вида,
              который голым проходит config import с проверкой; у заимствованного общего модуля
-             cf-md-object-set меняет флаг «Сервер»
+             cf-md-object-set меняет флаги «Сервер», «Вызов сервера» и «Внешнее соединение»
 
-В каждом сценарии каждый файл, записанный md-sparrow, сверяется с выгрузкой платформы байт в байт;
-файл, который платформа выгрузила сверх записанного, тоже считается различием (кроме ConfigDumpInfo.xml).
+Загруженное платформа проверяет (config check) и применяет к базе (config apply --force), у расширения
+с --extension; ibcmd без этих команд их пропускает. Затем идёт второй цикл: первая выгрузка платформы
+загружается в новую базу тем же путём, проверяется, применяется и выгружается снова.
+
+Каждый файл, записанный md-sparrow, сверяется с первой выгрузкой байт в байт, а первая выгрузка со
+второй; файл, который выгрузка дала сверх сравниваемого, тоже различие (кроме ConfigDumpInfo.xml).
+Серии <v8:Type> подряд сравниваются как мультимножества: порядок типов в составном типе платформа
+выбирает сама. Вердикт сценария:
+  pass                 записанное md-sparrow совпало с выгрузкой, второй цикл её не изменил
+  accepted-normalized  платформа приняла файлы, но выгрузила иначе; второй цикл выгрузку не изменил
+  unstable-roundtrip   вторая выгрузка отличается от первой
+  rejected             платформа отвергла файлы при загрузке, проверке или применении
+  platform             отказ - ограничение версии (см. ниже), skipped - сценарий этой версии не по силам
 Если платформа отвергла расширение, тем же путём загружается выгрузка расширения, созданного ею самой.
 Отвергнута и она, и все ошибки отказа те же (ibcmd 8.3.20) - сценарий помечается platform: это
 ограничение версии, а не различие. Любая другая ошибка - отказ файлов md-sparrow.
-Итог - report.txt с различиями и summary.json в --out. Код выхода: 0 - всё совпало, 1 - есть различия
-или платформа отвергла файлы, 2 - сбой самой проверки.
+Итог - report.txt с различиями и summary.json в --out. Код выхода: 0 - у всех сценариев pass, platform
+или skipped, 1 - есть другие вердикты, 2 - сбой самой проверки.
 
 Рабочий каталог --work стирается перед проверкой, поэтому он должен быть пустым, новым или оставленным
 прошлой проверкой (с меткой .roundtrip). На Windows он должен быть коротким: ibcmd не работает с длинными
@@ -173,6 +184,7 @@ class Roundtrip:
         help_text = run([ibcmd, 'help', 'config'], env)[1] + run([ibcmd, 'help', 'infobase'], env)[1]
         self.has_no_check = '--base-dir=' in help_text and '--no-check' in help_text
         self.has_extension_create = '--name-prefix=' in help_text
+        self.has_check_apply = bool(re.search(r'\bcheck\b', help_text) and re.search(r'\bapply\b', help_text))
         self.platform = run([ibcmd, '--version'], env)[1].splitlines()[0].strip()
 
     # ---------- md-sparrow ----------
@@ -244,9 +256,10 @@ class Roundtrip:
         return rc == 0
 
     # ---------- сверка ----------
-    def compare(self, title, ours, theirs):
+    def compare(self, title, ours, theirs, what=('md-sparrow', 'платформа')):
         same, diffs = 0, []
-        ours_files = {p.relative_to(ours).as_posix() for p in ours.rglob('*') if p.is_file()}
+        # во втором цикле «записанное» - первая выгрузка платформы, и сведения о выгрузке есть с обеих сторон
+        ours_files = {p.relative_to(ours).as_posix() for p in ours.rglob('*') if p.is_file() and p.name != DUMP_INFO}
         theirs_files = {p.relative_to(theirs).as_posix() for p in theirs.rglob('*')
                         if p.is_file() and p.name != DUMP_INFO}
         for rel in sorted(ours_files | theirs_files):
@@ -263,6 +276,10 @@ class Roundtrip:
             if da == db:
                 same += 1
                 continue
+            if type_series(da) == type_series(db):
+                same += 1
+                log('  совпало с точностью до порядка типов', rel)
+                continue
             diffs.append(rel)
             log('  РАЗЛИЧИЕ', rel)
             if da.replace(b'\r\n', b'\n') == db.replace(b'\r\n', b'\n'):
@@ -270,13 +287,43 @@ class Roundtrip:
                 continue
             la = da.decode('utf-8', 'replace').splitlines()
             lb = db.decode('utf-8', 'replace').splitlines()
-            for line in list(difflib.unified_diff(la, lb, 'md-sparrow', 'платформа', lineterm='', n=1))[:60]:
+            for line in list(difflib.unified_diff(la, lb, what[0], what[1], lineterm='', n=1))[:60]:
                 log('    ' + line[:240])
         log('  итог %s: совпало %d, различий %d' % (title, same, len(diffs)))
         return same, diffs
 
-    def record(self, scenario, status, same=0, diffs=(), note=''):
-        self.results[scenario] = {'status': status, 'same': same, 'diffs': list(diffs), 'note': note}
+    def record(self, scenario, status, same=0, diffs=(), note='', unstable=()):
+        self.results[scenario] = {'status': status, 'same': same, 'diffs': list(diffs), 'note': note,
+                                  'unstable': list(unstable)}
+
+    def check_apply(self, name, extension=None):
+        """config check и config apply --force: принимает ли платформа загруженное как конфигурацию базы."""
+        if not self.has_check_apply:
+            return True
+        ext = ['--extension=%s' % extension] if extension else []
+        return (self.ib_ok(name, ['config', 'check'], ext, 'config check')
+                and self.ib_ok(name, ['config', 'apply'], [*ext, '--force'], 'config apply'))
+
+    def verdict(self, scenario, ours, first, load_again):
+        """Сверка записанного с первой выгрузкой и второй цикл.
+
+        :param load_again: функция (каталог первой выгрузки) -> каталог второй выгрузки или None, если
+            платформа отвергла собственную выгрузку
+        """
+        same, diffs = self.compare(scenario, ours, first)
+        log('  второй цикл %s: загрузка первой выгрузки платформы' % scenario)
+        second = load_again(first)
+        if second is None:
+            self.record(scenario, 'unstable-roundtrip', same, diffs, note='платформа отвергла свою выгрузку')
+            return
+        _, unstable = self.compare(scenario + ' (второй цикл)', first, second, ('выгрузка 1', 'выгрузка 2'))
+        if unstable:
+            status = 'unstable-roundtrip'
+        elif diffs:
+            status = 'accepted-normalized'
+        else:
+            status = 'pass'
+        self.record(scenario, status, same, diffs, unstable=unstable)
 
     # ---------- сценарии ----------
     def detect_format(self):
@@ -319,15 +366,21 @@ class Roundtrip:
         self.ms({'op': 'cf-form-compile', 'objectXml': catalog, 'name': 'ФормаСЭлементами',
                  'payloadJson': json.dumps({'mainAttribute': {'name': 'Объект', 'type': 'cfg:CatalogObject.Спр'},
                                             **FORM_ITEMS}, ensure_ascii=False)})
-        self.create('forms')
-        if not self.ib_ok('forms', ['config', 'import'], [str(cf)], 'config import'):
+        out = self.load_cf('forms', cf)
+        if out is None:
             self.record('forms', 'rejected')
             return
-        out = self.work / 'forms-out'
-        if not self.ib_ok('forms', ['config', 'export'], [str(out)], 'config export'):
-            raise Failure('выгрузка конфигурации forms')
-        same, diffs = self.compare('forms', cf, out)
-        self.record('forms', 'ok' if not diffs else 'diff', same, diffs)
+        self.verdict('forms', cf, out, lambda first: self.load_cf('forms-2', first))
+
+    def load_cf(self, name, cf):
+        """Обычный config import с проверкой, config check и apply, config export; None - отвергнуто."""
+        self.create(name)
+        if not self.ib_ok(name, ['config', 'import'], [str(cf)], 'config import') or not self.check_apply(name):
+            return None
+        out = self.work / (name + '-out')
+        if not self.ib_ok(name, ['config', 'export'], [str(out)], 'config export'):
+            raise Failure('выгрузка конфигурации ' + name)
+        return out
 
     def external(self):
         log('--- external: внешние отчёт и обработка с формами')
@@ -337,7 +390,7 @@ class Roundtrip:
             return
         root = self.work / 'ext'
         root.mkdir()
-        total_same, total_diffs, rejected = 0, [], False
+        total_same, total_diffs, total_unstable, rejected = 0, [], [], False
         for name, kind, main in (('ВнешнийОтчет', 'REPORT', 'ExternalReportObject'),
                                  ('ВнешняяОбработка', 'DATA_PROCESSOR', 'ExternalDataProcessorObject')):
             self.ms({'op': 'external-artifact-add', 'artifactsRoot': str(root), 'name': name, 'kind': kind})
@@ -346,23 +399,39 @@ class Roundtrip:
             payload = {'mainAttribute': {'name': 'Объект', 'type': 'cfg:%s.%s' % (main, name)}}
             self.ms({'op': 'cf-form-compile', 'objectXml': obj, 'name': 'ФормаОбъекта',
                      'payloadJson': json.dumps(payload, ensure_ascii=False)})
-            binary = self.work / (name + ('.erf' if kind == 'REPORT' else '.epf'))
-            if not self.ib_ok('probe', ['config', 'import'], ['--out=%s' % binary, obj], 'import --out ' + name):
-                total_diffs.append(name)
-                rejected = True
-                continue
-            out = self.work / 'ext-out' / name
-            out.mkdir(parents=True)
-            if not self.ib_ok('probe', ['config', 'export'], ['--file=%s' % binary, str(out)],
-                              'export --file ' + name):
+            out = self.build_external(name, kind, Path(obj), 'ext-out')
+            if out is None:
                 total_diffs.append(name)
                 rejected = True
                 continue
             same, diffs = self.compare(name, root / name, out)
             total_same += same
             total_diffs += [name + '/' + d for d in diffs]
-        status = 'rejected' if rejected else ('ok' if not total_diffs else 'diff')
-        self.record('external', status, total_same, total_diffs)
+            log('  второй цикл %s: сборка из выгрузки платформы' % name)
+            again = self.build_external(name, kind, out / (name + '.xml'), 'ext-out-2')
+            if again is None:
+                total_unstable.append(name)
+                continue
+            _, unstable = self.compare(name + ' (второй цикл)', out, again, ('выгрузка 1', 'выгрузка 2'))
+            total_unstable += [name + '/' + d for d in unstable]
+        if rejected:
+            status = 'rejected'
+        elif total_unstable:
+            status = 'unstable-roundtrip'
+        else:
+            status = 'accepted-normalized' if total_diffs else 'pass'
+        self.record('external', status, total_same, total_diffs, unstable=total_unstable)
+
+    def build_external(self, name, kind, obj, folder):
+        """config import --out и config export --file: каталог выгрузки или None, если платформа отвергла."""
+        binary = self.work / folder / (name + ('.erf' if kind == 'REPORT' else '.epf'))
+        out = self.work / folder / name
+        out.mkdir(parents=True)
+        if not self.ib_ok('probe', ['config', 'import'], ['--out=%s' % binary, str(obj)], 'import --out ' + name):
+            return None
+        if not self.ib_ok('probe', ['config', 'export'], ['--file=%s' % binary, str(out)], 'export --file ' + name):
+            return None
+        return out
 
     def all_kinds(self):
         log('--- all-kinds: объекты всех видов формата с дочерними узлами')
@@ -395,19 +464,28 @@ class Roundtrip:
             obj = str(cf / folder / (owner + '.xml'))
             for op, extra in ops:
                 self.ms({'op': op, 'objectXml': obj, **extra})
-        self.create('all')
-        if not self.ib_ok('all', ['config', 'import'], [str(lang)], 'config import языка'):
-            raise Failure('конфигурация с одним языком не загрузилась')
-        files = [str(p) for p in cf.rglob('*') if p.is_file()]
-        if not self.ib_ok('all', ['config', 'import', 'files'], ['--base-dir=%s' % cf, '--no-check', *files],
-                          'import files --no-check'):
+        out = self.load_files('all', lang, cf)
+        if out is None:
             self.record('all-kinds', 'rejected')
             return
-        out = self.work / 'all-out'
-        if not self.ib_ok('all', ['config', 'export'], [str(out)], 'config export'):
-            raise Failure('выгрузка конфигурации all-kinds')
-        same, diffs = self.compare('all-kinds', cf, out)
-        self.record('all-kinds', 'ok' if not diffs else 'diff', same, diffs)
+        self.verdict('all-kinds', cf, out, lambda first: self.load_files('all-2', lang, first))
+
+    def load_files(self, name, lang, cf):
+        """Язык обычным config import, остальное import files --no-check, затем export.
+
+        Голые регистры и планы проверку не проходят, поэтому config check и apply здесь нет.
+        """
+        self.create(name)
+        if not self.ib_ok(name, ['config', 'import'], [str(lang)], 'config import языка'):
+            raise Failure('конфигурация с одним языком не загрузилась')
+        files = [str(p) for p in cf.rglob('*') if p.is_file() and p.name != DUMP_INFO]
+        if not self.ib_ok(name, ['config', 'import', 'files'], ['--base-dir=%s' % cf, '--no-check', *files],
+                          'import files --no-check'):
+            return None
+        out = self.work / (name + '-out')
+        if not self.ib_ok(name, ['config', 'export'], [str(out)], 'config export'):
+            raise Failure('выгрузка конфигурации ' + name)
+        return out
 
     def extension(self):
         log('--- extension: расширение со своим справочником и заимствованными объектами всех видов своей конфигурации')
@@ -439,11 +517,12 @@ class Roundtrip:
         for obj in sorted(p for p in main.glob('*/*.xml')):
             self.ms({'op': 'cfe-borrow-object', 'objectXml': str(obj), 'configurationXml': cfe_conf})
         # Изменённое свойство заимствованного объекта платформа отмечает в InternalInfo: какое
-        # состояние она сохраняет у флага общего модуля, видно по выгрузке
+        # состояние она сохраняет у флагов общего модуля, видно по выгрузке
         for module in sorted((cfe / 'CommonModules').glob('*.xml')):
-            def server(dto):
-                dto['commonModule']['server'] = not dto['commonModule']['server']
-            self.edit_object(str(module), server)
+            def flags(dto):
+                for flag in ('server', 'serverCall', 'externalConnection'):
+                    dto['commonModule'][flag] = not dto['commonModule'][flag]
+            self.edit_object(str(module), flags)
         rc, out = self.ib('cfe-main', ['config', 'import'], ['--extension=Расширение', str(cfe)])
         if rc != 0 and self.has_extension_create:
             # ibcmd 8.3.20 не загружает этим путём даже выгрузку расширения самой платформы
@@ -463,12 +542,30 @@ class Roundtrip:
                 log('    ' + line[:300])
             self.record('extension', 'rejected')
             return
-        exported = self.work / 'cfe-out'
-        if not self.ib_ok('cfe-main', ['config', 'export'], ['--extension=Расширение', str(exported)],
+        if not self.check_apply('cfe-main') or not self.check_apply('cfe-main', 'Расширение'):
+            self.record('extension', 'rejected', note='config check или apply')
+            return
+        exported = self.export_extension('cfe-main', 'cfe-out')
+        self.verdict('extension', cfe, exported, lambda first: self.load_extension_again(main, first))
+
+    def export_extension(self, name, folder):
+        exported = self.work / folder
+        if not self.ib_ok(name, ['config', 'export'], ['--extension=Расширение', str(exported)],
                           'export --extension'):
             raise Failure('выгрузка расширения')
-        same, diffs = self.compare('extension', cfe, exported)
-        self.record('extension', 'ok' if not diffs else 'diff', same, diffs)
+        return exported
+
+    def load_extension_again(self, main, first):
+        """Второй цикл расширения: новая база с той же основной конфигурацией и выгрузкой расширения."""
+        self.create('cfe-main-2')
+        if not self.ib_ok('cfe-main-2', ['config', 'import'], [str(main)], 'config import основной конфигурации'):
+            raise Failure('основная конфигурация сценария extension не загрузилась повторно')
+        if not self.ib_ok('cfe-main-2', ['config', 'import'], ['--extension=Расширение', str(first)],
+                          'import --extension выгрузки'):
+            return None
+        if not self.check_apply('cfe-main-2') or not self.check_apply('cfe-main-2', 'Расширение'):
+            return None
+        return self.export_extension('cfe-main-2', 'cfe-out-2')
 
     def control_extension_import(self):
         """Принимает ли ibcmd тем же путём выгрузку расширения, которое создала сама платформа.
@@ -493,6 +590,22 @@ class Roundtrip:
         for line in sorted(ibcmd_errors(out)):
             log('    ' + line[:300])
         return False, ibcmd_errors(out)
+
+
+TYPE_LINE = re.compile(rb'^\s*<v8:Type(?:\s[^>]*)?>[^<]*</v8:Type>\r?$')
+
+
+def type_series(data):
+    """Строки файла, где каждая серия <v8:Type> подряд заменена отсортированной: порядок типов не важен."""
+    lines, out, run_ = data.split(b'\n'), [], []
+    for line in lines + [b'']:
+        if TYPE_LINE.match(line):
+            run_.append(line)
+            continue
+        out += sorted(run_)
+        run_ = []
+        out.append(line)
+    return out
 
 
 def ibcmd_errors(output):
@@ -558,13 +671,13 @@ def main():
         code = 2
     finally:
         statuses = [r['status'] for r in rt.results.values()]
-        if code == 0 and any(s in ('diff', 'rejected') for s in statuses):
+        if code == 0 and any(s not in ('pass', 'platform', 'skipped') for s in statuses):
             code = 1
         log('')
         log('Итог (платформа %s, формат %s):' % (rt.platform, getattr(rt, 'format', '?')))
         for name, r in rt.results.items():
-            log('  %-10s %-8s совпало %d, различий %d %s' % (name, r['status'], r['same'], len(r['diffs']),
-                                                            r['note']))
+            log('  %-10s %-19s совпало %d, различий %d, нестабильно %d %s' % (
+                name, r['status'], r['same'], len(r['diffs']), len(r['unstable']), r['note']))
         (out / 'report.txt').write_text('\n'.join(LOG) + '\n', encoding='utf-8')
         (out / 'summary.json').write_text(json.dumps(
             {'platform': rt.platform, 'format': getattr(rt, 'format', None), 'results': rt.results},
