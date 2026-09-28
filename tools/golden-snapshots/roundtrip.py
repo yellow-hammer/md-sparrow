@@ -7,7 +7,8 @@
 
   forms      объекты десяти видов с формами: cf-form-add и cf-form-compile с основным реквизитом, общая
              форма; у справочника ещё форма с элементами всех видов, которые собирает cf-form-compile,
-             и реквизит составного типа (число, строка, дата), записанный cf-md-object-set;
+             после структурной правки (cf-form-item-add, -bind, -rename, -move, -delete), и реквизит
+             составного типа (число, строка, дата), записанный cf-md-object-set;
              обычный config import с проверкой, config export
   external   внешние отчёт и обработка с формами: config import --out, config export --file (ibcmd 8.3.23+)
   all-kinds  объекты всех видов формата с дочерними узлами: язык обычным config import, остальное
@@ -366,11 +367,35 @@ class Roundtrip:
         self.ms({'op': 'cf-form-compile', 'objectXml': catalog, 'name': 'ФормаСЭлементами',
                  'payloadJson': json.dumps({'mainAttribute': {'name': 'Объект', 'type': 'cfg:CatalogObject.Спр'},
                                             **FORM_ITEMS}, ensure_ascii=False)})
+        self.edit_form_items(str(cf / 'Catalogs' / 'Спр' / 'Forms' / 'ФормаСЭлементами' / 'Ext' / 'Form.xml'))
         out = self.load_cf('forms', cf)
         if out is None:
             self.record('forms', 'rejected')
             return
         self.verdict('forms', cf, out, lambda first: self.load_cf('forms-2', first))
+
+    def edit_form_items(self, form):
+        """Структурная правка элементов формы: добавление, привязка, переименование, перенос, удаление."""
+        def ids():
+            content = self.ms_read({'op': 'cf-form-content-get', 'formXml': form})
+            out = {}
+
+            def walk(items):
+                for item in items:
+                    out[item['name']] = item['id']
+                    walk(item.get('items') or [])
+            walk(content['items'])
+            return out
+        found = ids()
+        code = self.ms({'op': 'cf-form-item-add', 'formXml': form, 'parentId': found['Шапка'],
+                        'beforeId': found['ПометкаУдаления'],
+                        'payloadJson': json.dumps({'input': 'Код'}, ensure_ascii=False)})
+        # ответ - номер нового элемента; поток ошибок JVM склеен с ним
+        code = next(line.strip() for line in code.splitlines() if line.strip().isdigit())
+        self.ms({'op': 'cf-form-item-bind', 'formXml': form, 'itemId': code, 'dataPath': 'Объект.Code'})
+        self.ms({'op': 'cf-form-item-rename', 'formXml': form, 'itemId': found['Надпись'], 'newName': 'Пояснение'})
+        self.ms({'op': 'cf-form-item-move', 'formXml': form, 'itemId': found['Надпись'], 'parentId': found['Шапка']})
+        self.ms({'op': 'cf-form-item-delete', 'formXml': form, 'itemId': found['ПометкаУдаления']})
 
     def load_cf(self, name, cf):
         """Обычный config import с проверкой, config check и apply, config export; None - отвергнуто."""
