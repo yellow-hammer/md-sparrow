@@ -36,8 +36,8 @@ import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
  *
  * Лежит своим файлом рядом с описанием подсистемы: {@code CommandInterface.cmi}
  * вместо {@code Ext/CommandInterface.xml}. Разметка другая - команды собраны во
- * фрагменты по группам размещения, а видимость записана пустым элементом, - но
- * контракт для панели общий.
+ * фрагменты по группам размещения, а скрытая команда записана пустым элементом
+ * видимости, - но контракт для панели общий.
  */
 public final class EdtSubsystemCommandInterface {
 
@@ -75,9 +75,15 @@ public final class EdtSubsystemCommandInterface {
     for (EdtNode fragment : section(root, "commandsVisibility", "visibilityFragments")) {
       String command = fragment.property("command");
       if (!command.isEmpty()) {
-        // Видимость записана самим присутствием элемента, без значения
-        dto.visibility.add(new SubsystemCommandInterfaceFile.CommandEntry(
-            command, fragment.list("visible").isEmpty() ? "false" : "true"));
+        SubsystemCommandInterfaceFile.CommandEntry entry =
+            new SubsystemCommandInterfaceFile.CommandEntry(command, visible(fragment));
+        for (EdtNode visible : fragment.list("visible")) {
+          for (EdtNode role : visible.list("for")) {
+            entry.roles.add(new SubsystemCommandInterfaceFile.RoleValue(
+                role.property("role"), "true".equals(role.property("value")) ? "true" : "false"));
+          }
+        }
+        dto.visibility.add(entry);
       }
     }
     for (EdtNode fragment : section(root, "commandsPlacement", "placementFragments")) {
@@ -126,7 +132,16 @@ public final class EdtSubsystemCommandInterface {
     Files.writeString(file, xml.toString(), StandardCharsets.UTF_8);
   }
 
-  /** Видимость команд: элемент без значения означает видимую команду. */
+  /**
+   * Видимость команды по умолчанию: как у Common конфигуратора. EDT не пишет
+   * значение false, поэтому скрытая команда - пустой элемент {@code <visible/>}.
+   */
+  private static String visible(EdtNode fragment) {
+    List<EdtNode> visible = fragment.list("visible");
+    return !visible.isEmpty() && "true".equals(visible.get(0).property("common")) ? "true" : "false";
+  }
+
+  /** Видимость команд: значение false EDT не пишет, от видимости остаётся пустой элемент. */
   private static void appendVisibility(
       StringBuilder xml,
       List<SubsystemCommandInterfaceFile.CommandEntry> entries,
@@ -139,12 +154,36 @@ public final class EdtSubsystemCommandInterface {
       xml.append(INDENT).append(INDENT).append("<visibilityFragments>").append(eol);
       xml.append(INDENT.repeat(3)).append("<command>").append(escape(entry.command)).append("</command>")
           .append(eol);
-      if (!"false".equals(entry.value)) {
-        xml.append(INDENT.repeat(3)).append("<visible/>").append(eol);
-      }
+      appendVisible(xml, entry, eol);
       xml.append(INDENT).append(INDENT).append("</visibilityFragments>").append(eol);
     }
     xml.append(INDENT).append("</commandsVisibility>").append(eol);
+  }
+
+  /** Видимость одной команды: общее значение и исключения по ролям. */
+  private static void appendVisible(StringBuilder xml, SubsystemCommandInterfaceFile.CommandEntry entry, String eol) {
+    List<SubsystemCommandInterfaceFile.RoleValue> roles = entry.roles == null ? List.of() : entry.roles.stream()
+        .filter(role -> role != null && role.role != null && !role.role.isBlank())
+        .toList();
+    boolean common = "true".equals(entry.value);
+    if (!common && roles.isEmpty()) {
+      xml.append(INDENT.repeat(3)).append("<visible/>").append(eol);
+      return;
+    }
+    xml.append(INDENT.repeat(3)).append("<visible>").append(eol);
+    if (common) {
+      xml.append(INDENT.repeat(4)).append("<common>true</common>").append(eol);
+    }
+    // Исключение по роли: значение false EDT тоже не пишет
+    for (SubsystemCommandInterfaceFile.RoleValue role : roles) {
+      xml.append(INDENT.repeat(4)).append("<for>").append(eol);
+      if ("true".equals(role.value)) {
+        xml.append(INDENT.repeat(5)).append("<value>true</value>").append(eol);
+      }
+      xml.append(INDENT.repeat(5)).append("<role>").append(escape(role.role.trim())).append("</role>").append(eol);
+      xml.append(INDENT.repeat(4)).append("</for>").append(eol);
+    }
+    xml.append(INDENT.repeat(3)).append("</visible>").append(eol);
   }
 
   /** Размещение и порядок: команды собраны во фрагменты по группам. */

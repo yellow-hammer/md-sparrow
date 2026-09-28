@@ -235,12 +235,38 @@ public final class SpreadsheetRead {
       }
       if (row >= index && row <= indexTo) {
         String block = xml.substring(start, end);
-        String replaced = replaceInRow(block, column, text, parameter);
-        return xml.substring(0, start) + replaced + xml.substring(end);
+        if (indexTo == index) {
+          return xml.substring(0, start) + replaceInRow(block, column, text, parameter) + xml.substring(end);
+        }
+        // Группа index..indexTo описывает одинаковые строки одним row: правится
+        // только своя строка, поэтому группа делится на строки до, саму строку и после
+        // Разделитель между элементами берётся из файла: перевод строки и отступ
+        String separator = xml.substring(xml.lastIndexOf('>', start - 1) + 1, start);
+        StringBuilder split = new StringBuilder();
+        if (row > index) {
+          split.append(withRange(block, index, row - 1)).append(separator);
+        }
+        split.append(replaceInRow(withRange(block, row, row), column, text, parameter));
+        if (row < indexTo) {
+          split.append(separator).append(withRange(block, row + 1, indexTo));
+        }
+        return xml.substring(0, start) + split + xml.substring(end);
       }
       pos = end;
     }
     throw new IllegalArgumentException("Ячейка не найдена.");
+  }
+
+  /** Строки группы с другими границами: у одиночной строки indexTo не пишется. */
+  private static String withRange(String block, int from, int to) {
+    String out = replaceSimple(block, "index", String.valueOf(from));
+    int open = indexOfOpen(out, "indexTo", 0);
+    if (from == to) {
+      int previous = out.lastIndexOf('>', open - 1) + 1;
+      int close = out.indexOf('>', out.indexOf("</", open)) + 1;
+      return out.substring(0, previous) + out.substring(close);
+    }
+    return replaceSimple(out, "indexTo", String.valueOf(to));
   }
 
   private static String replaceInRow(String block, int column, String text, boolean parameter) {

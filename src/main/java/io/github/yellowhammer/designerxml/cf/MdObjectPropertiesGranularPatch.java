@@ -160,7 +160,8 @@ public final class MdObjectPropertiesGranularPatch {
         if (!node.isValid()) {
           return Optional.empty();
         }
-        reps.add(AdoptedStatesPatch.extended(xmlUtf8, node, entry.getValue()));
+        String nodeLocal = key.isEmpty() ? containerLocal : key.substring(0, key.indexOf(':'));
+        reps.add(AdoptedStatesPatch.extended(xmlUtf8, node, nodeLocal, entry.getValue()));
       }
     } catch (XMLStreamException e) {
       return Optional.empty();

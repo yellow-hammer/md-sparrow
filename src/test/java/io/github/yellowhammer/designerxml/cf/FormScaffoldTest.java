@@ -32,6 +32,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 class FormScaffoldTest {
 
@@ -98,6 +99,136 @@ class FormScaffoldTest {
     FormContentDtoReadCheck.check(content);
   }
 
+  /**
+   * Служебные узлы элемента формы: их состав и порядок задаёт платформа. Вложенные
+   * элементы идут после них, но у таблицы эталона колонок нет, и они сверяются отдельно.
+   */
+  private static final java.util.Set<String> SERVICE_NODES = java.util.Set.of(
+    "ContextMenu", "AutoCommandBar", "ExtendedTooltip", "AdditionSource",
+    "SearchStringAddition", "ViewStatusAddition", "SearchControlAddition");
+
+  @Test
+  void compileFormWritesServiceNodesLikePlatform() throws Exception {
+    Path objectXml = copyCatalog();
+    String definition = """
+      {
+        "items": [
+          {"pages": "Страницы", "items": [
+            {"page": "Основное", "title": "Основное", "items": [
+              {"group": "Шапка", "items": [
+                {"check": "Основной", "dataPath": "Объект.Основной"},
+                {"label": "Подсказка", "title": "Реквизиты банка ниже"}
+              ]}
+            ]}
+          ]},
+          {"table": "Счета", "dataPath": "Объект.Счета", "items": [
+            {"check": "Отметка", "dataPath": "Объект.Счета.Отметка"}
+          ]}
+        ]
+      }
+      """;
+    FormScaffold.compileForm(objectXml, SchemaVersion.V2_20, "Карточка", definition);
+    Path content = tempDir.resolve("_ДемоБанковскиеСчета").resolve("Forms")
+      .resolve("Карточка").resolve("Ext").resolve("Form.xml");
+    org.w3c.dom.Element ours = parse(content).getDocumentElement();
+
+    // Эталон - форма, которую выгрузила платформа: у каждого вида элемента свой набор узлов
+    java.util.Map<String, List<String>> expected = new java.util.TreeMap<>();
+    try (java.util.stream.Stream<Path> files = Files.walk(
+      io.github.yellowhammer.designerxml.SamplesSubmodulePaths.snapshot(SchemaVersion.V2_20, "external-files"))) {
+      for (Path form : files.filter(file -> file.getFileName().toString().equals("Form.xml")).sorted().toList()) {
+        collectServiceNodes(parse(form).getDocumentElement(), expected);
+      }
+    }
+    java.util.Map<String, List<String>> actual = new java.util.TreeMap<>();
+    collectServiceNodes(ours, actual);
+    assertThat(actual.keySet()).containsExactlyInAnyOrder(
+      "CheckBoxField", "LabelDecoration", "UsualGroup", "Pages", "Page", "Table",
+      "SearchStringAddition", "ViewStatusAddition", "SearchControlAddition");
+    actual.forEach((kind, nodes) -> assertThat(nodes).as(kind).isEqualTo(expected.get(kind)));
+    assertChildItemsLast(ours);
+    // Узлы, которые платформа дописывает при загрузке и выгрузке (проверка загрузкой, 8.3.17-8.5.1)
+    String xml = Files.readString(content);
+    assertThat(xml).containsPattern("<DataPath>Объект.Основной</DataPath>\\s*<CheckBoxType>Auto</CheckBoxType>\\s*<ContextMenu");
+    assertThat(xml).containsPattern("<LabelDecoration name=\"Подсказка\" id=\"\\d+\">\\s*<Title formatted=\"false\">");
+    assertThat(xml).containsPattern("<DataPath>Объект.Счета</DataPath>\\s*<RowFilter xsi:nil=\"true\"/>\\s*<ContextMenu");
+
+    // Номера элементов платформа раздаёт подряд в порядке файла
+    List<Integer> ids = new java.util.ArrayList<>();
+    collectIds(ours, ids);
+    assertThat(ids).isEqualTo(java.util.stream.IntStream.rangeClosed(1, ids.size()).boxed().toList());
+  }
+
+  @Test
+  void checkBoxTypeByDefaultOnlyBefore8_5() throws Exception {
+    String definition = "{\"items\": [{\"check\": \"Основной\", \"dataPath\": \"Объект.Основной\"}]}";
+    Path content = tempDir.resolve("_ДемоБанковскиеСчета").resolve("Forms")
+      .resolve("Флажок").resolve("Ext").resolve("Form.xml");
+    Path objectXml = copyCatalog();
+    // Проверка загрузкой: 8.5.1 (2.21) вид флажка по умолчанию не выгружает, 8.3.17-8.3.27 выгружают
+    FormScaffold.compileForm(objectXml, SchemaVersion.V2_21, "Флажок", definition);
+    assertThat(Files.readString(content)).doesNotContain("<CheckBoxType>");
+    FormScaffold.compileForm(objectXml, SchemaVersion.V2_20, "Флажок", definition);
+    assertThat(Files.readString(content)).contains("<CheckBoxType>Auto</CheckBoxType>");
+  }
+
+  private static org.w3c.dom.Document parse(Path xml) throws Exception {
+    javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+    factory.setNamespaceAware(true);
+    return factory.newDocumentBuilder().parse(xml.toFile());
+  }
+
+  /** Первый встреченный элемент каждого вида: служебные узлы по порядку, у дополнения ещё его источник. */
+  private static void collectServiceNodes(org.w3c.dom.Element element, java.util.Map<String, List<String>> out) {
+    for (org.w3c.dom.Element child : children(element)) {
+      if (!child.getAttribute("id").isEmpty() && !"-1".equals(child.getAttribute("id"))
+        && !child.getLocalName().equals("ContextMenu") && !child.getLocalName().equals("ExtendedTooltip")
+        && !child.getLocalName().equals("AutoCommandBar")) {
+        List<String> nodes = new java.util.ArrayList<>();
+        for (org.w3c.dom.Element node : children(child)) {
+          if (SERVICE_NODES.contains(node.getLocalName())) {
+            nodes.add(node.getLocalName());
+          }
+        }
+        out.putIfAbsent(child.getLocalName(), nodes);
+      }
+      collectServiceNodes(child, out);
+    }
+  }
+
+  /** Вложенные элементы платформа пишет после всех служебных узлов, в том числе после подсказки. */
+  private static void assertChildItemsLast(org.w3c.dom.Element element) {
+    List<org.w3c.dom.Element> nodes = children(element);
+    for (int i = 0; i < nodes.size(); i++) {
+      if (nodes.get(i).getLocalName().equals("ChildItems")) {
+        for (org.w3c.dom.Element after : nodes.subList(i + 1, nodes.size())) {
+          assertThat(SERVICE_NODES).as(element.getAttribute("name")).doesNotContain(after.getLocalName());
+        }
+      }
+      assertChildItemsLast(nodes.get(i));
+    }
+  }
+
+  private static void collectIds(org.w3c.dom.Element element, List<Integer> out) {
+    for (org.w3c.dom.Element child : children(element)) {
+      if (!child.getAttribute("id").isEmpty() && !child.getLocalName().equals("Attribute")
+        && !"-1".equals(child.getAttribute("id"))) {
+        out.add(Integer.parseInt(child.getAttribute("id")));
+      }
+      collectIds(child, out);
+    }
+  }
+
+  private static List<org.w3c.dom.Element> children(org.w3c.dom.Element element) {
+    List<org.w3c.dom.Element> out = new java.util.ArrayList<>();
+    for (org.w3c.dom.Node node = element.getFirstChild(); node != null; node = node.getNextSibling()) {
+      if (node instanceof org.w3c.dom.Element child) {
+        out.add(child);
+      }
+    }
+    return out;
+  }
+
   /** Отдельный хелпер: контент формы читается операцией cf-form-content-get. */
   static final class FormContentDtoReadCheck {
     static void check(Path content) throws Exception {
@@ -119,6 +250,43 @@ class FormScaffoldTest {
     java.util.Map<String, Object> info = DcsRead.info(dcs, SchemaVersion.V2_20);
     assertThat(String.valueOf(info)).contains("ВЫБРАТЬ 1 КАК Поле1");
     assertThat(String.valueOf(info.get("calculatedFields"))).contains("Наценка");
+  }
+
+  @Test
+  void dcsCalculatedFieldFollowsDataSetLinks() throws Exception {
+    // Схема со связью наборов и без вычисляемых полей
+    java.nio.file.Path source = Ssl31SubmodulePaths.projectRoot().resolve(
+      "src/cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml");
+    java.nio.file.Path dcs = tempDir.resolve("Template.xml");
+    Files.copy(source, dcs, StandardCopyOption.REPLACE_EXISTING);
+
+    DcsRead.addCalculatedField(dcs, SchemaVersion.V2_20, "Наценка", "1", "Наценка");
+    DcsRead.addCalculatedField(dcs, SchemaVersion.V2_20, "Скидка", "2", null);
+
+    List<String> order = schemaSequence();
+    List<String> roots = XmlLines.children(Files.readString(dcs), List.of("DataCompositionSchema")).stream()
+      .map(XmlLines.Node::name)
+      .toList();
+    assertThat(roots).contains("dataSetLink", "calculatedField");
+    assertThat(roots.stream().map(order::indexOf).toList()).isSorted();
+    assertThat(DcsRead.info(dcs, SchemaVersion.V2_20).get("calculatedFields").toString())
+      .containsSubsequence("Наценка", "Скидка");
+  }
+
+  /** Порядок элементов корня схемы компоновки по XSD формата. */
+  private static List<String> schemaSequence() throws Exception {
+    Path xsd = Path.of(System.getProperty("xsd.root"), "schemas", "designer", "2.20",
+      "v8.1c.ru-8.1-data-composition-system-schema.xsd");
+    String text = Files.readString(xsd);
+    int type = text.indexOf("<xs:complexType name=\"DataCompositionSchema\">");
+    String sequence = text.substring(type, text.indexOf("</xs:complexType>", type));
+    java.util.regex.Matcher element = java.util.regex.Pattern.compile("<xs:element name=\"(\\w+)\"").matcher(sequence);
+    List<String> out = new java.util.ArrayList<>();
+    while (element.find()) {
+      out.add(element.group(1));
+    }
+    assertThat(out).contains("dataSetLink", "calculatedField");
+    return out;
   }
 
   @Test

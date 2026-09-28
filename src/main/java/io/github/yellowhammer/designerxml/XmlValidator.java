@@ -142,7 +142,10 @@ public final class XmlValidator {
     Validator validator = schema(xsdCollectionRoot.resolve(version.xsdDirectoryName()), version).newValidator();
     validator.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
     validator.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-    validator.validate(new StreamSource(xmlPath.toFile()));
+    // Поток, а не файл: путь бывает и не с диска (сеанс записи держит правку в памяти)
+    try (java.io.InputStream in = Files.newInputStream(xmlPath)) {
+      validator.validate(new StreamSource(in, xmlPath.toUri().toString()));
+    }
   }
 
   /**

@@ -145,6 +145,47 @@ class SubsystemCommandInterfaceFileTest {
     assertThat(after.placement).hasSameSizeAs(before.placement);
   }
 
+  /** Исключения видимости по ролям из формы ssl31: у формы и командного интерфейса один тип значения. */
+  static java.util.List<SubsystemCommandInterfaceFile.RoleValue> formRoleVisibility() throws Exception {
+    String form = Files.readString(Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Documents/_ДемоПоступлениеТоваров/Forms/ФормаДокумента/Ext/Form.xml"));
+    java.util.regex.Matcher block = java.util.regex.Pattern.compile(
+      "<Visible>\\s*<xr:Common>false</xr:Common>(.*?)</Visible>", java.util.regex.Pattern.DOTALL).matcher(form);
+    assertThat(block.find()).isTrue();
+    java.util.regex.Matcher value = java.util.regex.Pattern.compile(
+      "<xr:Value name=\"([^\"]+)\">([^<]+)</xr:Value>").matcher(block.group(1));
+    java.util.List<SubsystemCommandInterfaceFile.RoleValue> out = new java.util.ArrayList<>();
+    while (value.find()) {
+      out.add(new SubsystemCommandInterfaceFile.RoleValue(value.group(1), value.group(2)));
+    }
+    assertThat(out).extracting(role -> role.value).contains("true", "false");
+    return out;
+  }
+
+  @Test
+  void writeVisibilityKeepsRoleExceptions() throws Exception {
+    Path source = Ssl31SubmodulePaths.projectRoot()
+      .resolve("src/cf/Subsystems/_ДемоАнкетирование/Ext/CommandInterface.xml");
+    Path subsystemXml = tempDir.resolve("Подсистема.xml");
+    Files.writeString(subsystemXml, "<x/>");
+    Path target = SubsystemCommandInterfaceFile.interfacePath(subsystemXml);
+    Files.createDirectories(target.getParent());
+    Files.copy(source, target);
+    java.util.List<SubsystemCommandInterfaceFile.RoleValue> roles = formRoleVisibility();
+
+    SubsystemCommandInterfaceFile.Dto before = SubsystemCommandInterfaceFile.read(subsystemXml);
+    before.visibility.get(0).roles = roles;
+    SubsystemCommandInterfaceFile.writeVisibility(subsystemXml, SchemaVersion.V2_20, before.visibility);
+
+    SubsystemCommandInterfaceFile.Dto after = SubsystemCommandInterfaceFile.read(subsystemXml);
+    assertThat(after.visibility.get(0).roles).usingRecursiveFieldByFieldElementComparator().isEqualTo(roles);
+    // Повторная запись прочитанного не теряет исключений
+    SubsystemCommandInterfaceFile.writeVisibility(subsystemXml, SchemaVersion.V2_20, after.visibility);
+    assertThat(SubsystemCommandInterfaceFile.read(subsystemXml).visibility.get(0).roles)
+      .usingRecursiveFieldByFieldElementComparator().isEqualTo(roles);
+    assertThat(after.visibility.subList(1, after.visibility.size())).allSatisfy(entry -> assertThat(entry.roles).isEmpty());
+  }
+
   @Test
   void writeCreatesFileWhenMissing() throws Exception {
     Path subsystemXml = tempDir.resolve("Новая.xml");

@@ -200,6 +200,10 @@ public final class DcsRead {
     java.nio.file.Files.writeString(templateXml, updated, java.nio.charset.StandardCharsets.UTF_8);
   }
 
+  /** Элементы корня схемы, которые по её порядку идут перед вычисляемыми полями. */
+  private static final List<String> CALCULATED_FIELD_PREDECESSORS =
+    List.of("dataSource", "dataSet", "dataSetLink", "calculatedField");
+
   /** Добавляет вычисляемое поле: путь к данным и выражение. */
   public static void addCalculatedField(
     Path templateXml, SchemaVersion version, String dataPath, String expression, String title)
@@ -229,19 +233,23 @@ public final class DcsRead {
       block.append("		</title>").append(eol);
     }
     block.append("	</calculatedField>").append(eol);
-    int at = text.lastIndexOf("</calculatedField>");
-    String updated;
-    if (at >= 0) {
-      int lineEnd = text.indexOf('\n', at);
-      updated = text.substring(0, lineEnd + 1) + block + text.substring(lineEnd + 1);
-    } else {
-      int lastDataSet = text.lastIndexOf("</dataSet>");
-      if (lastDataSet < 0) {
-        throw new IllegalArgumentException("В схеме нет наборов данных.");
+    // Поле встаёт по порядку схемы: после наборов, их связей и прежних вычисляемых
+    // полей корня, но не внутри вложенных схем
+    XmlLines.Node anchor = null;
+    boolean dataSets = false;
+    for (XmlLines.Node node : XmlLines.children(text, List.of("DataCompositionSchema"))) {
+      if (CALCULATED_FIELD_PREDECESSORS.contains(node.name())) {
+        anchor = node;
       }
-      int lineEnd = text.indexOf('\n', lastDataSet);
-      updated = text.substring(0, lineEnd + 1) + block + text.substring(lineEnd + 1);
+      dataSets |= "dataSet".equals(node.name());
     }
+    if (!dataSets || anchor == null) {
+      throw new IllegalArgumentException("В схеме нет наборов данных.");
+    }
+    int lineEnd = text.indexOf('\n', anchor.end());
+    String updated = lineEnd < 0
+      ? text.substring(0, anchor.end()) + eol + block + text.substring(anchor.end())
+      : text.substring(0, lineEnd + 1) + block + text.substring(lineEnd + 1);
     verify(updated, version);
     java.nio.file.Files.writeString(templateXml, updated, java.nio.charset.StandardCharsets.UTF_8);
   }

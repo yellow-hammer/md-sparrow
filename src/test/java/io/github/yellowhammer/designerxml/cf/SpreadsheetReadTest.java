@@ -69,6 +69,40 @@ class SpreadsheetReadTest {
   }
 
   @Test
+  void writesCellOfGroupedRowOnly(@org.junit.jupiter.api.io.TempDir Path temp) throws Exception {
+    Path source = Ssl31SubmodulePaths.projectRoot().resolve(
+      "src/cf/Documents/_ДемоПеремещениеТоваров/Templates/ПФ_MXL_НакладнаяНаПеремещение/Ext/Template.xml");
+    Map<String, Object> before = SpreadsheetRead.read(source, SchemaVersion.V2_20);
+    String label = cellText(before, 8, 1);
+    assertThat(label).isNotEmpty();
+
+    // Платформа пишет одинаковые строки подряд одним rowsItem с indexTo: строка 8
+    // описывает строки 8..10, их собственные описания убираются
+    String xml = Files.readString(source);
+    String rowsItem = "<rowsItem>\r\n\t\t<index>";
+    xml = xml.replace(rowsItem + "8</index>", rowsItem + "8</index>\r\n\t\t<indexTo>10</indexTo>");
+    for (int row = 9; row <= 10; row++) {
+      int index = xml.indexOf(rowsItem + row + "</index>");
+      int start = xml.lastIndexOf("\t<rowsItem>", index);
+      int end = xml.indexOf("</rowsItem>", index) + "</rowsItem>\r\n".length();
+      xml = xml.substring(0, start) + xml.substring(end);
+    }
+    Path file = temp.resolve("Template.xml");
+    Files.writeString(file, xml);
+
+    SpreadsheetRead.setCellText(file, 9, 1, "Отправитель:", false);
+
+    Map<String, Object> after = SpreadsheetRead.read(file, SchemaVersion.V2_20);
+    assertThat(cellText(after, 8, 1)).isEqualTo(label);
+    assertThat(cellText(after, 9, 1)).isEqualTo("Отправитель:");
+    assertThat(cellText(after, 10, 1)).isEqualTo(label);
+    assertThat(parameter(after, 10, 5)).isEqualTo(parameter(before, 8, 5));
+    String written = Files.readString(file);
+    assertThat(written).contains(rowsItem + "8</index>\r\n\t\t<row>", rowsItem + "9</index>\r\n\t\t<row>",
+      rowsItem + "10</index>\r\n\t\t<row>");
+  }
+
+  @Test
   void readsMxlAreasAndCell() throws Exception {
     Map<String, Object> sheet = SpreadsheetRead.read(mxl("areas.txt"), SchemaVersion.V2_20);
     assertThat(cellText(sheet, 0, 0)).isEqualTo("Шапка");

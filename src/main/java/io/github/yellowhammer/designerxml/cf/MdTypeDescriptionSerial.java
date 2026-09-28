@@ -37,7 +37,7 @@ final class MdTypeDescriptionSerial {
 
   /**
    * Типы ({@code v8:Type}), затем наборы типов ({@code v8:TypeSet}, источник подписки вида
-   * {@code cfg:CatalogObject}) и квалификаторы.
+   * {@code cfg:CatalogObject}) и квалификаторы в порядке схемы.
    *
    * @param localName имя элемента-обёртки ({@code Type}, {@code Source})
    */
@@ -55,18 +55,19 @@ final class MdTypeDescriptionSerial {
     for (String typeSet : typeSets) {
       sb.append(typeTag("v8:TypeSet", typeSet));
     }
-    if (dto.stringQualifiers != null) {
-      sb.append("<v8:StringQualifiers>")
-        .append(leaf("v8:Length", nz(dto.stringQualifiers.length)))
-        .append(enumLeaf("v8:AllowedLength", dto.stringQualifiers.allowedLength))
-        .append("</v8:StringQualifiers>");
-    }
+    // Порядок квалификаторов задан схемой: число, строка, дата, двоичные данные
     if (dto.numberQualifiers != null) {
       sb.append("<v8:NumberQualifiers>")
         .append(leaf("v8:Digits", nz(dto.numberQualifiers.digits)))
         .append(leaf("v8:FractionDigits", nz(dto.numberQualifiers.fractionDigits)))
         .append(enumLeaf("v8:AllowedSign", dto.numberQualifiers.allowedSign))
         .append("</v8:NumberQualifiers>");
+    }
+    if (dto.stringQualifiers != null) {
+      sb.append("<v8:StringQualifiers>")
+        .append(leaf("v8:Length", nz(dto.stringQualifiers.length)))
+        .append(enumLeaf("v8:AllowedLength", dto.stringQualifiers.allowedLength))
+        .append("</v8:StringQualifiers>");
     }
     if (dto.dateQualifiers != null) {
       sb.append("<v8:DateQualifiers>")

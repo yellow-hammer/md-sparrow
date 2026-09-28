@@ -28,6 +28,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -73,6 +75,31 @@ class EdtSubsystemAndExchangeTest {
     assertThat(edt.subsystemsOrder).isEqualTo(designer.subsystemsOrder);
   }
 
+  @Test
+  void видимостьКомандСовпадаетСКонфигуратором() throws Exception {
+    List<Path> interfaces;
+    try (Stream<Path> files = Files.walk(edtSource.resolve("Subsystems"))) {
+      interfaces = files.filter(file -> file.getFileName().toString().equals("CommandInterface.cmi")).toList();
+    }
+    int compared = 0;
+    for (Path cmi : interfaces) {
+      Path mdo = cmi.resolveSibling(cmi.getParent().getFileName() + ".mdo");
+      // Вложенность подсистем у форматов одна: каталог EDT и файл конфигуратора рядом с ним
+      Path designerXml = designerCf.resolve(edtSource.relativize(cmi.getParent()) + ".xml");
+      SubsystemCommandInterfaceFile.Dto edt = EdtSubsystemCommandInterface.read(mdo);
+      SubsystemCommandInterfaceFile.Dto designer = SubsystemCommandInterfaceFile.read(designerXml);
+      assertThat(visibility(edt)).as(cmi.toString()).isEqualTo(visibility(designer));
+      compared += edt.visibility.size();
+    }
+    assertThat(compared).isGreaterThan(300);
+  }
+
+  private static Map<String, String> visibility(SubsystemCommandInterfaceFile.Dto dto) {
+    Map<String, String> out = new TreeMap<>();
+    dto.visibility.forEach(entry -> out.put(entry.command, entry.value));
+    return out;
+  }
+
   private static List<String> commands(List<SubsystemCommandInterfaceFile.CommandEntry> entries) {
     return entries.stream().map(entry -> entry.command).sorted().toList();
   }
@@ -115,6 +142,51 @@ class EdtSubsystemAndExchangeTest {
         .containsExactly("false");
     assertThat(Files.readString(EdtSubsystemCommandInterface.interfacePath(subsystem), StandardCharsets.UTF_8))
         .contains("<cmi:CommandInterface");
+  }
+
+  @Test
+  void исключенияВидимостиПоРолямПишутсяКакВEdt() throws Exception {
+    Path subsystem = copySubsystem();
+    SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(subsystem);
+    // Те же исключения, что у команды формы: тип значения видимости у них общий
+    Path form = edtSource.resolve("Documents/_ДемоПоступлениеТоваров/Forms/ФормаДокумента/Form.form");
+    String formText = Files.readString(form, StandardCharsets.UTF_8);
+    int start = formText.lastIndexOf("<userVisible>", formText.indexOf("<for>"));
+    int end = formText.indexOf("</userVisible>", start);
+    List<String> expected = lines(formText.substring(start + "<userVisible>".length(), end));
+    List<SubsystemCommandInterfaceFile.RoleValue> roles = new java.util.ArrayList<>();
+    EdtObjectReader.EdtNode visible = EdtObjectReader.parse(formText.substring(start, end + "</userVisible>".length()));
+    for (EdtObjectReader.EdtNode role : visible.list("for")) {
+      roles.add(new SubsystemCommandInterfaceFile.RoleValue(
+          role.property("role"), "true".equals(role.property("value")) ? "true" : "false"));
+    }
+    dto.visibility.get(0).value = "false";
+    dto.visibility.get(0).roles = roles;
+
+    EdtSubsystemCommandInterface.write(subsystem, dto);
+
+    String cmi = Files.readString(EdtSubsystemCommandInterface.interfacePath(subsystem), StandardCharsets.UTF_8);
+    int from = cmi.indexOf("<visible>");
+    assertThat(lines(cmi.substring(from + "<visible>".length(), cmi.indexOf("</visible>", from))))
+        .isEqualTo(expected);
+    SubsystemCommandInterfaceFile.Dto after = EdtSubsystemCommandInterface.read(subsystem);
+    assertThat(after.visibility.get(0).roles).usingRecursiveFieldByFieldElementComparator().isEqualTo(roles);
+  }
+
+  private static List<String> lines(String xml) {
+    return xml.lines().map(String::strip).filter(line -> !line.isEmpty()).toList();
+  }
+
+  @Test
+  void командныйИнтерфейсКонфигурацииЧитаетсяИзКорня() throws Exception {
+    SubsystemCommandInterfaceFile.Dto edt = EdtSubsystemCommandInterface.read(
+        edtSource.resolve("Configuration/Configuration.mdo"));
+    SubsystemCommandInterfaceFile.Dto designer = SubsystemCommandInterfaceFile.read(
+        designerCf.resolve("Configuration.xml"));
+
+    assertThat(designer.subsystemsOrder).isNotEmpty().isEqualTo(edt.subsystemsOrder);
+    assertThat(SubsystemCommandInterfaceFile.interfacePath(designerCf.resolve("Configuration.xml")))
+        .isEqualTo(designerCf.resolve("Ext/CommandInterface.xml").toAbsolutePath().normalize());
   }
 
   /** Копия подсистемы во временном каталоге: фикстуру не правим. */

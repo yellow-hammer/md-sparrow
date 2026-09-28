@@ -51,6 +51,7 @@ import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.NewExternalArtifactXml;
 import io.github.yellowhammer.designerxml.cf.ObjectRights;
+import io.github.yellowhammer.designerxml.staging.WriteSession;
 import jakarta.xml.bind.JAXBException;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -115,9 +116,16 @@ final class ApplyMutationCmd implements Callable<Integer> {
 
   @Override
   public Integer call() {
+    // Операция пишет в память сеанса; диск меняет только публикация в конце
+    try (WriteSession session = WriteSession.open()) {
+      return call(session);
+    }
+  }
+
+  private Integer call(WriteSession session) {
     CliParams p;
     try {
-      p = CliParams.read(paramsFile, root::path);
+      p = CliParams.read(paramsFile, value -> session.path(root.path(value)));
     } catch (JsonSyntaxException e) {
       System.err.println("некорректный JSON параметров: " + e.getMessage());
       return 2;
@@ -129,7 +137,13 @@ final class ApplyMutationCmd implements Callable<Integer> {
       return 2;
     }
     try {
-      System.out.println(dispatch(p));
+      String answer = dispatch(p);
+      if (p.dryRun) {
+        session.verify();
+      } else {
+        session.publish();
+      }
+      System.out.println(answer);
       return 0;
     } catch (IllegalArgumentException | IllegalStateException e) {
       // Отказ записи - это сообщение вызывающей программе, а не сбой: стек ей не нужен.
