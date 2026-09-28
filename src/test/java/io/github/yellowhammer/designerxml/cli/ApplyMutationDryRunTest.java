@@ -103,6 +103,43 @@ class ApplyMutationDryRunTest {
   }
 
   @Test
+  void generationDryRunWritesNothing() throws Exception {
+    // Проект EDT с немецким основным языком: генерация по нему идёт своим кодом
+    Path edt = SamplesSubmodulePaths.copy(
+      Path.of("src", "test", "resources", "edt-language-de", "Двуязычная").toAbsolutePath(), temp.resolve("edt"));
+    String edtConfiguration = edt.resolve("src/Configuration/Configuration.mdo").toString();
+    Map<String, Map<String, String>> operations = new LinkedHashMap<>();
+    operations.put("новый проект EDT", Map.of(
+      "op", "init-empty-cf", "targetCfRoot", temp.resolve("новый-edt").toString(), "format", "edt"));
+    operations.put("объект EDT", Map.of(
+      "op", "add-md-object", "configurationXml", edtConfiguration, "type", "CATALOG", "name", "Waren"));
+    operations.put("объект EDT со свободным именем", Map.of(
+      "op", "add-md-object", "configurationXml", edtConfiguration, "type", "DOCUMENT", "autoName", "true"));
+    operations.put("форма EDT", Map.of("op", "cf-form-add",
+      "objectXml", edt.resolve("src/Catalogs/Товары/Товары.mdo").toString(), "name", "Форма"));
+    operations.put("расширение EDT", Map.of("op", "init-empty-cfe",
+      "targetCfeRoot", temp.resolve("edt-cfe").toString(), "name", "Расширение", "namePrefix", "расш_",
+      "mainConfigurationXml", edtConfiguration));
+    operations.put("внешняя обработка EDT", Map.of("op", "external-artifact-add",
+      "artifactsRoot", temp.resolve("edt-epf").toString(), "mainConfigurationXml", edtConfiguration,
+      "name", "Обработка", "kind", "DATA_PROCESSOR"));
+    operations.put("внешний отчёт", Map.of("op", "external-artifact-add",
+      "artifactsRoot", temp.resolve("erf").toString(), "name", "Отчёт", "kind", "REPORT"));
+
+    for (Map.Entry<String, Map<String, String>> operation : operations.entrySet()) {
+      Map<String, String> before = tree(temp);
+      Result dry = run(operation.getValue(), true);
+      assertThat(dry.exit).as(operation.getKey() + ": " + dry.err).isZero();
+      assertThat(tree(temp)).as(operation.getKey()).isEqualTo(before);
+
+      Result real = run(operation.getValue(), false);
+      assertThat(real.exit).as(operation.getKey() + ": " + real.err).isZero();
+      assertThat(real.out).as(operation.getKey()).isEqualTo(dry.out);
+      assertThat(tree(temp)).as(operation.getKey()).isNotEqualTo(before);
+    }
+  }
+
+  @Test
   void dryRunBorrowKeepsExtension() throws Exception {
     Path cfe = temp.resolve("cfe");
     assertThat(run(Map.of("op", "init-empty-cfe", "targetCfeRoot", cfe.toString(), "name", "Расширение",

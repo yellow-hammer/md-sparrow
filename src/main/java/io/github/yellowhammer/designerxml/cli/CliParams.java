@@ -22,6 +22,8 @@
 package io.github.yellowhammer.designerxml.cli;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.edt.EdtLayout;
@@ -42,8 +44,16 @@ import java.util.function.Function;
  * {@code argv} остаётся только ASCII-путь к файлу параметров.
  */
 final class CliParams {
+  /** Операция пакета: вложенные операции идут одним сеансом записи и одной публикацией. */
+  static final String BATCH = "batch";
+
+  /** Поля пакета: их задают у пакета целиком, а не у его операций. */
+  private static final java.util.List<String> BATCH_FIELDS = java.util.List.of("dryRun", "ignoreSupport", "operations");
+
   /** Операция; совпадает с именем соответствующей одиночной подкоманды. */
   String op;
+  /** Операции пакета ({@code op = batch}): объекты с полем {@code op} и полями операции. */
+  java.util.List<JsonObject> operations;
   String configurationXml;
   String objectXml;
   /** Файл содержимого формы: {@code Forms/<Имя>/Ext/Form.xml}. */
@@ -138,6 +148,52 @@ final class CliParams {
     }
     p.paths = paths;
     return p;
+  }
+
+  /**
+   * Операция пакета: поля берутся из её элемента, а проверка без записи и правила
+   * поддержки - у пакета.
+   *
+   * @param index номер операции с нуля
+   * @throws IllegalArgumentException если у операции нет {@code op}, она сама пакет
+   *     или задаёт поле пакета
+   * @throws JsonSyntaxException если поле операции не того типа
+   */
+  CliParams operation(int index) {
+    JsonObject fields = operations.get(index);
+    if (fields == null) {
+      throw new IllegalArgumentException("операция не задана");
+    }
+    for (String field : BATCH_FIELDS) {
+      if (fields.has(field)) {
+        throw new IllegalArgumentException("поле " + field + " задаётся у пакета, а не у его операции");
+      }
+    }
+    CliParams p = new Gson().fromJson(fields, CliParams.class);
+    if (p == null || p.op == null || p.op.isBlank()) {
+      throw new IllegalArgumentException("в параметрах не задан op");
+    }
+    if (BATCH.equals(p.op)) {
+      throw new IllegalArgumentException("пакет не вкладывается в пакет");
+    }
+    p.dryRun = dryRun;
+    p.ignoreSupport = ignoreSupport;
+    p.paths = paths;
+    return p;
+  }
+
+  /**
+   * Имя операции пакета для текста отказа.
+   *
+   * @param index номер операции с нуля
+   * @return {@code " (op)"} либо пусто, если имени нет
+   */
+  String operationName(int index) {
+    JsonObject fields = operations.get(index);
+    JsonElement name = fields == null ? null : fields.get("op");
+    return name != null && name.isJsonPrimitive() && !name.getAsString().isBlank()
+      ? " (" + name.getAsString() + ")"
+      : "";
   }
 
   String req(String value, String field) {

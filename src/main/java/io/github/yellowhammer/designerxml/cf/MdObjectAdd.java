@@ -58,8 +58,8 @@ public final class MdObjectAdd {
     CatalogNameConstraints.check(objectName);
     type.requireIn(version);
     Path cfRoot = requireCfRoot(configurationXml);
-    String name = resolveNonConflictingName(configurationXml, version, type, cfRoot, objectName);
-    writeNewObject(configurationXml, cfRoot, name, version, type, catalogSynonymRu, catalogSynonymEmpty);
+    requireFreeName(configurationXml, version, type, cfRoot, objectName);
+    writeNewObject(configurationXml, cfRoot, objectName, version, type, catalogSynonymRu, catalogSynonymEmpty);
   }
 
   /**
@@ -175,17 +175,20 @@ public final class MdObjectAdd {
     }
   }
 
-  private static String resolveNonConflictingName(
+  /**
+   * Отказывает, если имя занято: оно есть в составе конфигурации, либо на диске уже лежит
+   * описание или каталог объекта с этим именем. Тихо брать другое имя нельзя: вызывающий
+   * обращается к объекту по своему имени, как и в проекте EDT.
+   */
+  private static void requireFreeName(
     Path configurationXml, SchemaVersion version, MdObjectAddType type, Path cfRoot, String objectName)
     throws IOException, JAXBException {
     Set<String> taken = MdObjectAddNextName.mergeTakenNames(configurationXml, version, type, cfRoot);
-    if (!taken.contains(objectName)) {
-      Path out = CfLayout.objectXmlInSubdir(cfRoot, type.cfSubdir(), objectName);
-      if (!Files.exists(out)) {
-        return objectName;
-      }
+    if (taken.contains(objectName)
+      || Files.exists(CfLayout.objectXmlInSubdir(cfRoot, type.cfSubdir(), objectName))
+      || Files.isDirectory(cfRoot.resolve(type.cfSubdir()).resolve(objectName))) {
+      throw new IllegalArgumentException(UiLabels.alreadyExists(type.configurationXmlTag(), objectName));
     }
-    return MdObjectAddNextName.nextFreeName(configurationXml, version, type, cfRoot);
   }
 
   /**
