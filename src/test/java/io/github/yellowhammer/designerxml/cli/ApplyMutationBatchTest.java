@@ -243,7 +243,11 @@ class ApplyMutationBatchTest {
   void конфликтИмени() throws Exception {
     Map<String, String> before = tree(temp);
 
-    // Имя занимает предыдущая операция того же пакета
+    // Имя занимает предыдущая операция того же пакета: второй объект не получает другое имя молча
+    assertRefused(batch(
+      op("add-md-object", "configurationXml", configuration, "type", "CATALOG", "name", "Товары"),
+      op("add-md-object", "configurationXml", configuration, "type", "CATALOG", "name", "Товары")),
+      before, "Операция 2 (add-md-object): Справочник «Товары» уже есть.");
     assertRefused(batch(
       op("add-md-object", "configurationXml", configuration, "type", "CATALOG", "name", "Товары"),
       op("cf-md-object-rename", "configurationXml", configuration, "objectXml", catalog, "tag", "Catalog",
@@ -253,6 +257,26 @@ class ApplyMutationBatchTest {
       op("cf-form-add", "objectXml", catalog, "name", "Форма"),
       op("cf-form-add", "objectXml", catalog, "name", "Форма")),
       before, "Операция 2 (cf-form-add): ");
+  }
+
+  @Test
+  void занятоеИмяОбъектаОтклоняетсяОдиночнойОперацией() throws Exception {
+    // Каталог объекта без описания тоже занимает имя
+    Files.createDirectories(cf.resolve("Documents").resolve("Заказ"));
+    Map<String, String> before = tree(temp);
+
+    for (JsonObject params : new JsonObject[] {
+      op("add-md-object", "configurationXml", configuration, "type", "CATALOG", "name", "Справочник1"),
+      op("add-md-object", "configurationXml", configuration, "type", "DOCUMENT", "name", "Заказ")}) {
+      for (boolean dryRun : new boolean[] {true, false}) {
+        params.addProperty("dryRun", dryRun);
+        Result result = run(params);
+        assertThat(result.exit).isEqualTo(2);
+        assertThat(result.out).isEmpty();
+        assertThat(result.err).contains("уже есть.");
+        assertThat(tree(temp)).isEqualTo(before);
+      }
+    }
   }
 
   @Test
