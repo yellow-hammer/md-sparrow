@@ -161,7 +161,7 @@ public final class EdtFormContent {
     item.name = node.name();
     item.id = node.property("id");
     item.title = EdtPropertyValues.localized(node, "title");
-    item.dataPath = node.property("dataPath");
+    item.dataPath = dataPath(node);
     item.group = node.property("group");
     item.showTitle = node.property("showTitle");
     item.titleLocation = node.property("titleLocation");
@@ -174,6 +174,17 @@ public final class EdtFormContent {
     item.events = events(node);
     item.items = items(node, model);
     return item;
+  }
+
+  /** Путь к данным: у EDT он записан сегментами во вложенном узле, конфигуратор пишет его строкой. */
+  private static String dataPath(EdtNode node) {
+    for (EdtNode path : node.list("dataPath")) {
+      List<String> segments = path.list("segments").stream().map(EdtNode::value).toList();
+      if (!segments.isEmpty()) {
+        return String.join(".", segments);
+      }
+    }
+    return node.property("dataPath");
   }
 
   /**

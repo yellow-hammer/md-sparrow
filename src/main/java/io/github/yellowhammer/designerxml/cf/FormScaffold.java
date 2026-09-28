@@ -262,7 +262,12 @@ public final class FormScaffold {
     return dot < 0 ? local : local.substring(0, dot);
   }
 
-  private static void appendItem(
+  /**
+   * Разметка элемента формы со служебными узлами, как её пишет платформа.
+   *
+   * @param depth отступ элемента в табуляциях
+   */
+  static void appendItem(
     StringBuilder out, FormItemDef item, SchemaVersion version, IdCounter ids, int depth, String eol) {
     String pad = "\t".repeat(depth);
     switch (item.kind) {
@@ -476,8 +481,17 @@ public final class FormScaffold {
       : value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
   }
 
-  private static final class IdCounter {
+  /** Номера элементов формы: каждый следующий на единицу больше. */
+  static final class IdCounter {
     private int value;
+
+    IdCounter() {
+    }
+
+    /** Счёт после уже занятого номера: следующий элемент получит {@code last + 1}. */
+    IdCounter(int last) {
+      value = last;
+    }
 
     int next() {
       value += 1;
@@ -520,7 +534,7 @@ public final class FormScaffold {
   }
 
   /** Элемент формы из JSON: вид определяется по ключу с именем. */
-  static final class FormItemDef {
+  public static final class FormItemDef {
     static final List<String> KINDS = List.of("group", "input", "check", "label", "table", "pages", "page");
 
     String kind;
@@ -530,7 +544,37 @@ public final class FormScaffold {
     String direction;
     List<FormItemDef> items = new ArrayList<>();
 
-    static FormItemDef parse(Object raw) {
+    /** Ключ вида: {@code input}, {@code group} и прочие из {@link #KINDS}. */
+    public String kind() {
+      return kind;
+    }
+
+    public String name() {
+      return name;
+    }
+
+    /** Путь к данным; {@code null}, если не задан. */
+    public String dataPath() {
+      return dataPath;
+    }
+
+    /** Заголовок; {@code null}, если не задан. */
+    public String title() {
+      return title;
+    }
+
+    /** Направление группы: {@code horizontal} либо иное (вертикально). */
+    public String direction() {
+      return direction;
+    }
+
+    /** Вложенные элементы: колонки таблицы, элементы группы и страниц. */
+    public List<FormItemDef> items() {
+      return items;
+    }
+
+    /** Описание элемента из JSON: {@code {"input": "Имя", "dataPath": "…", "items": [...]}}. */
+    public static FormItemDef parse(Object raw) {
       if (!(raw instanceof Map<?, ?> map)) {
         throw new IllegalArgumentException("Элемент формы должен быть объектом JSON.");
       }

@@ -90,6 +90,14 @@ final class CliParams {
   String newName;
   String sourceName;
   String tabularSection;
+  /** Номер элемента формы (атрибут {@code id}) для структурной правки. */
+  String itemId;
+  /** Номер элемента-владельца формы; пусто - сама форма. */
+  String parentId;
+  /** Номер элемента того же владельца, перед которым встаёт элемент; пусто - в конец. */
+  String beforeId;
+  /** Путь к данным элемента формы: {@code Объект.Реквизит}. */
+  String dataPath;
   /** Версия схемы в формате {@code V2_20} (как флаг {@code -v}). */
   String schemaVersion;
   String type;

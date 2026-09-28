@@ -150,6 +150,24 @@ class EdtFormContentTest {
   }
 
   @Test
+  void путьКДаннымЭлементаКакУКонфигуратора() throws Exception {
+    String form = "Documents/_ДемоПоручениеЭкспедитору/Forms/ФормаДокумента/";
+    FormContentDto edt = EdtFormContent.read(edtSource.resolve(form + "Form.form"), model);
+    FormContentDto designer = FormContentRead.read(designerCf.resolve(form + "Ext/Form.xml"), SchemaVersion.V2_21);
+    Map<String, FormItemDto> written = new java.util.HashMap<>();
+    collect(designer.items, written);
+    List<FormItemDto> items = new ArrayList<>();
+    collect(edt.items, items);
+
+    // Путь к данным у EDT записан сегментами во вложенном узле, а читается строкой, как у конфигуратора
+    assertThat(items).filteredOn(item -> item.dataPath != null && !item.dataPath.isEmpty()).hasSizeGreaterThan(5);
+    for (FormItemDto item : items) {
+      String expected = written.get(item.name).dataPath;
+      assertThat(item.dataPath).as(item.name).isEqualTo(expected == null ? "" : expected);
+    }
+  }
+
+  @Test
   void видЭлементаБерётсяИзРазметки() throws Exception {
     FormContentDto edt = EdtFormContent.read(edtSource.resolve("Catalogs/Валюты/Forms/ФормаСписка/Form.form"), model);
 

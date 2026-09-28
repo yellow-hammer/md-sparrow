@@ -291,7 +291,7 @@ public final class EdtFormItemPropertyEdit {
   }
 
   /** Место нового свойства среди записанных: по порядку свойств в схеме. */
-  private static int insertionPoint(String xml, Region owner, EClass ownerClass, String name)
+  static int insertionPoint(String xml, Region owner, EClass ownerClass, String name)
       throws XMLStreamException {
     List<String> order = new ArrayList<>();
     if (ownerClass != null) {
