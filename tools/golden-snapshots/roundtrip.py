@@ -6,12 +6,15 @@
 Сценарии:
 
   forms      объекты десяти видов с формами: cf-form-add и cf-form-compile с основным реквизитом, общая
-             форма; обычный config import с проверкой, config export
+             форма; у справочника ещё форма с элементами всех видов, которые собирает cf-form-compile,
+             и реквизит составного типа (число, строка, дата), записанный cf-md-object-set;
+             обычный config import с проверкой, config export
   external   внешние отчёт и обработка с формами: config import --out, config export --file (ibcmd 8.3.23+)
   all-kinds  объекты всех видов формата с дочерними узлами: язык обычным config import, остальное
              config import files --no-check (ibcmd 8.3.20+: голые регистры и планы проверку не проходят)
   extension  расширение к своей конфигурации: свой справочник и заимствованный объект каждого вида,
-             который голым проходит config import с проверкой
+             который голым проходит config import с проверкой; у заимствованного общего модуля
+             cf-md-object-set меняет флаг «Сервер»
 
 В каждом сценарии каждый файл, записанный md-sparrow, сверяется с выгрузкой платформы байт в байт;
 файл, который платформа выгрузила сверх записанного, тоже считается различием (кроме ConfigDumpInfo.xml).
@@ -112,6 +115,32 @@ NODES = (
         ('cf-form-add', {'name': 'Форма'}))),
 )
 
+# Форма с элементами сценария forms: все виды элементов cf-form-compile, таблица с колонкой
+FORM_ITEMS = {
+    'items': [
+        {'pages': 'Страницы', 'items': [
+            {'page': 'Основное', 'title': 'Основное', 'items': [
+                {'group': 'Шапка', 'direction': 'horizontal', 'items': [
+                    {'input': 'Наименование', 'dataPath': 'Объект.Description'},
+                    {'check': 'ПометкаУдаления', 'dataPath': 'Объект.DeletionMark'},
+                ]},
+                {'label': 'Надпись', 'title': 'Состав'},
+            ]},
+        ]},
+        {'table': 'Товары', 'dataPath': 'Объект.Товары', 'items': [
+            {'input': 'ТоварыНоменклатура', 'dataPath': 'Объект.Товары.Номенклатура'},
+        ]},
+    ],
+}
+
+# Составной тип реквизита сценария forms: квалификаторы всех трёх видов
+COMPOSITE_TYPE = {
+    'types': ['xs:decimal', 'xs:string', 'xs:dateTime'],
+    'numberQualifiers': {'digits': '15', 'fractionDigits': '2', 'allowedSign': 'ANY'},
+    'stringQualifiers': {'length': '50', 'allowedLength': 'VARIABLE'},
+    'dateQualifiers': {'dateFractions': 'DATE_TIME'},
+}
+
 LOG = []
 
 
@@ -158,6 +187,25 @@ class Roundtrip:
         if rc != 0:
             raise Failure('md-sparrow %s: код %s: %s' % (params['op'], rc, out[-600:]))
         return out
+
+    def ms_read(self, params):
+        """Чтение через read-json: JSON-ответ md-sparrow."""
+        params = dict(params)
+        params.setdefault('schemaVersion', self.version)
+        path = self.work / 'params.json'
+        path.write_text(json.dumps(params, ensure_ascii=False), encoding='utf-8')
+        rc, out = run(['java', '-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8', '-jar', str(self.jar),
+                       'read-json', '--params', str(path)], self.env)
+        if rc != 0:
+            raise Failure('md-sparrow %s: код %s: %s' % (params['op'], rc, out[-600:]))
+        # вывод склеен с потоком ошибок, куда JVM пишет, например, про JAVA_TOOL_OPTIONS: ответ - первый объект
+        return json.JSONDecoder().raw_decode(out, out.index('{'))[0]
+
+    def edit_object(self, obj, change):
+        """Правка свойств объекта: cf-md-object-get, изменение словаря, cf-md-object-set."""
+        dto = self.ms_read({'op': 'cf-md-object-get', 'objectXml': obj})
+        change(dto)
+        self.ms({'op': 'cf-md-object-set', 'objectXml': obj, 'payloadJson': json.dumps(dto, ensure_ascii=False)})
 
     # ---------- ibcmd ----------
     def create(self, name):
@@ -258,6 +306,19 @@ class Roundtrip:
                 self.ms({'op': 'cf-form-compile', 'objectXml': obj, 'name': 'ФормаОбъекта',
                          'payloadJson': json.dumps(payload, ensure_ascii=False)})
         self.ms({'op': 'add-md-object', 'configurationXml': conf, 'type': 'COMMON_FORM', 'name': 'ОбщаяФорма'})
+        catalog = str(cf / 'Catalogs' / 'Спр.xml')
+        self.ms({'op': 'cf-md-attribute-add', 'objectXml': catalog, 'name': 'Составной'})
+        self.ms({'op': 'cf-md-tabular-section-add', 'objectXml': catalog, 'name': 'Товары'})
+        self.ms({'op': 'cf-md-tabular-attribute-add', 'objectXml': catalog, 'tabularSection': 'Товары',
+                 'name': 'Номенклатура'})
+
+        def composite(dto):
+            attribute = next(a for a in dto['attributes'] if a['name'] == 'Составной')
+            attribute['type'] = COMPOSITE_TYPE
+        self.edit_object(catalog, composite)
+        self.ms({'op': 'cf-form-compile', 'objectXml': catalog, 'name': 'ФормаСЭлементами',
+                 'payloadJson': json.dumps({'mainAttribute': {'name': 'Объект', 'type': 'cfg:CatalogObject.Спр'},
+                                            **FORM_ITEMS}, ensure_ascii=False)})
         self.create('forms')
         if not self.ib_ok('forms', ['config', 'import'], [str(cf)], 'config import'):
             self.record('forms', 'rejected')
@@ -377,6 +438,12 @@ class Roundtrip:
         self.ms({'op': 'add-md-object', 'configurationXml': cfe_conf, 'type': 'CATALOG', 'name': 'расш_Справочник'})
         for obj in sorted(p for p in main.glob('*/*.xml')):
             self.ms({'op': 'cfe-borrow-object', 'objectXml': str(obj), 'configurationXml': cfe_conf})
+        # Изменённое свойство заимствованного объекта платформа отмечает в InternalInfo: какое
+        # состояние она сохраняет у флага общего модуля, видно по выгрузке
+        for module in sorted((cfe / 'CommonModules').glob('*.xml')):
+            def server(dto):
+                dto['commonModule']['server'] = not dto['commonModule']['server']
+            self.edit_object(str(module), server)
         rc, out = self.ib('cfe-main', ['config', 'import'], ['--extension=Расширение', str(cfe)])
         if rc != 0 and self.has_extension_create:
             # ibcmd 8.3.20 не загружает этим путём даже выгрузку расширения самой платформы
