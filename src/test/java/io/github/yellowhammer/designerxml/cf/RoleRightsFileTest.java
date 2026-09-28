@@ -48,6 +48,63 @@ class RoleRightsFileTest {
     return roleXml;
   }
 
+  /** Копия роли ssl31, у которой включено «Устанавливать права для новых объектов». */
+  private Path copyRoleWithRightsForNewObjects() throws Exception {
+    Path roles = Ssl31SubmodulePaths.projectRoot().resolve("src/cf/Roles");
+    try (java.util.stream.Stream<Path> files = Files.list(roles)) {
+      for (Path source : files.filter(p -> p.toString().endsWith(".xml")).sorted().toList()) {
+        String stem = source.getFileName().toString().replace(".xml", "");
+        Path rights = roles.resolve(stem).resolve("Ext").resolve("Rights.xml");
+        if (Files.isRegularFile(rights) && Files.readString(rights).contains("<setForNewObjects>true<")) {
+          Path roleXml = tempDir.resolve(source.getFileName());
+          Files.copy(source, roleXml);
+          Path target = tempDir.resolve(stem).resolve("Ext").resolve("Rights.xml");
+          Files.createDirectories(target.getParent());
+          Files.copy(rights, target);
+          return roleXml;
+        }
+      }
+    }
+    throw new AssertionError("в ssl31 нет роли с правами для новых объектов");
+  }
+
+  @Test
+  void revokeKeepsExplicitFalseWhenRightsGrantedByDefault() throws Exception {
+    Path roleXml = copyRoleWithRightsForNewObjects();
+    Path rights = RoleRightsFile.rightsPath(roleXml);
+    String before = Files.readString(rights);
+    // Объект, у которого чтение не записано: оно выдано умолчанием роли
+    String catalog = RoleRightsFile.read(roleXml).objects.stream()
+      .filter(item -> item.name.split("\\.").length == 2)
+      .filter(item -> item.rights.stream().noneMatch(right -> "Read".equals(right.name)))
+      .map(item -> item.name)
+      .findFirst()
+      .orElseThrow(() -> new AssertionError("в роли нет объекта без записи чтения"));
+
+    RoleRightsFile.Edit revoke = new RoleRightsFile.Edit();
+    revoke.object = catalog;
+    revoke.right = "Read";
+    revoke.value = false;
+    RoleRightsFile.applyEdits(roleXml, List.of(revoke));
+
+    assertThat(RoleRightsFile.read(roleXml).objects)
+      .filteredOn(item -> catalog.equals(item.name))
+      .singleElement()
+      .satisfies(item -> assertThat(item.rights)
+        .anySatisfy(right -> {
+          assertThat(right.name).isEqualTo("Read");
+          assertThat(right.value).isFalse();
+        }));
+
+    // Возврат к умолчанию убирает запись, и файл становится прежним
+    RoleRightsFile.Edit grant = new RoleRightsFile.Edit();
+    grant.object = catalog;
+    grant.right = "Read";
+    grant.value = true;
+    RoleRightsFile.applyEdits(roleXml, List.of(grant));
+    assertThat(Files.readString(rights)).isEqualTo(before);
+  }
+
   /** Роль с ограничением доступа по условию и с шаблоном ограничений в конце файла. */
   private Path copyRestrictedRole() throws Exception {
     Path fixture = Path.of("src", "test", "resources", "role-rights").toAbsolutePath();
@@ -145,7 +202,7 @@ class RoleRightsFileTest {
     assertThat(after.objects.stream().filter(item -> existingObject.equals(item.name)).findFirst())
       .satisfies(found -> {
         if (found.isPresent()) {
-          assertThat(found.get().rights).noneMatch(right -> existingRight.equals(right.name));
+          assertThat(found.get().rights).noneMatch(right -> existingRight.equals(right.name) && right.value);
         }
       });
   }

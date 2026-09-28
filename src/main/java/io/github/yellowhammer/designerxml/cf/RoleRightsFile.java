@@ -35,9 +35,10 @@ import java.util.regex.Pattern;
 /**
  * Права роли: {@code Roles/<Имя>/Ext/Rights.xml}.
  *
- * <p>Файл хранит только выданные права: отсутствие записи означает запрет при
- * выключенном «устанавливать права для новых объектов». Правка выдаёт право
- * записью и снимает его удалением записи; опустевший объект уходит целиком.
+ * <p>Файл хранит отличия от умолчания роли: при выключенном «Устанавливать права
+ * для новых объектов» записаны выданные права, при включённом - снятые. Правка
+ * значения, совпадающего с умолчанием, удаляет запись, иное значение пишется явно;
+ * опустевший объект уходит целиком. Так же правит права {@link ObjectRights}.
  */
 public final class RoleRightsFile {
 
@@ -176,8 +177,8 @@ public final class RoleRightsFile {
   }
 
   /**
-   * Применяет правки прав: право выдаётся записью, снимается удалением записи,
-   * объект без оставшихся прав уходит из файла целиком.
+   * Применяет правки прав: значение, отличное от умолчания роли, пишется записью,
+   * совпадающее с ним убирает запись; объект без оставшихся прав уходит из файла целиком.
    */
   public static void applyEdits(Path roleXml, List<Edit> edits) throws IOException {
     SupportRules.ensureEditable(roleXml);
@@ -195,8 +196,9 @@ public final class RoleRightsFile {
       }
       byObject.computeIfAbsent(edit.object.trim(), key -> new ArrayList<>()).add(edit);
     }
+    boolean byDefault = RightsText.setForNewObjects(text);
     for (Map.Entry<String, List<Edit>> entry : byObject.entrySet()) {
-      text = applyObjectEdits(text, entry.getKey(), entry.getValue(), eol);
+      text = applyObjectEdits(text, entry.getKey(), entry.getValue(), byDefault, eol);
     }
     Files.writeString(file, text, StandardCharsets.UTF_8);
   }
@@ -205,7 +207,8 @@ public final class RoleRightsFile {
   private record Right(boolean value, String tail) {
   }
 
-  private static String applyObjectEdits(String text, String objectName, List<Edit> edits, String eol) {
+  private static String applyObjectEdits(
+    String text, String objectName, List<Edit> edits, boolean byDefault, String eol) {
     Map<String, Right> desired = new LinkedHashMap<>();
     Matcher objects = OBJECT_BLOCK.matcher(text);
     int start = -1;
@@ -223,14 +226,18 @@ public final class RoleRightsFile {
         break;
       }
     }
+    // Умолчание роли действует на сам объект; у реквизитов и других подчинённых
+    // своё умолчание, и их значение пишется всегда, как это делает платформа
+    boolean child = objectName.split("\\.").length > 2;
     for (Edit edit : edits) {
       String name = edit.right.trim();
-      if (edit.value) {
-        // Ограничение доступа переживает правку значения: оно часть выданного права
-        Right known = desired.get(name);
-        desired.put(name, new Right(true, known == null ? eol + "\t\t" : known.tail()));
-      } else {
+      // Ограничение доступа переживает правку значения: оно часть права
+      Right known = desired.get(name);
+      boolean restricted = known != null && !known.tail().isBlank();
+      if (edit.value == byDefault && !restricted && !child) {
         desired.remove(name);
+      } else {
+        desired.put(name, new Right(edit.value, known == null ? eol + "\t\t" : known.tail()));
       }
     }
     String block = desired.isEmpty() ? "" : objectBlock(objectName, desired, eol);
