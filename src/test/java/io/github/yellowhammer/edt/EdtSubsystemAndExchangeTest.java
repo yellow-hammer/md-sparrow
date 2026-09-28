@@ -177,6 +177,18 @@ class EdtSubsystemAndExchangeTest {
     return xml.lines().map(String::strip).filter(line -> !line.isEmpty()).toList();
   }
 
+  @Test
+  void командныйИнтерфейсКонфигурацииЧитаетсяИзКорня() throws Exception {
+    SubsystemCommandInterfaceFile.Dto edt = EdtSubsystemCommandInterface.read(
+        edtSource.resolve("Configuration/Configuration.mdo"));
+    SubsystemCommandInterfaceFile.Dto designer = SubsystemCommandInterfaceFile.read(
+        designerCf.resolve("Configuration.xml"));
+
+    assertThat(designer.subsystemsOrder).isNotEmpty().isEqualTo(edt.subsystemsOrder);
+    assertThat(SubsystemCommandInterfaceFile.interfacePath(designerCf.resolve("Configuration.xml")))
+        .isEqualTo(designerCf.resolve("Ext/CommandInterface.xml").toAbsolutePath().normalize());
+  }
+
   /** Копия подсистемы во временном каталоге: фикстуру не правим. */
   private Path copySubsystem() throws IOException {
     Path from = edtSource.resolve("Subsystems/_ДемоАнкетирование");

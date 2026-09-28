@@ -105,9 +105,15 @@ public final class SubsystemCommandInterfaceFile {
     public List<String> groupsOrder = new ArrayList<>();
   }
 
-  /** Путь к файлу рядом с XML подсистемы. */
+  /**
+   * Путь к файлу рядом с XML подсистемы. Командный интерфейс самой конфигурации
+   * (или расширения) лежит не в каталоге одноимённого объекта, а в {@code Ext} корня.
+   */
   public static Path interfacePath(Path subsystemXml) {
     Path normalized = subsystemXml.toAbsolutePath().normalize();
+    if (normalized.getFileName().toString().equals(CfLayout.CONFIGURATION_XML)) {
+      return normalized.getParent().resolve("Ext").resolve("CommandInterface.xml");
+    }
     String stem = normalized.getFileName().toString().replaceFirst("[.][Xx][Mm][Ll]$", "");
     return normalized.getParent().resolve(stem).resolve("Ext").resolve("CommandInterface.xml");
   }
