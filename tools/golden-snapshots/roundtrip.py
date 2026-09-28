@@ -368,6 +368,13 @@ class Roundtrip:
                  'payloadJson': json.dumps({'mainAttribute': {'name': 'Объект', 'type': 'cfg:CatalogObject.Спр'},
                                             **FORM_ITEMS}, ensure_ascii=False)})
         self.edit_form_items(str(cf / 'Catalogs' / 'Спр' / 'Forms' / 'ФормаСЭлементами' / 'Ext' / 'Form.xml'))
+        # параметры - на своей форме: так видно, что из правки состава платформа дополняет
+        self.ms({'op': 'cf-form-compile', 'objectXml': catalog, 'name': 'ФормаСПараметрами',
+                 'payloadJson': json.dumps({'mainAttribute': {'name': 'Объект', 'type': 'cfg:CatalogObject.Спр'}},
+                                           ensure_ascii=False)})
+        self.edit_form_composition(cf / 'Catalogs' / 'Спр' / 'Forms' / 'ФормаСЭлементами',
+                                   str(cf / 'Catalogs' / 'Спр' / 'Forms' / 'ФормаСПараметрами' / 'Ext' / 'Form.xml'))
+        self.form_events(cf)
         out = self.load_cf('forms', cf)
         if out is None:
             self.record('forms', 'rejected')
@@ -396,6 +403,82 @@ class Roundtrip:
         self.ms({'op': 'cf-form-item-rename', 'formXml': form, 'itemId': found['Надпись'], 'newName': 'Пояснение'})
         self.ms({'op': 'cf-form-item-move', 'formXml': form, 'itemId': found['Надпись'], 'parentId': found['Шапка']})
         self.ms({'op': 'cf-form-item-delete', 'formXml': form, 'itemId': found['ПометкаУдаления']})
+
+    def form_events(self, cf):
+        """Обработчик открытия у формы объекта каждого вида: в 2.15-2.17 с ним платформа дописывает свойства."""
+        for _, folder, name, main in FORM_KINDS:
+            if not main:
+                continue
+            form_dir = cf / folder / name / 'Forms' / 'ФормаОбъекта'
+            self.ms({'op': 'cf-form-event-set', 'formXml': str(form_dir / 'Ext' / 'Form.xml'),
+                     'event': 'OnOpen', 'handler': 'ПриОткрытии'})
+            module = form_dir / 'Ext' / 'Form' / 'Module.bsl'
+            module.parent.mkdir(parents=True, exist_ok=True)
+            with open(module, 'a', encoding='utf-8-sig', newline='\r\n') as out:
+                out.write('\n'.join(['&НаКлиенте', 'Процедура ПриОткрытии(Отказ)', 'КонецПроцедуры', '']))
+
+    def edit_form_composition(self, form_dir, parameters_form):
+        """Правка состава формы: реквизиты с колонками и таблица на них, команда, обработчики; параметры - на своей форме."""
+        form = str(form_dir / 'Ext' / 'Form.xml')
+
+        def payload(value):
+            return json.dumps(value, ensure_ascii=False)
+
+        def answer(text):
+            # ответ - номер записи; поток ошибок JVM склеен с ним
+            return next(line.strip() for line in text.splitlines() if line.strip().isdigit())
+        decimal = {'types': ['xs:decimal'],
+                   'numberQualifiers': {'digits': '10', 'fractionDigits': '2', 'allowedSign': 'ANY'}}
+        string = {'types': ['xs:string'], 'stringQualifiers': {'length': '100', 'allowedLength': 'VARIABLE'}}
+        self.ms({'op': 'cf-form-attribute-add', 'formXml': form, 'payloadJson': payload({
+            'name': 'ТоварыФормы', 'title': 'Товары', 'type': {'types': ['v8:ValueTable']},
+            'columns': [{'name': 'Цена', 'type': decimal}, {'name': 'Комментарий', 'title': 'Комм.', 'type': string}]})})
+        self.ms({'op': 'cf-form-attribute-add', 'formXml': form,
+                 'payloadJson': payload({'name': 'ТоварыФормы.Количество', 'type': decimal})})
+        self.ms({'op': 'cf-form-attribute-add', 'formXml': form,
+                 'payloadJson': payload({'name': 'Флаг', 'type': {'types': ['xs:boolean']}, 'savedData': True})})
+        self.ms({'op': 'cf-form-attribute-add', 'formXml': form,
+                 'payloadJson': payload({'name': 'Варианты', 'type': {'types': ['v8:ValueListType']}})})
+        self.ms({'op': 'cf-form-attribute-add', 'formXml': form,
+                 'payloadJson': payload({'name': 'Документ', 'type': {'types': ['mxl:SpreadsheetDocument']}})})
+        self.ms({'op': 'cf-form-attribute-rename', 'formXml': form, 'oldName': 'ТоварыФормы.Комментарий',
+                 'newName': 'Примечание'})
+        self.ms({'op': 'cf-form-attribute-set', 'formXml': form, 'name': 'Флаг', 'payloadJson': payload({'title': 'Флажок'})})
+        self.ms({'op': 'cf-form-attribute-delete', 'formXml': form, 'name': 'ТоварыФормы.Количество'})
+        table = answer(self.ms({'op': 'cf-form-item-add', 'formXml': form, 'payloadJson': payload({
+            'table': 'ТаблицаТоваров', 'dataPath': 'ТоварыФормы',
+            'items': [{'input': 'ТаблицаТоваровЦена', 'dataPath': 'ТоварыФормы.Цена'},
+                      {'input': 'ТаблицаТоваровПримечание', 'dataPath': 'ТоварыФормы.Примечание'}]})}))
+        self.ms({'op': 'cf-form-attribute-rename', 'formXml': form, 'oldName': 'ТоварыФормы', 'newName': 'Товары'})
+        self.ms({'op': 'cf-form-command-add', 'formXml': form,
+                 'payloadJson': payload({'name': 'Заполнить', 'title': 'Заполнить', 'toolTip': 'Заполнить товары'})})
+        self.ms({'op': 'cf-form-command-rename', 'formXml': form, 'oldName': 'Заполнить', 'newName': 'ЗаполнитьТовары'})
+        self.ms({'op': 'cf-form-command-set', 'formXml': form, 'name': 'ЗаполнитьТовары',
+                 'payloadJson': payload({'action': 'ЗаполнитьТовары'})})
+        self.ms({'op': 'cf-form-parameter-add', 'formXml': parameters_form,
+                 'payloadJson': payload({'name': 'Ключ', 'type': {'types': ['cfg:CatalogRef.Спр']}, 'key': True})})
+        self.ms({'op': 'cf-form-parameter-add', 'formXml': parameters_form,
+                 'payloadJson': payload({'name': 'Отбор', 'type': string})})
+        self.ms({'op': 'cf-form-parameter-set', 'formXml': parameters_form, 'name': 'Отбор',
+                 'payloadJson': payload({'key': False})})
+        self.ms({'op': 'cf-form-event-set', 'formXml': form, 'event': 'OnOpen', 'handler': 'ПриОткрытии'})
+        self.ms({'op': 'cf-form-event-set', 'formXml': form, 'itemId': table, 'event': 'Selection',
+                 'handler': 'ТаблицаТоваровВыбор'})
+        content = self.ms_read({'op': 'cf-form-content-get', 'formXml': form})
+        price = next(i['id'] for t in content['items'] if t['name'] == 'ТаблицаТоваров'
+                     for i in t['items'] if i['name'] == 'ТаблицаТоваровЦена')
+        self.ms({'op': 'cf-form-event-set', 'formXml': form, 'itemId': price, 'event': 'OnChange',
+                 'handler': 'ТаблицаТоваровЦенаПриИзменении'})
+        module = form_dir / 'Ext' / 'Form' / 'Module.bsl'
+        module.parent.mkdir(parents=True, exist_ok=True)
+        # переводы строк модуля - как у выгрузки платформы: CRLF
+        with open(module, 'a', encoding='utf-8-sig', newline='\r\n') as out:
+            out.write('\n'.join([
+                '&НаКлиенте', 'Процедура ПриОткрытии(Отказ)', 'КонецПроцедуры', '',
+                '&НаКлиенте', 'Процедура ТаблицаТоваровВыбор(Элемент, ВыбраннаяСтрока, Поле, СтандартнаяОбработка)',
+                'КонецПроцедуры', '',
+                '&НаКлиенте', 'Процедура ТаблицаТоваровЦенаПриИзменении(Элемент)', 'КонецПроцедуры', '',
+                '&НаКлиенте', 'Процедура ЗаполнитьТовары(Команда)', 'КонецПроцедуры', '']))
 
     def load_cf(self, name, cf):
         """Обычный config import с проверкой, config check и apply, config export; None - отвергнуто."""
