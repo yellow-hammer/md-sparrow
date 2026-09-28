@@ -44,6 +44,7 @@ import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.FormItemPropertyChangeDto;
 import io.github.yellowhammer.designerxml.cf.FormItemPropertyEdit;
+import io.github.yellowhammer.designerxml.cf.FormItemStructureEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectAdd;
 import io.github.yellowhammer.designerxml.cf.MdObjectAddType;
 import io.github.yellowhammer.designerxml.cf.MdObjectChildMutations;
@@ -847,6 +848,25 @@ final class ApplyMutationCmd implements Callable<Integer> {
         FormItemPropertyEdit.apply(p.reqPath(p.formXml, "formXml"), p.version(), java.util.Arrays.asList(changes));
         return "OK";
       }
+      case "cf-form-item-add":
+        // Ответ - номер нового элемента: по нему вызывающая программа правит его дальше
+        return FormItemStructureEdit.add(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.parentId, p.beforeId, p.req(p.payloadJson, "payloadJson"));
+      case "cf-form-item-delete":
+        FormItemStructureEdit.delete(p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.itemId, "itemId"));
+        return "OK";
+      case "cf-form-item-rename":
+        FormItemStructureEdit.rename(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.itemId, "itemId"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-form-item-move":
+        FormItemStructureEdit.move(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.itemId, "itemId"), p.parentId, p.beforeId);
+        return "OK";
+      case "cf-form-item-bind":
+        FormItemStructureEdit.bind(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.itemId, "itemId"), p.req(p.dataPath, "dataPath"));
+        return "OK";
       case "cf-configuration-properties-set": {
         ConfigurationPropertiesDto dto = parsePayload(p, ConfigurationPropertiesDto.class);
         java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
