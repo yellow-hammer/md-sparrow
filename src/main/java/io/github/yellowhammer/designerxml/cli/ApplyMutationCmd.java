@@ -70,6 +70,7 @@ import io.github.yellowhammer.edt.EdtBorrow;
 import io.github.yellowhammer.edt.EdtExtensionScaffold;
 import io.github.yellowhammer.edt.EdtExternalArtifacts;
 import io.github.yellowhammer.edt.EdtFormItemPropertyEdit;
+import io.github.yellowhammer.edt.EdtFormItemStructureEdit;
 import io.github.yellowhammer.edt.EdtObjectScaffold;
 import io.github.yellowhammer.edt.EdtSupportRules;
 import io.github.yellowhammer.edt.EdtObjectProperties;
@@ -176,6 +177,11 @@ final class ApplyMutationCmd implements Callable<Integer> {
     "cf-form-add",
     "cf-md-form-delete",
     "cf-form-item-properties-set",
+    "cf-form-item-add",
+    "cf-form-item-delete",
+    "cf-form-item-rename",
+    "cf-form-item-move",
+    "cf-form-item-bind",
     "init-empty-cfe",
     "cfe-borrow-object",
     "external-artifact-add",
@@ -212,6 +218,12 @@ final class ApplyMutationCmd implements Callable<Integer> {
       EdtFormItemPropertyEdit.apply(
         p.reqPath(p.formXml, "formXml"), EdtModel.bundled(), java.util.Arrays.asList(changes));
       return "OK";
+    }
+    if (p.op.startsWith("cf-form-item-") && EdtLayout.isFormFile(p.formXml)) {
+      String structure = applyEdtFormItemStructure(p);
+      if (structure != null) {
+        return structure;
+      }
     }
     // Расширение и внешний объект заводятся рядом с проектом расширяемой конфигурации
     if ("init-empty-cfe".equals(p.op) && EdtLayout.isObjectFile(p.mainConfigurationXml)) {
@@ -368,6 +380,30 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
     String path = p.tabularSection == null || p.tabularSection.isBlank() ? name : p.tabularSection + "/" + name;
     EdtSupportRules.ensureElementEditable(objectMdo, "element:" + p.op.substring(0, lastDash) + ":" + path);
+  }
+
+  /** Структурная правка элемента формы EDT; {@code null}, если операция не из них. */
+  private static String applyEdtFormItemStructure(CliParams p) throws IOException {
+    java.nio.file.Path form = p.reqPath(p.formXml, "formXml");
+    switch (p.op) {
+      case "cf-form-item-add":
+        return EdtFormItemStructureEdit.add(
+          form, EdtModel.bundled(), p.parentId, p.beforeId, p.req(p.payloadJson, "payloadJson"));
+      case "cf-form-item-delete":
+        EdtFormItemStructureEdit.delete(form, EdtModel.bundled(), p.req(p.itemId, "itemId"));
+        return "OK";
+      case "cf-form-item-rename":
+        EdtFormItemStructureEdit.rename(form, EdtModel.bundled(), p.req(p.itemId, "itemId"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-form-item-move":
+        EdtFormItemStructureEdit.move(form, EdtModel.bundled(), p.req(p.itemId, "itemId"), p.parentId, p.beforeId);
+        return "OK";
+      case "cf-form-item-bind":
+        EdtFormItemStructureEdit.bind(form, EdtModel.bundled(), p.req(p.itemId, "itemId"), p.req(p.dataPath, "dataPath"));
+        return "OK";
+      default:
+        return null;
+    }
   }
 
   /**

@@ -534,7 +534,7 @@ public final class FormScaffold {
   }
 
   /** Элемент формы из JSON: вид определяется по ключу с именем. */
-  static final class FormItemDef {
+  public static final class FormItemDef {
     static final List<String> KINDS = List.of("group", "input", "check", "label", "table", "pages", "page");
 
     String kind;
@@ -544,7 +544,37 @@ public final class FormScaffold {
     String direction;
     List<FormItemDef> items = new ArrayList<>();
 
-    static FormItemDef parse(Object raw) {
+    /** Ключ вида: {@code input}, {@code group} и прочие из {@link #KINDS}. */
+    public String kind() {
+      return kind;
+    }
+
+    public String name() {
+      return name;
+    }
+
+    /** Путь к данным; {@code null}, если не задан. */
+    public String dataPath() {
+      return dataPath;
+    }
+
+    /** Заголовок; {@code null}, если не задан. */
+    public String title() {
+      return title;
+    }
+
+    /** Направление группы: {@code horizontal} либо иное (вертикально). */
+    public String direction() {
+      return direction;
+    }
+
+    /** Вложенные элементы: колонки таблицы, элементы группы и страниц. */
+    public List<FormItemDef> items() {
+      return items;
+    }
+
+    /** Описание элемента из JSON: {@code {"input": "Имя", "dataPath": "…", "items": [...]}}. */
+    public static FormItemDef parse(Object raw) {
       if (!(raw instanceof Map<?, ?> map)) {
         throw new IllegalArgumentException("Элемент формы должен быть объектом JSON.");
       }

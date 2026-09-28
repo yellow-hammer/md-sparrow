@@ -80,6 +80,33 @@ class ApplyMutationCmdEdtTest {
     assertThat(Files.readAllBytes(configuration)).isEqualTo(before);
   }
 
+  @Test
+  void элементФормыДобавляетсяПривязываетсяИУдаляется() throws Exception {
+    Path catalog = copyFixture().resolve("src/Catalogs/Товары/Товары.mdo");
+    assertThat(run("{\"op\":\"cf-form-add\",\"objectXml\":" + json(catalog.toString()) + ",\"name\":\"Форма\"}"))
+      .isZero();
+    Path form = catalog.resolveSibling("Forms/Форма/Form.form");
+    String empty = Files.readString(form, StandardCharsets.UTF_8);
+    String payload = json("{\"input\": \"Поле\", \"title\": \"Feld\"}");
+
+    // Реквизита у новой формы нет: привязка отказывает, а правка без записи ничего не пишет
+    assertThat(run("{\"op\":\"cf-form-item-add\",\"formXml\":" + json(form.toString())
+      + ",\"payloadJson\":" + payload + ",\"dryRun\":true}")).isZero();
+    assertThat(Files.readString(form, StandardCharsets.UTF_8)).isEqualTo(empty);
+    assertThat(run("{\"op\":\"cf-form-item-add\",\"formXml\":" + json(form.toString())
+      + ",\"payloadJson\":" + payload + "}")).isZero();
+    String xml = Files.readString(form, StandardCharsets.UTF_8);
+    assertThat(xml).contains("<name>Поле</name>", "<id>1</id>", "<key>de</key>", "<value>Feld</value>");
+    assertThat(run("{\"op\":\"cf-form-item-bind\",\"formXml\":" + json(form.toString())
+      + ",\"itemId\":\"1\",\"dataPath\":\"Объект.Code\"}")).isEqualTo(2);
+
+    assertThat(run("{\"op\":\"cf-form-item-delete\",\"formXml\":" + json(form.toString()) + ",\"itemId\":\"1\"}"))
+      .isZero();
+    // Объявление префикса xsi, заведённое первым элементом, остаётся
+    assertThat(Files.readString(form, StandardCharsets.UTF_8))
+      .isEqualTo(empty.replace("<form:Form ", "<form:Form xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "));
+  }
+
   private int run(String params) throws IOException {
     Path file = workDir.resolve("params.json");
     Files.writeString(file, params, StandardCharsets.UTF_8);

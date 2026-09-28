@@ -102,7 +102,7 @@ public final class FormItemStructureEdit {
     String[] created = new String[1];
     edit(formXml, version, (xml, tree) -> {
       FormTree.Node parent = parent(tree, parentId);
-      checkPlacement(parent, KIND_TYPES.get(item.kind));
+      checkPlacement(parent, KIND_TYPES.get(item.kind()));
       Set<String> names = new HashSet<>();
       collectNames(item, names);
       for (String name : names) {
@@ -220,7 +220,7 @@ public final class FormItemStructureEdit {
     throws IOException, JAXBException {
     String path = required(dataPath, "dataPath").trim();
     FormContentDto content = FormContentRead.read(formXml, version);
-    checkDataPath(formXml, version, content, path);
+    checkDataPath(content.attributes, path, (kind, name) -> objectOf(formXml, version, kind, name));
     FormItemPropertyChangeDto change = new FormItemPropertyChangeDto();
     change.itemId = required(itemId, "itemId");
     change.property = "DataPath";
@@ -289,29 +289,50 @@ public final class FormItemStructureEdit {
     return node;
   }
 
-  /** Страница живёт только в страницах, у страниц - только страницы, у таблицы - колонки. */
   private static void checkPlacement(FormTree.Node parent, String type) {
+    checkPlacement(parent.isForm() ? null : parent.type, parent.name, type);
+  }
+
+  /**
+   * Страница живёт только в страницах, у страниц - только страницы, у таблицы - колонки.
+   *
+   * @param parentType вид владельца в записи конфигуратора; {@code null} - сама форма
+   * @param parentName имя владельца для текста отказа
+   * @param type       вид размещаемого элемента
+   */
+  public static void checkPlacement(String parentType, String parentName, String type) {
     boolean ok;
-    if ("Pages".equals(parent.type)) {
+    if ("Pages".equals(parentType)) {
       ok = "Page".equals(type);
     } else if ("Page".equals(type)) {
       ok = false;
-    } else if ("Table".equals(parent.type) || "ColumnGroup".equals(parent.type)) {
+    } else if ("Table".equals(parentType) || "ColumnGroup".equals(parentType)) {
       ok = !NOT_COLUMNS.contains(type);
     } else {
       ok = true;
     }
     if (!ok) {
       throw new IllegalArgumentException("Элемент вида " + type + " не размещается в "
-        + (parent.isForm() ? "форме" : parent.type + " " + parent.name) + ".");
+        + (parentType == null ? "форме" : parentType + " " + parentName) + ".");
     }
   }
 
-  private static void collectNames(FormScaffold.FormItemDef item, Set<String> out) {
-    if (!out.add(item.name)) {
-      throw new IllegalArgumentException("Имя " + item.name + " повторяется в описании.");
+  /** Вид элемента в записи конфигуратора по ключу описания: {@code input} - {@code InputField}. */
+  public static String kindType(String kind) {
+    return KIND_TYPES.get(kind);
+  }
+
+  /** Может ли элемент этого вида содержать другие элементы. */
+  public static boolean container(String type) {
+    return CONTAINERS.contains(type);
+  }
+
+  /** Имена элемента и вложенных в описании; повтор имени - отказ. */
+  public static void collectNames(FormScaffold.FormItemDef item, Set<String> out) {
+    if (!out.add(item.name())) {
+      throw new IllegalArgumentException("Имя " + item.name() + " повторяется в описании.");
     }
-    item.items.forEach(child -> collectNames(child, out));
+    item.items().forEach(child -> collectNames(child, out));
   }
 
   /** Служебные узлы элемента, названные от его имени: у них меняется только начало имени. */
@@ -328,7 +349,7 @@ public final class FormItemStructureEdit {
   }
 
   /** Строка целиком из суффиксов служебных узлов: {@code СтрокаПоискаКонтекстноеМеню}. */
-  private static boolean serviceSuffix(String rest) {
+  public static boolean serviceSuffix(String rest) {
     if (rest.isEmpty()) {
       return false;
     }
@@ -488,10 +509,26 @@ public final class FormItemStructureEdit {
 
   // ---------- путь к данным ----------
 
-  private static void checkDataPath(Path formXml, SchemaVersion version, FormContentDto content, String path)
+  /** Строение объекта конфигурации по виду и имени из типа реквизита формы. */
+  @FunctionalInterface
+  public interface ObjectLookup {
+    /**
+     * @param kind вид из типа: {@code Catalog} для {@code cfg:CatalogObject.Товары}
+     * @param name имя объекта
+     * @return строение объекта; пусто, если его не проверить (внешний объект, нет конфигурации)
+     */
+    Optional<MdObjectStructureDto> find(String kind, String name) throws IOException, JAXBException;
+  }
+
+  /**
+   * Проверяет путь к данным элемента. Первая часть пути - реквизит формы; у реквизита-таблицы
+   * дальше идёт колонка, у реквизита типа объекта конфигурации - его реквизит, стандартный
+   * реквизит, табличная часть и её реквизит.
+   */
+  public static void checkDataPath(List<FormAttributeDto> attributes, String path, ObjectLookup lookup)
     throws IOException, JAXBException {
     String[] parts = path.split("\\.");
-    FormAttributeDto attribute = content.attributes.stream()
+    FormAttributeDto attribute = attributes.stream()
       .filter(a -> parts[0].equals(a.name))
       .findFirst()
       .orElseThrow(() -> new IllegalArgumentException("У формы нет реквизита " + parts[0] + "."));
@@ -504,7 +541,7 @@ public final class FormItemStructureEdit {
       }
       return;
     }
-    Optional<MdObjectStructureDto> object = objectOf(formXml, version, attribute);
+    Optional<MdObjectStructureDto> object = objectOf(attribute, lookup);
     if (object.isEmpty()) {
       return;
     }
@@ -541,7 +578,7 @@ public final class FormItemStructureEdit {
   }
 
   /** Объект конфигурации, чей тип у реквизита формы: {@code cfg:CatalogObject.Товары}. */
-  private static Optional<MdObjectStructureDto> objectOf(Path formXml, SchemaVersion version, FormAttributeDto attribute)
+  private static Optional<MdObjectStructureDto> objectOf(FormAttributeDto attribute, ObjectLookup lookup)
     throws IOException, JAXBException {
     if (attribute.type == null || attribute.type.types == null || attribute.type.types.size() != 1) {
       return Optional.empty();
@@ -550,8 +587,12 @@ public final class FormItemStructureEdit {
     if (!type.matches()) {
       return Optional.empty();
     }
-    String kind = type.group(1);
-    String name = type.group(3);
+    return lookup.find(type.group(1), type.group(3));
+  }
+
+  /** Объект конфигурации выгрузки: владелец формы либо объект из каталога конфигурации. */
+  private static Optional<MdObjectStructureDto> objectOf(Path formXml, SchemaVersion version, String kind, String name)
+    throws IOException, JAXBException {
     Path owner = ownerXml(formXml);
     if (owner != null && Files.isRegularFile(owner)) {
       MdObjectStructureDto structure = MdObjectStructureRead.read(owner, version);
