@@ -45,6 +45,7 @@ import io.github.yellowhammer.designerxml.cf.ExternalArtifactKind;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactMutations;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
+import io.github.yellowhammer.designerxml.cf.FormCompositionEdit;
 import io.github.yellowhammer.designerxml.cf.FormItemPropertyChangeDto;
 import io.github.yellowhammer.designerxml.cf.FormItemPropertyEdit;
 import io.github.yellowhammer.designerxml.cf.FormItemStructureEdit;
@@ -72,6 +73,7 @@ import io.github.yellowhammer.edt.EdtObjectMutations;
 import io.github.yellowhammer.edt.EdtBorrow;
 import io.github.yellowhammer.edt.EdtExtensionScaffold;
 import io.github.yellowhammer.edt.EdtExternalArtifacts;
+import io.github.yellowhammer.edt.EdtFormCompositionEdit;
 import io.github.yellowhammer.edt.EdtFormItemPropertyEdit;
 import io.github.yellowhammer.edt.EdtFormItemStructureEdit;
 import io.github.yellowhammer.edt.EdtObjectScaffold;
@@ -245,6 +247,19 @@ final class ApplyMutationCmd implements Callable<Integer> {
     "cf-form-item-rename",
     "cf-form-item-move",
     "cf-form-item-bind",
+    "cf-form-attribute-add",
+    "cf-form-attribute-delete",
+    "cf-form-attribute-rename",
+    "cf-form-attribute-set",
+    "cf-form-command-add",
+    "cf-form-command-delete",
+    "cf-form-command-rename",
+    "cf-form-command-set",
+    "cf-form-parameter-add",
+    "cf-form-parameter-delete",
+    "cf-form-parameter-rename",
+    "cf-form-parameter-set",
+    "cf-form-event-set",
     "init-empty-cfe",
     "cfe-borrow-object",
     "external-artifact-add",
@@ -282,10 +297,14 @@ final class ApplyMutationCmd implements Callable<Integer> {
         p.reqPath(p.formXml, "formXml"), EdtModel.bundled(), java.util.Arrays.asList(changes));
       return "OK";
     }
-    if (p.op.startsWith("cf-form-item-") && EdtLayout.isFormFile(p.formXml)) {
+    if (p.op.startsWith("cf-form-") && EdtLayout.isFormFile(p.formXml)) {
       String structure = applyEdtFormItemStructure(p);
       if (structure != null) {
         return structure;
+      }
+      String composition = applyEdtFormComposition(p);
+      if (composition != null) {
+        return composition;
       }
     }
     // Расширение и внешний объект заводятся рядом с проектом расширяемой конфигурации
@@ -443,6 +462,53 @@ final class ApplyMutationCmd implements Callable<Integer> {
     }
     String path = p.tabularSection == null || p.tabularSection.isBlank() ? name : p.tabularSection + "/" + name;
     EdtSupportRules.ensureElementEditable(objectMdo, "element:" + p.op.substring(0, lastDash) + ":" + path);
+  }
+
+  /** Правка состава формы EDT; {@code null}, если операция не из них. */
+  private static String applyEdtFormComposition(CliParams p) throws IOException {
+    java.nio.file.Path form = p.reqPath(p.formXml, "formXml");
+    EdtModel model = EdtModel.bundled();
+    switch (p.op) {
+      case "cf-form-attribute-add":
+        return EdtFormCompositionEdit.addAttribute(form, model, p.req(p.payloadJson, "payloadJson"));
+      case "cf-form-attribute-delete":
+        EdtFormCompositionEdit.deleteAttribute(form, model, p.req(p.name, "name"));
+        return "OK";
+      case "cf-form-attribute-rename":
+        EdtFormCompositionEdit.renameAttribute(form, model, p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-form-attribute-set":
+        EdtFormCompositionEdit.setAttribute(form, model, p.req(p.name, "name"), p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-form-command-add":
+        return EdtFormCompositionEdit.addCommand(form, model, p.req(p.payloadJson, "payloadJson"));
+      case "cf-form-command-delete":
+        EdtFormCompositionEdit.deleteCommand(form, model, p.req(p.name, "name"));
+        return "OK";
+      case "cf-form-command-rename":
+        EdtFormCompositionEdit.renameCommand(form, model, p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-form-command-set":
+        EdtFormCompositionEdit.setCommand(form, model, p.req(p.name, "name"), p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-form-parameter-add":
+        EdtFormCompositionEdit.addParameter(form, model, p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-form-parameter-delete":
+        EdtFormCompositionEdit.deleteParameter(form, model, p.req(p.name, "name"));
+        return "OK";
+      case "cf-form-parameter-rename":
+        EdtFormCompositionEdit.renameParameter(form, model, p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-form-parameter-set":
+        EdtFormCompositionEdit.setParameter(form, model, p.req(p.name, "name"), p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-form-event-set":
+        EdtFormCompositionEdit.setEvent(form, model, p.itemId, p.req(p.event, "event"), p.handler, p.callType);
+        return "OK";
+      default:
+        return null;
+    }
   }
 
   /** Структурная правка элемента формы EDT; {@code null}, если операция не из них. */
@@ -965,6 +1031,54 @@ final class ApplyMutationCmd implements Callable<Integer> {
       case "cf-form-item-bind":
         FormItemStructureEdit.bind(
           p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.itemId, "itemId"), p.req(p.dataPath, "dataPath"));
+        return "OK";
+      case "cf-form-attribute-add":
+        // Ответ - номер нового реквизита или колонки
+        return FormCompositionEdit.addAttribute(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.payloadJson, "payloadJson"));
+      case "cf-form-attribute-delete":
+        FormCompositionEdit.deleteAttribute(p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-form-attribute-rename":
+        FormCompositionEdit.renameAttribute(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-form-attribute-set":
+        FormCompositionEdit.setAttribute(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.name, "name"), p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-form-command-add":
+        return FormCompositionEdit.addCommand(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.payloadJson, "payloadJson"));
+      case "cf-form-command-delete":
+        FormCompositionEdit.deleteCommand(p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-form-command-rename":
+        FormCompositionEdit.renameCommand(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-form-command-set":
+        FormCompositionEdit.setCommand(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.name, "name"), p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-form-parameter-add":
+        FormCompositionEdit.addParameter(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-form-parameter-delete":
+        FormCompositionEdit.deleteParameter(p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-form-parameter-rename":
+        FormCompositionEdit.renameParameter(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.oldName, "oldName"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-form-parameter-set":
+        FormCompositionEdit.setParameter(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.req(p.name, "name"), p.req(p.payloadJson, "payloadJson"));
+        return "OK";
+      case "cf-form-event-set":
+        FormCompositionEdit.setEvent(
+          p.reqPath(p.formXml, "formXml"), p.version(), p.itemId, p.req(p.event, "event"), p.handler, p.callType);
         return "OK";
       case "cf-configuration-properties-set": {
         ConfigurationPropertiesDto dto = parsePayload(p, ConfigurationPropertiesDto.class);

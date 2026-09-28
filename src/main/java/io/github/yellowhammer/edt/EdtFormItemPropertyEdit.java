@@ -75,6 +75,7 @@ public final class EdtFormItemPropertyEdit {
    */
   public static void apply(Path formFile, EdtModel model, List<FormItemPropertyChangeDto> changes)
       throws IOException {
+    EdtOrdinaryForms.refuse(formFile);
     try {
       ConfigurationLanguage.with(formFile, () -> {
         applyInLanguage(formFile, model, changes);

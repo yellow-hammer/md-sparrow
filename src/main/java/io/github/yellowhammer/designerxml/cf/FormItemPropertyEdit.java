@@ -60,6 +60,7 @@ public final class FormItemPropertyEdit {
    */
   public static void apply(Path formXml, SchemaVersion version, List<FormItemPropertyChangeDto> changes)
     throws IOException, JAXBException {
+    OrdinaryForms.refuse(formXml);
     ConfigurationLanguage.with(formXml, () -> {
       applyInLanguage(formXml, version, changes);
       return null;

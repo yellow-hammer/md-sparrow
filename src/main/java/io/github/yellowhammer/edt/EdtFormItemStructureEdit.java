@@ -72,6 +72,7 @@ public final class EdtFormItemStructureEdit {
 
   private static final String FORM = "http://g5.1c.ru/v8/dt/form";
   private static final String XSI = "http://www.w3.org/2001/XMLSchema-instance";
+  private static final String CORE = "http://g5.1c.ru/v8/dt/mcore";
   private static final String INDENT = "  ";
   private static final String CONDITIONAL_APPEARANCE = "ConditionalAppearance.dcssca";
   /** Ссылки на элемент по имени в файле формы: источник дополнения, группа настроек, таблица команды. */
@@ -100,9 +101,9 @@ public final class EdtFormItemStructureEdit {
       throws IOException {
     FormScaffold.FormItemDef item = FormScaffold.FormItemDef.parse(
         new Gson().fromJson(required(definition, "payloadJson"), Map.class));
-    refuseTables(item);
     String[] created = new String[1];
     edit(formFile, model, form -> {
+      refuseDynamicListTables(item, form.attributes);
       EdtFormTree.Node parent = parent(form, parentId);
       FormItemStructureEdit.checkPlacement(
           parent.isForm() ? null : form.type(parent), parent.name, FormItemStructureEdit.kindType(item.kind()));
@@ -120,7 +121,7 @@ public final class EdtFormItemStructureEdit {
       appendItem(block, item, ids, at.indent, form.eol);
       List<Edit> edits = new ArrayList<>();
       edits.add(new Edit(at.at, at.at, block.toString()));
-      Edit namespace = xsiNamespace(form.xml);
+      Edit namespace = rootNamespaces(form.xml, block.indexOf("\"core:") >= 0);
       if (namespace != null) {
         edits.add(namespace);
       }
@@ -264,6 +265,7 @@ public final class EdtFormItemStructureEdit {
     final EClass formClass;
     final String eol;
     final Map<String, String> types = new HashMap<>();
+    final List<FormAttributeDto> attributes;
 
     Form(String xml, String appearance, EdtModel model) throws IOException {
       this.xml = xml;
@@ -275,7 +277,9 @@ public final class EdtFormItemStructureEdit {
       }
       this.formClass = formPackage.getEClassifier("Form") instanceof EClass found ? found : null;
       this.eol = xml.contains("\r\n") ? "\r\n" : "\n";
-      collectTypes(EdtFormContent.read(EdtObjectReader.parse(xml), model).items, types);
+      FormContentDto content = EdtFormContent.read(EdtObjectReader.parse(xml), model);
+      collectTypes(content.items, types);
+      this.attributes = content.attributes;
     }
 
     /** Вид элемента в записи конфигуратора: {@code InputField}, {@code UsualGroup}, {@code Table}. */
@@ -331,6 +335,7 @@ public final class EdtFormItemStructureEdit {
     if (owner != null) {
       EdtSupportRules.ensureEditable(owner);
     }
+    EdtOrdinaryForms.refuse(formFile);
     try {
       ConfigurationLanguage.with(formFile, () -> {
         editInLanguage(formFile, model, change, check);
@@ -373,7 +378,7 @@ public final class EdtFormItemStructureEdit {
    * Описание владельца формы: {@code <Объект>/Forms/<Форма>/Form.form} - {@code <Объект>/<Объект>.mdo},
    * у общей формы - её собственное описание рядом.
    */
-  private static Path ownerMdo(Path formFile) {
+  static Path ownerMdo(Path formFile) {
     Path form = formFile.toAbsolutePath().normalize().getParent();
     if (form == null) {
       return null;
@@ -413,14 +418,19 @@ public final class EdtFormItemStructureEdit {
   }
 
   /**
-   * Таблицу EDT записывает с десятками значений по умолчанию, и в эталонах нет таблицы, по
-   * которой их можно сверить с описанием: добавлять её пока не берёмся.
+   * Таблицу динамического списка EDT пишет с описанием вида и своими значениями по умолчанию, а
+   * описание элемента их не задаёт: такую таблицу пока не добавляем.
    */
-  private static void refuseTables(FormScaffold.FormItemDef item) {
-    if ("table".equals(item.kind())) {
-      throw new IllegalArgumentException("Добавление таблицы в форму 1С:EDT пока не поддержано.");
+  private static void refuseDynamicListTables(FormScaffold.FormItemDef item, List<FormAttributeDto> attributes) {
+    if ("table".equals(item.kind()) && item.dataPath() != null) {
+      String attribute = item.dataPath().split("\\.")[0];
+      boolean dynamicList = attributes.stream().anyMatch(a -> attribute.equals(a.name) && a.type != null
+          && a.type.types != null && a.type.types.contains("cfg:DynamicList"));
+      if (dynamicList) {
+        throw new IllegalArgumentException("Таблица динамического списка в форму 1С:EDT пока не добавляется.");
+      }
     }
-    item.items().forEach(EdtFormItemStructureEdit::refuseTables);
+    item.items().forEach(child -> refuseDynamicListTables(child, attributes));
   }
 
   /** Служебные узлы элемента, названные от его имени: у них меняется только начало имени. */
@@ -536,15 +546,30 @@ public final class EdtFormItemStructureEdit {
     return new Edit(EdtObjectRegions.lineStart(xml, node.start), lineEnd(xml, node.end), "");
   }
 
-  /** Корню формы нужен префикс {@code xsi}: новая форма EDT пишется без него. */
-  private static Edit xsiNamespace(String xml) {
+  /**
+   * Корню формы нужны префиксы {@code xsi} и, для значений ядра, {@code core}: новая форма EDT
+   * пишется без них. Они встают перед {@code xmlns:form}, в том порядке, в каком их пишет EDT.
+   */
+  private static Edit rootNamespaces(String xml, boolean core) {
     int root = xml.indexOf("<form:Form");
     int close = root < 0 ? -1 : xml.indexOf('>', root);
-    if (root < 0 || close < 0 || xml.substring(root, close).contains("xmlns:xsi=")) {
+    if (root < 0 || close < 0) {
       return null;
     }
-    int at = root + "<form:Form".length();
-    return new Edit(at, at, " xmlns:xsi=\"" + XSI + "\"");
+    String tag = xml.substring(root, close);
+    StringBuilder missing = new StringBuilder();
+    if (!tag.contains("xmlns:xsi=")) {
+      missing.append(" xmlns:xsi=\"").append(XSI).append('"');
+    }
+    if (core && !tag.contains("xmlns:core=")) {
+      missing.append(" xmlns:core=\"").append(CORE).append('"');
+    }
+    if (missing.length() == 0) {
+      return null;
+    }
+    int form = tag.indexOf(" xmlns:form=");
+    int at = form < 0 ? root + "<form:Form".length() : root + form;
+    return new Edit(at, at, missing.toString());
   }
 
   private static String patched(String text, List<Edit> edits) {
@@ -698,9 +723,107 @@ public final class EdtFormItemStructureEdit {
           }
         }
       }
+      case "table" -> {
+        int id = ++ids[0];
+        int menu = ++ids[0];
+        int commandBar = ++ids[0];
+        int tooltip = ++ids[0];
+        int[][] additions = new int[3][];
+        for (int i = 0; i < additions.length; i++) {
+          additions[i] = new int[] {++ids[0], ++ids[0], ++ids[0]};
+        }
+        open(out, "Table", item.name(), id, pad, eol);
+        if (item.title() != null) {
+          title(out, item.title(), in, eol);
+        }
+        common(out, in, eol);
+        if (item.dataPath() != null) {
+          dataPath(out, item.dataPath(), in, eol);
+        }
+        line(out, in, "<titleLocation>None</titleLocation>", eol);
+        for (FormScaffold.FormItemDef child : item.items()) {
+          appendItem(out, child, ids, in, eol);
+        }
+        line(out, in, "<autoCommandBar>", eol);
+        line(out, in + INDENT, "<name>" + escape(item.name()) + "КоманднаяПанель</name>", eol);
+        line(out, in + INDENT, "<id>" + commandBar + "</id>", eol);
+        line(out, in + INDENT, "<horizontalAlign>Left</horizontalAlign>", eol);
+        line(out, in + INDENT, "<autoFill>true</autoFill>", eol);
+        line(out, in, "</autoCommandBar>", eol);
+        addition(out, "searchStringAddition", item.name(), "СтрокаПоиска", null, additions[0], in, eol);
+        addition(out, "viewStatusAddition", item.name(), "СостояниеПросмотра", "ViewStatusAddition", additions[1],
+            in, eol);
+        addition(out, "searchControlAddition", item.name(), "УправлениеПоиском", "SearchControlAddition",
+            additions[2], in, eol);
+        tooltip(out, item.name(), tooltip, in, eol);
+        contextMenu(out, item.name(), menu, in, eol);
+        for (String property : TABLE_DEFAULTS) {
+          line(out, in, property, eol);
+        }
+        if (item.dataPath() != null) {
+          // Пустой отбор строк таблицы коллекции, как RowFilter у формы конфигуратора
+          line(out, in, "<rowFilter xsi:type=\"core:UndefinedValue\"/>", eol);
+        }
+      }
       default -> throw new IllegalArgumentException("Неизвестный элемент формы: " + item.kind());
     }
     out.append(pad).append("</items>").append(eol);
+  }
+
+  /**
+   * Свойства таблицы, которые EDT пишет, когда у таблицы конфигуратора их нет: по всем 454 таблицам
+   * коллекций ssl31, которые в ssl31-edt без описания вида, значение каждого одно и то же.
+   * Представление - иерархический список: таблица без {@code Representation} в конфигураторе.
+   */
+  private static final List<String> TABLE_DEFAULTS = List.of(
+      "<representation>HierarchicalList</representation>",
+      "<changeRowSet>true</changeRowSet>",
+      "<changeRowOrder>true</changeRowOrder>",
+      "<autoMaxWidth>true</autoMaxWidth>",
+      "<autoMaxHeight>true</autoMaxHeight>",
+      "<autoMaxRowsCount>true</autoMaxRowsCount>",
+      "<selectionMode>MultiRow</selectionMode>",
+      "<header>true</header>",
+      "<headerHeight>1</headerHeight>",
+      "<footerHeight>1</footerHeight>",
+      "<horizontalScrollBar>AutoUse</horizontalScrollBar>",
+      "<verticalScrollBar>AutoUse</verticalScrollBar>",
+      "<horizontalLines>true</horizontalLines>",
+      "<verticalLines>true</verticalLines>",
+      "<searchOnInput>Auto</searchOnInput>",
+      "<initialListView>Auto</initialListView>",
+      "<horizontalStretch>true</horizontalStretch>",
+      "<verticalStretch>true</verticalStretch>",
+      "<fileDragMode>AsFileRef</fileDragMode>");
+
+  /**
+   * Дополнение таблицы: строка поиска, состояние просмотра, управление поиском. Номера - дополнение,
+   * его контекстное меню, подсказка, как у формы конфигуратора.
+   */
+  private static void addition(StringBuilder out, String tag, String table, String suffix, String type, int[] ids,
+      String pad, String eol) {
+    String name = table + suffix;
+    String in = pad + INDENT;
+    line(out, pad, "<" + tag + ">", eol);
+    line(out, in, "<name>" + escape(name) + "</name>", eol);
+    line(out, in, "<id>" + ids[0] + "</id>", eol);
+    tooltip(out, name, ids[2], in, eol);
+    contextMenu(out, name, ids[1], in, eol);
+    if (type != null) {
+      line(out, in, "<type>" + type + "</type>", eol);
+    }
+    line(out, in, "<source>" + escape(table) + "</source>", eol);
+    String extInfo = Character.toUpperCase(tag.charAt(0)) + tag.substring(1) + "ExtInfo";
+    line(out, in, "<extInfo xsi:type=\"form:" + extInfo + "\">", eol);
+    line(out, in + INDENT, "<autoMaxWidth>true</autoMaxWidth>", eol);
+    line(out, in, "</extInfo>", eol);
+    line(out, pad, "</" + tag + ">", eol);
+  }
+
+  private static void dataPath(StringBuilder out, String path, String pad, String eol) {
+    line(out, pad, "<dataPath xsi:type=\"form:DataPath\">", eol);
+    line(out, pad + INDENT, "<segments>" + escape(path) + "</segments>", eol);
+    line(out, pad, "</dataPath>", eol);
   }
 
   private static void open(StringBuilder out, String xsiType, String name, int id, String pad, String eol) {

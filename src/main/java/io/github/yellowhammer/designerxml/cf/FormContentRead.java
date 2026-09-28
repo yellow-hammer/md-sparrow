@@ -51,6 +51,7 @@ public final class FormContentRead {
    * @return содержимое формы
    */
   public static FormContentDto read(Path formXml, SchemaVersion version) throws IOException, JAXBException {
+    OrdinaryForms.refuse(formXml);
     if (!Files.isRegularFile(formXml)) {
       throw new IllegalArgumentException("file not found: " + formXml);
     }

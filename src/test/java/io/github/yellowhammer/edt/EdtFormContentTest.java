@@ -168,6 +168,40 @@ class EdtFormContentTest {
   }
 
   @Test
+  void составФормыКакУКонфигуратора() throws Exception {
+    for (String form : List.of("CommonForms/ПраваДоступаУпрощенно/", "Catalogs/Валюты/Forms/ФормаЭлемента/",
+        "DataProcessors/ИнформационныйЦентр/Forms/ВзаимодействияПоОбращению/")) {
+      FormContentDto edt = EdtFormContent.read(edtSource.resolve(form + "Form.form"), model);
+      FormContentDto designer = FormContentRead.read(designerCf.resolve(form + "Ext/Form.xml"), SchemaVersion.V2_21);
+
+      assertThat(composition(edt)).as(form).isEqualTo(composition(designer));
+    }
+  }
+
+  /** Состав формы строками: реквизиты с колонками и заголовками, команды, параметры, обработчики. */
+  private static List<String> composition(FormContentDto content) {
+    List<String> out = new ArrayList<>();
+    for (var attribute : content.attributes) {
+      out.add("реквизит " + attribute.name + " «" + attribute.title + "» " + attribute.type.types);
+      for (var column : attribute.columns) {
+        out.add("  колонка " + column.name + " «" + column.title + "» " + column.type.types);
+      }
+    }
+    content.commands.forEach(c -> out.add("команда " + c.name + " «" + c.title + "» " + c.action));
+    content.parameters.forEach(p -> out.add("параметр " + p.name + " " + p.key + " " + p.type.types));
+    // EDT раскладывает обработчики между элементом и описанием его вида: порядок событий не сравнивается
+    List<String> events = new ArrayList<>();
+    content.events.forEach(e -> events.add("событие формы " + e.name + " " + e.handler + " " + e.callType));
+    List<FormItemDto> items = new ArrayList<>();
+    collect(content.items, items);
+    items.forEach(item -> item.events.forEach(
+        e -> events.add("событие " + item.name + " " + e.name + " " + e.handler + " " + e.callType)));
+    events.sort(null);
+    out.addAll(events);
+    return out;
+  }
+
+  @Test
   void видЭлементаБерётсяИзРазметки() throws Exception {
     FormContentDto edt = EdtFormContent.read(edtSource.resolve("Catalogs/Валюты/Forms/ФормаСписка/Form.form"), model);
 

@@ -185,8 +185,6 @@ class EdtFormItemStructureEditTest {
         .hasMessageContaining("не размещается");
     assertThatThrownBy(() -> EdtFormItemStructureEdit.add(form, model, null, null,
         "{\"input\": \"ПодвалПереписки\"}")).hasMessageContaining("уже есть");
-    assertThatThrownBy(() -> EdtFormItemStructureEdit.add(form, model, null, null, "{\"table\": \"Т\"}"))
-        .hasMessageContaining("не поддержано");
     assertThatThrownBy(() -> EdtFormItemStructureEdit.rename(form, model,
         item("ПодвалПереписки").id, "КнопкаЛево")).hasMessageContaining("уже есть");
     assertThatThrownBy(() -> EdtFormItemStructureEdit.delete(form, model, tooltip))
@@ -257,6 +255,42 @@ class EdtFormItemStructureEditTest {
     }
     String actual = element(Files.readString(copy, StandardCharsets.UTF_8), "НовыйЭлемент");
     assertThat(normalized(actual, "НовыйЭлемент")).isEqualTo(normalized(expected, sample));
+  }
+
+  /**
+   * Таблица записана так, как 1С:EDT записала таблицу коллекции ssl31; у образца в конфигураторе
+   * заданы представление-список и командная панель без автозаполнения, у новой таблицы - умолчания.
+   */
+  @Test
+  void newTableMatchesEdtTableOfCollection() throws Exception {
+    Path copy = copy(src.resolve("DataProcessors/МастерПереходаВОблако/Forms/МастерПереходаВОблако"),
+        temp.resolve("table"));
+    String expected = element(Files.readString(copy, StandardCharsets.UTF_8), "РасширенияДляВосстановления");
+
+    String id = EdtFormItemStructureEdit.add(copy, model, null, null,
+        "{\"table\": \"НовыйЭлемент\", \"dataPath\": \"РасширенияДляВосстановления\"}");
+
+    // На Windows эталоны выгружаются с CRLF
+    String xml = Files.readString(copy, StandardCharsets.UTF_8).replace("\r\n", "\n");
+    String actual = normalized(element(xml, "НовыйЭлемент"), "НовыйЭлемент")
+        .replace("  <representation>HierarchicalList</representation>\n", "")
+        .replace("    <autoFill>true</autoFill>\n  </autoCommandBar>", "  </autoCommandBar>");
+    assertThat(actual).isEqualTo(normalized(expected, "РасширенияДляВосстановления"));
+    List<FormItemDto> all = new ArrayList<>();
+    collect(EdtFormContent.read(copy, model).items, all);
+    assertThat(all).filteredOn(i -> "НовыйЭлемент".equals(i.name)).singleElement()
+        .satisfies(table -> assertThat(table.id).isEqualTo(id));
+    // Номера служебных узлов - как у формы конфигуратора: меню, панель, подсказка, дополнения
+    int first = Integer.parseInt(id);
+    assertThat(xml).contains("<name>НовыйЭлементУправлениеПоискомРасширеннаяПодсказка</name>\n"
+        + "        <id>" + (first + 12) + "</id>");
+  }
+
+  @Test
+  void dynamicListTableIsRefused() throws Exception {
+    Path copy = copy(src.resolve("Catalogs/Валюты/Forms/ФормаСписка"), temp.resolve("list"));
+    assertThatThrownBy(() -> EdtFormItemStructureEdit.add(copy, model, null, null,
+        "{\"table\": \"ЕщёСписок\", \"dataPath\": \"Список\"}")).hasMessageContaining("динамического списка");
   }
 
   @Test

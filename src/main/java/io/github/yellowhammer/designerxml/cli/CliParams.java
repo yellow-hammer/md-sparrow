@@ -108,6 +108,12 @@ final class CliParams {
   String beforeId;
   /** Путь к данным элемента формы: {@code Объект.Реквизит}. */
   String dataPath;
+  /** Имя события платформы у формы или элемента: {@code OnCreateAtServer}, {@code OnChange}. */
+  String event;
+  /** Процедура модуля формы, обрабатывающая событие; пусто - снять обработчик. */
+  String handler;
+  /** Вид вызова обработчика у формы расширения: {@code Before}, {@code After}, {@code Override}. */
+  String callType;
   /** Версия схемы в формате {@code V2_20} (как флаг {@code -v}). */
   String schemaVersion;
   String type;
