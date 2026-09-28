@@ -155,6 +155,23 @@ class ServeSessionTest {
   }
 
   @Test
+  void пакетОперацийСчитаетПутиОтКаталогаЗапроса() throws Exception {
+    Path project = copyLanguageFixture("cf");
+    Files.writeString(project.resolve("batch.json"), "{\"op\":\"batch\",\"operations\":["
+      + "{\"op\":\"add-md-object\",\"configurationXml\":\"Configuration.xml\",\"type\":\"CATALOG\","
+      + "\"name\":\"Waren\",\"schemaVersion\":\"V2_20\"},"
+      + "{\"op\":\"cf-form-add\",\"objectXml\":\"Catalogs/Waren.xml\",\"name\":\"Форма\","
+      + "\"schemaVersion\":\"V2_20\"}]}", StandardCharsets.UTF_8);
+
+    client.send(requestLine(1, project, "apply-mutation", "--params", "batch.json"));
+    JsonObject response = client.next();
+
+    assertThat(response.get("exitCode").getAsInt()).as(response.get("stderr").getAsString()).isZero();
+    assertThat(response.get("stdout").getAsString().strip()).isEqualTo("[\"OK\",\"OK\"]");
+    assertThat(project.resolve("Catalogs/Waren/Forms/Форма/Ext/Form.xml")).isRegularFile();
+  }
+
+  @Test
   void отменаПрерываетВыполняемыйЗапрос() throws Exception {
     String project = Ssl31SubmodulePaths.projectRoot().toString();
 

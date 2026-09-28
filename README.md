@@ -40,7 +40,7 @@ java -jar build/libs/md-sparrow-0.4.1-all.jar --help
 - [docs/scaffold-golden.md](docs/scaffold-golden.md) — создание объектов по эталонам.
 - [docs/validate-dump.md](docs/validate-dump.md) — проверка целостности выгрузки, виды находок и проверка файла по XSD.
 - [docs/serve.md](docs/serve.md) — резидентный режим: команды по запросам из stdin без запуска процесса на каждую.
-- [docs/write-session.md](docs/write-session.md) — как пишутся изменения: проверка без записи, публикация только поверх прочитанного, откат.
+- [docs/write-session.md](docs/write-session.md) — как пишутся изменения: проверка без записи, публикация только поверх прочитанного, откат, пакет операций.
 
 ## Лицензия
 

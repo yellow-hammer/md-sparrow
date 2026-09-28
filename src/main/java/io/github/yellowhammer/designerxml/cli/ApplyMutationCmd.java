@@ -22,9 +22,12 @@
 package io.github.yellowhammer.designerxml.cli;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import io.github.yellowhammer.designerxml.Cancellation;
 import io.github.yellowhammer.designerxml.cf.CfLayout;
 import io.github.yellowhammer.designerxml.cf.CfMdObjectMutations;
+import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.EmptyCfScaffold;
@@ -116,10 +119,13 @@ final class ApplyMutationCmd implements Callable<Integer> {
   @ParentCommand
   DesignerXmlCli root;
 
+  /** Открывает сеанс записи; тест подменяет его, чтобы сорвать публикацию. */
+  java.util.function.Supplier<WriteSession> sessions = WriteSession::open;
+
   @Override
   public Integer call() {
     // Операция пишет в память сеанса; диск меняет только публикация в конце
-    try (WriteSession session = WriteSession.open()) {
+    try (WriteSession session = sessions.get()) {
       return call(session);
     }
   }
@@ -138,6 +144,9 @@ final class ApplyMutationCmd implements Callable<Integer> {
       System.err.println("не удалось прочитать файл параметров: " + e.getMessage());
       return 2;
     }
+    if (CliParams.BATCH.equals(p.op)) {
+      return batch(session, p);
+    }
     try {
       String answer = dispatch(p);
       if (p.dryRun) {
@@ -155,6 +164,60 @@ final class ApplyMutationCmd implements Callable<Integer> {
       System.err.println(e.getMessage());
       return 2;
     }
+  }
+
+  /**
+   * Пакет операций: все по порядку в одном сеансе записи, затем одна публикация.
+   *
+   * <p>Каждая операция видит правки предыдущих. Первый отказ отменяет весь пакет:
+   * до публикации дело не доходит, и диск не меняется. Ответ - JSON-массив ответов
+   * операций в их порядке.
+   */
+  private static Integer batch(WriteSession session, CliParams p) {
+    if (p.operations == null || p.operations.isEmpty()) {
+      System.err.println("в пакете нет операций: задайте их в operations");
+      return 2;
+    }
+    java.util.List<String> answers = new java.util.ArrayList<>();
+    for (int i = 0; i < p.operations.size(); i++) {
+      String title = "Операция " + (i + 1) + p.operationName(i) + ": ";
+      // Пакет прерывается только между операциями: до публикации диск не тронут
+      Cancellation.checkpoint();
+      forgetParsedFiles();
+      try {
+        answers.add(dispatch(p.operation(i)));
+      } catch (JsonSyntaxException e) {
+        System.err.println(title + "некорректный JSON параметров: " + e.getMessage());
+        return 2;
+      } catch (IllegalArgumentException | IllegalStateException | IOException | JAXBException e) {
+        System.err.println(title + e.getMessage());
+        return 2;
+      }
+    }
+    try {
+      if (p.dryRun) {
+        session.verify();
+      } else {
+        session.publish();
+      }
+    } catch (IllegalStateException | IOException e) {
+      System.err.println(e.getMessage());
+      return 2;
+    }
+    System.out.println(new GsonBuilder().disableHtmlEscaping().create().toJson(answers));
+    return 0;
+  }
+
+  /**
+   * Забывает разобранное с диска между операциями пакета.
+   *
+   * <p>Кэши правил поддержки и языка текстов узнают правку по размеру и времени
+   * файла, а язык зависит и от файлов языков, которых в ключе нет. Следующая
+   * операция пакета читает их заново: правка предыдущей не останется незамеченной.
+   */
+  private static void forgetParsedFiles() {
+    SupportRules.forget();
+    ConfigurationLanguage.forget();
   }
 
   /** Правки, которые умеем и вне состава объекта. */
