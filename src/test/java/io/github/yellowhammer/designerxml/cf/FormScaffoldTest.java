@@ -253,6 +253,43 @@ class FormScaffoldTest {
   }
 
   @Test
+  void dcsCalculatedFieldFollowsDataSetLinks() throws Exception {
+    // Схема со связью наборов и без вычисляемых полей
+    java.nio.file.Path source = Ssl31SubmodulePaths.projectRoot().resolve(
+      "src/cf/Reports/АнализПравДоступа/Templates/Макет/Ext/Template.xml");
+    java.nio.file.Path dcs = tempDir.resolve("Template.xml");
+    Files.copy(source, dcs, StandardCopyOption.REPLACE_EXISTING);
+
+    DcsRead.addCalculatedField(dcs, SchemaVersion.V2_20, "Наценка", "1", "Наценка");
+    DcsRead.addCalculatedField(dcs, SchemaVersion.V2_20, "Скидка", "2", null);
+
+    List<String> order = schemaSequence();
+    List<String> roots = XmlLines.children(Files.readString(dcs), List.of("DataCompositionSchema")).stream()
+      .map(XmlLines.Node::name)
+      .toList();
+    assertThat(roots).contains("dataSetLink", "calculatedField");
+    assertThat(roots.stream().map(order::indexOf).toList()).isSorted();
+    assertThat(DcsRead.info(dcs, SchemaVersion.V2_20).get("calculatedFields").toString())
+      .containsSubsequence("Наценка", "Скидка");
+  }
+
+  /** Порядок элементов корня схемы компоновки по XSD формата. */
+  private static List<String> schemaSequence() throws Exception {
+    Path xsd = Path.of(System.getProperty("xsd.root"), "schemas", "designer", "2.20",
+      "v8.1c.ru-8.1-data-composition-system-schema.xsd");
+    String text = Files.readString(xsd);
+    int type = text.indexOf("<xs:complexType name=\"DataCompositionSchema\">");
+    String sequence = text.substring(type, text.indexOf("</xs:complexType>", type));
+    java.util.regex.Matcher element = java.util.regex.Pattern.compile("<xs:element name=\"(\\w+)\"").matcher(sequence);
+    List<String> out = new java.util.ArrayList<>();
+    while (element.find()) {
+      out.add(element.group(1));
+    }
+    assertThat(out).contains("dataSetLink", "calculatedField");
+    return out;
+  }
+
+  @Test
   void dcsInfoReadsSchema() throws Exception {
     java.nio.file.Path dcs = Ssl31SubmodulePaths.projectRoot().resolve(
       "src/erf/_ДемоОтчетНоменклатураОперации/_ДемоНоменклатураОперации/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml");
