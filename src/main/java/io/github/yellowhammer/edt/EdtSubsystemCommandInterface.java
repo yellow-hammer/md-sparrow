@@ -36,8 +36,8 @@ import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
  *
  * Лежит своим файлом рядом с описанием подсистемы: {@code CommandInterface.cmi}
  * вместо {@code Ext/CommandInterface.xml}. Разметка другая - команды собраны во
- * фрагменты по группам размещения, а видимость записана пустым элементом, - но
- * контракт для панели общий.
+ * фрагменты по группам размещения, а скрытая команда записана пустым элементом
+ * видимости, - но контракт для панели общий.
  */
 public final class EdtSubsystemCommandInterface {
 
@@ -75,9 +75,7 @@ public final class EdtSubsystemCommandInterface {
     for (EdtNode fragment : section(root, "commandsVisibility", "visibilityFragments")) {
       String command = fragment.property("command");
       if (!command.isEmpty()) {
-        // Видимость записана самим присутствием элемента, без значения
-        dto.visibility.add(new SubsystemCommandInterfaceFile.CommandEntry(
-            command, fragment.list("visible").isEmpty() ? "false" : "true"));
+        dto.visibility.add(new SubsystemCommandInterfaceFile.CommandEntry(command, visible(fragment)));
       }
     }
     for (EdtNode fragment : section(root, "commandsPlacement", "placementFragments")) {
@@ -126,7 +124,16 @@ public final class EdtSubsystemCommandInterface {
     Files.writeString(file, xml.toString(), StandardCharsets.UTF_8);
   }
 
-  /** Видимость команд: элемент без значения означает видимую команду. */
+  /**
+   * Видимость команды по умолчанию: как у Common конфигуратора. EDT не пишет
+   * значение false, поэтому скрытая команда - пустой элемент {@code <visible/>}.
+   */
+  private static String visible(EdtNode fragment) {
+    List<EdtNode> visible = fragment.list("visible");
+    return !visible.isEmpty() && "true".equals(visible.get(0).property("common")) ? "true" : "false";
+  }
+
+  /** Видимость команд: значение false EDT не пишет, от видимости остаётся пустой элемент. */
   private static void appendVisibility(
       StringBuilder xml,
       List<SubsystemCommandInterfaceFile.CommandEntry> entries,
@@ -139,7 +146,11 @@ public final class EdtSubsystemCommandInterface {
       xml.append(INDENT).append(INDENT).append("<visibilityFragments>").append(eol);
       xml.append(INDENT.repeat(3)).append("<command>").append(escape(entry.command)).append("</command>")
           .append(eol);
-      if (!"false".equals(entry.value)) {
+      if ("true".equals(entry.value)) {
+        xml.append(INDENT.repeat(3)).append("<visible>").append(eol);
+        xml.append(INDENT.repeat(4)).append("<common>true</common>").append(eol);
+        xml.append(INDENT.repeat(3)).append("</visible>").append(eol);
+      } else {
         xml.append(INDENT.repeat(3)).append("<visible/>").append(eol);
       }
       xml.append(INDENT).append(INDENT).append("</visibilityFragments>").append(eol);

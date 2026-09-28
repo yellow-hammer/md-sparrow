@@ -28,6 +28,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -71,6 +73,31 @@ class EdtSubsystemAndExchangeTest {
     assertThat(commands(edt.placement)).isEqualTo(commands(designer.placement));
     assertThat(commands(edt.order)).isEqualTo(commands(designer.order));
     assertThat(edt.subsystemsOrder).isEqualTo(designer.subsystemsOrder);
+  }
+
+  @Test
+  void видимостьКомандСовпадаетСКонфигуратором() throws Exception {
+    List<Path> interfaces;
+    try (Stream<Path> files = Files.walk(edtSource.resolve("Subsystems"))) {
+      interfaces = files.filter(file -> file.getFileName().toString().equals("CommandInterface.cmi")).toList();
+    }
+    int compared = 0;
+    for (Path cmi : interfaces) {
+      Path mdo = cmi.resolveSibling(cmi.getParent().getFileName() + ".mdo");
+      // Вложенность подсистем у форматов одна: каталог EDT и файл конфигуратора рядом с ним
+      Path designerXml = designerCf.resolve(edtSource.relativize(cmi.getParent()) + ".xml");
+      SubsystemCommandInterfaceFile.Dto edt = EdtSubsystemCommandInterface.read(mdo);
+      SubsystemCommandInterfaceFile.Dto designer = SubsystemCommandInterfaceFile.read(designerXml);
+      assertThat(visibility(edt)).as(cmi.toString()).isEqualTo(visibility(designer));
+      compared += edt.visibility.size();
+    }
+    assertThat(compared).isGreaterThan(300);
+  }
+
+  private static Map<String, String> visibility(SubsystemCommandInterfaceFile.Dto dto) {
+    Map<String, String> out = new TreeMap<>();
+    dto.visibility.forEach(entry -> out.put(entry.command, entry.value));
+    return out;
   }
 
   private static List<String> commands(List<SubsystemCommandInterfaceFile.CommandEntry> entries) {
