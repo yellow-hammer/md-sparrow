@@ -44,7 +44,10 @@ import java.util.regex.Pattern;
 public final class SubsystemCommandInterfaceFile {
 
   private static final Pattern VISIBILITY_COMMAND = Pattern.compile(
-    "<Command name=\"([^\"]+)\">\\s*<Visibility>\\s*<xr:Common>([^<]+)</xr:Common>\\s*</Visibility>\\s*</Command>");
+    "<Command name=\"([^\"]+)\">\\s*<Visibility>\\s*<xr:Common>([^<]+)</xr:Common>(.*?)</Visibility>\\s*</Command>",
+    Pattern.DOTALL);
+  /** Исключение видимости для роли: {@code <xr:Value name="Role.X">true</xr:Value>}. */
+  private static final Pattern ROLE_VALUE = Pattern.compile("<xr:Value name=\"([^\"]+)\">([^<]+)</xr:Value>");
   private static final Pattern PLACEMENT_COMMAND = Pattern.compile(
     "<Command name=\"([^\"]+)\">\\s*<CommandGroup>([^<]+)</CommandGroup>"
       + "(?:\\s*<Placement>([^<]+)</Placement>)?");
@@ -54,12 +57,29 @@ public final class SubsystemCommandInterfaceFile {
   private SubsystemCommandInterfaceFile() {
   }
 
+  /** Видимость команды для одной роли: исключение из общего значения. */
+  public static final class RoleValue {
+    /** Роль: {@code Role.Администратор}. */
+    public String role;
+    public String value;
+
+    public RoleValue() {
+    }
+
+    public RoleValue(String role, String value) {
+      this.role = role;
+      this.value = value;
+    }
+  }
+
   /** Настройка видимости или размещения одной команды. */
   public static final class CommandEntry {
     public String command;
     public String value;
     /** Способ размещения из CommandsPlacement; у других секций пусто. */
     public String place;
+    /** Видимость по ролям, отличная от общей; только у секции видимости. */
+    public List<RoleValue> roles = new ArrayList<>();
 
     public CommandEntry() {
     }
@@ -101,7 +121,12 @@ public final class SubsystemCommandInterfaceFile {
     String text = Files.readString(file, StandardCharsets.UTF_8);
     Matcher visibility = VISIBILITY_COMMAND.matcher(section(text, "CommandsVisibility"));
     while (visibility.find()) {
-      out.visibility.add(new CommandEntry(visibility.group(1), visibility.group(2).trim()));
+      CommandEntry entry = new CommandEntry(visibility.group(1), visibility.group(2).trim());
+      Matcher roles = ROLE_VALUE.matcher(visibility.group(3));
+      while (roles.find()) {
+        entry.roles.add(new RoleValue(unescapeXml(roles.group(1)), roles.group(2).trim()));
+      }
+      out.visibility.add(entry);
     }
     Matcher placement = PLACEMENT_COMMAND.matcher(section(text, "CommandsPlacement"));
     while (placement.find()) {
@@ -126,8 +151,9 @@ public final class SubsystemCommandInterfaceFile {
   }
 
   /**
-   * Пишет видимость команд: блок CommandsVisibility заменяется целиком,
-   * остальные секции не трогаются. Пустой список убирает блок.
+   * Пишет видимость команд: общее значение и исключения по ролям. Блок
+   * CommandsVisibility заменяется целиком, остальные секции не трогаются.
+   * Пустой список убирает блок.
    */
   public static void writeVisibility(Path subsystemXml, SchemaVersion version, List<CommandEntry> visibility)
     throws IOException {
@@ -136,6 +162,12 @@ public final class SubsystemCommandInterfaceFile {
       block.append("\t\t\t<Visibility>").append(eol);
       block.append("\t\t\t\t<xr:Common>").append("true".equals(entry.value) ? "true" : "false")
         .append("</xr:Common>").append(eol);
+      for (RoleValue role : entry.roles == null ? List.<RoleValue>of() : entry.roles) {
+        if (role != null && role.role != null && !role.role.isBlank()) {
+          block.append("\t\t\t\t<xr:Value name=\"").append(escapeXml(role.role.trim())).append("\">")
+            .append("true".equals(role.value) ? "true" : "false").append("</xr:Value>").append(eol);
+        }
+      }
       block.append("\t\t\t</Visibility>").append(eol);
       block.append("\t\t</Command>").append(eol);
     });
@@ -290,6 +322,14 @@ public final class SubsystemCommandInterfaceFile {
       return "";
     }
     return text.substring(start, end);
+  }
+
+  private static String unescapeXml(String value) {
+    return value
+      .replace("&quot;", "\"")
+      .replace("&lt;", "<")
+      .replace("&gt;", ">")
+      .replace("&amp;", "&");
   }
 
   private static String escapeXml(String value) {

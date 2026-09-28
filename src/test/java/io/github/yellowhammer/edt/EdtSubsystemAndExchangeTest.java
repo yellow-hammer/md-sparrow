@@ -144,6 +144,39 @@ class EdtSubsystemAndExchangeTest {
         .contains("<cmi:CommandInterface");
   }
 
+  @Test
+  void исключенияВидимостиПоРолямПишутсяКакВEdt() throws Exception {
+    Path subsystem = copySubsystem();
+    SubsystemCommandInterfaceFile.Dto dto = EdtSubsystemCommandInterface.read(subsystem);
+    // Те же исключения, что у команды формы: тип значения видимости у них общий
+    Path form = edtSource.resolve("Documents/_ДемоПоступлениеТоваров/Forms/ФормаДокумента/Form.form");
+    String formText = Files.readString(form, StandardCharsets.UTF_8);
+    int start = formText.lastIndexOf("<userVisible>", formText.indexOf("<for>"));
+    int end = formText.indexOf("</userVisible>", start);
+    List<String> expected = lines(formText.substring(start + "<userVisible>".length(), end));
+    List<SubsystemCommandInterfaceFile.RoleValue> roles = new java.util.ArrayList<>();
+    EdtObjectReader.EdtNode visible = EdtObjectReader.parse(formText.substring(start, end + "</userVisible>".length()));
+    for (EdtObjectReader.EdtNode role : visible.list("for")) {
+      roles.add(new SubsystemCommandInterfaceFile.RoleValue(
+          role.property("role"), "true".equals(role.property("value")) ? "true" : "false"));
+    }
+    dto.visibility.get(0).value = "false";
+    dto.visibility.get(0).roles = roles;
+
+    EdtSubsystemCommandInterface.write(subsystem, dto);
+
+    String cmi = Files.readString(EdtSubsystemCommandInterface.interfacePath(subsystem), StandardCharsets.UTF_8);
+    int from = cmi.indexOf("<visible>");
+    assertThat(lines(cmi.substring(from + "<visible>".length(), cmi.indexOf("</visible>", from))))
+        .isEqualTo(expected);
+    SubsystemCommandInterfaceFile.Dto after = EdtSubsystemCommandInterface.read(subsystem);
+    assertThat(after.visibility.get(0).roles).usingRecursiveFieldByFieldElementComparator().isEqualTo(roles);
+  }
+
+  private static List<String> lines(String xml) {
+    return xml.lines().map(String::strip).filter(line -> !line.isEmpty()).toList();
+  }
+
   /** Копия подсистемы во временном каталоге: фикстуру не правим. */
   private Path copySubsystem() throws IOException {
     Path from = edtSource.resolve("Subsystems/_ДемоАнкетирование");
