@@ -255,6 +255,26 @@ public final class FormScaffold {
     return FormatProjection.project(golden.substring(0, open + 1) + body + "</Form>", version);
   }
 
+  /**
+   * Свойства корня, которые платформа 8.3.22-8.3.24 (2.15-2.17) дописывает форме с основным реквизитом
+   * такого вида, как только у формы или её элемента появляется обработчик события: такая форма выгружается
+   * так же, как в остальных линейках. Пусто, если формат не из этих, вид основного реквизита их не
+   * имеет или хоть одно из них уже есть. Источник - загрузка и выгрузка ibcmd 8.3.22-8.3.24
+   * (tools/golden-snapshots/roundtrip.py).
+   */
+  static List<String> mainAttributeDefaultsOnEvent(SchemaVersion version, String mainAttributeType, String xml) {
+    if (!MAIN_ATTRIBUTE_AS_IS.contains(version) || mainAttributeType == null) {
+      return List.of();
+    }
+    List<String> defaults = MAIN_ATTRIBUTE_DEFAULTS.getOrDefault(typeKind(mainAttributeType), List.of());
+    for (String property : defaults) {
+      if (xml.contains(property.substring(0, property.indexOf('>') + 1))) {
+        return List.of();
+      }
+    }
+    return defaults;
+  }
+
   /** Вид типа без пространства и имени объекта: {@code cfg:CatalogObject.Товары} - {@code CatalogObject}. */
   private static String typeKind(String type) {
     String local = type.substring(type.indexOf(':') + 1);

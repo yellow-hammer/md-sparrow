@@ -75,6 +75,9 @@ class ApplyMutationDryRunTest {
     operations.put("форма", Map.of("op", "cf-form-add", "objectXml", catalog, "name", "ФормаСписка"));
     operations.put("элемент формы", Map.of("op", "cf-form-item-add", "formXml",
       cf.resolve("Catalogs/Справочник1/Forms/Форма/Ext/Form.xml").toString(), "payloadJson", "{\"input\": \"Поле\"}"));
+    operations.put("реквизит формы", Map.of("op", "cf-form-attribute-add", "formXml",
+      cf.resolve("Catalogs/Справочник1/Forms/Форма/Ext/Form.xml").toString(),
+      "payloadJson", "{\"name\": \"Флаг\", \"type\": {\"types\": [\"xs:boolean\"]}}"));
     operations.put("переименование", Map.of("op", "cf-md-object-rename", "configurationXml", configuration,
       "objectXml", catalog, "tag", "Catalog", "oldName", "Справочник1", "newName", "Товары"));
     operations.put("копирование", Map.of("op", "cf-md-object-duplicate", "configurationXml", configuration,

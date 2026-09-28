@@ -75,6 +75,7 @@ public final class EdtFormContent {
    * @throws IOException если файл не читается
    */
   public static FormContentDto read(Path formFile, EdtModel model) throws IOException {
+    EdtOrdinaryForms.refuse(formFile);
     return read(EdtObjectReader.read(formFile), model);
   }
 

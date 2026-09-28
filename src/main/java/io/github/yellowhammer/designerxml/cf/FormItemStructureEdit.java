@@ -230,18 +230,25 @@ public final class FormItemStructureEdit {
 
   // ---------- общее ----------
 
+  /** Правка текста формы по её разобранному дереву. */
   @FunctionalInterface
-  private interface Change {
+  interface Change {
     List<XmlGranularPatch.Replacement> replacements(String xml, FormTree tree) throws IOException, JAXBException;
   }
 
+  /** Сверка формы, прочитанной моделью после правки, с тем, что просили. */
   @FunctionalInterface
-  private interface Check {
+  interface Check {
     void verify(FormContentDto updated);
   }
 
-  private static void edit(Path formXml, SchemaVersion version, Change change, Check check)
+  /**
+   * Правит форму: замены по тексту, проверка моделью формата и сверка, затем запись. Пустой список
+   * замен - правка не нужна, файл не трогается.
+   */
+  static void edit(Path formXml, SchemaVersion version, Change change, Check check)
     throws IOException, JAXBException {
+    OrdinaryForms.refuse(formXml);
     SupportRules.ensureEditable(formXml);
     ConfigurationLanguage.with(formXml, () -> {
       String xml = Files.readString(formXml, StandardCharsets.UTF_8);

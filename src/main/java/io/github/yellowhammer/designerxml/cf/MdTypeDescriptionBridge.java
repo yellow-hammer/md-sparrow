@@ -55,6 +55,9 @@ public final class MdTypeDescriptionBridge {
     NS_BY_PREFIX.put("sys", "http://v8.1c.ru/8.1/data/ui/fonts/system");
     NS_BY_PREFIX.put("web", "http://v8.1c.ru/8.1/data/ui/colors/web");
     NS_BY_PREFIX.put("win", "http://v8.1c.ru/8.1/data/ui/colors/windows");
+    // Табличный и форматированный документ: у реквизита формы конфигуратор объявляет префикс у самого типа
+    NS_BY_PREFIX.put("mxl", "http://v8.1c.ru/8.2/data/spreadsheet");
+    NS_BY_PREFIX.put("fd", "http://v8.1c.ru/8.2/data/formatted-document");
   }
 
   private MdTypeDescriptionBridge() {
