@@ -235,6 +235,15 @@ public final class EdtFormContent {
       FormAttributeDto attribute = new FormAttributeDto();
       attribute.name = node.name();
       attribute.type = type(node, model);
+      attribute.title = title(node);
+      // Колонки реквизита-таблицы лежат у него самого, как у конфигуратора
+      for (EdtNode column : node.list("columns")) {
+        FormAttributeDto dto = new FormAttributeDto();
+        dto.name = column.name();
+        dto.title = title(column);
+        dto.type = type(column, model);
+        attribute.columns.add(dto);
+      }
       attribute.main = Boolean.parseBoolean(node.property("main"));
       // У динамического списка основная таблица лежит в описании его вида
       attribute.mainTable = node.list("extInfo").stream()
@@ -254,7 +263,7 @@ public final class EdtFormContent {
       FormCommandDto command = new FormCommandDto();
       command.name = node.name();
       command.title = EdtPropertyValues.localized(node, "title");
-      command.action = node.property("action");
+      command.action = action(node);
       commands.add(command);
     }
     return commands;
@@ -267,6 +276,7 @@ public final class EdtFormContent {
       FormParameterDto parameter = new FormParameterDto();
       parameter.name = node.name();
       parameter.type = type(node, model);
+      parameter.key = Boolean.parseBoolean(node.property("keyParameter"));
       parameters.add(parameter);
     }
     return parameters;
@@ -280,13 +290,34 @@ public final class EdtFormContent {
    */
   private static List<FormEventDto> events(EdtNode owner) {
     List<FormEventDto> events = new ArrayList<>();
-    for (EdtNode node : owner.list("handlers")) {
+    // События своего вида элемента (выбор у поля ввода, запись у формы объекта) лежат в описании вида
+    List<EdtNode> handlers = new ArrayList<>(owner.list("handlers"));
+    owner.list(EXT_INFO).forEach(info -> handlers.addAll(info.list("handlers")));
+    for (EdtNode node : handlers) {
       FormEventDto event = new FormEventDto();
       event.name = node.property("event");
       event.handler = node.property("name");
+      String callType = node.property("callType");
+      event.callType = callType.isEmpty() ? null : callType;
       events.add(event);
     }
     return events;
+  }
+
+  /** Заголовок записи; незаписанный - {@code null}, как у чтения конфигуратора. */
+  private static String title(EdtNode node) {
+    String title = EdtPropertyValues.localized(node, "title");
+    return title == null || title.isEmpty() ? null : title;
+  }
+
+  /** Процедура команды: у EDT она записана обработчиком внутри действия. */
+  private static String action(EdtNode command) {
+    for (EdtNode action : command.list("action")) {
+      for (EdtNode handler : action.list("handler")) {
+        return handler.property("name");
+      }
+    }
+    return command.property("action");
   }
 
   /**
