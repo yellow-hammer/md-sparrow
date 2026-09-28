@@ -32,6 +32,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 class FormScaffoldTest {
 
@@ -96,6 +97,136 @@ class FormScaffoldTest {
 
     // Содержимое обязано читаться и нашей высокоуровневой операцией формы
     FormContentDtoReadCheck.check(content);
+  }
+
+  /**
+   * Служебные узлы элемента формы: их состав и порядок задаёт платформа. Вложенные
+   * элементы идут после них, но у таблицы эталона колонок нет, и они сверяются отдельно.
+   */
+  private static final java.util.Set<String> SERVICE_NODES = java.util.Set.of(
+    "ContextMenu", "AutoCommandBar", "ExtendedTooltip", "AdditionSource",
+    "SearchStringAddition", "ViewStatusAddition", "SearchControlAddition");
+
+  @Test
+  void compileFormWritesServiceNodesLikePlatform() throws Exception {
+    Path objectXml = copyCatalog();
+    String definition = """
+      {
+        "items": [
+          {"pages": "Страницы", "items": [
+            {"page": "Основное", "title": "Основное", "items": [
+              {"group": "Шапка", "items": [
+                {"check": "Основной", "dataPath": "Объект.Основной"},
+                {"label": "Подсказка", "title": "Реквизиты банка ниже"}
+              ]}
+            ]}
+          ]},
+          {"table": "Счета", "dataPath": "Объект.Счета", "items": [
+            {"check": "Отметка", "dataPath": "Объект.Счета.Отметка"}
+          ]}
+        ]
+      }
+      """;
+    FormScaffold.compileForm(objectXml, SchemaVersion.V2_20, "Карточка", definition);
+    Path content = tempDir.resolve("_ДемоБанковскиеСчета").resolve("Forms")
+      .resolve("Карточка").resolve("Ext").resolve("Form.xml");
+    org.w3c.dom.Element ours = parse(content).getDocumentElement();
+
+    // Эталон - форма, которую выгрузила платформа: у каждого вида элемента свой набор узлов
+    java.util.Map<String, List<String>> expected = new java.util.TreeMap<>();
+    try (java.util.stream.Stream<Path> files = Files.walk(
+      io.github.yellowhammer.designerxml.SamplesSubmodulePaths.snapshot(SchemaVersion.V2_20, "external-files"))) {
+      for (Path form : files.filter(file -> file.getFileName().toString().equals("Form.xml")).sorted().toList()) {
+        collectServiceNodes(parse(form).getDocumentElement(), expected);
+      }
+    }
+    java.util.Map<String, List<String>> actual = new java.util.TreeMap<>();
+    collectServiceNodes(ours, actual);
+    assertThat(actual.keySet()).containsExactlyInAnyOrder(
+      "CheckBoxField", "LabelDecoration", "UsualGroup", "Pages", "Page", "Table",
+      "SearchStringAddition", "ViewStatusAddition", "SearchControlAddition");
+    actual.forEach((kind, nodes) -> assertThat(nodes).as(kind).isEqualTo(expected.get(kind)));
+    assertChildItemsLast(ours);
+    // Узлы, которые платформа дописывает при загрузке и выгрузке (проверка загрузкой, 8.3.17-8.5.1)
+    String xml = Files.readString(content);
+    assertThat(xml).containsPattern("<DataPath>Объект.Основной</DataPath>\\s*<CheckBoxType>Auto</CheckBoxType>\\s*<ContextMenu");
+    assertThat(xml).containsPattern("<LabelDecoration name=\"Подсказка\" id=\"\\d+\">\\s*<Title formatted=\"false\">");
+    assertThat(xml).containsPattern("<DataPath>Объект.Счета</DataPath>\\s*<RowFilter xsi:nil=\"true\"/>\\s*<ContextMenu");
+
+    // Номера элементов платформа раздаёт подряд в порядке файла
+    List<Integer> ids = new java.util.ArrayList<>();
+    collectIds(ours, ids);
+    assertThat(ids).isEqualTo(java.util.stream.IntStream.rangeClosed(1, ids.size()).boxed().toList());
+  }
+
+  @Test
+  void checkBoxTypeByDefaultOnlyBefore8_5() throws Exception {
+    String definition = "{\"items\": [{\"check\": \"Основной\", \"dataPath\": \"Объект.Основной\"}]}";
+    Path content = tempDir.resolve("_ДемоБанковскиеСчета").resolve("Forms")
+      .resolve("Флажок").resolve("Ext").resolve("Form.xml");
+    Path objectXml = copyCatalog();
+    // Проверка загрузкой: 8.5.1 (2.21) вид флажка по умолчанию не выгружает, 8.3.17-8.3.27 выгружают
+    FormScaffold.compileForm(objectXml, SchemaVersion.V2_21, "Флажок", definition);
+    assertThat(Files.readString(content)).doesNotContain("<CheckBoxType>");
+    FormScaffold.compileForm(objectXml, SchemaVersion.V2_20, "Флажок", definition);
+    assertThat(Files.readString(content)).contains("<CheckBoxType>Auto</CheckBoxType>");
+  }
+
+  private static org.w3c.dom.Document parse(Path xml) throws Exception {
+    javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+    factory.setNamespaceAware(true);
+    return factory.newDocumentBuilder().parse(xml.toFile());
+  }
+
+  /** Первый встреченный элемент каждого вида: служебные узлы по порядку, у дополнения ещё его источник. */
+  private static void collectServiceNodes(org.w3c.dom.Element element, java.util.Map<String, List<String>> out) {
+    for (org.w3c.dom.Element child : children(element)) {
+      if (!child.getAttribute("id").isEmpty() && !"-1".equals(child.getAttribute("id"))
+        && !child.getLocalName().equals("ContextMenu") && !child.getLocalName().equals("ExtendedTooltip")
+        && !child.getLocalName().equals("AutoCommandBar")) {
+        List<String> nodes = new java.util.ArrayList<>();
+        for (org.w3c.dom.Element node : children(child)) {
+          if (SERVICE_NODES.contains(node.getLocalName())) {
+            nodes.add(node.getLocalName());
+          }
+        }
+        out.putIfAbsent(child.getLocalName(), nodes);
+      }
+      collectServiceNodes(child, out);
+    }
+  }
+
+  /** Вложенные элементы платформа пишет после всех служебных узлов, в том числе после подсказки. */
+  private static void assertChildItemsLast(org.w3c.dom.Element element) {
+    List<org.w3c.dom.Element> nodes = children(element);
+    for (int i = 0; i < nodes.size(); i++) {
+      if (nodes.get(i).getLocalName().equals("ChildItems")) {
+        for (org.w3c.dom.Element after : nodes.subList(i + 1, nodes.size())) {
+          assertThat(SERVICE_NODES).as(element.getAttribute("name")).doesNotContain(after.getLocalName());
+        }
+      }
+      assertChildItemsLast(nodes.get(i));
+    }
+  }
+
+  private static void collectIds(org.w3c.dom.Element element, List<Integer> out) {
+    for (org.w3c.dom.Element child : children(element)) {
+      if (!child.getAttribute("id").isEmpty() && !child.getLocalName().equals("Attribute")
+        && !"-1".equals(child.getAttribute("id"))) {
+        out.add(Integer.parseInt(child.getAttribute("id")));
+      }
+      collectIds(child, out);
+    }
+  }
+
+  private static List<org.w3c.dom.Element> children(org.w3c.dom.Element element) {
+    List<org.w3c.dom.Element> out = new java.util.ArrayList<>();
+    for (org.w3c.dom.Node node = element.getFirstChild(); node != null; node = node.getNextSibling()) {
+      if (node instanceof org.w3c.dom.Element child) {
+        out.add(child);
+      }
+    }
+    return out;
   }
 
   /** Отдельный хелпер: контент формы читается операцией cf-form-content-get. */

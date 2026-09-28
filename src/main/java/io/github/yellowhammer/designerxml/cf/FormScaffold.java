@@ -233,7 +233,7 @@ public final class FormScaffold {
     if (!definition.items.isEmpty()) {
       body.append("\t<ChildItems>").append(eol);
       for (FormItemDef item : definition.items) {
-        appendItem(body, item, ids, 2, eol);
+        appendItem(body, item, version, ids, 2, eol);
       }
       body.append("\t</ChildItems>").append(eol);
     }
@@ -262,7 +262,8 @@ public final class FormScaffold {
     return dot < 0 ? local : local.substring(0, dot);
   }
 
-  private static void appendItem(StringBuilder out, FormItemDef item, IdCounter ids, int depth, String eol) {
+  private static void appendItem(
+    StringBuilder out, FormItemDef item, SchemaVersion version, IdCounter ids, int depth, String eol) {
     String pad = "\t".repeat(depth);
     switch (item.kind) {
       case "input", "check" -> {
@@ -275,15 +276,20 @@ public final class FormScaffold {
         if (item.title != null) {
           appendTitle(out, item.title, pad + "\t", eol);
         }
-        out.append(pad).append("\t<ContextMenu name=\"").append(escape(item.name))
-          .append("КонтекстноеМеню\" id=\"").append(ids.next()).append("\"/>").append(eol);
+        if ("check".equals(item.kind) && version.compareTo(SchemaVersion.V2_21) < 0) {
+          // Вид флажка 8.3.17-8.3.27 пишут и со значением по умолчанию, 8.5.1 его опускает
+          out.append(pad).append("\t<CheckBoxType>Auto</CheckBoxType>").append(eol);
+        }
+        appendContextMenu(out, item.name, ids, pad + "\t", eol);
         appendTooltip(out, item.name, ids, pad + "\t", eol);
         out.append(pad).append("</").append(tag).append('>').append(eol);
       }
       case "label" -> {
         out.append(pad).append("<LabelDecoration name=\"").append(escape(item.name))
           .append("\" id=\"").append(ids.next()).append("\">").append(eol);
-        appendTitle(out, item.title != null ? item.title : item.name, pad + "\t", eol);
+        // Заголовок надписи платформа пишет с признаком форматированного текста
+        appendTitle(out, "<Title formatted=\"false\">", item.title != null ? item.title : item.name, pad + "\t", eol);
+        appendContextMenu(out, item.name, ids, pad + "\t", eol);
         appendTooltip(out, item.name, ids, pad + "\t", eol);
         out.append(pad).append("</LabelDecoration>").append(eol);
       }
@@ -299,15 +305,15 @@ public final class FormScaffold {
             .append("</Group>").append(eol);
           out.append(pad).append("\t<ShowTitle>").append(item.title != null).append("</ShowTitle>").append(eol);
         }
-        appendChildren(out, item, ids, pad, depth, eol);
         appendTooltip(out, item.name, ids, pad + "\t", eol);
+        appendChildren(out, item, version, ids, pad, depth, eol);
         out.append(pad).append("</").append(tag).append('>').append(eol);
       }
       case "pages" -> {
         out.append(pad).append("<Pages name=\"").append(escape(item.name))
           .append("\" id=\"").append(ids.next()).append("\">").append(eol);
-        appendChildren(out, item, ids, pad, depth, eol);
         appendTooltip(out, item.name, ids, pad + "\t", eol);
+        appendChildren(out, item, version, ids, pad, depth, eol);
         out.append(pad).append("</Pages>").append(eol);
       }
       case "table" -> {
@@ -319,44 +325,75 @@ public final class FormScaffold {
         if (item.title != null) {
           appendTitle(out, item.title, pad + "\t", eol);
         }
-        out.append(pad).append("\t<ContextMenu name=\"").append(escape(item.name))
-          .append("КонтекстноеМеню\" id=\"").append(ids.next()).append("\"/>").append(eol);
+        if (item.dataPath != null) {
+          // У таблицы коллекции платформа пишет пустой отбор строк
+          out.append(pad).append("\t<RowFilter xsi:nil=\"true\"/>").append(eol);
+        }
+        appendContextMenu(out, item.name, ids, pad + "\t", eol);
         out.append(pad).append("\t<AutoCommandBar name=\"").append(escape(item.name))
           .append("КоманднаяПанель\" id=\"").append(ids.next()).append("\"/>").append(eol);
-        out.append(pad).append("\t<SearchStringAddition name=\"").append(escape(item.name))
-          .append("СтрокаПоиска\" id=\"").append(ids.next()).append("\"/>").append(eol);
-        out.append(pad).append("\t<ViewStatusAddition name=\"").append(escape(item.name))
-          .append("СостояниеПросмотра\" id=\"").append(ids.next()).append("\"/>").append(eol);
-        out.append(pad).append("\t<SearchControlAddition name=\"").append(escape(item.name))
-          .append("УправлениеПоиском\" id=\"").append(ids.next()).append("\"/>").append(eol);
-        appendChildren(out, item, ids, pad, depth, eol);
         appendTooltip(out, item.name, ids, pad + "\t", eol);
+        appendAddition(out, "SearchStringAddition", item.name, "СтрокаПоиска", "SearchStringRepresentation",
+          ids, pad + "\t", eol);
+        appendAddition(out, "ViewStatusAddition", item.name, "СостояниеПросмотра", "ViewStatusRepresentation",
+          ids, pad + "\t", eol);
+        appendAddition(out, "SearchControlAddition", item.name, "УправлениеПоиском", "SearchControl",
+          ids, pad + "\t", eol);
+        appendChildren(out, item, version, ids, pad, depth, eol);
         out.append(pad).append("</Table>").append(eol);
       }
       default -> throw new IllegalArgumentException("Неизвестный элемент формы: " + item.kind);
     }
   }
 
-  private static void appendChildren(StringBuilder out, FormItemDef item, IdCounter ids, String pad, int depth,
-    String eol) {
+  private static void appendChildren(StringBuilder out, FormItemDef item, SchemaVersion version, IdCounter ids,
+    String pad, int depth, String eol) {
     if (item.items.isEmpty()) {
       return;
     }
     out.append(pad).append("\t<ChildItems>").append(eol);
     for (FormItemDef child : item.items) {
-      appendItem(out, child, ids, depth + 2, eol);
+      appendItem(out, child, version, ids, depth + 2, eol);
     }
     out.append(pad).append("\t</ChildItems>").append(eol);
   }
 
   private static void appendTitle(StringBuilder out, String title, String pad, String eol) {
-    out.append(pad).append("<Title>").append(eol);
+    appendTitle(out, "<Title>", title, pad, eol);
+  }
+
+  private static void appendTitle(StringBuilder out, String open, String title, String pad, String eol) {
+    out.append(pad).append(open).append(eol);
     out.append(pad).append("\t<v8:item>").append(eol);
     out.append(pad).append("\t\t<v8:lang>").append(ConfigurationLanguage.current())
         .append("</v8:lang>").append(eol);
     out.append(pad).append("\t\t<v8:content>").append(escape(title)).append("</v8:content>").append(eol);
     out.append(pad).append("\t</v8:item>").append(eol);
     out.append(pad).append("</Title>").append(eol);
+  }
+
+  private static void appendContextMenu(StringBuilder out, String name, IdCounter ids, String pad, String eol) {
+    out.append(pad).append("<ContextMenu name=\"").append(escape(name))
+      .append("КонтекстноеМеню\" id=\"").append(ids.next()).append("\"/>").append(eol);
+  }
+
+  /**
+   * Дополнение таблицы: строка поиска, состояние просмотра или управление поиском.
+   * Платформа пишет у него источник, собственное контекстное меню и подсказку,
+   * пустое дополнение она не создаёт.
+   */
+  private static void appendAddition(StringBuilder out, String tag, String table, String suffix, String type,
+    IdCounter ids, String pad, String eol) {
+    String name = table + suffix;
+    out.append(pad).append('<').append(tag).append(" name=\"").append(escape(name))
+      .append("\" id=\"").append(ids.next()).append("\">").append(eol);
+    out.append(pad).append("\t<AdditionSource>").append(eol);
+    out.append(pad).append("\t\t<Item>").append(escape(table)).append("</Item>").append(eol);
+    out.append(pad).append("\t\t<Type>").append(type).append("</Type>").append(eol);
+    out.append(pad).append("\t</AdditionSource>").append(eol);
+    appendContextMenu(out, name, ids, pad + "\t", eol);
+    appendTooltip(out, name, ids, pad + "\t", eol);
+    out.append(pad).append("</").append(tag).append('>').append(eol);
   }
 
   private static void appendTooltip(StringBuilder out, String name, IdCounter ids, String pad, String eol) {
