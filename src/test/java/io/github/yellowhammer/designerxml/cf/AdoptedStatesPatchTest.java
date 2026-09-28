@@ -121,6 +121,31 @@ class AdoptedStatesPatchTest {
   }
 
   @Test
+  void несколькоНовыхСвойствВстаютВПорядкеСхемы() throws Exception {
+    // Заимствованный модуль без флагов, как его пишет cfe-borrow-object: у копии они убраны
+    Path module = copy("CommonModules/ОбщегоНазначенияПереопределяемый.xml");
+    String original = Files.readString(module, StandardCharsets.UTF_8);
+    Files.writeString(module, original.replaceAll(
+        "\\t+<(Server|ExternalConnection|ClientOrdinaryApplication|ServerCall)>[a-z]+</\\1>\\r?\\n", ""),
+        StandardCharsets.UTF_8);
+    MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(module, SchemaVersion.V2_21);
+    dto.commonModule.server = true;
+    dto.commonModule.externalConnection = true;
+    dto.commonModule.serverCall = true;
+
+    MdObjectPropertiesEdit.writeDto(module, SchemaVersion.V2_21, dto);
+
+    // Все три встают в одно место, после флага клиента, и идут в порядке схемы
+    assertThat(text(module)).contains("""
+        			<ClientManagedApplication>false</ClientManagedApplication>
+        			<Server>true</Server>
+        			<ExternalConnection>true</ExternalConnection>
+        			<ServerCall>true</ServerCall>
+        		</Properties>
+        """);
+  }
+
+  @Test
   void комментарийЗаимствованногоСостоянияНеПолучает() throws Exception {
     Path catalog = copy("Catalogs/_ДемоГруппыДоступаПартнеров.xml");
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(catalog, SchemaVersion.V2_21);

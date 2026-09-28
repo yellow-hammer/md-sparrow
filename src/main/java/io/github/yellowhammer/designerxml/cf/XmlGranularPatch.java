@@ -88,12 +88,20 @@ final class XmlGranularPatch {
     return Optional.of(out);
   }
 
-  /** Применяет правки с конца: смещения посчитаны по исходной строке. */
+  /**
+   * Применяет правки с конца: смещения посчитаны по исходной строке. Вставки в одно
+   * место встают в порядке списка: из последней в списке применяется первая, и каждая
+   * следующая оказывается перед ней.
+   */
   static String apply(String xmlUtf8, List<Replacement> reps) {
-    List<Replacement> ordered = new ArrayList<>(reps);
-    ordered.sort(Comparator.comparingInt(Replacement::start).reversed());
+    List<Integer> order = new ArrayList<>();
+    for (int i = 0; i < reps.size(); i++) {
+      order.add(i);
+    }
+    order.sort(Comparator.<Integer>comparingInt(i -> reps.get(i).start()).thenComparingInt(i -> i).reversed());
     StringBuilder sb = new StringBuilder(xmlUtf8);
-    for (Replacement r : ordered) {
+    for (int i : order) {
+      Replacement r = reps.get(i);
       sb.replace(r.start(), r.end(), r.text());
     }
     return sb.toString();
