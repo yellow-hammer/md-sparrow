@@ -44,6 +44,8 @@ import jakarta.xml.bind.annotation.XmlType;
  *
  * Изменённое свойство платформа отмечает в {@code InternalInfo} записью
  * {@code xr:PropertyState} с состоянием «Extended»; так же его выгружает EDT.
+ * Флаги общего модуля - исключение: запись Extended у них платформа при загрузке
+ * отбрасывает (проверка загрузкой на 8.3.17-8.5.1), а сохраняет состояние «Notify».
  * Свойство, которого у заимствованного узла в файле не было, встаёт в
  * {@code Properties} на место по схеме, а не в конец: порядок элементов там
  * задан последовательностью.
@@ -53,7 +55,25 @@ final class AdoptedStatesPatch {
   private static final String INTERNAL_INFO = "InternalInfo";
   private static final String PROPERTIES = "Properties";
 
+  /** Состояние изменённого флага общего модуля: Extended у них платформа не хранит. */
+  static final String NOTIFY = "Notify";
+
+  /** Флаги общего модуля: где он выполняется и как возвращает значения. */
+  private static final Set<String> COMMON_MODULE_FLAGS = Set.of(
+      "Global", "ClientManagedApplication", "Server", "ExternalConnection", "ClientOrdinaryApplication",
+      "ServerCall", "Privileged", "ReturnValuesReuse");
+
   private AdoptedStatesPatch() {
+  }
+
+  /**
+   * Состояние, которым отмечается изменённое свойство узла.
+   *
+   * @param nodeLocal элемент узла: {@code CommonModule}, {@code Attribute}
+   * @param property имя элемента свойства
+   */
+  static String stateOf(String nodeLocal, String property) {
+    return "CommonModule".equals(nodeLocal) && COMMON_MODULE_FLAGS.contains(property) ? NOTIFY : AdoptedStates.EXTENDED;
   }
 
   /** Элемент выгрузки: имя и границы. */
@@ -134,9 +154,11 @@ final class AdoptedStatesPatch {
    * блок ставится перед {@code Properties}.
    *
    * @param node границы узла: объекта или его подчинённого
+   * @param nodeLocal элемент узла: {@code CommonModule}, {@code Attribute}
    * @param properties имена элементов выгрузки
    */
-  static XmlGranularPatch.Replacement extended(String xml, MdObjectXmlRegions.Region node, Set<String> properties)
+  static XmlGranularPatch.Replacement extended(
+      String xml, MdObjectXmlRegions.Region node, String nodeLocal, Set<String> properties)
       throws XMLStreamException {
     String eol = XmlGranularPatch.fileEol(xml);
     Element internalInfo = null;
@@ -156,7 +178,7 @@ final class AdoptedStatesPatch {
       String indent = XmlGranularPatch.currentLineIndent(xml, propertiesElement.start());
       StringBuilder block = new StringBuilder(indent).append("<InternalInfo>").append(eol);
       for (String property : properties) {
-        block.append(state(property, indent + "\t", eol));
+        block.append(state(property, stateOf(nodeLocal, property), indent + "\t", eol));
       }
       block.append(indent).append("</InternalInfo>").append(eol);
       return new XmlGranularPatch.Replacement(at, at, block.toString());
@@ -167,7 +189,7 @@ final class AdoptedStatesPatch {
     if (text.endsWith("/>")) {
       StringBuilder block = new StringBuilder("<InternalInfo>").append(eol);
       for (String property : properties) {
-        block.append(state(property, indent + "\t", eol));
+        block.append(state(property, stateOf(nodeLocal, property), indent + "\t", eol));
       }
       block.append(indent).append("</InternalInfo>");
       return new XmlGranularPatch.Replacement(internalInfo.start(), internalInfo.end(), block.toString());
@@ -178,10 +200,10 @@ final class AdoptedStatesPatch {
           "(<xr:PropertyState>\\s*<xr:Property>" + Pattern.quote(property) + "</xr:Property>\\s*<xr:State>)[^<]*(</xr:State>)")
           .matcher(text);
       if (written.find()) {
-        text = text.substring(0, written.start()) + written.group(1) + AdoptedStates.EXTENDED + written.group(2)
+        text = text.substring(0, written.start()) + written.group(1) + stateOf(nodeLocal, property) + written.group(2)
             + text.substring(written.end());
       } else {
-        appended.append(state(property, indent + "\t", eol));
+        appended.append(state(property, stateOf(nodeLocal, property), indent + "\t", eol));
       }
     }
     int closing = lineStart(text, text.lastIndexOf("</"));
@@ -189,10 +211,10 @@ final class AdoptedStatesPatch {
     return new XmlGranularPatch.Replacement(internalInfo.start(), internalInfo.end(), text);
   }
 
-  private static String state(String property, String indent, String eol) {
+  private static String state(String property, String state, String indent, String eol) {
     return indent + "<xr:PropertyState>" + eol
         + indent + "\t<xr:Property>" + property + "</xr:Property>" + eol
-        + indent + "\t<xr:State>" + AdoptedStates.EXTENDED + "</xr:State>" + eol
+        + indent + "\t<xr:State>" + state + "</xr:State>" + eol
         + indent + "</xr:PropertyState>" + eol;
   }
 

@@ -91,7 +91,7 @@ class AdoptedStatesPatchTest {
   }
 
   @Test
-  void контролируемоеСвойствоМеняетсяНаМестеИСтановитсяИзменённым() throws Exception {
+  void флагОбщегоМодуляМеняетсяНаМестеИОтмечаетсяNotify() throws Exception {
     Path module = copy("CommonModules/ОбщегоНазначенияПереопределяемый.xml");
     MdObjectPropertiesDto dto = MdObjectPropertiesEdit.readDto(module, SchemaVersion.V2_21);
     assertThat(dto.propertyStates).containsEntry("server", AdoptedStates.CHECKED)
@@ -109,13 +109,14 @@ class AdoptedStatesPatchTest {
         			</xr:PropertyState>
         			<xr:PropertyState>
         				<xr:Property>ServerCall</xr:Property>
-        				<xr:State>Extended</xr:State>
+        				<xr:State>Notify</xr:State>
         			</xr:PropertyState>
         		</InternalInfo>
         """);
     assertThat(xml).contains("<ServerCall>true</ServerCall>");
     MdObjectPropertiesDto written = MdObjectPropertiesEdit.readDto(module, SchemaVersion.V2_21);
-    assertThat(written.propertyStates).containsEntry("serverCall", AdoptedStates.EXTENDED)
+    // Extended у флага общего модуля платформа отбрасывает при загрузке, Notify хранит
+    assertThat(written.propertyStates).containsEntry("serverCall", AdoptedStatesPatch.NOTIFY)
         .containsEntry("server", AdoptedStates.CHECKED);
   }
 
