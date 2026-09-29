@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:ExchangePlan xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" xmlns:mdclassExtension="http://g5.1c.ru/v8/dt/metadata/mdclass/extension" uuid="080d8e99-a1a9-36c2-b40f-98d9a9220eac" thisNode="ec491fe1-c1ba-36aa-822b-61a06b2d137b">
+  <producedTypes>
+    <objectType typeId="975aea29-f62b-35d8-b24a-65534fb456c2" valueTypeId="9ba4fea4-37f7-3c04-9f4a-f8890a181b92"/>
+    <refType typeId="63a1c7f2-a307-34b9-b0a0-e9d621835015" valueTypeId="a5fa6a70-42b4-361a-a30d-2c79bf04f516"/>
+    <selectionType typeId="5e4589e1-bb0f-3176-9255-19bd2abfd9f9" valueTypeId="f50d58ba-3067-3b82-92a1-b38e491e0564"/>
+    <listType typeId="62c5903c-341d-32b8-b493-304326d6f5b4" valueTypeId="5fd9e69d-2dcc-337d-b049-9000efd17a19"/>
+    <managerType typeId="2f640bca-bbe9-3198-8b62-5564a514298e" valueTypeId="4d509c78-aa04-3fe8-aac4-cca0a4e62422"/>
+  </producedTypes>
+  <name>ПланОбмена1</name>
+  <objectBelonging>Adopted</objectBelonging>
+  <extension xsi:type="mdclassExtension:ExchangePlanExtension"/>
+</mdclass:ExchangePlan>

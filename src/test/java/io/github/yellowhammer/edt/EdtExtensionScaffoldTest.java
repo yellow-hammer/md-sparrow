@@ -117,6 +117,36 @@ class EdtExtensionScaffoldTest {
     }
   }
 
+  /**
+   * План обмена заимствуется со своими идентификаторами корня, порождаемых типов и своим
+   * {@code thisNode}: эталон - заимствованный план обмена, который записала 1С:EDT. Повтор
+   * заимствования в копию того же проекта даёт тот же файл.
+   */
+  @Test
+  void планОбменаЗаимствуетсяСоСвоимЭтимУзлом() throws Exception {
+    Path source = Path.of("src", "test", "resources", "edt-borrow-exchange-plan").toAbsolutePath();
+    List<String> written = new java.util.ArrayList<>();
+    for (String copy : List.of("первая", "вторая")) {
+      Path root = workDir.resolve(copy);
+      copy(source, root);
+      Path original = root.resolve("Основа/src/ExchangePlans/ПланОбмена1/ПланОбмена1.mdo");
+
+      Path adopted = EdtBorrow.borrowObject(original,
+          root.resolve("Основа.Надстройка/src/Configuration/Configuration.mdo"), model);
+
+      assertThat(withoutUuids(adopted))
+          .isEqualTo(withoutUuids(root.resolve("ожидаемое/ExchangePlans/ПланОбмена1/ПланОбмена1.mdo")));
+      String text = Files.readString(adopted, StandardCharsets.UTF_8);
+      // Корень, «этот узел» и десять идентификаторов порождаемых типов - все разные
+      assertThat(objectIds(text)).hasSize(12);
+      for (String uuid : objectIds(Files.readString(original, StandardCharsets.UTF_8))) {
+        assertThat(text).doesNotContain(uuid);
+      }
+      written.add(text);
+    }
+    assertThat(written.get(1)).isEqualTo(written.get(0));
+  }
+
   @Test
   void идентификаторыРасширенияСвои() throws Exception {
     Path base = base();
