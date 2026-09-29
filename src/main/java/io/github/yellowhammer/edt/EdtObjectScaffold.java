@@ -62,8 +62,8 @@ import io.github.yellowhammer.edt.EdtObjectRegions.Region;
  * меняются имя и идентификаторы, состав конфигурации получает ссылку на своё
  * место по порядку схемы.
  *
- * Пустая форма заводится так же: разметка формы из эталона, запись в описании
- * объекта со своим идентификатором.
+ * Пустая форма заводится так же: разметка формы из эталона платформы проекта,
+ * запись в описании объекта со своим идентификатором.
  */
 public final class EdtObjectScaffold {
 
@@ -157,7 +157,8 @@ public final class EdtObjectScaffold {
    *
    * Объект получает все файлы каталога прототипа из эталона: описание, права
    * роли, разметку общей формы, описание WS-ссылки. Подписи эталона записаны
-   * по-русски и переносятся на основной язык конфигурации.
+   * по-русски и переносятся на основной язык конфигурации. Разметка формы - та,
+   * что 1С:EDT пишет для платформы проекта ({@link EdtFormPlatform}).
    *
    * @param configurationMdo описание конфигурации
    * @param model метамодель EDT
@@ -176,7 +177,8 @@ public final class EdtObjectScaffold {
       boolean synonymEmpty) throws IOException {
     CatalogNameConstraints.check(name);
     Path sourceRoot = sourceRoot(configurationMdo);
-    requireKindInProject(kind, sourceRoot.getParent());
+    Path projectDir = sourceRoot.getParent();
+    requireKindInProject(kind, projectDir);
     Path objectDir = sourceRoot.resolve(kind.cfSubdir()).resolve(name);
     if (Files.exists(objectDir)) {
       throw new IllegalArgumentException(UiLabels.alreadyExists(kind.configurationXmlTag(), name));
@@ -194,9 +196,11 @@ public final class EdtObjectScaffold {
     // Переводы строк - как у проекта: один проект не смешивает LF и CRLF
     String eol = eol(configuration);
     String language = ConfigurationLanguage.codeOf(configurationMdo);
+    EdtFormPlatform forms = EdtFormPlatform.ofProject(projectDir);
     Files.createDirectories(objectDir);
     for (String file : files) {
-      String text = retargeted(parametrize(golden(file), proto, name, seed), language);
+      String markup = file.endsWith("/" + FORM_FILE) ? forms.emptyForm() : golden(file);
+      String text = retargeted(parametrize(markup, proto, name, seed), language);
       if (file.equals(description)) {
         text = withSynonym(text, name, synonym, synonymEmpty);
       }
@@ -324,7 +328,7 @@ public final class EdtObjectScaffold {
           : lineEnd(xml, forms.get(forms.size() - 1).end());
       Files.createDirectories(formDir);
       Files.writeString(formDir.resolve(FORM_FILE),
-          fragment(FORMS_DIRECTORY + "/" + FORM_PROTO + "/" + FORM_FILE, eol), StandardCharsets.UTF_8);
+          EdtFormPlatform.ofObject(objectMdo).emptyForm().replace("\n", eol), StandardCharsets.UTF_8);
       Files.writeString(objectMdo, xml.substring(0, at) + entry + xml.substring(at), StandardCharsets.UTF_8);
     } catch (XMLStreamException error) {
       throw new IOException("Не удалось разобрать файл объекта: " + objectMdo, error);

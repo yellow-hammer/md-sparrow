@@ -125,7 +125,7 @@ final class EdtNodeGolden {
    */
   static String forProject(String node, Path objectMdo, String objectClass, String owner, String feature)
       throws IOException {
-    Optional<SchemaVersion> format = projectFormat(objectMdo);
+    Optional<SchemaVersion> format = EdtProjectManifest.formatOfObject(objectMdo);
     if (format.isEmpty()) {
       return node;
     }
@@ -167,19 +167,6 @@ final class EdtNodeGolden {
       kept.add(line);
     }
     return String.join("\n", kept);
-  }
-
-  /** Формат платформы проекта по {@code Runtime-Version} манифеста. */
-  private static Optional<SchemaVersion> projectFormat(Path objectMdo) throws IOException {
-    Path project = objectMdo.toAbsolutePath();
-    // <проект>/src/<Вид>/<Имя>/<Имя>.mdo
-    for (int level = 0; level < 4 && project != null; level++) {
-      project = project.getParent();
-    }
-    if (project == null) {
-      return Optional.empty();
-    }
-    return EdtProjectManifest.runtimeVersion(project).map(SchemaVersion::ofPlatform);
   }
 
   /** Узел в выгрузке: {@code tabularSections} - {@code TabularSection}. */

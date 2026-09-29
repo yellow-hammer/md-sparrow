@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Catalog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:core="http://g5.1c.ru/v8/dt/mcore" xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="5cbc02ae-4f41-32c9-ba82-040eab1ebeea">
+  <producedTypes>
+    <objectType typeId="ac497aef-a11f-37e5-97c9-7f1a3dc14aff" valueTypeId="6a53414b-f7f9-3901-b3a1-89b3e7036bc0"/>
+    <refType typeId="bc00acc4-5678-35e5-aa32-d9f74c2cc450" valueTypeId="b258971b-5f87-327b-8daf-330177251193"/>
+    <selectionType typeId="c11ba075-ed0a-3132-8d68-73a582cc0c26" valueTypeId="7d091ee0-5fb4-3ddf-b7ed-5d20b6cbb213"/>
+    <listType typeId="e29a6213-02b8-37c4-bc42-97c6c4a79258" valueTypeId="85f11901-ef90-35b4-88c3-0b325b515b9c"/>
+    <managerType typeId="bfd9dc79-1e67-35bd-86aa-12dfa67903ca" valueTypeId="e187bcc1-7f53-3d2f-9bf5-cbc2452009a3"/>
+  </producedTypes>
+  <name>Спр</name>
+  <synonym>
+    <key>ru</key>
+    <value>Спр</value>
+  </synonym>
+  <useStandardCommands>true</useStandardCommands>
+  <inputByString>Catalog.Спр.StandardAttribute.Description</inputByString>
+  <inputByString>Catalog.Спр.StandardAttribute.Code</inputByString>
+  <fullTextSearchOnInputByString>DontUse</fullTextSearchOnInputByString>
+  <createOnInput>Use</createOnInput>
+  <dataLockControlMode>Managed</dataLockControlMode>
+  <fullTextSearch>Use</fullTextSearch>
+  <objectPresentation>
+    <key>ru</key>
+    <value>Спр</value>
+  </objectPresentation>
+  <extendedObjectPresentation>
+    <key>ru</key>
+    <value>Спр</value>
+  </extendedObjectPresentation>
+  <listPresentation>
+    <key>ru</key>
+    <value>Спр</value>
+  </listPresentation>
+  <extendedListPresentation>
+    <key>ru</key>
+    <value>Спр</value>
+  </extendedListPresentation>
+  <explanation>
+    <key>ru</key>
+    <value>Спр</value>
+  </explanation>
+  <levelCount>2</levelCount>
+  <foldersOnTop>true</foldersOnTop>
+  <codeLength>9</codeLength>
+  <descriptionLength>25</descriptionLength>
+  <codeType>String</codeType>
+  <codeAllowedLength>Variable</codeAllowedLength>
+  <checkUnique>true</checkUnique>
+  <autonumbering>true</autonumbering>
+  <defaultPresentation>AsDescription</defaultPresentation>
+  <editType>InDialog</editType>
+  <choiceMode>BothWays</choiceMode>
+  <tabularSections uuid="a794e6cf-8773-37ff-afc1-fba7a487435c">
+    <producedTypes>
+      <objectType typeId="e7d98871-e0d2-3dfd-89b1-02504310a24f" valueTypeId="83469320-7226-3ae1-be2a-d662b6e7e165"/>
+      <rowType typeId="2d7e9007-ad9e-35d7-9279-0484778fab54" valueTypeId="76f0cdca-9720-3852-a551-9e0901e77d53"/>
+    </producedTypes>
+    <name>Товары</name>
+    <synonym>
+      <key>ru</key>
+      <value>Товары</value>
+    </synonym>
+    <attributes uuid="d7ce2237-505f-3044-bc0e-014c8f0dedf4">
+      <name>Номенклатура</name>
+      <synonym>
+        <key>ru</key>
+        <value>Номенклатура</value>
+      </synonym>
+      <type>
+        <types>String</types>
+        <stringQualifiers>
+          <length>10</length>
+        </stringQualifiers>
+      </type>
+      <minValue xsi:type="core:UndefinedValue"/>
+      <maxValue xsi:type="core:UndefinedValue"/>
+      <dataHistory>Use</dataHistory>
+      <fullTextSearch>Use</fullTextSearch>
+    </attributes>
+  </tabularSections>
+  <forms uuid="78675457-a2ee-36f3-9360-e45df270b1d8">
+    <name>Форма</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+  <forms uuid="c94f6ebe-2be3-31af-bbcb-3de080499330">
+    <name>ФормаСЭлементами</name>
+    <synonym>
+      <key>ru</key>
+      <value>ФормаСЭлементами</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+</mdclass:Catalog>

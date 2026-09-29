@@ -55,6 +55,8 @@ class EdtFormCompositionEditTest {
 
   private static EdtModel model;
   private static Path src;
+  /** Проект, который записала 1С:EDT для той же платформы, что у ssl31-edt. */
+  private static Path project;
 
   @TempDir
   Path temp;
@@ -68,6 +70,8 @@ class EdtFormCompositionEditTest {
   static void locate() throws IOException {
     model = EdtModel.bundled();
     src = Path.of(System.getProperty("fixtures.ssl31edt.root"), "ssl31", "src");
+    project = Path.of("src", "test", "resources", "edt-forms-platform",
+        EdtProjectManifest.runtimeVersion(src.getParent()).orElseThrow(), "Формы").toAbsolutePath();
   }
 
   @BeforeEach
@@ -174,7 +178,7 @@ class EdtFormCompositionEditTest {
     "CommonForms/ПраваДоступаУпрощенно|parameters|Пользователь|parameter|{\"name\": \"NEW\", \"key\": true, \"type\": {\"types\": [\"cfg:CatalogRef.ВнешниеПользователи\", \"cfg:CatalogRef.Пользователи\"]}}"})
   void newEntryMatchesEdtRecord(String formDir, String tag, String sample, String kind, String definition)
       throws Exception {
-    Path copy = copy(src.resolve(formDir), temp.resolve("pair"));
+    Path copy = inProject(formDir);
     String expected = entry(text(copy), tag, sample);
     String json = definition.replace("NEW", "НоваяЗапись");
     switch (kind) {
@@ -258,6 +262,13 @@ class EdtFormCompositionEditTest {
   }
 
   // ---------- помощники ----------
+
+  /** Копия формы ssl31-edt в копии проекта той же платформы: новая запись пишется по платформе проекта. */
+  private Path inProject(String formDir) throws IOException {
+    Path copy = temp.resolve(project.getFileName().toString());
+    EdtExtensionScaffoldTest.copy(project, copy);
+    return copy(src.resolve(formDir), copy.resolve("src").resolve(formDir));
+  }
 
   private static Path copy(Path source, Path target) throws IOException {
     try (Stream<Path> files = Files.walk(source)) {

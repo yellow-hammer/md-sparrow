@@ -295,6 +295,7 @@ public final class EdtFormCompositionEdit {
     CatalogNameConstraints.check(name);
     String action = def.action == null || def.action.isBlank() ? name : def.action.trim();
     checkHandler(action);
+    EdtFormPlatform platform = EdtFormPlatform.ofForm(formFile);
     String[] created = new String[1];
     edit(formFile, model, form -> {
       if (entry(form.commands, name) != null) {
@@ -317,6 +318,9 @@ public final class EdtFormCompositionEdit {
           .append(in).append("</use>").append(eol);
       block.append(in).append(actionXml(form, action, in)).append(eol);
       block.append(in).append("<currentRowUse>Auto</currentRowUse>").append(eol);
+      if (platform == EdtFormPlatform.V2_21) {
+        block.append(in).append("<selectedRowsUse>Auto</selectedRowsUse>").append(eol);
+      }
       block.append(INDENT).append("</formCommands>");
       return List.of(insertRoot(form, form.commands, "formCommands", block.toString()));
     }, updated -> requireCommand(updated, name, true));
