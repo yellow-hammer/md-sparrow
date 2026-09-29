@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:Configuration xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="7a5fc9b5-eaa1-3d75-80a6-8c7b2ac29841">
+  <name>Конфигурация</name>
+  <containedObjects classId="9cd510cd-abfc-11d4-9434-004095e12fc7" objectId="a16aa75f-bcba-3595-8511-466d82109a33"/>
+  <containedObjects classId="9fcd25a0-4822-11d4-9414-008048da11f9" objectId="e216e937-2df3-3150-bfd3-48991bbc8cbf"/>
+  <containedObjects classId="e3687481-0a87-462c-a166-9f34594f9bba" objectId="562892c9-700d-3fd0-b909-eb837cdf6f74"/>
+  <containedObjects classId="9de14907-ec23-4a07-96f0-85521cb6b53b" objectId="0c71e11a-5a46-30ff-b737-1a7b1361a494"/>
+  <containedObjects classId="51f2d5d8-ea4d-4064-8892-82951750031e" objectId="889bfcb1-5ba5-338c-8f2d-1c844a67affd"/>
+  <containedObjects classId="e68182ea-4237-4383-967f-90c1e3370bc7" objectId="787f8458-9ab7-3b38-86c1-adf020851d09"/>
+  <containedObjects classId="fb282519-d103-4dd3-bc12-cb271d631dfc" objectId="115ca9ef-27af-3557-8425-bbf40a3e9c4e"/>
+  <configurationExtensionCompatibilityMode>8.3.17</configurationExtensionCompatibilityMode>
+  <defaultRunMode>ManagedApplication</defaultRunMode>
+  <usePurposes>PersonalComputer</usePurposes>
+  <scriptVariant>Russian</scriptVariant>
+  <requiredMobileApplicationPermissions>
+    <permission>AllowOSBackup</permission>
+    <use>true</use>
+  </requiredMobileApplicationPermissions>
+  <defaultLanguage>Language.Русский</defaultLanguage>
+  <dataLockControlMode>Managed</dataLockControlMode>
+  <objectAutonumerationMode>NotAutoFree</objectAutonumerationMode>
+  <modalityUseMode>DontUse</modalityUseMode>
+  <synchronousPlatformExtensionAndAddInCallUseMode>DontUse</synchronousPlatformExtensionAndAddInCallUseMode>
+  <compatibilityMode>8.3.17</compatibilityMode>
+  <languages uuid="fd32b4a2-1cbe-3740-af71-73aee43e1cb4">
+    <name>Русский</name>
+    <synonym>
+      <key>ru</key>
+      <value>Русский</value>
+    </synonym>
+    <languageCode>ru</languageCode>
+  </languages>
+  <commonForms>CommonForm.ОбщаяФорма</commonForms>
+  <catalogs>Catalog.Спр</catalogs>
+</mdclass:Configuration>

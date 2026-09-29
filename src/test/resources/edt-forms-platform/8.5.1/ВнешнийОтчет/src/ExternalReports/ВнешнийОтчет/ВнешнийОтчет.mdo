@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mdclass:ExternalReport xmlns:mdclass="http://g5.1c.ru/v8/dt/metadata/mdclass" uuid="5fdb73c6-9c73-3009-b0ba-57ac92ed9be4">
+  <producedTypes>
+    <objectType typeId="5cbefa47-8ba0-3e54-b517-08f59bea1dca" valueTypeId="5b162bd3-bc16-338c-aec7-a6c3c283748f"/>
+  </producedTypes>
+  <name>ВнешнийОтчет</name>
+  <containedObjects classId="e41aff26-25cf-4bb6-b6c1-3f478a75f374" objectId="14667d4e-2f91-3c42-ba44-b5a3ad266c9f"/>
+  <forms uuid="6d6cbbc6-a0c5-3c64-a393-08c23bcba8b3">
+    <name>Форма</name>
+    <synonym>
+      <key>ru</key>
+      <value>Форма</value>
+    </synonym>
+    <usePurposes>PersonalComputer</usePurposes>
+    <usePurposes>MobileDevice</usePurposes>
+  </forms>
+</mdclass:ExternalReport>

@@ -66,7 +66,8 @@ import io.github.yellowhammer.edt.EdtObjectRegions.Region;
  * рядом с ним: меняются только строки затронутого элемента. Контракт тот же, что у правки
  * выгрузки конфигуратора ({@link FormItemStructureEdit}): те же описания, номера и отказы. Новый
  * элемент пишется так, как 1С:EDT записывает элемент, который конфигуратор выгружает по
- * описанию {@link FormScaffold}: со значениями по умолчанию, которые EDT пишет явно.
+ * описанию {@link FormScaffold}: со значениями по умолчанию, которые EDT пишет явно для
+ * платформы проекта ({@link EdtFormPlatform}).
  */
 public final class EdtFormItemStructureEdit {
 
@@ -101,6 +102,7 @@ public final class EdtFormItemStructureEdit {
       throws IOException {
     FormScaffold.FormItemDef item = FormScaffold.FormItemDef.parse(
         new Gson().fromJson(required(definition, "payloadJson"), Map.class));
+    EdtFormPlatform platform = EdtFormPlatform.ofForm(formFile);
     String[] created = new String[1];
     edit(formFile, model, form -> {
       refuseDynamicListTables(item, form.attributes);
@@ -118,7 +120,7 @@ public final class EdtFormItemStructureEdit {
       created[0] = String.valueOf(ids[0] + 1);
       Insertion at = insertion(form, parent, beforeId);
       StringBuilder block = new StringBuilder();
-      appendItem(block, item, ids, at.indent, form.eol);
+      appendItem(block, item, platform, ids, at.indent, form.eol);
       List<Edit> edits = new ArrayList<>();
       edits.add(new Edit(at.at, at.at, block.toString()));
       Edit namespace = rootNamespaces(form.xml, block.indexOf("\"core:") >= 0);
@@ -625,9 +627,10 @@ public final class EdtFormItemStructureEdit {
 
   /**
    * Элемент в записи EDT. Номера раздаются в том же порядке, что и у формы конфигуратора:
-   * элемент, контекстное меню, подсказка, вложенные.
+   * элемент, контекстное меню, подсказка, вложенные. Умолчания - платформы проекта.
    */
-  private static void appendItem(StringBuilder out, FormScaffold.FormItemDef item, int[] ids, String pad, String eol) {
+  private static void appendItem(StringBuilder out, FormScaffold.FormItemDef item, EdtFormPlatform platform,
+      int[] ids, String pad, String eol) {
     String in = pad + INDENT;
     switch (item.kind()) {
       case "input", "check" -> {
@@ -659,6 +662,9 @@ public final class EdtFormItemStructureEdit {
               "textEdit")) {
             line(out, in + INDENT, "<" + flag + ">true</" + flag + ">", eol);
           }
+          if (platform == EdtFormPlatform.V2_21) {
+            line(out, in + INDENT, "<textSize>Normal</textSize>", eol);
+          }
           line(out, in, "</extInfo>", eol);
         } else {
           line(out, in, "<extInfo xsi:type=\"form:CheckBoxFieldExtInfo\"/>", eol);
@@ -680,7 +686,7 @@ public final class EdtFormItemStructureEdit {
         int tooltip = ++ids[0];
         open(out, "FormGroup", item.name(), id, pad, eol);
         for (FormScaffold.FormItemDef child : item.items()) {
-          appendItem(out, child, ids, in, eol);
+          appendItem(out, child, platform, ids, in, eol);
         }
         common(out, in, eol);
         // Заголовок страниц конфигуратор по описанию не пишет
@@ -696,8 +702,10 @@ public final class EdtFormItemStructureEdit {
             if (!"horizontal".equals(item.direction())) {
               line(out, in + INDENT, "<group>Vertical</group>", eol);
             }
-            line(out, in + INDENT, "<behavior>Auto</behavior>", eol);
-            line(out, in + INDENT, "<representation>WeakSeparation</representation>", eol);
+            if (platform.usualGroupBehavior() != null) {
+              line(out, in + INDENT, "<behavior>" + platform.usualGroupBehavior() + "</behavior>", eol);
+            }
+            line(out, in + INDENT, "<representation>" + platform.usualGroupRepresentation() + "</representation>", eol);
             line(out, in + INDENT, "<showLeftMargin>true</showLeftMargin>", eol);
             line(out, in + INDENT, "<united>true</united>", eol);
             if (item.title() != null) {
@@ -710,14 +718,15 @@ public final class EdtFormItemStructureEdit {
           case "page" -> {
             line(out, in, "<type>Page</type>", eol);
             line(out, in, "<extInfo xsi:type=\"form:PageGroupExtInfo\">", eol);
-            line(out, in + INDENT, "<group>Vertical</group>", eol);
-            line(out, in + INDENT, "<showTitle>true</showTitle>", eol);
+            line(out, in + INDENT, "<group>" + platform.pageGroup() + "</group>", eol);
+            line(out, in + INDENT, "<showTitle>" + platform.pageShowTitle() + "</showTitle>", eol);
             line(out, in, "</extInfo>", eol);
           }
           default -> {
             line(out, in, "<type>Pages</type>", eol);
             line(out, in, "<extInfo xsi:type=\"form:PagesGroupExtInfo\">", eol);
-            line(out, in + INDENT, "<pagesRepresentation>Auto</pagesRepresentation>", eol);
+            line(out, in + INDENT, "<pagesRepresentation>" + platform.pagesRepresentation() + "</pagesRepresentation>",
+                eol);
             line(out, in + INDENT, "<currentRowUse>Auto</currentRowUse>", eol);
             line(out, in, "</extInfo>", eol);
           }
@@ -742,7 +751,7 @@ public final class EdtFormItemStructureEdit {
         }
         line(out, in, "<titleLocation>None</titleLocation>", eol);
         for (FormScaffold.FormItemDef child : item.items()) {
-          appendItem(out, child, ids, in, eol);
+          appendItem(out, child, platform, ids, in, eol);
         }
         line(out, in, "<autoCommandBar>", eol);
         line(out, in + INDENT, "<name>" + escape(item.name()) + "КоманднаяПанель</name>", eol);
@@ -758,7 +767,9 @@ public final class EdtFormItemStructureEdit {
         tooltip(out, item.name(), tooltip, in, eol);
         contextMenu(out, item.name(), menu, in, eol);
         for (String property : TABLE_DEFAULTS) {
-          line(out, in, property, eol);
+          if (platform == EdtFormPlatform.V2_21 || !TABLE_DEFAULTS_2_21.contains(property)) {
+            line(out, in, property, eol);
+          }
         }
         if (item.dataPath() != null) {
           // Пустой отбор строк таблицы коллекции, как RowFilter у формы конфигуратора
@@ -770,10 +781,14 @@ public final class EdtFormItemStructureEdit {
     out.append(pad).append("</items>").append(eol);
   }
 
+  private static final String ROW_SELECTION_MODE = "<rowSelectionMode>Auto</rowSelectionMode>";
+  private static final String AUTO_MAX_CARD_HEIGHT = "<autoMaxCardHeight>true</autoMaxCardHeight>";
+
   /**
    * Свойства таблицы, которые EDT пишет, когда у таблицы конфигуратора их нет: по всем 454 таблицам
    * коллекций ssl31, которые в ssl31-edt без описания вида, значение каждого одно и то же.
    * Представление - иерархический список: таблица без {@code Representation} в конфигураторе.
+   * Режим выделения строк и автовысоту карточки EDT пишет только у {@link EdtFormPlatform#V2_21}.
    */
   private static final List<String> TABLE_DEFAULTS = List.of(
       "<representation>HierarchicalList</representation>",
@@ -783,6 +798,7 @@ public final class EdtFormItemStructureEdit {
       "<autoMaxHeight>true</autoMaxHeight>",
       "<autoMaxRowsCount>true</autoMaxRowsCount>",
       "<selectionMode>MultiRow</selectionMode>",
+      ROW_SELECTION_MODE,
       "<header>true</header>",
       "<headerHeight>1</headerHeight>",
       "<footerHeight>1</footerHeight>",
@@ -794,7 +810,9 @@ public final class EdtFormItemStructureEdit {
       "<initialListView>Auto</initialListView>",
       "<horizontalStretch>true</horizontalStretch>",
       "<verticalStretch>true</verticalStretch>",
-      "<fileDragMode>AsFileRef</fileDragMode>");
+      "<fileDragMode>AsFileRef</fileDragMode>",
+      AUTO_MAX_CARD_HEIGHT);
+  private static final Set<String> TABLE_DEFAULTS_2_21 = Set.of(ROW_SELECTION_MODE, AUTO_MAX_CARD_HEIGHT);
 
   /**
    * Дополнение таблицы: строка поиска, состояние просмотра, управление поиском. Номера - дополнение,

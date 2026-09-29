@@ -62,6 +62,8 @@ class EdtFormItemStructureEditTest {
 
   private static EdtModel model;
   private static Path src;
+  /** Проект, который записала 1С:EDT для той же платформы, что у ssl31-edt. */
+  private static Path project;
 
   @TempDir
   Path temp;
@@ -75,6 +77,8 @@ class EdtFormItemStructureEditTest {
   static void locate() throws IOException {
     model = EdtModel.bundled();
     src = Path.of(System.getProperty("fixtures.ssl31edt.root"), "ssl31", "src");
+    project = Path.of("src", "test", "resources", "edt-forms-platform",
+        EdtProjectManifest.runtimeVersion(src.getParent()).orElseThrow(), "Формы").toAbsolutePath();
   }
 
   @BeforeEach
@@ -239,7 +243,7 @@ class EdtFormItemStructureEditTest {
     "Catalogs/ПодписантыСервисаМобильнойПодписи/Forms/ФормаЭлемента|ГруппаСтраницы|{\"pages\": \"НовыйЭлемент\"}"})
   void newElementMatchesEdtRecordOfSameDescription(String formDir, String sample, String definition)
       throws Exception {
-    Path copy = copy(src.resolve(formDir), temp.resolve("pair"));
+    Path copy = inProject(formDir);
     String xml = Files.readString(copy, StandardCharsets.UTF_8);
     String expected = element(xml, sample);
     Matcher title = Pattern.compile("^  <title>\\n    <key>ru</key>\\n    <value>([^<]*)</value>", Pattern.MULTILINE)
@@ -263,8 +267,7 @@ class EdtFormItemStructureEditTest {
    */
   @Test
   void newTableMatchesEdtTableOfCollection() throws Exception {
-    Path copy = copy(src.resolve("DataProcessors/МастерПереходаВОблако/Forms/МастерПереходаВОблако"),
-        temp.resolve("table"));
+    Path copy = inProject("DataProcessors/МастерПереходаВОблако/Forms/МастерПереходаВОблако");
     String expected = element(Files.readString(copy, StandardCharsets.UTF_8), "РасширенияДляВосстановления");
 
     String id = EdtFormItemStructureEdit.add(copy, model, null, null,
@@ -348,6 +351,13 @@ class EdtFormItemStructureEditTest {
   }
 
   // ---------- помощники ----------
+
+  /** Копия формы ssl31-edt в копии проекта той же платформы: новый элемент пишется по платформе проекта. */
+  private Path inProject(String formDir) throws IOException {
+    Path copy = temp.resolve(project.getFileName().toString());
+    EdtExtensionScaffoldTest.copy(project, copy);
+    return copy(src.resolve(formDir), copy.resolve("src").resolve(formDir));
+  }
 
   /** Копирует каталог формы или объекта; возвращает {@code Form.form} либо каталог копии. */
   private static Path copy(Path source, Path target) throws IOException {

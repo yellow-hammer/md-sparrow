@@ -25,9 +25,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.eclipse.emf.ecore.EAttribute;
+import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EPackage;
 
 /**
@@ -35,13 +39,18 @@ import org.eclipse.emf.ecore.EPackage;
  *
  * Заимствованный объект 1С:EDT записывает коротко: имя, принадлежность «Adopted»,
  * пустое описание расширения его вида и порождаемые типы в том же составе, что у
- * оригинала, но со своими идентификаторами. Так же записано и здесь; ссылка в
+ * оригинала, но со своими идентификаторами. Свои у него и идентификаторы корня, у
+ * плана обмена вместе с {@code thisNode}. Так же записано и здесь; ссылка в
  * составе расширения встаёт на место по порядку схемы.
  */
 public final class EdtBorrow {
 
   private static final String EXTENSION_NAMESPACE = "http://g5.1c.ru/v8/dt/metadata/mdclass/extension";
-  private static final Pattern ROOT = Pattern.compile("<mdclass:([A-Za-z]+)\\b[^>]*\\buuid=\"([0-9a-fA-F-]+)\"");
+  private static final Pattern ROOT = Pattern.compile("<mdclass:([A-Za-z]+)\\b([^>]*)>");
+  private static final Pattern ATTRIBUTE = Pattern.compile("\\s([A-Za-z]+)=\"([^\"]*)\"");
+  private static final String UUID = "uuid";
+  /** Тип идентификатора в метамодели EDT. */
+  private static final String UUID_TYPE = "Uuid";
   private static final Pattern PRODUCED_TYPES = Pattern.compile("[ \\t]*<producedTypes>.*?</producedTypes>\\r?\\n", Pattern.DOTALL);
   private static final Pattern NAME = Pattern.compile("<name>([^<]+)</name>");
   private static final String INDENT = "  ";
@@ -61,11 +70,17 @@ public final class EdtBorrow {
   public static Path borrowObject(Path objectMdo, Path extensionConfigurationMdo, EdtModel model) throws IOException {
     String original = Files.readString(objectMdo, StandardCharsets.UTF_8);
     Matcher root = ROOT.matcher(original);
-    if (!root.find()) {
+    Map<String, String> attributes = new HashMap<>();
+    if (root.find()) {
+      Matcher attribute = ATTRIBUTE.matcher(root.group(2));
+      while (attribute.find()) {
+        attributes.put(attribute.group(1), attribute.group(2));
+      }
+    }
+    if (!attributes.containsKey(UUID)) {
       throw new IllegalArgumentException("Не найден корневой узел объекта в " + objectMdo);
     }
     String kind = root.group(1);
-    String uuid = root.group(2);
     Matcher name = NAME.matcher(original);
     if (!name.find(root.end())) {
       throw new IllegalArgumentException("У объекта нет имени: " + objectMdo);
@@ -92,7 +107,8 @@ public final class EdtBorrow {
     String adopted = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + eol
         + "<mdclass:" + kind + " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
         + " xmlns:mdclass=\"http://g5.1c.ru/v8/dt/metadata/mdclass\""
-        + " xmlns:mdclassExtension=\"" + EXTENSION_NAMESPACE + "\" uuid=\"" + uuid + "\">" + eol
+        + " xmlns:mdclassExtension=\"" + EXTENSION_NAMESPACE + "\""
+        + identifiers(model.classOf(kind), attributes, objectMdo) + ">" + eol
         + producedTypes
         + INDENT + "<name>" + objectName + "</name>" + eol
         + INDENT + "<objectBelonging>Adopted</objectBelonging>" + eol
@@ -106,5 +122,25 @@ public final class EdtBorrow {
     Files.writeString(target, EdtObjectScaffold.freshUuids(adopted, seed), StandardCharsets.UTF_8);
     EdtObjectScaffold.appendReference(extensionConfigurationMdo, model, kind, objectName);
     return target;
+  }
+
+  /**
+   * Идентификаторы корня: {@code uuid} и остальные обязательные идентификаторы класса, у плана
+   * обмена - {@code thisNode}. Значения - оригинала, свои они получают вместе с остальными.
+   */
+  private static String identifiers(EClass eClass, Map<String, String> original, Path objectMdo) {
+    StringBuilder out = new StringBuilder(" " + UUID + "=\"" + original.get(UUID) + "\"");
+    for (EAttribute attribute : eClass.getEAllAttributes()) {
+      String name = attribute.getName();
+      if (!attribute.isRequired() || UUID.equals(name) || !UUID_TYPE.equals(attribute.getEAttributeType().getName())) {
+        continue;
+      }
+      String value = original.get(name);
+      if (value == null) {
+        throw new IllegalArgumentException("У объекта нет идентификатора " + name + ": " + objectMdo);
+      }
+      out.append(' ').append(name).append("=\"").append(value).append('"');
+    }
+    return out.toString();
   }
 }
