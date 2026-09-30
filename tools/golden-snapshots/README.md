@@ -68,9 +68,10 @@ python3 tools/golden-snapshots/snapshot.py compare --uuid \
 с версиями платформы через пробел. Платформу ставит композитное действие
 [`setup-1c-platform`](../../.github/actions/setup-1c-platform/action.yml) (yard и `.run`/`.deb`, как
 в namespace-forest), секреты `ONEC_LOGIN`/`ONEC_PASSWORD`. Отдельная задача один раз собирает
-`.epf`/`.erf` платформой `builder_version` (`dump.sh build-external`), задачи матрицы (не больше трёх
-сразу) снимают эталоны и отдают артефакт `snapshots-<версия>`. Если задан `edt_version`, эталоны
-импортируются в проекты 1C:EDT (артефакт `edt-<версия EDT>`; EDT нужна Java 17, см. ниже).
+`.epf`/`.erf` в образе клиента [yellow-hammer/1c-nest](https://github.com/yellow-hammer/1c-nest)
+`client:<builder_version>` (`dump.sh build-external`), задачи матрицы (не больше трёх сразу)
+снимают эталоны и отдают артефакт `snapshots-<версия>`. Если задан `edt_version`, эталоны
+импортируются в проекты 1C:EDT в образе `edt:<edt_version>` (артефакт `edt-<версия EDT>`).
 
 Импорт в EDT делает [`edt-import.sh`](edt-import.sh). **EDT CLI требует Java 17**: с другой
 версией (например 21) `1cedtcli` показывает модальное окно «Неподдерживаемая Java» и ждёт ответа.
@@ -78,8 +79,8 @@ python3 tools/golden-snapshots/snapshot.py compare --uuid \
 читает: Java он берёт из строки `-vm` в `1cedt.ini` рядом с `1cedtcli` (следующей строкой - каталог
 `bin` JDK 17, до `-vmargs`), иначе из `<каталог EDT>/jre`, иначе `java` из `PATH`. EDT начиная
 с 2025.1 ставит свою Axiom JDK 17 (`1ce-installer-cli install all`), но в `1cedt.ini` её не
-прописывает и каталога `jre` не заводит: без правки EDT запустится на `java` из `PATH`. На CI строку
-`-vm` с Axiom JDK прописывает джоб сразу после установки, отдельный JDK не нужен. Скрипт находит
+прописывает и каталога `jre` не заводит: без правки EDT запустится на `java` из `PATH`. В образе
+EDT строка `-vm` с Java 17 прописана при сборке. Скрипт находит
 Java тем же порядком, что и launcher, и до импорта проверяет, что это 17; если нет, правьте
 `1cedt.ini`. Дисплей не нужен: без X `1cedtcli` работает, если стоит `libgtk-3-0`.
 Скрипт рассчитан на CI: на рабочей машине с графическим сеансом каждый запуск `1cedtcli` поднимает

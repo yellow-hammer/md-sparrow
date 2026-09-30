@@ -6,8 +6,9 @@ name: "Вспомогательный: эталоны по версиям пла
 #
 # На каждую версию платформы - своя задача матрицы и артефакт snapshots-<версия> с каталогом
 # <формат>/... в раскладке fixtures/samples-1c-platform/snapshots и сводкой summary-<версия>.txt.
-# Внешние объекты с формами собираются в .epf/.erf один раз платформой builder_version (исходник
-# в формате 2.20 читают только 8.3.27+), а разбирает их платформа каждой версии.
+# Внешние объекты с формами собираются в .epf/.erf один раз в образе client:<builder_version> из
+# yellow-hammer/1c-nest (исходник в формате 2.20 читают только 8.3.27+), а разбирает их платформа
+# каждой версии.
 #
 # Если включён roundtrip, на той же платформе проверяется загрузкой сам md-sparrow
 # (tools/golden-snapshots/roundtrip.py): конфигурация с формами, внешние объекты, все виды с узлами и
@@ -16,11 +17,8 @@ name: "Вспомогательный: эталоны по версиям пла
 # цикл загрузки. Отчёт - артефакт roundtrip-<версия>; любой вердикт, кроме pass, platform и skipped,
 # роняет задачу.
 #
-# Если задан edt_version, снятые эталоны импортируются в проекты 1C:EDT этой версии:
-# артефакт edt-<версия EDT> (src/**/*.mdo, формы, права). EDT CLI требует Java 17: Axiom JDK 17
-# ставит установщик EDT (1ce-installer-cli install all), а строку -vm в 1cedt.ini прописывает джоб -
-# ключа -vm 1cedtcli не принимает, а без строки в 1cedt.ini берёт java из PATH, то есть Java раннера.
-# Дисплей не нужен: без X 1cedtcli работает, если стоит libgtk-3-0.
+# Если задан edt_version, снятые эталоны импортируются в проекты 1C:EDT этой версии в образе
+# edt:<edt_version> из yellow-hammer/1c-nest: артефакт edt-<версия EDT> (src/**/*.mdo, формы, права).
 
 on:
   workflow_dispatch:
@@ -29,11 +27,11 @@ on:
         description: 'Версии платформы через пробел, например "8.3.23.2040 8.3.27.2214 8.5.1.1343"'
         required: true
       builder_version:
-        description: 'Версия платформы 8.3.27+ для сборки .epf/.erf (external-files/empty-full-objects)'
+        description: 'Платформа 8.3.27+ для сборки .epf/.erf (external-files/empty-full-objects): тег образа yellow-hammer/1c-nest, линейка или сборка'
         required: false
-        default: '8.3.27.2214'
+        default: '8.3.27'
       edt_version:
-        description: 'Версия 1C:EDT, например "2026.1.2"; пусто - без импорта в EDT'
+        description: '1C:EDT: тег образа yellow-hammer/1c-nest, линейка ("2026.1") или сборка ("2026.1.3"); пусто - без импорта в EDT'
         required: false
         default: ''
       snapshots:
@@ -80,9 +78,21 @@ jobs:
   external:
     name: Сборка .epf/.erf (${{ inputs.builder_version }})
     if: inputs.snapshots && inputs.builder_version != ''
-    runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/yellow-hammer/1c-nest/client:${{ inputs.builder_version }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      # Без git в контейнере checkout не заводит .git, и подмодуль не получить
+      - name: Установить git
+        run: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+
       - name: Получить код
         uses: actions/checkout@v7
 
@@ -91,17 +101,9 @@ jobs:
           git config --global url."https://github.com/".insteadOf "git@github.com:"
           git submodule update --init --depth 1 fixtures/samples-1c-platform
 
-      - name: Установить платформу
-        id: platform
-        uses: ./.github/actions/setup-1c-platform
-        with:
-          version: ${{ inputs.builder_version }}
-          login: ${{ secrets.ONEC_LOGIN }}
-          password: ${{ secrets.ONEC_PASSWORD }}
-
       - name: Собрать внешние отчёт и обработку
         env:
-          BIN: ${{ steps.platform.outputs.bin }}
+          BIN: /opt/1cv8/current
         run: EXT_BIN="$PWD/external-bin" bash tools/golden-snapshots/dump.sh build-external
 
       - name: Передать .epf/.erf дальше
@@ -244,6 +246,14 @@ jobs:
     if: ${{ !cancelled() && inputs.snapshots && inputs.edt_version != '' && needs.snapshots.result != 'skipped' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/yellow-hammer/1c-nest/edt:${{ inputs.edt_version }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Получить код
         uses: actions/checkout@v7
@@ -255,88 +265,7 @@ jobs:
           path: snapshots
           merge-multiple: true
 
-      - name: Установить OneScript
-        uses: otymko/setup-onescript@v1.5.1
-        with:
-          version: stable
-
-      - name: Установить yard
-        run: |
-          opm install opm
-          opm install yard
-          YARD_OS=$(find "$HOME/.local/share/ovm" -path '*/yard/src/yard.os' 2>/dev/null | head -1)
-          if [ -z "$YARD_OS" ]; then echo "::error::yard.os не найден"; exit 1; fi
-          echo "YARD_OS=$YARD_OS" >> "$GITHUB_ENV"
-
-      - name: Системные зависимости EDT
-        run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libgtk-3-0 locales
-          sudo localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8 || true
-
-      # Как в namespace-forest (update-edt-schemas.yml): yard + 1ce-installer-cli
-      - name: Установить 1C:EDT
-        id: edt
-        env:
-          YARD_RELEASES_USER: ${{ secrets.ONEC_LOGIN }}
-          YARD_RELEASES_PWD: ${{ secrets.ONEC_PASSWORD }}
-          VERSION: ${{ inputs.edt_version }}
-        run: |
-          set -eo pipefail
-          SHORT=$(echo "$VERSION" | cut -d. -f1,2)
-          DISTR_DIR=$(mktemp -d); chmod 777 "$DISTR_DIR"
-          ESCAPED_VERSION=$(echo "$VERSION" | sed 's/[.]/\\./g')
-          DISTR_FILTERS=(
-            "Дистрибутив для оффлайн установки 1C:EDT для ОС Linux 64 бит"
-            "Дистрибутив 1C:EDT для ОС Linux для установки без интернета"
-            "Linux"
-          )
-          for DF in "${DISTR_FILTERS[@]}"; do
-            timeout 1800 oscript "$YARD_OS" releases get \
-              --app-filter "1C:Enterprise Development Tools" \
-              --version-filter "$ESCAPED_VERSION" \
-              --distr-filter "$DF" \
-              --path "$DISTR_DIR" --download-limit 1 --extract || true
-            if find "$DISTR_DIR" -name '1ce-installer-cli' -o -name '*.tar.gz' | grep -q .; then break; fi
-          done
-          if ! find "$DISTR_DIR" -name '1ce-installer-cli' | grep -q .; then
-            ARCHIVE=$(find "$DISTR_DIR" -name '*.tar.gz' | head -1)
-            [ -n "$ARCHIVE" ] || { echo "::error::Дистрибутив EDT $VERSION не получен"; exit 1; }
-            tar -xzf "$ARCHIVE" -C "$DISTR_DIR"
-          fi
-          INSTALLER=$(find "$DISTR_DIR" -name '1ce-installer-cli' | head -1)
-          [ -n "$INSTALLER" ] || { echo "::error::В дистрибутиве EDT $VERSION нет 1ce-installer-cli"; exit 1; }
-          (cd "$(dirname "$INSTALLER")" && chmod -R +x . && sudo ./1ce-installer-cli install all \
-            --ignore-hardware-checks --ignore-signature-warnings)
-          rm -rf "$DISTR_DIR"
-          # Каталог установки назван по версии: с загрузчиком EDT не спутать - у него свой bundles.info
-          BUNDLES=$(sudo find /opt/1C -path "*1c-edt-$SHORT*/configuration/org.eclipse.equinox.simpleconfigurator/bundles.info" 2>/dev/null | head -1)
-          [ -n "$BUNDLES" ] || { echo "::error::EDT $VERSION не установилась"; sudo ls /opt/1C/1CE/components 2>/dev/null || true; exit 1; }
-          INSTALLATION=$(dirname "$(dirname "$(dirname "$BUNDLES")")")
-          sudo chmod -R a+rX "$INSTALLATION"
-          EDTCLI=$(find "$INSTALLATION" -maxdepth 3 -type f -name '1cedtcli' | head -1)
-          [ -n "$EDTCLI" ] || { echo "::error::В установке EDT нет 1cedtcli"; find "$INSTALLATION" -maxdepth 2 | head -40; exit 1; }
-          sudo chmod a+x "$EDTCLI"
-          # Axiom JDK 17 установщик ставит отдельным компонентом, но в 1cedt.ini не прописывает:
-          # без -vm launcher берёт java из PATH, то есть Java раннера
-          INI="$(dirname "$EDTCLI")/1cedt.ini"
-          if ! grep -qx -- '-vm' "$INI"; then
-            JDK_BIN=""
-            for J in $(sudo find /opt/1C/1CE/components -mindepth 3 -maxdepth 3 -path '*/bin/java' -type f); do
-              V=$(sudo "$J" -version 2>&1 || true)
-              case "$V" in *'version "17'*) JDK_BIN=$(dirname "$J"); break ;; esac
-            done
-            [ -n "$JDK_BIN" ] || { echo "::error::Установщик EDT не поставил JDK 17"; sudo ls /opt/1C/1CE/components; exit 1; }
-            sudo chmod -R a+rX "$(dirname "$JDK_BIN")"
-            sudo sed -i "0,/^-vmargs\$/s||-vm\n$JDK_BIN\n-vmargs|" "$INI"
-            grep -qx -- '-vm' "$INI" || { echo "::error::В $INI нет -vmargs, некуда прописать -vm"; exit 1; }
-          fi
-          grep -x -A1 -- '-vm' "$INI"
-          echo "cli=$EDTCLI" >> "$GITHUB_OUTPUT"
-
       - name: Импортировать эталоны в проекты EDT
-        env:
-          EDTCLI: ${{ steps.edt.outputs.cli }}
         run: |
           export LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
           SNAPSHOTS="$PWD/snapshots" OUT="$PWD/edt" bash tools/golden-snapshots/edt-import.sh
