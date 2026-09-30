@@ -9,12 +9,15 @@
 # после import может зависнуть. Рабочая область своя на каждый формат: имена проектов совпадают.
 #
 # EDT 2026.1 требует Java 17: с другой версией (например 21) 1cedtcli показывает окно
-# «Неподдерживаемая Java» и ждёт ответа. Java 17 передаётся через EDT_JAVA или JAVA_HOME (-vm).
-# На рабочей машине с графическим сеансом 1cedtcli поднимает окно EDT: скрипт рассчитан на CI.
+# «Неподдерживаемая Java» и ждёт ответа. Ключ -vm launcher 1cedtcli не принимает
+# («Unrecognized option: -vm»), JAVA_HOME не читает: Java он берёт из строки -vm в 1cedt.ini
+# (каталог bin JDK), иначе из <каталог EDT>/jre, иначе java из PATH. Скрипт находит Java тем же
+# порядком и до импорта проверяет, что это 17.
+# Дисплей не нужен: без X 1cedtcli работает, если стоит libgtk-3-0. На рабочей машине
+# с графическим сеансом 1cedtcli поднимает окно EDT: скрипт рассчитан на CI.
 #
 # Переменные окружения:
 #   EDTCLI       путь к 1cedtcli (по умолчанию ищется в /opt/1C)
-#   EDT_JAVA     java из JDK 17 для запуска EDT (по умолчанию $JAVA_HOME/bin/java)
 #   SNAPSHOTS    корень эталонов (по умолчанию tools/golden-snapshots/out)
 #   OUT          корень проектов (по умолчанию tools/golden-snapshots/out-edt)
 #   FORMATS      форматы через пробел (по умолчанию все каталоги SNAPSHOTS)
@@ -41,15 +44,32 @@ EDTCLI="${EDTCLI:-$(find /opt/1C -name 1cedtcli -type f 2>/dev/null | sort -V | 
 [ -n "$EDTCLI" ] && [ -f "$EDTCLI" ] || die "1cedtcli не найден, задайте EDTCLI"
 [ -d "$SNAPSHOTS" ] || die "нет каталога эталонов $SNAPSHOTS"
 
-EDT_JAVA="${EDT_JAVA:-${JAVA_HOME:+$JAVA_HOME/bin/java}}"
-VM=()
-if [ -n "$EDT_JAVA" ]; then
-	JAVA_MAJOR=$("$EDT_JAVA" -version 2>&1 | grep -o 'version "[0-9]*' | grep -o '[0-9]*$')
-	[ "$JAVA_MAJOR" = "17" ] || die "EDT нужна Java 17, а $EDT_JAVA - версии ${JAVA_MAJOR:-неизвестной}"
-	VM=(-vm "$(topath "$EDT_JAVA")")
+# Java, которую возьмёт launcher: строка после -vm в 1cedt.ini (до -vmargs; java, каталог bin или
+# корень JDK, относительный путь - от каталога EDT), иначе <каталог EDT>/jre, иначе java из PATH
+EDT_DIR=$(dirname "$EDTCLI")
+EDT_INI="$EDT_DIR/1cedt.ini"
+INI_VM=""
+[ -f "$EDT_INI" ] && INI_VM=$(tr -d '\r' <"$EDT_INI" | awk '/^-vmargs/ { exit } f { print; exit } $0 == "-vm" { f = 1 }')
+if [ -n "$INI_VM" ]; then
+	case "$INI_VM" in /* | ?:*) ;; *) INI_VM="$EDT_DIR/$INI_VM" ;; esac
+	EDT_JAVA=$INI_VM
+	[ -d "$INI_VM" ] && EDT_JAVA="$INI_VM/java"
+	[ -d "$INI_VM/bin" ] && EDT_JAVA="$INI_VM/bin/java"
+	JAVA_FROM="-vm в $EDT_INI"
+elif [ -d "$EDT_DIR/jre" ]; then
+	EDT_JAVA="$EDT_DIR/jre/bin/java"
+	JAVA_FROM="$EDT_DIR/jre"
 else
-	echo "WARN: EDT_JAVA и JAVA_HOME не заданы, 1cedtcli возьмёт Java по умолчанию (нужна 17)"
+	EDT_JAVA=$(command -v java || true)
+	JAVA_FROM="PATH"
 fi
+JAVA_HINT="задайте в $EDT_INI до -vmargs строку -vm и следом каталог bin JDK 17"
+[ -n "$EDT_JAVA" ] && [ -x "$EDT_JAVA" ] ||
+	die "1cedtcli не найдёт Java (${JAVA_FROM}: ${EDT_JAVA:-java нет}): $JAVA_HINT"
+JAVA_MAJOR=$("$EDT_JAVA" -version 2>&1 | grep -o 'version "[0-9]*' | grep -o '[0-9]*$')
+[ "$JAVA_MAJOR" = "17" ] ||
+	die "EDT нужна Java 17, а 1cedtcli возьмёт $EDT_JAVA (${JAVA_FROM}) версии ${JAVA_MAJOR:-неизвестной}: $JAVA_HINT"
+echo "Java для EDT: $EDT_JAVA (${JAVA_FROM})"
 
 if [ -z "${WORK:-}" ]; then
 	WORK=$(mktemp -d)
@@ -67,7 +87,8 @@ command -v timeout >/dev/null 2>&1 && TIMEOUT=(timeout $((EDT_TIMEOUT + 120)))
 edt_import() {
 	local log="$WORK/$1" ws=$2
 	shift 2
-	"${TIMEOUT[@]}" "$EDTCLI" "${VM[@]}" -data "$(topath "$ws")" -timeout "$EDT_TIMEOUT" -command import "$@" 		</dev/null >"$log" 2>&1
+	"${TIMEOUT[@]}" "$EDTCLI" -data "$(topath "$ws")" -timeout "$EDT_TIMEOUT" -command import "$@" \
+		</dev/null >"$log" 2>&1
 	local rc=$?
 	if [ $rc -ne 0 ]; then
 		echo "ERROR: 1cedtcli import завершился с кодом $rc, журнал $log:"
