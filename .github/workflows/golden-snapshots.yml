@@ -17,8 +17,10 @@ name: "Вспомогательный: эталоны по версиям пла
 # роняет задачу.
 #
 # Если задан edt_version, снятые эталоны импортируются в проекты 1C:EDT этой версии:
-# артефакт edt-<версия EDT> (src/**/*.mdo, формы, права). EDT CLI требует Java 17: JDK 17 ставит
-# setup-java, путь к java передаётся 1cedtcli ключом -vm (EDT_JAVA).
+# артефакт edt-<версия EDT> (src/**/*.mdo, формы, права). EDT CLI требует Java 17: Axiom JDK 17
+# ставит установщик EDT (1ce-installer-cli install all), а строку -vm в 1cedt.ini прописывает джоб -
+# ключа -vm 1cedtcli не принимает, а без строки в 1cedt.ini берёт java из PATH, то есть Java раннера.
+# Дисплей не нужен: без X 1cedtcli работает, если стоит libgtk-3-0.
 
 on:
   workflow_dispatch:
@@ -253,14 +255,6 @@ jobs:
           path: snapshots
           merge-multiple: true
 
-      # EDT 2026.1 работает только на Java 17: с другой версией 1cedtcli ждёт ответа в диалоге
-      - name: Установить JDK 17 для EDT
-        id: java
-        uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: '17'
-
       - name: Установить OneScript
         uses: otymko/setup-onescript@v1.5.1
         with:
@@ -277,7 +271,7 @@ jobs:
       - name: Системные зависимости EDT
         run: |
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libgtk-3-0 locales xvfb
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libgtk-3-0 locales
           sudo localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8 || true
 
       # Как в namespace-forest (update-edt-schemas.yml): yard + 1ce-installer-cli
@@ -323,15 +317,29 @@ jobs:
           EDTCLI=$(find "$INSTALLATION" -maxdepth 3 -type f -name '1cedtcli' | head -1)
           [ -n "$EDTCLI" ] || { echo "::error::В установке EDT нет 1cedtcli"; find "$INSTALLATION" -maxdepth 2 | head -40; exit 1; }
           sudo chmod a+x "$EDTCLI"
+          # Axiom JDK 17 установщик ставит отдельным компонентом, но в 1cedt.ini не прописывает:
+          # без -vm launcher берёт java из PATH, то есть Java раннера
+          INI="$(dirname "$EDTCLI")/1cedt.ini"
+          if ! grep -qx -- '-vm' "$INI"; then
+            JDK_BIN=""
+            for J in $(sudo find /opt/1C/1CE/components -mindepth 3 -maxdepth 3 -path '*/bin/java' -type f); do
+              V=$(sudo "$J" -version 2>&1 || true)
+              case "$V" in *'version "17'*) JDK_BIN=$(dirname "$J"); break ;; esac
+            done
+            [ -n "$JDK_BIN" ] || { echo "::error::Установщик EDT не поставил JDK 17"; sudo ls /opt/1C/1CE/components; exit 1; }
+            sudo chmod -R a+rX "$(dirname "$JDK_BIN")"
+            sudo sed -i "0,/^-vmargs\$/s||-vm\n$JDK_BIN\n-vmargs|" "$INI"
+            grep -qx -- '-vm' "$INI" || { echo "::error::В $INI нет -vmargs, некуда прописать -vm"; exit 1; }
+          fi
+          grep -x -A1 -- '-vm' "$INI"
           echo "cli=$EDTCLI" >> "$GITHUB_OUTPUT"
 
       - name: Импортировать эталоны в проекты EDT
         env:
           EDTCLI: ${{ steps.edt.outputs.cli }}
-          EDT_JAVA: ${{ steps.java.outputs.path }}/bin/java
         run: |
           export LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
-          SNAPSHOTS="$PWD/snapshots" OUT="$PWD/edt" xvfb-run -a bash tools/golden-snapshots/edt-import.sh
+          SNAPSHOTS="$PWD/snapshots" OUT="$PWD/edt" bash tools/golden-snapshots/edt-import.sh
 
       - name: Загрузить проекты EDT как артефакт
         if: always()

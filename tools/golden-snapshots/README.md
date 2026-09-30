@@ -74,14 +74,20 @@ python3 tools/golden-snapshots/snapshot.py compare --uuid \
 
 Импорт в EDT делает [`edt-import.sh`](edt-import.sh). **EDT CLI требует Java 17**: с другой
 версией (например 21) `1cedtcli` показывает модальное окно «Неподдерживаемая Java» и ждёт ответа.
-На CI JDK 17 ставит `actions/setup-java`, а путь к `java` передаётся `1cedtcli` ключом `-vm`
-(переменная `EDT_JAVA`, по умолчанию `$JAVA_HOME/bin/java`; скрипт проверяет, что это 17).
+Ключ `-vm` launcher `1cedtcli` не принимает (`Unrecognized option: -vm`, код 1), `JAVA_HOME` не
+читает: Java он берёт из строки `-vm` в `1cedt.ini` рядом с `1cedtcli` (следующей строкой - каталог
+`bin` JDK 17, до `-vmargs`), иначе из `<каталог EDT>/jre`, иначе `java` из `PATH`. EDT начиная
+с 2025.1 ставит свою Axiom JDK 17 (`1ce-installer-cli install all`), но в `1cedt.ini` её не
+прописывает и каталога `jre` не заводит: без правки EDT запустится на `java` из `PATH`. На CI строку
+`-vm` с Axiom JDK прописывает джоб сразу после установки, отдельный JDK не нужен. Скрипт находит
+Java тем же порядком, что и launcher, и до импорта проверяет, что это 17; если нет, правьте
+`1cedt.ini`. Дисплей не нужен: без X `1cedtcli` работает, если стоит `libgtk-3-0`.
 Скрипт рассчитан на CI: на рабочей машине с графическим сеансом каждый запуск `1cedtcli` поднимает
 окно EDT на рабочем столе, поэтому локально его запускать не стоит.
 
 ```bash
-EDTCLI=/opt/1C/1CE/components/1c-edt-2026.1.2+.../1cedtcli EDT_JAVA=/usr/lib/jvm/temurin-17/bin/java \
-  SNAPSHOTS=tools/golden-snapshots/out FORMATS=2.21 xvfb-run -a tools/golden-snapshots/edt-import.sh
+EDTCLI=/opt/1C/1CE/components/1c-edt-2026.1.3+.../1cedtcli \
+  SNAPSHOTS=tools/golden-snapshots/out FORMATS=2.21 tools/golden-snapshots/edt-import.sh
 ```
 
 Каждый `import` - отдельный запуск `1cedtcli`: в одном сеансе EDT 2026.1 следующая команда после
