@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import io.github.yellowhammer.designerxml.Cancellation;
+import io.github.yellowhammer.designerxml.ReadFailure;
 import io.github.yellowhammer.designerxml.cf.ChildObjectEntry;
 import io.github.yellowhammer.designerxml.cf.LocalStrings;
 import io.github.yellowhammer.designerxml.cf.SupportRules;
@@ -98,7 +99,7 @@ public final class EdtProjectMetadataTree {
       Path project,
       EdtModel model) throws IOException {
     Path configurationMdo = EdtLayout.configurationMdo(project);
-    EdtObjectReader.EdtNode configuration = EdtObjectReader.read(configurationMdo);
+    EdtObjectReader.EdtNode configuration = read(workspaceRoot, configurationMdo);
     boolean isExtension = !configuration.list("extension").isEmpty();
 
     Path sourceRoot = project.resolve(EdtLayout.SOURCE_DIR);
@@ -167,7 +168,7 @@ public final class EdtProjectMetadataTree {
       Path objectMdo = EdtLayout.objectMdo(sourceRoot, payload.objectType(), payload.name()).orElse(null);
       String relativePath = objectMdo == null ? "" : relative(workspaceRoot, objectMdo);
       // Описание объекта читается один раз: из него и принадлежность, и синоним, и идентификатор
-      EdtObjectReader.EdtNode node = objectMdo == null ? null : EdtObjectReader.read(objectMdo);
+      EdtObjectReader.EdtNode node = objectMdo == null ? null : read(workspaceRoot, objectMdo);
       items.add(new ProjectMetadataTreeDto.MetadataItemDto(
           payload.objectType(),
           payload.name(),
@@ -234,6 +235,15 @@ public final class EdtProjectMetadataTree {
       }
     }
     return LocalStrings.pick(byLanguage);
+  }
+
+  /** Описание из файла проекта; в подробностях отказа файл от корня рабочей области. */
+  private static EdtObjectReader.EdtNode read(Path workspaceRoot, Path file) throws IOException {
+    try {
+      return EdtObjectReader.read(file);
+    } catch (IOException e) {
+      throw ReadFailure.of("Не удалось прочитать проект 1С:EDT", relative(workspaceRoot, file), e);
+    }
   }
 
   private static String relative(Path workspaceRoot, Path target) {

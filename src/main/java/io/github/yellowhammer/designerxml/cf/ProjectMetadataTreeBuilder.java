@@ -22,6 +22,7 @@
 package io.github.yellowhammer.designerxml.cf;
 
 import io.github.yellowhammer.designerxml.Cancellation;
+import io.github.yellowhammer.designerxml.ReadFailure;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.edt.EdtLayout;
 import io.github.yellowhammer.edt.EdtProjectMetadataTree;
@@ -39,6 +40,9 @@ import java.util.Optional;
 
 /**
  * Собирает {@link ProjectMetadataTreeDto} по каталогу проекта без {@code ConfigDumpInfo.xml}.
+ *
+ * <p>Текст отказа: первая строка - что случилось, коротко и без путей; следующие - подробности
+ * для журнала, файлы в них названы от корня проекта.
  */
 public final class ProjectMetadataTreeBuilder {
 
@@ -76,10 +80,9 @@ public final class ProjectMetadataTreeBuilder {
       if (!EdtLayout.projects(normalized).isEmpty()) {
         return EdtProjectMetadataTree.build(normalized);
       }
-      throw new IOException("Не найдены исходники конфигурации: ни выгрузка конфигуратора " + mainCfg
-        + ", ни проект 1С:EDT в " + normalized);
+      throw new IOException("Нет ни выгрузки конфигуратора, ни проекта 1С:EDT");
     }
-    String ver = MetaDataObjectHeadReader.readMetaDataObjectVersion(mainCfg);
+    String ver = formatVersion(normalized, mainCfg);
     SchemaVersion mainSchema = SupportedSchemaVersions.requireSupported(ver);
     String verFlag = MetaDataObjectHeadReader.toSchemaVersionFlag(ver);
     List<ProjectMetadataTreeDto.MetadataSourceDto> sources = new ArrayList<>();
@@ -94,7 +97,7 @@ public final class ProjectMetadataTreeBuilder {
     return new ProjectMetadataTreeDto(normalized.toString(), ver, verFlag, sources);
   }
 
-  /** Относительный путь от корня проекта; вне корня — абсолютный (для DTO). */
+  /** Относительный путь от корня проекта; вне корня — абсолютный (для DTO и подробностей отказа). */
   private static String relativeOrAbsolute(Path projectRoot, Path target) {
     Path normalized = target.toAbsolutePath().normalize();
     if (normalized.startsWith(projectRoot)) {
@@ -126,7 +129,7 @@ public final class ProjectMetadataTreeBuilder {
     String schemaVersion,
     SchemaVersion schema
   ) throws IOException {
-    List<ChildObjectEntry> entries = loadChildObjects(configurationXml, schema);
+    List<ChildObjectEntry> entries = loadChildObjects(projectRoot, configurationXml, schema);
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
       MetadataTreeTagGroups.buildGroups(entries);
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
@@ -171,7 +174,7 @@ public final class ProjectMetadataTreeBuilder {
     String id = extensionRoot.getFileName().toString();
     String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
     String rootRel = projectRoot.relativize(extensionRoot).toString().replace('\\', '/');
-    String schemaVersion = MetaDataObjectHeadReader.readMetaDataObjectVersion(configurationXml);
+    String schemaVersion = formatVersion(projectRoot, configurationXml);
     Optional<SchemaVersion> schema = SchemaVersion.byVersionAttribute(schemaVersion);
     if (schema.isEmpty()) {
       // Формат выгрузки не читается: источник без состава
@@ -189,7 +192,7 @@ public final class ProjectMetadataTreeBuilder {
         List.of()
       );
     }
-    List<ChildObjectEntry> entries = loadChildObjects(configurationXml, schema.get());
+    List<ChildObjectEntry> entries = loadChildObjects(projectRoot, configurationXml, schema.get());
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
       MetadataTreeTagGroups.buildGroups(entries);
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
@@ -235,14 +238,26 @@ public final class ProjectMetadataTreeBuilder {
     return ObjectBelongingReader.read(projectRoot.resolve(relativePath));
   }
 
-  private static List<ChildObjectEntry> loadChildObjects(Path configurationXml, SchemaVersion schema)
-    throws IOException {
+  /** Версия формата из шапки {@code Configuration.xml}: основной конфигурации либо расширения. */
+  private static String formatVersion(Path projectRoot, Path configurationXml) throws IOException {
+    try {
+      return MetaDataObjectHeadReader.readMetaDataObjectVersion(configurationXml);
+    } catch (IOException e) {
+      throw new IOException("Не удалось определить формат выгрузки\n"
+        + relativeOrAbsolute(projectRoot, configurationXml) + ": " + e.getMessage(), e);
+    }
+  }
+
+  private static List<ChildObjectEntry> loadChildObjects(
+    Path projectRoot,
+    Path configurationXml,
+    SchemaVersion schema
+  ) throws IOException {
     try {
       return ConfigurationChildObjectsExtractor.readChildObjects(configurationXml, schema);
     } catch (JAXBException e) {
-      throw new IOException(
-        "Не удалось разобрать Configuration.xml для дерева метаданных. Проверьте формат выгрузки.",
-        e);
+      throw ReadFailure.of(
+        "Не удалось прочитать выгрузку конфигуратора", relativeOrAbsolute(projectRoot, configurationXml), e);
     }
   }
 

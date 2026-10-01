@@ -692,6 +692,27 @@ class ApplyMutationCmdTest {
     assertThat(err.toString(StandardCharsets.UTF_8)).contains("формат выгрузки 2.4 не поддержан", "2.10-2.21");
   }
 
+  @Test
+  void readTree_missingSources_reportsShortTextWithoutPaths() throws Exception {
+    Path project = Files.createTempDirectory("read-tree-");
+    Path params = writeParams(
+      "{\"op\":\"project-metadata-tree\",\"projectRoot\":" + json(project.toString()) + "}");
+
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    PrintStream prev = System.err;
+    int exit;
+    try {
+      System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
+      exit = new CommandLine(new DesignerXmlCli()).execute("read-json", "--params", params.toString());
+    } finally {
+      System.setErr(prev);
+    }
+
+    assertThat(exit).isEqualTo(2);
+    assertThat(err.toString(StandardCharsets.UTF_8).lines().toList()).containsExactly(
+      "Нет ни выгрузки конфигуратора, ни проекта 1С:EDT");
+  }
+
   private static String json(String raw) {
     return "\"" + raw.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
   }
