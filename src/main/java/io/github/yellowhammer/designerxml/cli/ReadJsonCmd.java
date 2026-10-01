@@ -24,6 +24,7 @@ package io.github.yellowhammer.designerxml.cli;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.cf.EnumValueLabels;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
@@ -276,6 +277,17 @@ final class ReadJsonCmd implements Callable<Integer> {
         labels.put("objectStandardCommands", UiLabels.objectStandardCommands());
         labels.put("objectKinds", UiLabels.objectKinds());
         return gson.toJson(labels);
+      }
+      case "cf-format-versions": {
+        // Форматы и линейки платформы одним списком: своей копии у потребителя нет
+        java.util.List<Map<String, String>> formats = new java.util.ArrayList<>();
+        for (SchemaVersion version : SchemaVersion.values()) {
+          Map<String, String> format = new java.util.LinkedHashMap<>();
+          format.put("version", version.metadataObjectVersionAttribute());
+          format.put("platform", version.platformLine());
+          formats.add(format);
+        }
+        return gson.toJson(formats);
       }
       case "cf-md-object-enums": {
         // Без версии формата словарь спрашивают для проекта EDT: у него значения свои
