@@ -21,6 +21,7 @@
  */
 package io.github.yellowhammer.designerxml.cli;
 
+import io.github.yellowhammer.designerxml.SchemaVersion;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
 
@@ -690,6 +691,32 @@ class ApplyMutationCmdTest {
 
     assertThat(exit).isEqualTo(2);
     assertThat(err.toString(StandardCharsets.UTF_8)).contains("формат выгрузки 2.4 не поддержан", "2.10-2.21");
+  }
+
+  @Test
+  void readFormatVersions_listsEveryFormatWithItsPlatform() throws Exception {
+    Path params = writeParams("{\"op\":\"cf-format-versions\"}");
+
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    PrintStream prev = System.out;
+    int exit;
+    try {
+      System.setOut(new PrintStream(out, true, StandardCharsets.UTF_8));
+      exit = new CommandLine(new DesignerXmlCli()).execute("read-json", "--params", params.toString());
+    } finally {
+      System.setOut(prev);
+    }
+
+    assertThat(exit).isZero();
+    StringBuilder expected = new StringBuilder("[");
+    for (SchemaVersion version : SchemaVersion.values()) {
+      if (expected.length() > 1) {
+        expected.append(',');
+      }
+      expected.append("{\"version\":\"").append(version.metadataObjectVersionAttribute())
+        .append("\",\"platform\":\"").append(version.platformLine()).append("\"}");
+    }
+    assertThat(out.toString(StandardCharsets.UTF_8).trim()).isEqualTo(expected.append(']').toString());
   }
 
   @Test
