@@ -49,7 +49,7 @@ public final class MetaDataObjectHeadReader {
     String head = new String(buf, 0, n, StandardCharsets.UTF_8);
     Matcher m = VERSION_RE.matcher(head);
     if (!m.find()) {
-      throw new IOException("В начале Configuration.xml не найден атрибут version у MetaDataObject");
+      throw new IOException("В начале файла нет атрибута version у MetaDataObject.");
     }
     return m.group(1).trim();
   }

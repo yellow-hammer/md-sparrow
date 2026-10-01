@@ -22,14 +22,21 @@
 package io.github.yellowhammer.edt;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import io.github.yellowhammer.designerxml.SamplesSubmodulePaths;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeBuilder;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
 import io.github.yellowhammer.designerxml.cf.ProjectSourceDirs;
@@ -162,5 +169,29 @@ class EdtProjectMetadataTreeTest {
 
     assertThat(dto.sources()).extracting(ProjectMetadataTreeDto.MetadataSourceDto::kind).containsExactly("main", "extension");
     assertThat(dto.sources().get(1).metadataRootRelativePath()).startsWith("Основа.Надстройка");
+  }
+
+  @Test
+  void brokenObjectIsNamedFromWorkspaceRoot(@TempDir Path root) throws Exception {
+    SamplesSubmodulePaths.copy(Path.of("src/test/resources/edt-extension"), root);
+    Path object;
+    try (Stream<Path> files = Files.walk(root)) {
+      object = files
+          .filter(file -> file.getFileName().toString().endsWith(".mdo"))
+          .filter(file -> !file.endsWith(EdtLayout.CONFIGURATION_MDO))
+          .sorted()
+          .findFirst()
+          .orElseThrow();
+    }
+    List<String> lines = new ArrayList<>(Files.readAllLines(object, StandardCharsets.UTF_8));
+    lines.add(lines.size() - 1, "<<<<<<< HEAD");
+    Files.write(object, lines, StandardCharsets.UTF_8);
+    String relative = root.relativize(object).toString().replace('\\', '/');
+
+    assertThatThrownBy(() -> ProjectMetadataTreeBuilder.build(root))
+        .isInstanceOf(IOException.class)
+        .satisfies(error -> assertThat(error.getMessage().lines().toList()).satisfiesExactly(
+            first -> assertThat(first).isEqualTo("Не удалось прочитать проект 1С:EDT"),
+            second -> assertThat(second).startsWith(relative + ": строка " + (lines.size() - 1) + ", столбец ")));
   }
 }

@@ -40,15 +40,10 @@ public final class SupportedSchemaVersions {
   public static SchemaVersion requireSupported(String metaDataObjectVersion) throws IOException {
     String v = metaDataObjectVersion == null ? "" : metaDataObjectVersion.trim();
     return SchemaVersion.byVersionAttribute(v).orElseThrow(() -> {
-      StringBuilder supported = new StringBuilder();
-      for (SchemaVersion sv : SchemaVersion.values()) {
-        if (supported.length() > 0) {
-          supported.append(", ");
-        }
-        supported.append(sv.metadataObjectVersionAttribute());
-      }
-      return new IOException(
-        "Версия выгрузки " + v + " пока не поддерживается. Поддерживаются: " + supported + ".");
+      SchemaVersion[] all = SchemaVersion.values();
+      return new IOException("Формат выгрузки " + v + " не поддерживается\nПоддерживаются форматы "
+        + all[0].metadataObjectVersionAttribute() + "-"
+        + all[all.length - 1].metadataObjectVersionAttribute() + ".");
     });
   }
 }

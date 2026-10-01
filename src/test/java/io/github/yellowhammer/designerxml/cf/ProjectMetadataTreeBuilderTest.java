@@ -21,12 +21,18 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import io.github.yellowhammer.designerxml.SamplesSubmodulePaths;
+import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -138,7 +144,81 @@ class ProjectMetadataTreeBuilderTest {
 
     assertThatThrownBy(() -> ProjectMetadataTreeBuilder.build(project, UnsupportedExtensionFixture.oldExtensionAsMain()))
       .isInstanceOf(IOException.class)
-      .hasMessageContaining(UnsupportedExtensionFixture.OLD_EXTENSION_VERSION);
+      .satisfies(error -> assertThat(lines(error)).satisfiesExactly(
+        first -> assertThat(first)
+          .isEqualTo("Формат выгрузки " + UnsupportedExtensionFixture.OLD_EXTENSION_VERSION + " не поддерживается"),
+        second -> assertThat(second).startsWith("Поддерживаются форматы ")));
+  }
+
+  @Test
+  void missingSourcesAreReportedWithoutPaths(@TempDir Path project) {
+    assertThatThrownBy(() -> ProjectMetadataTreeBuilder.build(project))
+      .isInstanceOf(IOException.class)
+      .satisfies(error -> assertThat(lines(error)).containsExactly(
+        "Нет ни выгрузки конфигуратора, ни проекта 1С:EDT"));
+  }
+
+  @Test
+  void brokenConfigurationNamesFileAndPlaceInDetails(@TempDir Path project) throws Exception {
+    Path cf = SamplesSubmodulePaths.copy(emptyInfobase(), project.resolve("src/cf"));
+    int line = insertConflictMarker(cf.resolve(CfLayout.CONFIGURATION_XML));
+
+    assertThatThrownBy(() -> ProjectMetadataTreeBuilder.build(project))
+      .isInstanceOf(IOException.class)
+      .satisfies(error -> assertThat(lines(error)).satisfiesExactly(
+        first -> assertThat(first).isEqualTo("Не удалось прочитать выгрузку конфигуратора"),
+        second -> assertThat(second).startsWith("src/cf/Configuration.xml: строка " + line + ", столбец ")));
+  }
+
+  @Test
+  void brokenExtensionIsNamedByItsDirectory(@TempDir Path project) throws Exception {
+    SamplesSubmodulePaths.copy(emptyInfobase(), project.resolve("src/cf"));
+    Path extensionSnapshot = SamplesSubmodulePaths.snapshot(latest(), "cfe-empty");
+    Path extension = SamplesSubmodulePaths.copy(
+      extensionSnapshot, project.resolve("src/cfe").resolve(extensionSnapshot.getFileName().toString()));
+    insertConflictMarker(extension.resolve(CfLayout.CONFIGURATION_XML));
+
+    assertThatThrownBy(() -> ProjectMetadataTreeBuilder.build(project))
+      .satisfies(error -> assertThat(lines(error).getLast())
+        .startsWith("src/cfe/" + extension.getFileName() + "/Configuration.xml: строка "));
+  }
+
+  @Test
+  void configurationWithoutFormatVersionIsNamed(@TempDir Path project) throws Exception {
+    Path cf = SamplesSubmodulePaths.copy(emptyInfobase(), project.resolve("src/cf"));
+    Path xml = cf.resolve(CfLayout.CONFIGURATION_XML);
+    String text = Files.readString(xml, StandardCharsets.UTF_8);
+    Files.writeString(xml, text.replaceFirst("(<MetaDataObject\\b[^>]*?)\\s+version=\"[^\"]*\"", "$1"),
+      StandardCharsets.UTF_8);
+
+    assertThatThrownBy(() -> ProjectMetadataTreeBuilder.build(project))
+      .satisfies(error -> assertThat(lines(error)).containsExactly(
+        "Не удалось определить формат выгрузки",
+        "src/cf/Configuration.xml: В начале файла нет атрибута version у MetaDataObject."));
+  }
+
+  private static SchemaVersion latest() {
+    return SchemaVersion.values()[SchemaVersion.values().length - 1];
+  }
+
+  private static Path emptyInfobase() {
+    return SamplesSubmodulePaths.snapshot(latest(), "cf-empty-infobase");
+  }
+
+  private static List<String> lines(Throwable error) {
+    return error.getMessage().lines().toList();
+  }
+
+  /**
+   * Вставляет метку конфликта слияния перед последней строкой файла, внутрь корневого элемента.
+   *
+   * @return номер строки с меткой
+   */
+  private static int insertConflictMarker(Path xml) throws IOException {
+    List<String> lines = new ArrayList<>(Files.readAllLines(xml, StandardCharsets.UTF_8));
+    lines.add(lines.size() - 1, "<<<<<<< HEAD");
+    Files.write(xml, lines, StandardCharsets.UTF_8);
+    return lines.size() - 1;
   }
 
   private static ProjectMetadataTreeDto.MetadataSourceDto sourceById(ProjectMetadataTreeDto dto, String id) {
