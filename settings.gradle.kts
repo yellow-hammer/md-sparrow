@@ -26,6 +26,11 @@ buildscript {
     }
 }
 
+plugins {
+    // JDK сборки из toolchain скачивается сам, если на машине его нет
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
 gradle.beforeProject {
     buildscript.configurations.configureEach {
         if (name == "classpath") {
