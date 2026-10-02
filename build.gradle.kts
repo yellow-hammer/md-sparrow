@@ -27,7 +27,7 @@ buildscript {
 plugins {
     `java-library`
     application
-    id("com.gradleup.shadow") version "8.3.7"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 repositories {
@@ -255,7 +255,7 @@ val discoveredVersions = discoverVersions()
 val versionToModel = dedupModels(discoveredVersions)
 val modelToVersions = versionToModel.entries.groupBy({ it.value }, { it.key })
 
-val xjc by configurations.creating
+val xjc = configurations.create("xjc")
 dependencies {
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
     xjc("org.glassfish.jaxb:jaxb-runtime:4.0.6")
@@ -275,11 +275,13 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core:3.27.7")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
 }
 
 // Регистрируем по одной задаче XJC на КАЖДУЮ РАЗЛИЧНУЮ модель (после дедупа).
@@ -524,6 +526,8 @@ tasks.jar {
 tasks.shadowJar {
     archiveClassifier.set("all")
     archiveBaseName.set("md-sparrow")
+    // Иначе Shadow 9 отбрасывает повторы до mergeServiceFiles, и в jar не попадает часть служб JAXB
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
     manifest {
         attributes["Main-Class"] = application.mainClass.get()
@@ -566,7 +570,6 @@ tasks.test {
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
-    options.release.set(21)
     // Компиляция ~24k сгенерированных JAXB-классов: отдельный процесс с своей памятью.
     options.isFork = true
     options.forkOptions.memoryMaximumSize = "2g"

@@ -17,7 +17,7 @@
 
 ## Начало работы
 
-Нужен JDK 21 и submodule со схемами и эталонами:
+Нужен JDK 25 и submodule со схемами и эталонами:
 
 ```bash
 git submodule update --init --recursive
