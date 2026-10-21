@@ -278,9 +278,11 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+val requiredJavaVersion = 25
+
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(requiredJavaVersion)
     }
 }
 
@@ -513,13 +515,18 @@ tasks.named<Copy>("processResources") {
     }
 }
 
+val runtimeManifest = mapOf(
+    "Main-Class" to application.mainClass.get(),
+    "Implementation-Title" to "md-sparrow",
+    // версию CLI берёт отсюда: иначе её пришлось бы дублировать в коде и она бы отставала
+    "Implementation-Version" to project.version,
+    "X-Required-Java-Version" to requiredJavaVersion.toString(),
+)
+
 tasks.jar {
     archiveBaseName.set("md-sparrow")
     manifest {
-        attributes["Main-Class"] = application.mainClass.get()
-        attributes["Implementation-Title"] = "md-sparrow"
-        // версию CLI берёт отсюда: иначе её пришлось бы дублировать в коде и она бы отставала
-        attributes["Implementation-Version"] = project.version
+        attributes.putAll(runtimeManifest)
     }
 }
 
@@ -530,9 +537,7 @@ tasks.shadowJar {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
     manifest {
-        attributes["Main-Class"] = application.mainClass.get()
-        attributes["Implementation-Title"] = "md-sparrow"
-        attributes["Implementation-Version"] = project.version
+        attributes.putAll(runtimeManifest)
     }
 }
 
@@ -569,6 +574,7 @@ tasks.test {
 }
 
 tasks.withType<JavaCompile>().configureEach {
+    options.release = requiredJavaVersion
     options.encoding = "UTF-8"
     // Компиляция ~24k сгенерированных JAXB-классов: отдельный процесс с своей памятью.
     options.isFork = true

@@ -25,7 +25,7 @@ git submodule update --init --recursive
 ./gradlew shadowJar
 ```
 
-Собранный `build/libs/md-sparrow-*-all.jar` запускается напрямую; список команд и их параметры выдаёт сама программа:
+Собранный `build/libs/md-sparrow-*-all.jar` запускается напрямую; минимальная версия Java записана в манифесте в атрибуте `X-Required-Java-Version`. Список команд и их параметры выдаёт сама программа:
 
 ```bash
 java -jar build/libs/md-sparrow-0.4.1-all.jar --help
