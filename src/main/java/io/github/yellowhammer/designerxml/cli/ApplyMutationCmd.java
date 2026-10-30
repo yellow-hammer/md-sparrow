@@ -329,6 +329,13 @@ final class ApplyMutationCmd implements Callable<Integer> {
         p.req(p.name, "name"),
         ExternalArtifactKind.fromCli(p.req(p.kind, "kind"))).toString();
     }
+    if ("external-artifact-add".equals(p.op) && SourceFormat.fromCliName(p.format) == SourceFormat.EDT) {
+      return EdtExternalArtifacts.create(
+        p.reqPath(p.artifactsRoot, "artifactsRoot"),
+        p.req(p.name, "name"),
+        ExternalArtifactKind.fromCli(p.req(p.kind, "kind")),
+        p.req(p.runtimeVersion, "runtimeVersion")).toString();
+    }
     if ("cf-support-remove".equals(p.op) && EdtLayout.isObjectFile(p.configurationXml)) {
       EdtSupportRules.removeSupport(p.path(p.configurationXml), p.expectedGeneration);
       return "OK";

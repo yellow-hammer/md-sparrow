@@ -725,19 +725,18 @@ class ApplyMutationCmdTest {
     Path params = writeParams(
       "{\"op\":\"project-metadata-tree\",\"projectRoot\":" + json(project.toString()) + "}");
 
-    ByteArrayOutputStream err = new ByteArrayOutputStream();
-    PrintStream prev = System.err;
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    PrintStream prev = System.out;
     int exit;
     try {
-      System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
+      System.setOut(new PrintStream(out, true, StandardCharsets.UTF_8));
       exit = new CommandLine(new DesignerXmlCli()).execute("read-json", "--params", params.toString());
     } finally {
-      System.setErr(prev);
+      System.setOut(prev);
     }
 
-    assertThat(exit).isEqualTo(2);
-    assertThat(err.toString(StandardCharsets.UTF_8).lines().toList()).containsExactly(
-      "Нет ни выгрузки конфигуратора, ни проекта 1С:EDT");
+    assertThat(exit).isZero();
+    assertThat(out.toString(StandardCharsets.UTF_8)).contains("\"sources\":[]");
   }
 
   private static String json(String raw) {

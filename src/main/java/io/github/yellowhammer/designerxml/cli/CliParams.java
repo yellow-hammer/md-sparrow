@@ -63,6 +63,8 @@ final class CliParams {
   String targetCfRoot;
   /** Формат новых исходников: {@code designer} (по умолчанию) или {@code edt}. */
   String format;
+  /** Версия платформы в манифесте проекта EDT, когда базовой конфигурации нет. */
+  String runtimeVersion;
   /** Имя нового проекта EDT; по умолчанию имя его каталога. */
   String projectName;
 

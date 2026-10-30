@@ -100,30 +100,75 @@ public final class EdtExternalArtifacts {
    */
   public static Path create(Path artifactsRoot, Path baseConfigurationMdo, String name, ExternalArtifactKind kind)
       throws IOException {
+    Path project = newProject(artifactsRoot, name);
+    Path baseProject = EdtObjectScaffold.sourceRoot(baseConfigurationMdo).getParent();
+    if (baseProject == null || !EdtLayout.isProject(baseProject)) {
+      throw new IllegalArgumentException("Конфигурация лежит не в проекте EDT: " + baseConfigurationMdo);
+    }
+    String base = Files.readString(baseConfigurationMdo, StandardCharsets.UTF_8);
+    return writeProject(
+      project,
+      name,
+      kind,
+      EdtExtensionScaffold.projectName(baseProject),
+      runtimeVersion(baseProject),
+      base,
+      base.contains("\r\n") ? "\r\n" : "\n");
+  }
+
+  /**
+   * Создаёт проект внешнего объекта без базовой конфигурации.
+   *
+   * Базовый проект в 1С:EDT необязателен: его можно указать позже. Версия платформы
+   * в манифест пишется сразу, потом её не меняют.
+   *
+   * @param artifactsRoot каталог, в котором лежит проект
+   * @param name имя объекта: так же назовётся проект
+   * @param kind обработка или отчёт
+   * @param runtimeVersion версия платформы, как в {@code Runtime-Version}
+   * @return описание созданного объекта
+   * @throws IOException если файлы не читаются или не пишутся
+   */
+  public static Path create(Path artifactsRoot, String name, ExternalArtifactKind kind, String runtimeVersion)
+      throws IOException {
+    if (runtimeVersion == null || runtimeVersion.isBlank()) {
+      throw new IllegalArgumentException("Не задана версия платформы");
+    }
+    return writeProject(newProject(artifactsRoot, name), name, kind, null, runtimeVersion.trim(), name, "\n");
+  }
+
+  private static Path newProject(Path artifactsRoot, String name) {
     CatalogNameConstraints.check(name);
     Path project = artifactsRoot.resolve(name);
     if (Files.exists(project)) {
       throw new IllegalArgumentException("Каталог уже есть: " + project);
     }
-    Path baseProject = EdtObjectScaffold.sourceRoot(baseConfigurationMdo).getParent();
-    if (baseProject == null || !EdtLayout.isProject(baseProject)) {
-      throw new IllegalArgumentException("Конфигурация лежит не в проекте EDT: " + baseConfigurationMdo);
-    }
-    String baseName = EdtExtensionScaffold.projectName(baseProject);
-    String runtime = runtimeVersion(baseProject);
-    String base = Files.readString(baseConfigurationMdo, StandardCharsets.UTF_8);
-    // Переводы строк - как у проекта конфигурации, к которой относится объект
-    String eol = base.contains("\r\n") ? "\r\n" : "\n";
+    return project;
+  }
+
+  private static Path writeProject(
+      Path project,
+      String name,
+      ExternalArtifactKind kind,
+      String baseName,
+      String runtime,
+      String seedContext,
+      String eol) throws IOException {
     Proto proto = proto(kind);
     for (String file : PROJECT_FILES) {
       String text = EdtObjectScaffold.golden(proto.resource() + file);
-      text = EdtObjectScaffold.renamed(EdtObjectScaffold.renamed(text, PROTO_BASE, baseName), proto.name(), name);
+      if (baseName != null) {
+        text = EdtObjectScaffold.renamed(text, PROTO_BASE, baseName);
+      } else if (file.endsWith("PROJECT.PMF")) {
+        text = text.replaceAll("(?m)^Base-Project:.*(?:\\r\\n|\\n|\\r)", "");
+      }
+      text = EdtObjectScaffold.renamed(text, proto.name(), name);
       if (file.endsWith("PROJECT.PMF") && runtime != null) {
         text = RUNTIME_VERSION.matcher(text).replaceFirst("Runtime-Version: " + Matcher.quoteReplacement(runtime));
       }
       write(project.resolve(file), text.replace("\r\n", "\n").replace("\n", eol));
     }
-    String seed = EdtObjectScaffold.seed("external|" + kind.name() + "|" + name, base);
+    String seed = EdtObjectScaffold.seed("external|" + kind.name() + "|" + name, seedContext);
     String object = EdtObjectScaffold.parametrize(
         EdtObjectScaffold.golden(proto.resource() + proto.objectFile()), proto.name(), name, seed);
     Path objectMdo = project.resolve("src").resolve(proto.directory()).resolve(name).resolve(name + ".mdo");

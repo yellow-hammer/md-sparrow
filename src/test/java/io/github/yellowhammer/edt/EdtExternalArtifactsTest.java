@@ -223,6 +223,18 @@ class EdtExternalArtifactsTest {
     }
   }
 
+  @Test
+  void безБазовогоПроектаВМанифестеТолькоВерсияПлатформы() throws Exception {
+    Path mdo = EdtExternalArtifacts.create(
+        workDir.resolve("ext"), "Загрузка", ExternalArtifactKind.DATA_PROCESSOR, "8.5.1");
+
+    String manifest = Files.readString(mdo.getParent().getParent().getParent().getParent().resolve("DT-INF/PROJECT.PMF"),
+        StandardCharsets.UTF_8);
+    assertThat(mdo).exists();
+    assertThat(manifest).doesNotContain("Base-Project:");
+    assertThat(manifest).contains("Runtime-Version: 8.5.1");
+  }
+
   /** Проект внешнего объекта - с переводами строк проекта конфигурации, а не эталона в сборке. */
   @Test
   void проектСПереводамиСтрокПроектаКонфигурации() throws Exception {
