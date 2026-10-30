@@ -80,11 +80,8 @@ public final class ExternalArtifactLister {
         continue;
       }
       String name = sub.getFileName().toString();
-      Path xml = sub.resolve(name + ".xml");
-      if (!Files.isRegularFile(xml)) {
-        xml = findFirstXmlInDir(sub);
-      }
-      if (xml == null || !Files.isRegularFile(xml)) {
+      Path xml = describedFile(sub, name);
+      if (xml == null) {
         continue;
       }
       Path xmlNorm = xml.toAbsolutePath().normalize();
@@ -95,6 +92,19 @@ public final class ExternalArtifactLister {
     }
     out.sort(Comparator.comparing(ExternalArtifactEntry::name, String.CASE_INSENSITIVE_ORDER));
     return out;
+  }
+
+  /** Описание объекта: `<Имя>.mdo` у проекта EDT, `<Имя>.xml` у выгрузки конфигуратора. */
+  private static Path describedFile(Path dir, String name) throws IOException {
+    Path mdo = dir.resolve(name + ".mdo");
+    if (Files.isRegularFile(mdo)) {
+      return mdo;
+    }
+    Path xml = dir.resolve(name + ".xml");
+    if (Files.isRegularFile(xml)) {
+      return xml;
+    }
+    return findFirstXmlInDir(dir);
   }
 
   private static Path findFirstXmlInDir(Path dir) throws IOException {

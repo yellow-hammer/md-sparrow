@@ -75,12 +75,14 @@ public final class ProjectMetadataTreeBuilder {
         List<Path> projects = new ArrayList<>();
         projects.add(mainCf);
         dirs.extensionDirs(normalized).stream().filter(EdtLayout::isProject).forEach(projects::add);
-        return EdtProjectMetadataTree.build(normalized, projects);
+        return withExternalArtifacts(EdtProjectMetadataTree.build(normalized, projects), normalized, dirs);
       }
       if (!EdtLayout.projects(normalized).isEmpty()) {
-        return EdtProjectMetadataTree.build(normalized);
+        return withExternalArtifacts(EdtProjectMetadataTree.build(normalized), normalized, dirs);
       }
-      throw new IOException("Нет ни выгрузки конфигуратора, ни проекта 1С:EDT");
+      // Конфигурации нет: остаётся расширение, внешний отчёт или набор обработок
+      List<ProjectMetadataTreeDto.MetadataSourceDto> sources = sourcesWithoutConfiguration(normalized, dirs);
+      return new ProjectMetadataTreeDto(normalized.toString(), "", "", sources);
     }
     String ver = formatVersion(normalized, mainCfg);
     SchemaVersion mainSchema = SupportedSchemaVersions.requireSupported(ver);
@@ -351,6 +353,40 @@ public final class ProjectMetadataTreeBuilder {
     } catch (IOException e) {
       return "";
     }
+  }
+
+  /**
+   * Источники проекта без основной конфигурации: расширения и внешние отчёты с обработками.
+   *
+   * @param projectRoot корень проекта
+   * @param dirs каталоги исходников
+   * @return источники; пусто, когда в проекте нет и их
+   */
+  private static List<ProjectMetadataTreeDto.MetadataSourceDto> sourcesWithoutConfiguration(
+    Path projectRoot,
+    ProjectSourceDirs dirs
+  ) throws IOException {
+    List<ProjectMetadataTreeDto.MetadataSourceDto> sources = new ArrayList<>();
+    for (Path extDir : dirs.extensionDirs(projectRoot)) {
+      Path extCfg = extDir.resolve(CfLayout.CONFIGURATION_XML);
+      if (Files.isRegularFile(extCfg)) {
+        sources.add(buildExtensionSource(projectRoot, extDir, extCfg));
+      }
+    }
+    appendExternalArtifactSources(projectRoot, dirs, sources);
+    return sources;
+  }
+
+  /** Дерево проектов EDT плюс внешние отчёты и обработки, где бы они ни лежали. */
+  private static ProjectMetadataTreeDto withExternalArtifacts(
+    ProjectMetadataTreeDto tree,
+    Path projectRoot,
+    ProjectSourceDirs dirs
+  ) throws IOException {
+    List<ProjectMetadataTreeDto.MetadataSourceDto> sources = new ArrayList<>(tree.sources());
+    appendExternalArtifactSources(projectRoot, dirs, sources);
+    return new ProjectMetadataTreeDto(
+      tree.projectRoot(), tree.mainSchemaVersion(), tree.mainSchemaVersionFlag(), sources);
   }
 
   private static void appendExternalArtifactSources(

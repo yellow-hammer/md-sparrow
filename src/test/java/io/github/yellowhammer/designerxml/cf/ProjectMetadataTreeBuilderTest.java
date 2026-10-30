@@ -151,11 +151,37 @@ class ProjectMetadataTreeBuilderTest {
   }
 
   @Test
-  void missingSourcesAreReportedWithoutPaths(@TempDir Path project) {
-    assertThatThrownBy(() -> ProjectMetadataTreeBuilder.build(project))
-      .isInstanceOf(IOException.class)
-      .satisfies(error -> assertThat(lines(error)).containsExactly(
-        "Нет ни выгрузки конфигуратора, ни проекта 1С:EDT"));
+  void missingSourcesAreAnEmptyTree(@TempDir Path project) throws Exception {
+    ProjectMetadataTreeDto tree = ProjectMetadataTreeBuilder.build(project);
+
+    assertThat(tree.sources()).isEmpty();
+    assertThat(tree.mainSchemaVersion()).isEmpty();
+  }
+
+  @Test
+  void extensionWithoutConfigurationIsASource(@TempDir Path project) throws Exception {
+    Path extensionSnapshot = SamplesSubmodulePaths.snapshot(latest(), "cfe-empty");
+    SamplesSubmodulePaths.copy(
+      extensionSnapshot, project.resolve("src/cfe").resolve(extensionSnapshot.getFileName().toString()));
+
+    ProjectMetadataTreeDto tree = ProjectMetadataTreeBuilder.build(project);
+
+    assertThat(tree.sources()).extracting(ProjectMetadataTreeDto.MetadataSourceDto::kind)
+      .containsExactly("extension");
+  }
+
+  @Test
+  void externalProcessorWithoutConfigurationIsASource(@TempDir Path project) throws Exception {
+    NewExternalArtifactXml.create(
+      project.resolve("src/epf"), "ВнешняяОбработка1", ExternalArtifactKind.DATA_PROCESSOR, latest());
+
+    ProjectMetadataTreeDto tree = ProjectMetadataTreeBuilder.build(project);
+
+    assertThat(tree.sources()).extracting(ProjectMetadataTreeDto.MetadataSourceDto::kind)
+      .containsExactly("externalEpf");
+    assertThat(tree.sources().getFirst().groups().getFirst().items())
+      .extracting(ProjectMetadataTreeDto.MetadataItemDto::name)
+      .containsExactly("ВнешняяОбработка1");
   }
 
   @Test
