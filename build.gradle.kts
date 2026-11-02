@@ -533,9 +533,24 @@ tasks.jar {
 tasks.shadowJar {
     archiveClassifier.set("all")
     archiveBaseName.set("md-sparrow")
-    // Иначе Shadow 9 отбрасывает повторы до mergeServiceFiles, и в jar не попадает часть служб JAXB
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    // FAIL для всех прочих конфликтов; INCLUDE нужен только для ServiceLoader.
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    filesMatching("META-INF/services/**") {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
     mergeServiceFiles()
+    // Исключаем метаданные зависимостей с конфликтующими ZIP entry names.
+    exclude(
+        "META-INF/LICENSE", "META-INF/LICENSE.*",
+        "META-INF/LICENCE", "META-INF/LICENCE.*",
+        "META-INF/NOTICE", "META-INF/NOTICE.*",
+        "META-INF/COPYRIGHT", "META-INF/COPYRIGHT.*",
+        "LICENSE", "LICENSE.*", "LICENCE", "LICENCE.*",
+        "NOTICE", "NOTICE.*", "COPYRIGHT", "COPYRIGHT.*",
+        "plugin.xml", "plugin.properties", "about.*",
+        "about_files/**", "modeling32.png",
+    )
+    failOnDuplicateEntries = true
     manifest {
         attributes.putAll(runtimeManifest)
     }
