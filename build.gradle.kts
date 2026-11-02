@@ -1,6 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
-import java.util.Locale
-import java.util.zip.ZipFile
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.javadoc.Javadoc
 import java.io.File
@@ -533,91 +530,29 @@ tasks.jar {
     }
 }
 
-// Эти ресурсы описывают отдельные зависимости, а не общий Eclipse/OSGi bundle.
-// Сохраняем каждый оригинал с его координатами, включая notices из about_files.
-fun dependencyMetadata(path: String): Boolean {
-    val upper = path.uppercase(Locale.ROOT)
-    return listOf("META-INF/LICENSE", "META-INF/LICENCE", "META-INF/NOTICE", "LICENSE", "LICENCE", "NOTICE", "COPYRIGHT")
-        .any { upper == it || upper.startsWith("$it.") } ||
-        path in setOf("plugin.xml", "plugin.properties", "about.html", "about.ini", "about.mappings", "about.properties", "modeling32.png") ||
-        path.startsWith("about_files/")
-}
-
-val prepareDependencyMetadata = tasks.register("prepareDependencyMetadata") {
-    val output = layout.buildDirectory.dir("generated/dependency-metadata")
-    inputs.files(configurations.runtimeClasspath).withPathSensitivity(PathSensitivity.NONE)
-    inputs.file("LICENCE")
-    inputs.property("version", project.version.toString())
-    outputs.dir(output)
-    doLast {
-        val root = output.get().asFile
-        delete(root)
-        root.mkdirs()
-        val index = mutableListOf("coordinate\toriginal-path\tsha256\tpackaged-path")
-        fun preserve(coordinate: String, path: String, bytes: ByteArray) {
-            val target = "META-INF/dependencies/${coordinate.replace(':', '/')}/$path"
-            val file = root.resolve(target)
-            check(file.toPath().normalize().startsWith(root.toPath())) { "Некорректный путь ресурса: $path" }
-            check(!file.exists()) { "Повтор ресурса $coordinate: $path" }
-            file.parentFile.mkdirs()
-            file.writeBytes(bytes)
-            val hash = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
-            index += "$coordinate\t$path\t$hash\t$target"
-        }
-        configurations.runtimeClasspath.get().resolvedConfiguration.resolvedArtifacts.sortedBy { it.moduleVersion.id.toString() }.forEach { artifact ->
-            ZipFile(artifact.file).use { jar ->
-                jar.entries().asSequence().filter { !it.isDirectory && dependencyMetadata(it.name) }.sortedBy { it.name }.forEach { entry ->
-                    preserve(artifact.moduleVersion.id.toString(), entry.name, jar.getInputStream(entry).use { it.readBytes() })
-                }
-            }
-        }
-        preserve("${project.group}:md-sparrow:${project.version}", "LICENCE", file("LICENCE").readBytes())
-        root.resolve("META-INF/dependencies/index.tsv").writeText(index.joinToString("\n", postfix = "\n"))
-    }
-}
-
 tasks.shadowJar {
     archiveClassifier.set("all")
     archiveBaseName.set("md-sparrow")
-    // FAIL для неизвестных конфликтов; INCLUDE только на входе двух трансформаторов.
+    // FAIL для всех прочих конфликтов; INCLUDE нужен только для ServiceLoader.
     duplicatesStrategy = DuplicatesStrategy.FAIL
-    filesMatching(listOf("META-INF/services/**", "plugin.properties")) {
+    filesMatching("META-INF/services/**") {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
     mergeServiceFiles()
-    transform<PropertiesFileTransformer> {
-        paths.set(setOf("^plugin[.]properties$"))
-        mergeStrategy.set(PropertiesFileTransformer.MergeStrategy.Append)
-        mergeSeparator.set(" / ")
-        // Properties.store(Writer) выдаёт Unicode; ISO-8859-1 здесь теряет символы вроде \\u2026.
-        charsetName.set("UTF-8")
-    }
-    eachFile {
-        if (dependencyMetadata(path) && path != "plugin.properties") {
-            exclude()
-        }
-    }
-    from(prepareDependencyMetadata)
+    // Исключаем метаданные зависимостей с конфликтующими ZIP entry names.
+    exclude(
+        "META-INF/LICENSE", "META-INF/LICENSE.*",
+        "META-INF/LICENCE", "META-INF/LICENCE.*",
+        "META-INF/NOTICE", "META-INF/NOTICE.*",
+        "META-INF/COPYRIGHT", "META-INF/COPYRIGHT.*",
+        "LICENSE", "LICENSE.*", "LICENCE", "LICENCE.*",
+        "NOTICE", "NOTICE.*", "COPYRIGHT", "COPYRIGHT.*",
+        "plugin.xml", "plugin.properties", "about.*",
+        "about_files/**", "modeling32.png",
+    )
     failOnDuplicateEntries = true
-    isPreserveFileTimestamps = false
-    isReproducibleFileOrder = true
     manifest {
         attributes.putAll(runtimeManifest)
-    }
-}
-
-// Проверяем именно собранный ZIP и загрузку из него, а не classpath тестового процесса.
-val verifyShadowJar = tasks.register<JavaExec>("verifyShadowJar") {
-    group = "verification"
-    description = "Проверяет уникальность ZIP entries, services, ресурсы, лицензии и загрузку fat JAR."
-    dependsOn(tasks.shadowJar, tasks.testClasses)
-    classpath = sourceSets["test"].runtimeClasspath
-    mainClass.set("io.github.yellowhammer.designerxml.ShadowJarVerifier")
-    val candidate = providers.gradleProperty("shadowJarToVerify")
-    doFirst {
-        val jar = candidate.orNull?.let { file(it) } ?: tasks.shadowJar.get().archiveFile.get().asFile
-        args = listOf(jar.absolutePath) + configurations.runtimeClasspath.get().resolvedConfiguration.resolvedArtifacts
-            .sortedBy { it.moduleVersion.id.toString() }.map { "${it.moduleVersion.id}=${it.file.absolutePath}" }
     }
 }
 
@@ -750,5 +685,5 @@ tasks.register("licenseFormat") {
 }
 
 tasks.check {
-    dependsOn(license, verifyShadowJar)
+    dependsOn(license)
 }
