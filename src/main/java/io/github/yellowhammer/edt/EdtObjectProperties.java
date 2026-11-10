@@ -89,16 +89,40 @@ public final class EdtObjectProperties {
     dto.internalName = node.name();
     dto.synonym = EdtPropertyValues.localized(node, "synonym");
     dto.comment = node.property("comment");
-    dto.nestedSubsystems = EdtPropertyValues.list(node, "subsystems");
-    dto.contentRefs = EdtPropertyValues.list(node, "content");
     dto.languageCode = ConfigurationLanguage.current();
     dto.localStringProperties = LocalStringProperties.forResponse();
 
     dto.objectBelonging = blankToNull(node.property("objectBelonging"));
     dto.propertyStates = extensionStates(node);
     fillChildren(dto, node, model);
-    fillBridge(dto, node, eClass, model);
+    Object bridge = fillBridge(dto, node, eClass, model);
+    // Свойства вида без своего блока контракт держит словарём, как и выгрузка
+    if (bridge == null) {
+      EdtScalarProperties.read(dto, node, eClass);
+    }
+    fillRefLists(dto, node, eClass, bridge);
+    dto.contentMembers = EdtCommonAttributeContent.read(node, eClass);
     return dto;
+  }
+
+  /**
+   * Заполняет списки ссылок вне свойств вида: состав, вложенные подсистемы,
+   * входящие документы, движения.
+   *
+   * Список, который вид держит у себя, читается вместе с его свойствами.
+   */
+  private static void fillRefLists(MdObjectPropertiesDto dto, EdtNode node, EClass eClass, Object bridge) {
+    for (String field : EdtContractNames.refFields()) {
+      String feature = EdtContractNames.refsFeature(eClass, field);
+      if (feature == null || EdtContractNames.declares(bridge, field)) {
+        continue;
+      }
+      try {
+        MdObjectPropertiesDto.class.getField(field).set(dto, new ArrayList<>(EdtPropertyValues.list(node, feature)));
+      } catch (ReflectiveOperationException error) {
+        throw new IllegalStateException("Не удалось заполнить список " + field, error);
+      }
+    }
   }
 
   /**
@@ -174,21 +198,24 @@ public final class EdtObjectProperties {
    * Контракт держит их отдельным объектом на каждый вид: {@code catalog},
    * {@code document}. Поля там названы так же, как свойства в файле EDT, и
    * заполняются по имени.
+   *
+   * @return свойства вида или {@code null}, если своих у вида нет
    */
-  private static void fillBridge(MdObjectPropertiesDto dto, EdtNode node, EClass eClass, EdtModel model) {
+  private static Object fillBridge(MdObjectPropertiesDto dto, EdtNode node, EClass eClass, EdtModel model) {
     String fieldName = BRIDGE_FIELDS.getOrDefault(dto.kind, dto.kind);
     Field field;
     try {
       field = MdObjectPropertiesDto.class.getField(fieldName);
     } catch (NoSuchFieldException absent) {
       // Виду без своих свойств хватает имени, синонима и подчинённых узлов
-      return;
+      return null;
     }
 
     try {
       Object bridge = field.getType().getDeclaredConstructor().newInstance();
       fillFields(bridge, node, eClass, model);
       field.set(dto, bridge);
+      return bridge;
     } catch (ReflectiveOperationException error) {
       throw new IllegalStateException("Не удалось заполнить свойства вида " + dto.kind, error);
     }

@@ -786,7 +786,8 @@ public final class MdObjectPropertiesEdit {
   private static final Set<String> SCALAR_SKIPPED = Set.of(
     "Name", "Synonym", "Comment", "Uuid",
     "ExtendedConfigurationObject", "Form", "Help", "Picture",
-    "Module", "ManagerModule", "RecordSetModule", "Template");
+    "Module", "ManagerModule", "RecordSetModule", "Template",
+    "CommandInterface", "AdditionalIndexes");
 
   private static MdObjectPropertiesDto readSimpleDto(String kind, Object objectNode, SchemaVersion version) {
     Object props = invokeNoArg(objectNode, "getProperties");

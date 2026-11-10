@@ -52,6 +52,7 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 
 import com.google.gson.Gson;
 
+import io.github.yellowhammer.designerxml.cf.MdContentMemberDto;
 import io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
@@ -123,6 +124,8 @@ public final class EdtObjectWriter {
    * @param value новое значение в написании формата
    * @param localized свойство записано парами язык-значение
    * @param type описание типа, если свойство - тип; иначе {@code null}
+   * @param values значения свойства-списка, по элементу на значение
+   * @param members элементы состава из узлов в написании файла
    */
   private record Change(
       NodeRef node,
@@ -130,14 +133,33 @@ public final class EdtObjectWriter {
       String value,
       boolean localized,
       MdTypeDescriptionDto type,
-      List<String> values) {
+      List<String> values,
+      List<MdContentMemberDto> members) {
 
     Change(NodeRef node, String name, String value, boolean localized) {
-      this(node, name, value, localized, null, null);
+      this(node, name, value, localized, null, null, null);
     }
 
     Change(NodeRef node, String name, String value, boolean localized, MdTypeDescriptionDto type) {
-      this(node, name, value, localized, type, null);
+      this(node, name, value, localized, type, null, null);
+    }
+
+    /** Свойство-список объекта: все прежние значения уходят, новые встают на их место. */
+    static Change list(String name, List<String> values) {
+      return new Change(null, name, "", false, null, values, null);
+    }
+
+    /** Состав объекта из узлов: весь состав пишется заново. */
+    static Change members(String name, List<MdContentMemberDto> members) {
+      return new Change(null, name, "", false, null, null, members);
+    }
+
+    boolean isList() {
+      return values != null || members != null;
+    }
+
+    boolean isEmptyList() {
+      return values != null ? values.isEmpty() : members.isEmpty();
     }
   }
 
@@ -225,8 +247,14 @@ public final class EdtObjectWriter {
     if (dto.comment != null && !dto.comment.equals(baseline.comment)) {
       changes.add(new Change(null, "comment", dto.comment, false));
     }
-
     Object bridge = bridge(dto);
+    changes.addAll(scalarChanges(baseline, dto, eClass));
+    changes.addAll(refListChanges(baseline, dto, eClass, bridge));
+    Change members = membersChange(baseline, dto, eClass);
+    if (members != null) {
+      changes.add(members);
+    }
+
     Object baselineBridge = bridge(baseline);
     if (bridge == null || baselineBridge == null) {
       return changes;
@@ -241,6 +269,107 @@ public final class EdtObjectWriter {
       }
     }
     return changes;
+  }
+
+  /**
+   * Изменения словаря свойств вида без своего блока.
+   *
+   * Ключ - имя свойства выгрузки, в файле EDT то же имя со строчной буквы.
+   * Пустое значение снимает свойство: в файле его больше нет.
+   */
+  private static List<Change> scalarChanges(MdObjectPropertiesDto baseline, MdObjectPropertiesDto dto, EClass eClass) {
+    List<Change> changes = new ArrayList<>();
+    if (dto.scalars == null || dto.scalars.isEmpty()) {
+      return changes;
+    }
+    if (baseline.scalars == null) {
+      throw new IllegalArgumentException("Свойства объекта " + dto.internalName + " правятся в блоке его вида.");
+    }
+    Map<String, Object> written = baseline.scalars;
+    for (Map.Entry<String, Object> entry : dto.scalars.entrySet()) {
+      String value = scalarText(entry.getValue());
+      if (value.equals(scalarText(written.get(entry.getKey())))) {
+        continue;
+      }
+      EStructuralFeature feature = EdtScalarProperties.feature(eClass, entry.getKey());
+      if (feature == null || feature.getName().equals(EdtScalarProperties.BELONGING)) {
+        throw new IllegalArgumentException("Свойство " + entry.getKey() + " объекта " + dto.internalName + " не правится.");
+      }
+      String name = feature.getName();
+      if (EdtScalarProperties.type(feature).equals("boolean")) {
+        changes.add(new Change(null, name, value, false));
+      } else if (value.isEmpty()) {
+        changes.add(Change.list(name, List.of()));
+      } else {
+        changes.add(new Change(null, name, literal(eClass, name, value), false));
+      }
+    }
+    return changes;
+  }
+
+  /** Значение словаря строкой: число из JSON приходит дробным, а пишется как задано. */
+  private static String scalarText(Object value) {
+    if (value == null) {
+      return "";
+    }
+    if (value instanceof Number number) {
+      return new java.math.BigDecimal(number.toString()).stripTrailingZeros().toPlainString();
+    }
+    return String.valueOf(value);
+  }
+
+  /**
+   * Изменения списков ссылок вне свойств вида: состав, вложенные подсистемы,
+   * входящие документы, движения.
+   *
+   * Список, которого у вида нет, отклоняется: иначе панель показала бы правку
+   * сохранённой. Список, который вид держит у себя, пишется вместе с его свойствами.
+   */
+  private static List<Change> refListChanges(
+      MdObjectPropertiesDto baseline,
+      MdObjectPropertiesDto dto,
+      EClass eClass,
+      Object bridge) {
+    List<Change> changes = new ArrayList<>();
+    for (String field : EdtContractNames.refFields()) {
+      List<String> wanted = refs(dto, field);
+      if (wanted == null || sameRefs(wanted, refs(baseline, field)) || EdtContractNames.declares(bridge, field)) {
+        continue;
+      }
+      String feature = EdtContractNames.refsFeature(eClass, field);
+      if (feature == null) {
+        throw new IllegalArgumentException("Свойство " + field + " объекта " + dto.internalName + " не правится.");
+      }
+      changes.add(Change.list(feature, List.copyOf(wanted)));
+    }
+    return changes;
+  }
+
+  /** Изменение состава из узлов либо {@code null}, если он прежний. */
+  private static Change membersChange(MdObjectPropertiesDto baseline, MdObjectPropertiesDto dto, EClass eClass) {
+    if (dto.contentMembers == null || dto.contentMembers.equals(baseline.contentMembers)) {
+      return null;
+    }
+    EClass item = EdtCommonAttributeContent.itemClass(eClass);
+    if (item == null) {
+      throw new IllegalArgumentException("Свойство contentMembers объекта " + dto.internalName + " не правится.");
+    }
+    return Change.members(EdtCommonAttributeContent.CONTENT,
+        EdtCommonAttributeContent.written(dto.contentMembers, item));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<String> refs(MdObjectPropertiesDto dto, String field) {
+    try {
+      return (List<String>) MdObjectPropertiesDto.class.getField(field).get(dto);
+    } catch (ReflectiveOperationException error) {
+      throw new IllegalStateException("Не удалось прочитать список " + field, error);
+    }
+  }
+
+  /** Списки ссылок совпадают: пустой и неприсланный - одно и то же. */
+  private static boolean sameRefs(List<String> left, List<String> right) {
+    return (left == null ? List.of() : left).equals(right == null ? List.of() : right);
   }
 
   /**
@@ -410,7 +539,6 @@ public final class EdtObjectWriter {
       return listChange(name, items, eClass);
     }
     if (type != String.class) {
-      // Списки ссылок и состав объекта правятся своими операциями
       return null;
     }
     if (field.isAnnotationPresent(LocalString.class)) {
@@ -424,21 +552,24 @@ public final class EdtObjectWriter {
   }
 
   /**
-   * Изменение свойства-списка перечислимых значений.
+   * Изменение свойства-списка: ссылок или перечислимых значений.
    *
-   * Списки ссылок и состав объекта правятся своими операциями, поэтому здесь
-   * только перечисления схемы: назначение использования конфигурации.
+   * Список, которого в схеме нет, в файле не бывает; состав из своих узлов
+   * строкой не записать, и правка отклоняется.
    */
   private static Change listChange(String name, List<?> items, EClass eClass) {
     EStructuralFeature feature = eClass == null ? null : eClass.getEStructuralFeature(name);
-    if (feature == null || !(feature.getEType() instanceof EEnum)) {
+    if (feature == null) {
       return null;
+    }
+    if (!(feature.getEType() instanceof EEnum) && !EdtContractNames.isRefList(feature)) {
+      throw new IllegalArgumentException("Свойство " + name + " не правится.");
     }
     List<String> values = new ArrayList<>();
     for (Object item : items) {
       values.add(literal(eClass, name, String.valueOf(item)));
     }
-    return new Change(null, name, "", false, null, values);
+    return Change.list(name, values);
   }
 
   /**
@@ -545,7 +676,7 @@ public final class EdtObjectWriter {
   /** Замена значения или вставка нового свойства. */
   private static Edit edit(String xml, Change change, List<String> order, EdtModel model)
       throws XMLStreamException {
-    if (change.values() != null) {
+    if (change.isList()) {
       return listEdit(xml, change, order);
     }
     EdtObjectRegions.Region owner = nodeRegion(xml, change.node());
@@ -563,7 +694,7 @@ public final class EdtObjectWriter {
     // Новое свойство встаёт целой строкой, с отступом соседей
     if (owner == null) {
       int at = EdtObjectRegions.insertionPoint(xml, order, change.name());
-      String indent = indent(xml, at + INDENT.length());
+      String indent = propertyIndent(xml, at);
       return new Edit(at, at, indent + element(xml, change, indent, model) + eol(xml));
     }
     int at = EdtObjectRegions.lineStart(xml, owner.end());
@@ -600,7 +731,7 @@ public final class EdtObjectWriter {
     }
     if (owner == null) {
       int at = EdtObjectRegions.insertionPoint(xml, order, change.name());
-      String indent = indent(xml, at + INDENT.length());
+      String indent = propertyIndent(xml, at);
       return new Edit(at, at, indent + element(xml, change, indent, model) + eol(xml));
     }
     int at = EdtObjectRegions.lineStart(xml, owner.end());
@@ -615,16 +746,16 @@ public final class EdtObjectWriter {
     List<EdtObjectRegions.Region> regions = EdtObjectRegions.properties(xml, change.name());
     String eol = eol(xml);
     if (regions.isEmpty()) {
-      if (change.values().isEmpty()) {
+      if (change.isEmptyList()) {
         return new Edit(0, 0, "");
       }
       int at = EdtObjectRegions.insertionPoint(xml, order, change.name());
-      String indent = indent(xml, at + INDENT.length());
+      String indent = propertyIndent(xml, at);
       return new Edit(at, at, indent + elements(change, indent, eol) + eol);
     }
     int start = regions.get(0).start();
     int end = regions.get(regions.size() - 1).end();
-    if (change.values().isEmpty()) {
+    if (change.isEmptyList()) {
       // Пустой список: строки свойства уходят целиком, вместе с отступом и переводом строки
       int lineStart = EdtObjectRegions.lineStart(xml, start);
       int lineEnd = Math.min(xml.length(), end + eol.length());
@@ -635,6 +766,9 @@ public final class EdtObjectWriter {
 
   /** Значения списка строками файла. */
   private static String elements(Change change, String indent, String eol) {
+    if (change.members() != null) {
+      return EdtCommonAttributeContent.render(change.members(), indent, eol);
+    }
     StringBuilder text = new StringBuilder();
     for (String value : change.values()) {
       if (text.length() > 0) {
@@ -829,6 +963,17 @@ public final class EdtObjectWriter {
       end++;
     }
     return xml.substring(line, end);
+  }
+
+  /**
+   * Отступ нового свойства объекта по строке, перед которой оно встаёт.
+   *
+   * Последнее по схеме свойство встаёт перед закрывающим тегом объекта, а тот
+   * на уровень мельче свойств.
+   */
+  private static String propertyIndent(String xml, int at) {
+    String indent = indent(xml, at + INDENT.length());
+    return xml.startsWith("</", at + indent.length()) ? indent + INDENT : indent;
   }
 
   /** Перевод строки файла: смешивать переводы в одном файле нельзя. */

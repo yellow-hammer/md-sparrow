@@ -150,6 +150,112 @@ class EdtPropertiesMatchDesignerTest {
     assertThat(mismatches).as("расхождения свойств").isEmpty();
   }
 
+  /** Виды со списками ссылок: состав, использование, движения, ввод на основании. */
+  private static final List<String> REF_LIST_DIRECTORIES = List.of(
+      "Subsystems", "FunctionalOptions", "FunctionalOptionsParameters", "FilterCriteria", "Sequences",
+      "CommonAttributes", "DocumentJournals", "Catalogs", "Documents", "ChartsOfCharacteristicTypes",
+      "ChartsOfAccounts", "ChartsOfCalculationTypes", "ExchangePlans", "BusinessProcesses", "Tasks");
+
+  @Test
+  void спискиСсылокСовпадают() throws Exception {
+    List<String> mismatches = new ArrayList<>();
+    int filled = 0;
+
+    for (String directory : REF_LIST_DIRECTORIES) {
+      try (var children = java.nio.file.Files.list(edtSource.resolve(directory))) {
+        for (Path project : children.filter(java.nio.file.Files::isDirectory).sorted().toList()) {
+          String name = project.getFileName().toString();
+          Path objectMdo = project.resolve(name + ".mdo");
+          Path objectXml = designerCf.resolve(directory).resolve(name + ".xml");
+          if (!java.nio.file.Files.isRegularFile(objectMdo) || !java.nio.file.Files.isRegularFile(objectXml)) {
+            continue;
+          }
+
+          Map<String, List<String>> edt = refLists(EdtObjectProperties.readDto(objectMdo, model));
+          Map<String, List<String>> designer = refLists(MdObjectPropertiesEdit.readDto(objectXml, SchemaVersion.V2_21));
+          compare(mismatches, directory + "/" + name, "списки ссылок", edt, designer);
+          filled += (int) edt.values().stream().filter(values -> !values.isEmpty()).count();
+        }
+      }
+    }
+
+    assertThat(filled).as("непустых списков").isGreaterThan(300);
+    assertThat(mismatches).as("расхождения списков").isEmpty();
+  }
+
+  /** Списки ссылок объекта и его вида, состав общего реквизита строками. */
+  private static Map<String, List<String>> refLists(MdObjectPropertiesDto dto) throws ReflectiveOperationException {
+    Map<String, List<String>> lists = new java.util.TreeMap<>();
+    for (String field : List.of("contentRefs", "nestedSubsystems", "documents", "registerRecords")) {
+      lists.put(field, strings(MdObjectPropertiesDto.class.getField(field).get(dto)));
+    }
+    lists.put("contentMembers", dto.contentMembers == null ? List.of() : dto.contentMembers.stream()
+        .map(member -> member.ref + "|" + member.mode + "|" + member.conditionalSeparation)
+        .toList());
+    for (Field field : MdObjectPropertiesDto.class.getFields()) {
+      Object bridge = field.get(dto);
+      if (bridge == null || !field.getType().getSimpleName().endsWith("PropertiesDto")) {
+        continue;
+      }
+      for (Field property : bridge.getClass().getFields()) {
+        if (property.getType() == List.class && !property.getName().equals("extendable")) {
+          lists.put(field.getName() + "." + property.getName(), strings(property.get(bridge)));
+        }
+      }
+    }
+    return lists;
+  }
+
+  private static List<String> strings(Object list) {
+    return list == null ? List.of() : ((List<?>) list).stream().map(String::valueOf).toList();
+  }
+
+  /** Свойства видов без своего блока: словарь значений и их описания. */
+  @Test
+  void свойстваВидовБезСвоегоБлокаСовпадают() throws Exception {
+    List<String> mismatches = new ArrayList<>();
+    int values = 0;
+
+    List<Path> directories;
+    try (var children = java.nio.file.Files.list(edtSource)) {
+      directories = children.filter(java.nio.file.Files::isDirectory).sorted().toList();
+    }
+    for (Path directory : directories) {
+      try (var children = java.nio.file.Files.list(directory)) {
+        for (Path project : children.filter(java.nio.file.Files::isDirectory).sorted().toList()) {
+          String name = project.getFileName().toString();
+          Path objectMdo = project.resolve(name + ".mdo");
+          Path objectXml = designerCf.resolve(directory.getFileName().toString()).resolve(name + ".xml");
+          if (!java.nio.file.Files.isRegularFile(objectMdo) || !java.nio.file.Files.isRegularFile(objectXml)) {
+            continue;
+          }
+          MdObjectPropertiesDto designer = MdObjectPropertiesEdit.readDto(objectXml, SchemaVersion.V2_21);
+          MdObjectPropertiesDto edt = EdtObjectProperties.readDto(objectMdo, model);
+          String object = directory.getFileName() + "/" + name;
+          compare(mismatches, object, "словарь свойств", texts(edt.scalars), texts(designer.scalars));
+          compare(mismatches, object, "описания свойств", STATE.toJson(sorted(edt.scalarMeta)),
+              STATE.toJson(sorted(designer.scalarMeta)));
+          values += designer.scalars == null ? 0 : designer.scalars.size();
+        }
+      }
+    }
+
+    assertThat(values).as("сверено значений").isGreaterThan(1500);
+    assertThat(mismatches).as("расхождения свойств").isEmpty();
+  }
+
+  private static Map<String, String> texts(Map<String, Object> scalars) {
+    Map<String, String> texts = new java.util.TreeMap<>();
+    if (scalars != null) {
+      scalars.forEach((key, value) -> texts.put(key, String.valueOf(value)));
+    }
+    return texts;
+  }
+
+  private static <T> Map<String, T> sorted(Map<String, T> map) {
+    return map == null ? Map.of() : new java.util.TreeMap<>(map);
+  }
+
   @Test
   void строениеОбъектовСовпадает() throws Exception {
     List<String> mismatches = new ArrayList<>();

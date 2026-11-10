@@ -29,8 +29,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -39,6 +41,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdCatalogPropertiesDto;
+import io.github.yellowhammer.designerxml.cf.MdContentMemberDto;
 import io.github.yellowhammer.designerxml.cf.MdNamedPropertyDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdTypeDescriptionDto;
@@ -439,6 +442,293 @@ class EdtObjectWriterTest {
     int start = EdtObjectRegions.lineStart(xml, region.start());
     int end = xml.indexOf('\n', region.end()) + 1;
     Files.writeString(file, xml.substring(0, start) + xml.substring(end), StandardCharsets.UTF_8);
+  }
+
+  /** Все элементы свойства-списка уходят из файла. */
+  private static void removeList(Path file, String name) throws Exception {
+    while (EdtObjectRegions.property(Files.readString(file, StandardCharsets.UTF_8), name).found()) {
+      removeProperty(file, name);
+    }
+  }
+
+  /**
+   * Списки ссылок, записанные заново, совпадают с тем, что записала 1С:EDT:
+   * состав, использование, движения, владельцы, ввод на основании.
+   */
+  @Test
+  void спискиСсылокВстаютКакУEDT() throws Exception {
+    Map<String, List<String>> lists = new LinkedHashMap<>();
+    lists.put("Subsystems/_ДемоАнкетирование/_ДемоАнкетирование.mdo", List.of("content", "subsystems"));
+    lists.put("FunctionalOptions/_ДемоИспользоватьАнкетированиеБСП/_ДемоИспользоватьАнкетированиеБСП.mdo",
+        List.of("content"));
+    lists.put("FilterCriteria/СвязанныеДокументы/СвязанныеДокументы.mdo", List.of("content"));
+    lists.put("FunctionalOptionsParameters/_ДемоОрганизация/_ДемоОрганизация.mdo", List.of("use"));
+    lists.put("Sequences/_ДемоДвижениеТоваров/_ДемоДвижениеТоваров.mdo", List.of("documents", "registerRecords"));
+    lists.put("Catalogs/_ДемоБанковскиеСчета/_ДемоБанковскиеСчета.mdo", List.of("owners", "inputByString"));
+    lists.put("Catalogs/ШаблоныСообщений/ШаблоныСообщений.mdo", List.of("basedOn"));
+    lists.put("Catalogs/ВерсииФайлов/ВерсииФайлов.mdo", List.of("dataLockFields"));
+    lists.put("Documents/_ДемоРеализацияТоваров/_ДемоРеализацияТоваров.mdo",
+        List.of("registerRecords", "basedOn", "inputByString"));
+    lists.put("DocumentJournals/_ДемоСкладскиеДокументы/_ДемоСкладскиеДокументы.mdo",
+        List.of("registeredDocuments"));
+    lists.put("ChartsOfCalculationTypes/_ДемоОсновныеНачисления/_ДемоОсновныеНачисления.mdo",
+        List.of("baseCalculationTypes"));
+
+    for (Map.Entry<String, List<String>> entry : lists.entrySet()) {
+      Path file = copyOf(entry.getKey());
+      String written = Files.readString(file, StandardCharsets.UTF_8);
+      MdObjectPropertiesDto original = EdtObjectProperties.readDto(file, model);
+      for (String name : entry.getValue()) {
+        assertThat(written).as(entry.getKey()).contains("<" + name + ">");
+        removeList(file, name);
+      }
+
+      EdtObjectWriter.writeDto(file, original, model);
+
+      assertThat(Files.readString(file, StandardCharsets.UTF_8)).as(entry.getKey()).isEqualTo(written);
+    }
+  }
+
+  @Test
+  void основныеРолиКонфигурацииВстаютКакУEDT() throws Exception {
+    Path file = copyOf("Configuration/Configuration.mdo");
+    String written = Files.readString(file, StandardCharsets.UTF_8);
+    ConfigurationPropertiesDto original = EdtConfigurationProperties.read(file, model);
+    assertThat(original.defaultRoles).isNotEmpty();
+    removeList(file, "defaultRoles");
+
+    EdtConfigurationProperties.write(file, original, model);
+
+    assertThat(Files.readString(file, StandardCharsets.UTF_8)).isEqualTo(written);
+  }
+
+  /** Состав общих реквизитов, записанный заново, совпадает с тем, что записала 1С:EDT. */
+  @Test
+  void составОбщихРеквизитовВстаётКакУEDT() throws Exception {
+    List<Path> attributes;
+    try (var children = Files.list(source.resolve("CommonAttributes"))) {
+      attributes = children.filter(Files::isDirectory).sorted().toList();
+    }
+    int members = 0;
+    for (Path attribute : attributes) {
+      String name = attribute.getFileName().toString();
+      Path file = copyOf("CommonAttributes/" + name + "/" + name + ".mdo");
+      String written = Files.readString(file, StandardCharsets.UTF_8);
+      MdObjectPropertiesDto original = EdtObjectProperties.readDto(file, model);
+      members += original.contentMembers.size();
+      removeList(file, "content");
+      assertThat(EdtObjectProperties.readDto(file, model).contentMembers).as(name).isEmpty();
+
+      EdtObjectWriter.writeDto(file, original, model);
+
+      assertThat(Files.readString(file, StandardCharsets.UTF_8)).as(name).isEqualTo(written);
+    }
+    assertThat(members).as("элементов состава").isGreaterThan(400);
+  }
+
+  @Test
+  void использованиеВСоставеОбщегоРеквизитаПравитсяОднойСтрокой() throws Exception {
+    Path file = copyOf("CommonAttributes/КомментарийЯзык1/КомментарийЯзык1.mdo");
+    List<String> before = Files.readString(file, StandardCharsets.UTF_8).lines().toList();
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    MdContentMemberDto member = dto.contentMembers.get(0);
+    member.mode = member.mode.equals("USE") ? "DONT_USE" : "USE";
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    List<String> after = Files.readString(file, StandardCharsets.UTF_8).lines().toList();
+    assertThat(after).hasSameSizeAs(before);
+    List<Integer> changed = new ArrayList<>();
+    for (int index = 0; index < before.size(); index++) {
+      if (!before.get(index).equals(after.get(index))) {
+        changed.add(index);
+      }
+    }
+    assertThat(changed).hasSize(1);
+    assertThat(after.get(changed.get(0)).trim()).startsWith("<use>");
+    assertThat(EdtObjectProperties.readDto(file, model).contentMembers).isEqualTo(dto.contentMembers);
+  }
+
+  /** Использование по умолчанию 1С:EDT не пишет: у такого элемента только ссылка. */
+  @Test
+  void использованиеПоУмолчаниюВФайлНеПишется() throws Exception {
+    Path file = copyOf("CommonAttributes/КомментарийЯзык1/КомментарийЯзык1.mdo");
+    Path subsystem = copyOf("Subsystems/_ДемоАнкетирование/_ДемоАнкетирование.mdo");
+    long before = Files.readString(file, StandardCharsets.UTF_8).lines().count();
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    String ref = EdtObjectProperties.readDto(subsystem, model).contentRefs.stream()
+        .filter(candidate -> dto.contentMembers.stream().noneMatch(member -> member.ref.equals(candidate)))
+        .findFirst().orElseThrow();
+    dto.contentMembers.add(new MdContentMemberDto(ref, "AUTO", ""));
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(after.lines().count()).isEqualTo(before + 3);
+    assertThat(after).contains("<metadata>" + ref + "</metadata>" + eol(after) + "  </content>");
+    assertThat(EdtObjectProperties.readDto(file, model).contentMembers).last()
+        .isEqualTo(new MdContentMemberDto(ref, "AUTO", ""));
+  }
+
+  private static String eol(String text) {
+    return text.contains("\r\n") ? "\r\n" : "\n";
+  }
+
+  /**
+   * Свойства видов без своего блока, записанные заново, совпадают с тем, что
+   * записала 1С:EDT: у каждого такого объекта фикстуры.
+   */
+  @Test
+  void свойстваВидовБезСвоегоБлокаВстаютКакУEDT() throws Exception {
+    List<Path> directories;
+    try (var children = Files.list(source)) {
+      directories = children.filter(Files::isDirectory).sorted().toList();
+    }
+    int objects = 0;
+    for (Path directory : directories) {
+      List<Path> projects;
+      try (var children = Files.list(directory)) {
+        projects = children.filter(Files::isDirectory).sorted().toList();
+      }
+      for (Path project : projects) {
+        Path original = project.resolve(project.getFileName() + ".mdo");
+        if (!Files.isRegularFile(original)) {
+          continue;
+        }
+        Path file = workDir.resolve(directory.getFileName().toString()).resolve(original.getFileName().toString());
+        Files.createDirectories(file.getParent());
+        Files.copy(original, file);
+        MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+        if (dto.scalars == null) {
+          continue;
+        }
+        String written = Files.readString(file, StandardCharsets.UTF_8);
+        for (String key : dto.scalars.keySet()) {
+          removeList(file, Character.toLowerCase(key.charAt(0)) + key.substring(1));
+        }
+
+        EdtObjectWriter.writeDto(file, dto, model);
+
+        assertThat(Files.readString(file, StandardCharsets.UTF_8)).as(original.toString()).isEqualTo(written);
+        objects++;
+      }
+    }
+    assertThat(objects).as("объектов").isGreaterThan(500);
+  }
+
+  @Test
+  void перечислимоеСвойствоВидаБезСвоегоБлокаПравитсяСтрокой() throws Exception {
+    Path file = copyOf("Sequences/_ДемоДвижениеТоваров/_ДемоДвижениеТоваров.mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    assertThat(dto.scalars).containsEntry("DataLockControlMode", "MANAGED");
+    assertThat(dto.scalarMeta.get("DataLockControlMode").allowed).contains("AUTOMATIC");
+    dto.scalars.put("DataLockControlMode", "AUTOMATIC");
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(changedLines(before, after)).containsExactlyInAnyOrder(
+        "<dataLockControlMode>Managed</dataLockControlMode>", "<dataLockControlMode>Automatic</dataLockControlMode>");
+    assertThat(EdtObjectProperties.readDto(file, model).scalars).containsEntry("DataLockControlMode", "AUTOMATIC");
+  }
+
+  /** Пустое значение снимает свойство: ссылки в файле больше нет. */
+  @Test
+  void пустоеЗначениеСнимаетСвойство() throws Exception {
+    Path file = copyOf(
+        "FunctionalOptions/_ДемоИспользоватьАнкетированиеБСП/_ДемоИспользоватьАнкетированиеБСП.mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    String location = String.valueOf(dto.scalars.get("Location"));
+    assertThat(location).isNotEmpty();
+    dto.scalars.put("Location", "");
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(changedLines(before, after)).containsExactly("<location>" + location + "</location>");
+    assertThat(EdtObjectProperties.readDto(file, model).scalars).containsEntry("Location", "");
+  }
+
+  @Test
+  void свойствоВнеСловаряВидаОтклоняется() throws Exception {
+    Path file = copyOf("Sequences/_ДемоДвижениеТоваров/_ДемоДвижениеТоваров.mdo");
+    Path catalog = copyOf("Catalogs/Валюты/Валюты.mdo");
+    byte[] before = Files.readAllBytes(file);
+
+    MdObjectPropertiesDto belonging = EdtObjectProperties.readDto(file, model);
+    belonging.scalars.put("ObjectBelonging", "ADOPTED");
+    assertThatThrownBy(() -> EdtObjectWriter.writeDto(file, belonging, model))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("ObjectBelonging");
+
+    MdObjectPropertiesDto unknown = EdtObjectProperties.readDto(file, model);
+    unknown.scalars.put("CodeLength", "5");
+    assertThatThrownBy(() -> EdtObjectWriter.writeDto(file, unknown, model))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("CodeLength");
+    assertThat(Files.readAllBytes(file)).isEqualTo(before);
+
+    // У вида со своим блоком словаря нет: свойства правятся в блоке
+    MdObjectPropertiesDto bridged = EdtObjectProperties.readDto(catalog, model);
+    bridged.scalars = new LinkedHashMap<>(Map.of("CodeLength", "5"));
+    assertThatThrownBy(() -> EdtObjectWriter.writeDto(catalog, bridged, model))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void составПодсистемыПравитсяПоСтроке() throws Exception {
+    Path file = copyOf("Subsystems/_ДемоАнкетирование/_ДемоАнкетирование.mdo");
+    Path other = copyOf("Subsystems/_ДемоБизнесПроцессыИЗадачи/_ДемоБизнесПроцессыИЗадачи.mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    dto.contentRefs = new ArrayList<>(dto.contentRefs);
+    String removed = dto.contentRefs.get(0);
+    String added = EdtObjectProperties.readDto(other, model).contentRefs.stream()
+        .filter(ref -> !dto.contentRefs.contains(ref))
+        .findFirst().orElseThrow();
+    dto.contentRefs.remove(removed);
+    dto.contentRefs.add(added);
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(changedLines(before, after)).containsExactlyInAnyOrder(
+        "<content>" + added + "</content>", "<content>" + removed + "</content>");
+    assertThat(EdtObjectProperties.readDto(file, model).contentRefs).isEqualTo(dto.contentRefs);
+  }
+
+  @Test
+  void пустойСоставУходитИзФайла() throws Exception {
+    Path file = copyOf("Subsystems/_ДемоАнкетирование/_ДемоАнкетирование.mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    int lines = dto.contentRefs.size();
+    dto.contentRefs = new ArrayList<>();
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(after).doesNotContain("<content>");
+    assertThat(after.lines().count()).isEqualTo(before.lines().count() - lines);
+  }
+
+  /** Элемент состава общего реквизита - узел с признаком использования: ссылкой его не записать. */
+  @Test
+  void составОбщегоРеквизитаОтклоняется() throws Exception {
+    Path file = copyOf("CommonAttributes/КомментарийЯзык1/КомментарийЯзык1.mdo");
+    Path subsystem = copyOf("Subsystems/_ДемоАнкетирование/_ДемоАнкетирование.mdo");
+    byte[] before = Files.readAllBytes(file);
+
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    dto.contentRefs = new ArrayList<>(dto.contentRefs);
+    dto.contentRefs.add(EdtObjectProperties.readDto(subsystem, model).contentRefs.get(0));
+
+    assertThatThrownBy(() -> EdtObjectWriter.writeDto(file, dto, model))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining(dto.internalName);
+    assertThat(Files.readAllBytes(file)).isEqualTo(before);
   }
 
   /**
