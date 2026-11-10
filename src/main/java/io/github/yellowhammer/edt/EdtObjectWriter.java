@@ -24,6 +24,7 @@ package io.github.yellowhammer.edt;
 import static io.github.yellowhammer.edt.EdtXmlText.escape;
 
 import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
+import io.github.yellowhammer.designerxml.cf.FillValueCanon;
 import io.github.yellowhammer.designerxml.cf.LocalString;
 
 import java.io.IOException;
@@ -80,7 +81,29 @@ public final class EdtObjectWriter {
   /** Сравнение узлов идёт по значениям, а не по ссылкам. */
   private static final Gson NODE_STATE = new Gson();
 
+  /** Описание типа узла: за его сменой идёт значение заполнения. */
+  private static final String TYPE = "type";
+  private static final String FILL_VALUE = "fillValue";
+  /** Класс значения в открывающем теге. */
+  private static final Pattern VALUE_TYPE = Pattern.compile("xsi:type=\"([^\"]*)\"");
+  /**
+   * Классы значений EDT в написании выгрузки конфигуратора; {@code core:UndefinedValue} - отсутствие
+   * значения ({@code xsi:nil}).
+   */
+  private static final Map<String, String> DESIGNER_VALUE_TYPES = designerValueTypes();
+
   private EdtObjectWriter() {
+  }
+
+  private static Map<String, String> designerValueTypes() {
+    Map<String, String> types = new java.util.HashMap<>();
+    types.put("core:StringValue", "xs:string");
+    types.put("core:NumberValue", "xs:decimal");
+    types.put("core:BooleanValue", "xs:boolean");
+    types.put("core:DateValue", "xs:dateTime");
+    types.put("core:ReferenceValue", "xr:DesignTimeRef");
+    types.put("core:UndefinedValue", null);
+    return types;
   }
 
   /**
@@ -505,6 +528,10 @@ public final class EdtObjectWriter {
           ? order.indexOf(change.name())
           : order.size() + index;
       edits.add(edit(xml, change, order, model).ranked(rank));
+      Edit fill = fillValueEdit(xml, change);
+      if (fill != null) {
+        edits.add(fill);
+      }
     }
     edits.addAll(stateEdits(xml, changes, model));
     // С конца файла: смещения посчитаны по исходному тексту. В одной точке
@@ -540,6 +567,36 @@ public final class EdtObjectWriter {
     boolean insertion() {
       return start == end;
     }
+  }
+
+  /**
+   * Значение заполнения узла, тип которого меняет правка.
+   *
+   * <p>То же правило, что у выгрузки конфигуратора ({@link FillValueCanon}): значение, которого в
+   * новом типе нет, становится пустым - {@code core:UndefinedValue}, у типа «только строка» пустой
+   * {@code core:StringValue}, как у нового реквизита. Совместимое значение остаётся байт в байт.
+   *
+   * @return замена элемента {@code fillValue}; {@code null}, если менять нечего
+   */
+  private static Edit fillValueEdit(String xml, Change change) throws XMLStreamException {
+    if (change.type() == null || !TYPE.equals(change.name())) {
+      return null;
+    }
+    EdtObjectRegions.Region owner = nodeRegion(xml, change.node());
+    EdtObjectRegions.Region region = first(owner == null
+        ? EdtObjectRegions.properties(xml, FILL_VALUE)
+        : EdtObjectRegions.nested(xml, owner, FILL_VALUE));
+    if (!region.found()) {
+      return null;
+    }
+    String tag = xml.substring(region.start(), region.end());
+    Matcher type = VALUE_TYPE.matcher(tag.substring(0, tag.indexOf('>')));
+    String valueType = type.find() ? DESIGNER_VALUE_TYPES.getOrDefault(type.group(1), type.group(1)) : "";
+    return switch (FillValueCanon.afterTypeChange(valueType, change.type())) {
+      case KEEP -> null;
+      case NIL -> new Edit(region.start(), region.end(), "<fillValue xsi:type=\"core:UndefinedValue\"/>");
+      case EMPTY_STRING -> new Edit(region.start(), region.end(), "<fillValue xsi:type=\"core:StringValue\"/>");
+    };
   }
 
   /** Замена значения или вставка нового свойства. */

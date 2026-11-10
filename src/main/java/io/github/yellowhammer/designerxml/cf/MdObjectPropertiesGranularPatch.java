@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.stream.XMLStreamException;
 
@@ -40,6 +42,11 @@ import javax.xml.stream.XMLStreamException;
  * Точечная замена прямых дочерних элементов {@code Properties} в исходной UTF-8 строке без пересборки всего блока.
  */
 public final class MdObjectPropertiesGranularPatch {
+
+  /** Значение заполнения узла: его сбрасывает смена типа. */
+  private static final String FILL_VALUE = "FillValue";
+  private static final Pattern XSI_NIL = Pattern.compile("\\bxsi:nil\\s*=\\s*\"(?:true|1)\"");
+  private static final Pattern XSI_TYPE = Pattern.compile("\\bxsi:type\\s*=\\s*\"([^\"]*)\"");
 
   private MdObjectPropertiesGranularPatch() {
   }
@@ -117,6 +124,7 @@ public final class MdObjectPropertiesGranularPatch {
             extended.computeIfAbsent(nodeKey, key -> new LinkedHashSet<>()).add(ch.mdElementLocalName());
           }
         }
+        fillValueReplacement(xmlUtf8, containerLocal, ch).ifPresent(reps::add);
         MdObjectXmlRegions.Region reg;
         if (ch.isNamedChildObject()) {
           reg = MdObjectXmlRegions.findDirectChildOfNamedChildObjectPropertiesRegion(
@@ -298,6 +306,52 @@ public final class MdObjectPropertiesGranularPatch {
       case "calculationRegister" -> "CalculationRegister";
       default -> "";
     };
+  }
+
+  /**
+   * Значение заполнения узла, тип которого меняет правка.
+   *
+   * <p>Значение, несовместимое с новым типом, загрузка платформы сбрасывает; запись ставит то,
+   * что выгрузит платформа ({@link FillValueCanon}). Совместимое значение и nil остаются байт в байт.
+   *
+   * @return замена элемента {@code FillValue}; пусто, если менять нечего или у узла его нет
+   */
+  private static Optional<XmlGranularPatch.Replacement> fillValueReplacement(
+    String xmlUtf8,
+    String containerLocal,
+    MdObjectPropertiesLeafDiff.GranularPatchChange ch) throws XMLStreamException {
+    if (ch.type() == null || !ch.isNamedChildObject()) {
+      return Optional.empty();
+    }
+    MdObjectXmlRegions.Region reg = MdObjectXmlRegions.findDirectChildOfNamedChildObjectPropertiesRegion(
+      xmlUtf8, containerLocal, ch.namedChildContainerLocal(), ch.namedChildObjectInternalName(), FILL_VALUE);
+    if (!reg.isValid()) {
+      return Optional.empty();
+    }
+    String element = switch (FillValueCanon.afterTypeChange(fillValueType(xmlUtf8.substring(reg.start(), reg.end())),
+      ch.type())) {
+      case KEEP -> null;
+      case NIL -> "<" + FILL_VALUE + " xsi:nil=\"true\"/>";
+      case EMPTY_STRING -> "<" + FILL_VALUE + " xsi:type=\"xs:string\"/>";
+    };
+    return element == null
+      ? Optional.empty()
+      : Optional.of(new XmlGranularPatch.Replacement(reg.start(), reg.end(), element));
+  }
+
+  /**
+   * Тип значения по открывающему тегу элемента.
+   *
+   * @param element элемент целиком, как он лежит в файле
+   * @return {@code null} у {@code xsi:nil}; пустая строка, если тип не указан
+   */
+  static String fillValueType(String element) {
+    String tag = element.substring(0, element.indexOf('>'));
+    if (XSI_NIL.matcher(tag).find()) {
+      return null;
+    }
+    Matcher type = XSI_TYPE.matcher(tag);
+    return type.find() ? type.group(1) : "";
   }
 
   /** Границы {@code Properties} узла, которому принадлежит правка. */
