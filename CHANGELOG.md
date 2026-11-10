@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [0.6.10] - 2026-11-10
+
+
+### Исправления
+
+- **edt:** Записали списки ссылок и свойства видов через cf-md-object-set
+
+
 ## [0.6.9] - 2026-11-05
 
 
