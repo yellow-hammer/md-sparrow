@@ -99,6 +99,10 @@ class EdtTypeDescriptionTest {
     assertThat(date.dateQualifiers.dateFractions).isEqualTo("DATE");
 
     assertThat(EdtTypeDescription.read(types("Boolean"), model).types).containsExactly("xs:boolean");
+    // Двоичные данные конфигуратор пишет типом XML Schema: в схемах выгрузки имени BinaryData нет
+    MdTypeDescriptionDto binary = EdtTypeDescription.read(types("BinaryData"), model);
+    assertThat(binary.types).containsExactly("xs:base64Binary");
+    assertThat(binary.typeSets).isEmpty();
   }
 
   @Test
@@ -161,7 +165,7 @@ class EdtTypeDescriptionTest {
   void обратныйПереводВозвращаетИменаEdt() {
     List<String> names = List.of(
         "String", "Number", "Boolean", "Date", "AnyRef", "CatalogRef", "CatalogRef.Валюты",
-        "DefinedType.Организация", "ValueStorage", "UUID", "ValueList", "TypeDescription", "Picture",
+        "DefinedType.Организация", "ValueStorage", "UUID", "BinaryData", "ValueList", "TypeDescription", "Picture",
         "DataCompositionSettingsComposer", "DataCompositionFilter", "DataCompositionComparisonType",
         "ConstantsSet", "ReportObject");
     for (String name : names) {
