@@ -35,7 +35,10 @@ import io.github.yellowhammer.designerxml.cf.CfeBorrow;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.FormScaffold;
 import io.github.yellowhammer.designerxml.cf.SupportRules;
+import io.github.yellowhammer.designerxml.cf.DcsEdit;
 import io.github.yellowhammer.designerxml.cf.DcsRead;
+import io.github.yellowhammer.designerxml.cf.DcsSettingsEdit;
+import io.github.yellowhammer.designerxml.cf.DcsTemplateScaffold;
 import io.github.yellowhammer.designerxml.cf.SpreadsheetRead;
 import io.github.yellowhammer.designerxml.cf.RoleRightsFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
@@ -76,6 +79,7 @@ import io.github.yellowhammer.edt.EdtExternalArtifacts;
 import io.github.yellowhammer.edt.EdtFormCompositionEdit;
 import io.github.yellowhammer.edt.EdtFormItemPropertyEdit;
 import io.github.yellowhammer.edt.EdtFormItemStructureEdit;
+import io.github.yellowhammer.edt.EdtDcsTemplates;
 import io.github.yellowhammer.edt.EdtObjectScaffold;
 import io.github.yellowhammer.edt.EdtSupportRules;
 import io.github.yellowhammer.edt.EdtObjectProperties;
@@ -260,6 +264,8 @@ final class ApplyMutationCmd implements Callable<Integer> {
     "cf-form-parameter-rename",
     "cf-form-parameter-set",
     "cf-form-event-set",
+    "cf-dcs-template-add",
+    "cf-dcs-template-remove",
     "init-empty-cfe",
     "cfe-borrow-object",
     "external-artifact-add",
@@ -386,6 +392,15 @@ final class ApplyMutationCmd implements Callable<Integer> {
     switch (p.op) {
       case "cf-form-add" -> {
         EdtObjectScaffold.addForm(p.reqPath(p.objectXml, "objectXml"), EdtModel.bundled(), p.req(p.name, "name"));
+        return "OK";
+      }
+      case "cf-dcs-template-add" -> {
+        EdtDcsTemplates.add(
+          p.reqPath(p.objectXml, "objectXml"), EdtModel.bundled(), p.req(p.name, "name"), p.makeMain);
+        return "OK";
+      }
+      case "cf-dcs-template-remove" -> {
+        EdtDcsTemplates.remove(p.reqPath(p.objectXml, "objectXml"), EdtModel.bundled(), p.req(p.name, "name"));
         return "OK";
       }
       case "cf-md-form-delete" -> {
@@ -735,6 +750,230 @@ final class ApplyMutationCmd implements Callable<Integer> {
           field.get("dataPath"), field.get("expression"), field.get("title"));
         return "OK";
       }
+      case "cf-dcs-add-data-set":
+        DcsEdit.addDataSet(
+          p.reqPath(p.objectXml, "objectXml"), p.version(),
+          p.req(p.name, "name"), p.req(p.type, "type"), p.dataSource);
+        return "OK";
+      case "cf-dcs-remove-data-set":
+        DcsEdit.removeDataSet(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-dcs-rename-data-set":
+        DcsEdit.renameDataSet(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"), p.req(p.newName, "newName"));
+        return "OK";
+      case "cf-dcs-set-data-set-props": {
+        java.util.Map<String, Object> props = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.setDataSetProps(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"), props);
+        return "OK";
+      }
+      case "cf-dcs-add-field": {
+        java.util.Map<String, Object> field = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.addField(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.dataSet, "dataSet"), field);
+        return "OK";
+      }
+      case "cf-dcs-set-field": {
+        java.util.Map<String, Object> changes = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.setField(
+          p.reqPath(p.objectXml, "objectXml"), p.version(),
+          p.req(p.dataSet, "dataSet"), p.req(p.dataPath, "dataPath"), changes);
+        return "OK";
+      }
+      case "cf-dcs-remove-field":
+        DcsEdit.removeField(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.dataSet, "dataSet"), p.req(p.dataPath, "dataPath"));
+        return "OK";
+      case "cf-dcs-autofill-fields":
+        // ответ несёт added/skipped: вызывающая программа показывает, что добавлено и что пропущено
+        return new GsonBuilder().disableHtmlEscaping().create().toJson(DcsEdit.autofillFields(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.dataSet, "dataSet")));
+      case "cf-dcs-add-link": {
+        java.util.Map<String, Object> link = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.addLink(p.reqPath(p.objectXml, "objectXml"), p.version(), link);
+        return "OK";
+      }
+      case "cf-dcs-set-link": {
+        java.util.Map<String, Object> link = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.setLink(p.reqPath(p.objectXml, "objectXml"), p.version(), p.reqIndex(), link);
+        return "OK";
+      }
+      case "cf-dcs-remove-link":
+        DcsEdit.removeLink(p.reqPath(p.objectXml, "objectXml"), p.version(), p.reqIndex());
+        return "OK";
+      case "cf-dcs-set-calculated-field": {
+        java.util.Map<String, Object> field = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.setCalculatedField(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.dataPath, "dataPath"), field);
+        return "OK";
+      }
+      case "cf-dcs-remove-calculated-field":
+        DcsEdit.removeCalculatedField(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.dataPath, "dataPath"));
+        return "OK";
+      case "cf-dcs-add-total-field": {
+        java.util.Map<String, Object> total = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.addTotalField(p.reqPath(p.objectXml, "objectXml"), p.version(), total);
+        return "OK";
+      }
+      case "cf-dcs-set-total-field": {
+        java.util.Map<String, Object> total = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.setTotalField(p.reqPath(p.objectXml, "objectXml"), p.version(), p.reqIndex(), total);
+        return "OK";
+      }
+      case "cf-dcs-remove-total-field":
+        DcsEdit.removeTotalField(p.reqPath(p.objectXml, "objectXml"), p.version(), p.reqIndex());
+        return "OK";
+      case "cf-dcs-add-parameter": {
+        java.util.Map<String, Object> parameter = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.addParameter(p.reqPath(p.objectXml, "objectXml"), p.version(), parameter);
+        return "OK";
+      }
+      case "cf-dcs-set-parameter": {
+        java.util.Map<String, Object> parameter = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsEdit.setParameter(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"), parameter);
+        return "OK";
+      }
+      case "cf-dcs-remove-parameter":
+        DcsEdit.removeParameter(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-dcs-add-settings-variant": {
+        // payload необязателен: без него представлением нового варианта становится имя
+        java.util.Map<String, Object> variantPayload = p.payloadJson == null || p.payloadJson.isBlank()
+          ? java.util.Map.of()
+          : new Gson().fromJson(
+            p.payloadJson,
+            new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.addSettingsVariant(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"), variantPayload);
+        return "OK";
+      }
+      case "cf-dcs-remove-settings-variant":
+        DcsSettingsEdit.removeSettingsVariant(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
+      case "cf-dcs-set-settings-variant-props": {
+        java.util.Map<String, Object> variantProps = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.setSettingsVariantProps(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"), variantProps);
+        return "OK";
+      }
+      case "cf-dcs-add-structure-item": {
+        java.util.Map<String, Object> structureItem = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.addStructureItem(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), structureItem);
+        return "OK";
+      }
+      case "cf-dcs-remove-structure-item": {
+        java.util.Map<String, Object> structurePath = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.removeStructureItem(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), structurePath);
+        return "OK";
+      }
+      case "cf-dcs-move-structure-item": {
+        java.util.Map<String, Object> structureMove = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.moveStructureItem(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), structureMove);
+        return "OK";
+      }
+      case "cf-dcs-set-selection": {
+        java.util.Map<String, Object> selectionItems = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.setSelection(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), selectionItems);
+        return "OK";
+      }
+      case "cf-dcs-set-filter": {
+        java.util.Map<String, Object> filterItems = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.setFilter(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), filterItems);
+        return "OK";
+      }
+      case "cf-dcs-set-order": {
+        java.util.Map<String, Object> orderItems = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.setOrder(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), orderItems);
+        return "OK";
+      }
+      case "cf-dcs-set-group-fields": {
+        java.util.Map<String, Object> groupFieldItems = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.setGroupFields(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), groupFieldItems);
+        return "OK";
+      }
+      case "cf-dcs-set-parameter-value": {
+        java.util.Map<String, Object> parameterValue = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.setParameterValue(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), parameterValue);
+        return "OK";
+      }
+      case "cf-dcs-add-appearance-item": {
+        java.util.Map<String, Object> appearanceAdd = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.addAppearanceItem(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), appearanceAdd);
+        return "OK";
+      }
+      case "cf-dcs-set-appearance-item": {
+        java.util.Map<String, Object> appearanceSet = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.setAppearanceItem(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), appearanceSet);
+        return "OK";
+      }
+      case "cf-dcs-remove-appearance-item": {
+        java.util.Map<String, Object> appearanceRemove = new Gson().fromJson(
+          p.req(p.payloadJson, "payloadJson"),
+          new com.google.gson.reflect.TypeToken<java.util.Map<String, Object>>() { }.getType());
+        DcsSettingsEdit.removeAppearanceItem(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.variant, "variant"), appearanceRemove);
+        return "OK";
+      }
+      case "cf-dcs-template-add":
+        DcsTemplateScaffold.add(
+          p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"), p.makeMain);
+        return "OK";
+      case "cf-dcs-template-remove":
+        DcsTemplateScaffold.remove(p.reqPath(p.objectXml, "objectXml"), p.version(), p.req(p.name, "name"));
+        return "OK";
       case "cf-role-rights-set": {
         // payload: {"edits":[{object,right,value}...],"flags":{имяФлага:значение}}
         RoleRightsPayload payload = new Gson().fromJson(

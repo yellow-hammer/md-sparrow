@@ -196,6 +196,20 @@ public final class ConfigurationLanguage {
     return XmlElementTextReader.read(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8), name);
   }
 
+  /**
+   * Описание конфигурации, в выгрузке которой лежит файл.
+   *
+   * <p>Тот же поиск, что у языка текстов: макету СКД нужны объекты конфигурации (имена
+   * определяемых типов, ссылочные типы), и найдены они должны быть там же, где язык.
+   *
+   * @param objectFile файл объекта или макета
+   * @return {@code Configuration.xml} выгрузки либо {@code Configuration.mdo} проекта EDT;
+   *   {@code null}, если файл лежит вне конфигурации (внешний отчёт, отдельный файл)
+   */
+  public static Path configurationFileOf(Path objectFile) {
+    return objectFile == null ? null : configurationFile(objectFile.toAbsolutePath().normalize());
+  }
+
   /** Описание конфигурации над файлом объекта, в любой из двух раскладок. */
   private static Path configurationFile(Path objectFile) {
     Path current = objectFile.getParent();

@@ -20,6 +20,7 @@
 | `cfe-empty/` | пустое расширение: `Configuration.xml` и роль по умолчанию | `config extension create --name=ПустоеРасширение --name-prefix=пр --purpose=add-on` в пустой ИБ, `config export --extension` |
 | `external-files/empty/` | голые `ВнешнийОтчет1` и `ВнешняяОбработка1` | [`seed-external/`](seed-external/): `config import --out=<файл>`, затем `config export --file=<файл>` |
 | `external-files/empty-full-objects/` | внешние отчёт и обработка с формами и модулями | `.epf`/`.erf` из эталона 2.20 собирает платформа 8.3.27+, разбирает платформа нужной версии |
+| `cf-dcs/` | отчёт с пустой основной схемой компоновки данных (описание макета, `Ext/Template.xml`, `MainDataCompositionSchema`) и общий макет СКД с тем же содержимым | семя [`seed-dcs/`](seed-dcs/), обычный `config import` с проверкой. Платформа хранит разобранную схему, а не байты: семя [`seed-dcs-verify/`](seed-dcs-verify/) с тем же содержимым в другой записи (без BOM, отступы пробелами, другой порядок объявлений пространств имён, пустой элемент парой тегов, перевод строки в конце файла) обязано выгрузиться байт в байт так же — так подтверждается, что выгрузка и есть канон платформы. `dump.sh dcs` переснимает только этот набор |
 
 Виды новее формата платформы не снимаются: `Bot` появился в 2.11, `WebSocketClient` в 2.20,
 `PaletteColor` в 2.21.
@@ -304,4 +305,4 @@ python3 tools/golden-snapshots/roundtrip.py --jar build/libs/md-sparrow-<вер�
 - [`snapshot.py`](snapshot.py) - сборка семени (и семени с узлами), срезка вспомогательного, сверка каталогов.
 - [`edt-import.sh`](edt-import.sh) - импорт снятых эталонов в проекты 1C:EDT.
 - [`seed/`](seed/), [`seed-deps/`](seed-deps/), [`seed-external/`](seed-external/),
-  [`seed-cfe/`](seed-cfe/) - семена.
+  [`seed-cfe/`](seed-cfe/), [`seed-dcs/`](seed-dcs/), [`seed-dcs-verify/`](seed-dcs-verify/) - семена.

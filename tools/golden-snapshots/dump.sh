@@ -7,6 +7,7 @@
 #   cf-object-nodes/     объекты-владельцы с узлом каждого вида: реквизит, табличная часть, команда...
 #   cfe-empty/           пустое расширение
 #   external-files/      внешние отчёт и обработка: empty/ и empty-full-objects/
+#   cf-dcs/              отчёт с пустой основной схемой компоновки данных и общий макет СКД
 # Формат определяется по атрибуту version выгрузки. Сводка «что снято каким путём» пишется
 # в $OUT/summary-<версия платформы>.txt.
 #
@@ -14,6 +15,7 @@
 #   dump.sh                  снять эталоны
 #   dump.sh build-external   только собрать .epf/.erf из EXT_FULL_SRC в EXT_BIN (нужна платформа 8.3.27+)
 #   dump.sh nodes            только переснять cf-object-nodes (остальное в $OUT/<формат> не трогается)
+#   dump.sh dcs              только переснять cf-dcs (остальное в $OUT/<формат> не трогается)
 #
 # Переменные окружения:
 #   BIN           каталог с ibcmd (по умолчанию ищется в /opt/1cv8 и /opt/1C)
@@ -69,8 +71,10 @@ if [ -z "$PY" ]; then
 		if [ "$("${TIMEOUT[@]}" "$CAND" -c "print('ok')" 2>/dev/null)" = "ok" ]; then PY="$CAND"; break; fi
 	done
 fi
-[ -n "$PY" ] || die "не найден Python 3, задайте PYTHON"
-snap() { "$PY" "$(topath "$HERE/snapshot.py")" "$@"; }
+snap() {
+	[ -n "$PY" ] || die "не найден Python 3, задайте PYTHON"
+	"$PY" "$(topath "$HERE/snapshot.py")" "$@"
+}
 
 # Язык процесса влияет на имена по умолчанию (роль расширения, вариант языка): эталоны русские.
 if locale -a 2>/dev/null | grep -qi '^ru_RU\.utf-\?8$'; then
@@ -163,7 +167,7 @@ if [ "$MODE" = "build-external" ]; then
 	ls -l "$EXT_BIN"
 	exit 0
 fi
-[ "$MODE" = "dump" ] || [ "$MODE" = "nodes" ] || die "неизвестная команда: $MODE"
+[ "$MODE" = "dump" ] || [ "$MODE" = "nodes" ] || [ "$MODE" = "dcs" ] || die "неизвестная команда: $MODE"
 
 echo "Платформа $PLATFORM: $IBCMD"
 SUMMARY=()
@@ -181,6 +185,9 @@ DEST="$OUT/$FORMAT"
 if [ "$MODE" = "nodes" ]; then
 	mkdir -p "$DEST"
 	note "Платформа $PLATFORM, формат выгрузки $FORMAT: только cf-object-nodes"
+elif [ "$MODE" = "dcs" ]; then
+	mkdir -p "$DEST"
+	note "Платформа $PLATFORM, формат выгрузки $FORMAT: только cf-dcs"
 else
 	rm -rf "$DEST"
 	mkdir -p "$DEST"
@@ -313,6 +320,58 @@ if [ "$MODE" = "nodes" ]; then
 	snap_nodes
 	printf '%s\n' "${SUMMARY[@]}" >"$OUT/summary-$PLATFORM-nodes.txt"
 	echo "Сводка: $OUT/summary-$PLATFORM-nodes.txt"
+	[ "$TAKEN" -gt 0 ] || die "ничего не снято"
+	exit $STATUS
+fi
+
+# ---------- 2в. Макет СКД ----------
+# Пустая схема компоновки данных, как её пишет платформа: отчёт с основной схемой и общий макет СКД.
+# Платформа хранит разобранную схему, а не байты файла, поэтому выгрузка нормализует запись.
+# Проверка: второе семя с тем же содержимым в другой записи (без BOM, отступы пробелами, другой порядок
+# объявлений пространств имён, пустой элемент парой тегов, перевод строки в конце файла) обязано
+# выгрузиться байт в байт так же.
+snap_dcs() {
+	local dcs_dest="$DEST/cf-dcs" tpl="Reports/Отчет1/Templates/ОсновнаяСхемаКомпоновкиДанных/Ext/Template.xml"
+	ib_create dcs || { show_log create-dcs.log; note "cf-dcs: НЕ снят - не создаётся ИБ"; STATUS=3; return; }
+	if ! ibc import-dcs.log dcs config import -- "$(topath "$HERE/seed-dcs")"; then
+		show_log import-dcs.log 40
+		note "cf-dcs: НЕ снят - платформа отвергла семя seed-dcs"
+		STATUS=3
+		return
+	fi
+	ibc export-dcs.log dcs config export -- "$(topath "$WORK/x/dcs")" \
+		|| { show_log export-dcs.log; note "cf-dcs: НЕ снят - конфигурация с макетом не выгружается"; STATUS=3; return; }
+	rm -rf "$dcs_dest"
+	cp -r "$WORK/x/dcs" "$dcs_dest"
+	rm -f "$dcs_dest/ConfigDumpInfo.xml"
+	note "cf-dcs: снят (отчёт с основной схемой компоновки и общий макет СКД, config import с проверкой)"
+	TAKEN=$((TAKEN + 1))
+	if cmp -s "$dcs_dest/$tpl" "$dcs_dest/CommonTemplates/ОбщийМакет1/Ext/Template.xml"; then
+		note "  содержимое схемы у макета отчёта и общего макета совпадает байт в байт"
+	else
+		note "  ERROR: содержимое схемы у макета отчёта и общего макета различается"
+		STATUS=3
+	fi
+	if ib_create dcs-verify \
+		&& ibc import-dcs-verify.log dcs-verify config import -- "$(topath "$HERE/seed-dcs-verify")" \
+		&& ibc export-dcs-verify.log dcs-verify config export -- "$(topath "$WORK/x/dcs-verify")"; then
+		if cmp -s "$dcs_dest/$tpl" "$WORK/x/dcs-verify/$tpl"; then
+			note "  нормализация: семя в другой записи выгружено теми же байтами"
+		else
+			note "  ERROR: нормализация не подтверждена - выгрузки двух записей семени различаются"
+			STATUS=3
+		fi
+	else
+		[ -f "$LOGS/import-dcs-verify.log" ] && show_log import-dcs-verify.log 40
+		note "  ERROR: сверка нормализации не выполнена - семя seed-dcs-verify не прошло"
+		STATUS=3
+	fi
+}
+
+if [ "$MODE" = "dcs" ]; then
+	snap_dcs
+	printf '%s\n' "${SUMMARY[@]}" >"$OUT/summary-$PLATFORM-dcs.txt"
+	echo "Сводка: $OUT/summary-$PLATFORM-dcs.txt"
 	[ "$TAKEN" -gt 0 ] || die "ничего не снято"
 	exit $STATUS
 fi
@@ -513,6 +572,9 @@ else
 		fi
 	fi
 fi
+
+# ---------- 5. Макет СКД ----------
+snap_dcs
 
 printf '%s\n' "${SUMMARY[@]}" >"$OUT/summary-$PLATFORM.txt"
 echo "Сводка: $OUT/summary-$PLATFORM.txt"

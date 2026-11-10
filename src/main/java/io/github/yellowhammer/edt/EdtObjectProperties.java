@@ -128,6 +128,38 @@ public final class EdtObjectProperties {
   }
 
   /**
+   * Описание типа из свойства объекта в записи конфигуратора: например, тип определяемого типа,
+   * которого общий контракт свойств не несёт.
+   *
+   * <p>Квалификаторы без записанных значений получают умолчания метамодели: 1С:EDT их в файл не пишет.
+   *
+   * @param objectMdo файл объекта
+   * @param feature имя элемента с типом, например {@code type}
+   * @param model метамодель EDT
+   * @return описание либо {@code null}, если элемента нет
+   * @throws IOException если файл не читается
+   */
+  public static MdTypeDescriptionDto readType(Path objectMdo, String feature, EdtModel model) throws IOException {
+    return EdtTypeDescription.read(EdtObjectReader.read(objectMdo), feature, model);
+  }
+
+  /**
+   * Список строк из свойства объекта, которого общий контракт свойств у этого вида не несёт: например,
+   * документы последовательности ({@code documents}) для таблиц языка запросов.
+   *
+   * <p>Такие свойства не входят в {@link #readDto}: запись свойств ({@code EdtObjectWriter}) не умеет
+   * писать их обратно.
+   *
+   * @param objectMdo файл объекта
+   * @param feature имя повторяющегося элемента, например {@code documents}
+   * @return значения в порядке файла без пустых; элемента нет — пустой список
+   * @throws IOException если файл не читается
+   */
+  public static List<String> readList(Path objectMdo, String feature) throws IOException {
+    return EdtPropertyValues.list(EdtObjectReader.read(objectMdo), feature);
+  }
+
+  /**
    * Читает свойства внешнего отчёта или обработки.
    *
    * Внешний артефакт в EDT описан таким же файлом, как объект конфигурации,
