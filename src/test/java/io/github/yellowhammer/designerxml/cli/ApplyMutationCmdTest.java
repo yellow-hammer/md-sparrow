@@ -694,6 +694,32 @@ class ApplyMutationCmdTest {
   }
 
   @Test
+  void formatNumberInsteadOfName_namesExpectedForm() throws Exception {
+    // Номер из файла (2.20) вместо имени: отказ «2.20 не поддержан» при поддержанном 2.20 сбил бы с толку.
+    Path params = writeParams(
+      "{"
+        + "\"op\":\"cf-md-object-get\","
+        + "\"objectXml\":" + json(sampleCatalogXml().toString()) + ","
+        + "\"schemaVersion\":\"2.20\""
+        + "}");
+
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    PrintStream prev = System.err;
+    int exit;
+    try {
+      System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
+      exit = new CommandLine(new DesignerXmlCli()).execute("read-json", "--params", params.toString());
+    } finally {
+      System.setErr(prev);
+    }
+
+    assertThat(exit).isEqualTo(2);
+    assertThat(err.toString(StandardCharsets.UTF_8))
+      .contains("schemaVersion задаётся именем формата V2_20, а не номером «2.20»")
+      .doesNotContain("не поддержан");
+  }
+
+  @Test
   void readFormatVersions_listsEveryFormatWithItsPlatform() throws Exception {
     Path params = writeParams("{\"op\":\"cf-format-versions\"}");
 
