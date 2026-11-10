@@ -117,7 +117,8 @@ public final class MdObjectPropertiesDto {
 
   public List<String> nestedSubsystems;
   /**
-   * Состав подсистемы (ссылки на объекты метаданных) — только чтение; при записи не изменяется.
+   * Состав: ссылки на объекты метаданных. У подсистемы, функциональной опции, критерия отбора и
+   * у параметра функциональной опции, где это использование.
    */
   public List<String> contentRefs;
   /** Поля {@code CatalogProperties} для {@code kind=catalog}; иначе {@code null}. */
