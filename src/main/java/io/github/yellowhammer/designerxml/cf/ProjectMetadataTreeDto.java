@@ -51,6 +51,8 @@ public record ProjectMetadataTreeDto(
     String metadataRootRelativePath,
     /** Значение {@code MetaDataObject/@version} источника; у внешних отчётов и обработок пусто. */
     String schemaVersion,
+    /** Свойство {@code Version} конфигурации или расширения; пусто у внешних отчётов и обработок. */
+    String version,
     /** Формат выгрузки читается библиотекой; у расширения чужого формата {@code false} и пустой состав. */
     boolean schemaSupported,
     /**

@@ -43,26 +43,34 @@ public final class ConfigurationChildObjectsExtractor {
   private ConfigurationChildObjectsExtractor() {
   }
 
+  /** Состав и свойство {@code Version} одного разбора. */
+  record Contents(List<ChildObjectEntry> children, String version) {
+  }
+
   /**
    * @param configurationXml путь к {@code Configuration.xml}
    * @param version          версия XSD/JAXB (должна совпадать с выгрузкой)
    */
   public static List<ChildObjectEntry> readChildObjects(Path configurationXml, SchemaVersion version)
     throws JAXBException, IOException {
+    return read(configurationXml, version).children();
+  }
+
+  static Contents read(Path configurationXml, SchemaVersion version) throws JAXBException, IOException {
     Object mdo = JaxbReflect.value(DesignerXml.read(configurationXml, version));
     Object cfg = JaxbReflect.get(mdo, "getConfiguration");
     if (cfg == null) {
       throw new IOException("В Configuration.xml нет элемента Configuration");
     }
+    String appVersion = JaxbReflect.getStringOptional(JaxbReflect.get(cfg, "getProperties"), "getVersion");
     Object child = JaxbReflect.get(cfg, "getChildObjects");
-    if (child == null) {
-      return List.of();
-    }
     List<ChildObjectEntry> out = new ArrayList<>();
-    for (Map.Entry<String, List<String>> e : JaxbReflect.orderedStringLists(child)) {
-      append(out, e.getKey(), e.getValue());
+    if (child != null) {
+      for (Map.Entry<String, List<String>> e : JaxbReflect.orderedStringLists(child)) {
+        append(out, e.getKey(), e.getValue());
+      }
     }
-    return out;
+    return new Contents(out, appVersion == null ? "" : appVersion.trim());
   }
 
   private static void append(List<ChildObjectEntry> out, String xmlTag, List<String> values) {

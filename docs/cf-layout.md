@@ -12,7 +12,9 @@ submodule **`fixtures/samples-1c-platform`** (см. [scaffold-golden.md](scaffol
 пути к файлам выгрузки относительно корня проекта. Пусто только если файла объекта нет.
 То же правило отдаёт **`cf-md-object-open-get`**.
 
-У каждого источника есть **`schemaVersion`** (значение `MetaDataObject/@version`) и **`schemaSupported`**.
+У каждого источника есть **`schemaVersion`** (значение `MetaDataObject/@version`), **`version`**
+(свойство `Version` конфигурации или расширения, например `3.1.11.392`) и **`schemaSupported`**.
+У внешних отчётов и обработок `version` пусто.
 Расширение с версией вне поддерживаемых остаётся в `sources` с `schemaSupported: false` и пустым
 `groups`: имя берётся из `Configuration.xml`, состав не читается, остальные источники строятся
 как обычно. Для **основной** конфигурации такая версия по-прежнему ошибка. `cf-md-graph` объекты

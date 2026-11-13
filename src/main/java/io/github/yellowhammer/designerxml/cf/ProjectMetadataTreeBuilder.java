@@ -131,9 +131,10 @@ public final class ProjectMetadataTreeBuilder {
     String schemaVersion,
     SchemaVersion schema
   ) throws IOException {
-    List<ChildObjectEntry> entries = loadChildObjects(projectRoot, configurationXml, schema);
+    ConfigurationChildObjectsExtractor.Contents loaded =
+      loadConfiguration(projectRoot, configurationXml, schema);
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
-      MetadataTreeTagGroups.buildGroups(entries);
+      MetadataTreeTagGroups.buildGroups(loaded.children());
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
       mapGroups(projectRoot, cfRoot, payloads);
     String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
@@ -160,6 +161,7 @@ public final class ProjectMetadataTreeBuilder {
       cfgRel,
       rootRel,
       schemaVersion,
+      loaded.version(),
       true,
       support,
       supportEditingEnabled,
@@ -187,6 +189,7 @@ public final class ProjectMetadataTreeBuilder {
         cfgRel,
         rootRel,
         schemaVersion,
+        "",
         false,
         null,
         false,
@@ -194,7 +197,9 @@ public final class ProjectMetadataTreeBuilder {
         List.of()
       );
     }
-    List<ChildObjectEntry> entries = loadChildObjects(projectRoot, configurationXml, schema.get());
+    ConfigurationChildObjectsExtractor.Contents loaded =
+      loadConfiguration(projectRoot, configurationXml, schema.get());
+    List<ChildObjectEntry> entries = loaded.children();
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
       MetadataTreeTagGroups.buildGroups(entries);
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
@@ -206,6 +211,7 @@ public final class ProjectMetadataTreeBuilder {
       cfgRel,
       rootRel,
       schemaVersion,
+      loaded.version(),
       true,
       null,
       false,
@@ -250,13 +256,13 @@ public final class ProjectMetadataTreeBuilder {
     }
   }
 
-  private static List<ChildObjectEntry> loadChildObjects(
+  private static ConfigurationChildObjectsExtractor.Contents loadConfiguration(
     Path projectRoot,
     Path configurationXml,
     SchemaVersion schema
   ) throws IOException {
     try {
-      return ConfigurationChildObjectsExtractor.readChildObjects(configurationXml, schema);
+      return ConfigurationChildObjectsExtractor.read(configurationXml, schema);
     } catch (JAXBException e) {
       throw ReadFailure.of(
         "Не удалось прочитать выгрузку конфигуратора", relativeOrAbsolute(projectRoot, configurationXml), e);
@@ -428,6 +434,7 @@ public final class ProjectMetadataTreeBuilder {
       "",
       rootRelativePath,
       "",
+      "",
       true,
       null,
       false,
@@ -454,6 +461,7 @@ public final class ProjectMetadataTreeBuilder {
       "Внешние обработки",
       "",
       rootRelativePath,
+      "",
       "",
       true,
       null,

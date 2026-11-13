@@ -109,6 +109,8 @@ class EdtProjectMetadataTreeTest {
         .startsWith("main")
         .contains("extension");
     assertThat(source("main").label()).isEqualTo("БиблиотекаСтандартныхПодсистемДемо");
+    assertThat(source("main").version()).isEqualTo("3.1.11.392");
+    assertThat(source("ssl31._ДемоРасширение").version()).isEqualTo("1.0.1.14");
     assertThat(source("ssl31._ДемоРасширение").kind()).isEqualTo("extension");
   }
 

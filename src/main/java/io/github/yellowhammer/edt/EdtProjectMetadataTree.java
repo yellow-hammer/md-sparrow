@@ -121,6 +121,7 @@ public final class EdtProjectMetadataTree {
         relative(workspaceRoot, configurationMdo),
         relative(workspaceRoot, sourceRoot),
         "",
+        configuration.property("version").trim(),
         true,
         support.isEmpty() ? null : support.effectiveState(configuration.uuid()),
         support.editingEnabled && !support.isEmpty(),

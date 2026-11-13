@@ -50,6 +50,9 @@ class ProjectMetadataTreeBuilderTest {
     ProjectMetadataTreeDto.MetadataSourceDto main =
       sources.stream().filter(s -> "main".equals(s.kind())).findFirst().orElseThrow();
     assertThat(main.label()).isEqualTo("Основная конфигурация");
+    assertThat(main.version()).isEqualTo("3.1.11.392");
+    assertThat(sourceById(dto, "_ДемоРасширение").version()).isEqualTo("1.0.1.14");
+    assertThat(sourceById(dto, "_ДемоПустоеРасширение").version()).isEqualTo("1.0.1.1");
     assertThat(main.configurationXmlRelativePath()).isEqualTo("src/cf/Configuration.xml");
     var catalogs =
       main.groups().stream().filter(g -> "catalogs".equals(g.id())).findFirst().orElseThrow();
