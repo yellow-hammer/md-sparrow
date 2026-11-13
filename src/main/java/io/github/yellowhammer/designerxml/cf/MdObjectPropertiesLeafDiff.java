@@ -36,15 +36,17 @@ public final class MdObjectPropertiesLeafDiff {
    * @param namedChildContainerLocal если не {@code null} — {@code Attribute} или {@code TabularSection};
    *   иначе замена прямого дочернего элемента {@code Properties} объекта ({@code Catalog} / …).
    * @param namedChildObjectInternalName имя из {@code Name} (реквизит / ТЧ), только для именованного дочернего объекта
+   * @param type новый тип узла, если замена - его {@code Type}; иначе {@code null}
    */
   public record GranularPatchChange(
     String mdElementLocalName,
     String replacementElementXml,
     String namedChildContainerLocal,
-    String namedChildObjectInternalName) {
+    String namedChildObjectInternalName,
+    MdTypeDescriptionDto type) {
 
     public static GranularPatchChange objectProperty(String mdElementLocalName, String replacementElementXml) {
-      return new GranularPatchChange(mdElementLocalName, replacementElementXml, null, null);
+      return new GranularPatchChange(mdElementLocalName, replacementElementXml, null, null, null);
     }
 
     public static GranularPatchChange namedChild(
@@ -52,7 +54,17 @@ public final class MdObjectPropertiesLeafDiff {
       String objectInternalName,
       String mdElementLocalName,
       String replacementElementXml) {
-      return new GranularPatchChange(mdElementLocalName, replacementElementXml, childContainerLocal, objectInternalName);
+      return new GranularPatchChange(
+        mdElementLocalName, replacementElementXml, childContainerLocal, objectInternalName, null);
+    }
+
+    /** Смена типа узла: за ней идёт и значение заполнения узла, см. {@link FillValueCanon}. */
+    public static GranularPatchChange namedChildType(
+      String childContainerLocal,
+      String objectInternalName,
+      MdTypeDescriptionDto type) {
+      return new GranularPatchChange(
+        "Type", MdTypeDescriptionSerial.typeElement("Type", type), childContainerLocal, objectInternalName, type);
     }
 
     public boolean isNamedChildObject() {
@@ -366,11 +378,7 @@ public final class MdObjectPropertiesLeafDiff {
           MdCatalogPropertiesGranularSerial.commentElement(y.comment)));
       }
       if (!MdFlatDtoSupport.equalsFlat(x.type, y.type, false)) {
-        out.add(GranularPatchChange.namedChild(
-          childContainerLocal,
-          y.name,
-          "Type",
-          MdTypeDescriptionSerial.typeElement("Type", y.type)));
+        out.add(GranularPatchChange.namedChildType(childContainerLocal, y.name, y.type));
       }
       appendNamedChildPaletteChanges(childContainerLocal, x, y, out);
     }

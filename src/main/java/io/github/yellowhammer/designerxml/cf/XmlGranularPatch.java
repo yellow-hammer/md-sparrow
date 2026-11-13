@@ -35,20 +35,20 @@ import java.util.regex.Pattern;
  *
  * <p>Общая часть для свойств объекта метаданных и свойств элемента формы: посчитать смещения,
  * сохранить отступы и перевод строки исходника, применить правки с конца.
+ *
+ * <p>Раскладка фрагмента по строкам трогает только разметку между тегами. Текст элемента
+ * переносится дословно: многострочное выражение, заголовок или значение не получают отступов
+ * на строках продолжения, пустые строки и ведущие табуляции строк сохраняются. Меняется в тексте
+ * только вид перевода строки — на перевод строки файла: XML-разбор всё равно отдаёт текст с LF,
+ * а платформа хранит многострочный текст в CRLF-файле с CRLF.
  */
 final class XmlGranularPatch {
 
-  /**
-   * Отступы разметки между тегами: обязателен перевод строки, иначе пробел -
-   * это значение элемента, и схлопывать его нельзя.
-   */
-  private static final Pattern INTER_TAG_WS = Pattern.compile(">[ \\t]*[\\r\\n]\\s*<");
-
-  /** Пара «открыли и сразу закрыли»: значение элемента пустое, ломать строку нельзя. */
-  private static final Pattern EMPTY_ELEMENT = Pattern.compile("<([A-Za-z0-9:_.\\-]+)([^>]*)></\\1>");
-  private static final String EMPTY_ELEMENT_MARK = String.valueOf((char) 0);
-
   private XmlGranularPatch() {
+  }
+
+  /** Кусок фрагмента: тег (вместе с угловыми скобками) или текст между тегами. */
+  private record Token(String text, boolean tag) {
   }
 
   /** Замена участка {@code [start, end)} на текст; {@code start == end} — вставка. */
@@ -109,22 +109,21 @@ final class XmlGranularPatch {
 
   /** Раскладывает многоузловой элемент по строкам от отступа заменяемого узла. */
   static String formatReplacementPreservingIndent(String xmlUtf8, int start, String replacementElementXml) {
-    if (replacementElementXml == null
-      || replacementElementXml.isEmpty()
-      || !replacementElementXml.contains("><")) {
+    if (replacementElementXml == null || replacementElementXml.isEmpty()) {
       return replacementElementXml;
+    }
+    String eol = fileEol(xmlUtf8);
+    if (!replacementElementXml.contains("><")) {
+      // Один узел остаётся как есть; переводы строк в нём — текст элемента либо уже готовая
+      // разметка, и у того и у другого вид перевода строки должен быть файловым
+      return lineBreaks(replacementElementXml, eol);
     }
     String indent = currentLineIndent(xmlUtf8, start);
-    String eol = fileEol(xmlUtf8);
-    String compact = INTER_TAG_WS.matcher(replacementElementXml.trim()).replaceAll("><");
-    if (!compact.contains("><")) {
-      return replacementElementXml;
-    }
-    String[] lines = splitByTags(compact);
-    StringBuilder out = new StringBuilder(compact.length() + lines.length * 2);
+    List<String> lines = layoutLines(replacementElementXml, eol);
+    StringBuilder out = new StringBuilder(replacementElementXml.length() + lines.size() * (indent.length() + 4));
     int depth = 0;
-    for (int i = 0; i < lines.length; i++) {
-      String line = lines[i].trim();
+    for (int i = 0; i < lines.size(); i++) {
+      String line = lines.get(i);
       if (line.startsWith("</")) {
         depth = Math.max(0, depth - 1);
       }
@@ -148,12 +147,11 @@ final class XmlGranularPatch {
    */
   static String formatInsertion(String xmlUtf8, String indent, String elementXml) {
     String eol = fileEol(xmlUtf8);
-    String compact = INTER_TAG_WS.matcher(elementXml.trim()).replaceAll("><");
-    String[] lines = splitByTags(compact);
-    StringBuilder out = new StringBuilder(compact.length() + indent.length() * lines.length + 2);
+    List<String> lines = layoutLines(elementXml, eol);
+    StringBuilder out = new StringBuilder(elementXml.length() + lines.size() * (indent.length() + 4));
     int depth = 0;
-    for (int i = 0; i < lines.length; i++) {
-      String line = lines[i].trim();
+    for (int i = 0; i < lines.size(); i++) {
+      String line = lines.get(i);
       if (line.startsWith("</")) {
         depth = Math.max(0, depth - 1);
       }
@@ -168,22 +166,160 @@ final class XmlGranularPatch {
     return out.toString();
   }
 
-  /** Разбивает фрагмент по тегам, оставляя пустые элементы одной строкой. */
-  private static String[] splitByTags(String compact) {
-    String guarded = EMPTY_ELEMENT.matcher(compact).replaceAll(m ->
-      "<" + m.group(1) + m.group(2) + ">" + EMPTY_ELEMENT_MARK + "</" + m.group(1) + ">");
-    String[] lines = guarded.replace("><", ">\n<").split("\n");
-    for (int i = 0; i < lines.length; i++) {
-      lines[i] = lines[i].replace(EMPTY_ELEMENT_MARK, "");
+  /**
+   * Приводит переводы строк ({@code \r\n}, одиночные {@code \r} и {@code \n}) к переводу строки
+   * файла.
+   *
+   * <p>Нужно тексту элементов, который пишется в файл: прочитанный многострочный текст приходит
+   * с LF (см. описание класса), и без приведения эхо давало бы смешанные концы строк.
+   *
+   * @param eol перевод строки файла ({@link #fileEol})
+   */
+  static String lineBreaks(String text, String eol) {
+    if (text == null || (text.indexOf('\r') < 0 && text.indexOf('\n') < 0)) {
+      return text;
+    }
+    String lf = text.replace("\r\n", "\n").replace('\r', '\n');
+    return "\n".equals(eol) ? lf : lf.replace("\n", eol);
+  }
+
+  /**
+   * Строки раскладки фрагмента: новая строка — у каждого тега, перед которым стоит тег, кроме
+   * закрывающего тега сразу за своим открывающим ({@code <x></x>} — одна строка).
+   *
+   * <p>Пробельный текст с переводом строки между тегами — разметка исходника, она отбрасывается
+   * и расставляется заново. Исключение — единственное содержимое элемента ({@code <x>\n</x>}):
+   * пустой элемент платформа пишет самозакрытым, значит это значение, и его нельзя схлопывать.
+   * Прочий текст остаётся в строке своего тега дословно, только с переводом строки файла: так
+   * продолжения многострочного текста не получают отступа.
+   */
+  private static List<String> layoutLines(String fragment, String eol) {
+    List<Token> tokens = tokens(fragment.trim());
+    List<String> lines = new ArrayList<>();
+    StringBuilder line = null;
+    Token previous = null;
+    for (int i = 0; i < tokens.size(); i++) {
+      Token token = tokens.get(i);
+      if (!token.tag()) {
+        Token next = i + 1 < tokens.size() ? tokens.get(i + 1) : null;
+        if (isLayoutWhitespace(token.text()) && !(next != null && ownContent(previous, next))) {
+          continue;
+        }
+      }
+      boolean breaks = line == null
+        || token.tag() && previous != null && previous.tag() && !ownContent(previous, token);
+      if (breaks) {
+        if (line != null) {
+          lines.add(line.toString());
+        }
+        line = new StringBuilder();
+      }
+      line.append(token.tag() ? token.text() : lineBreaks(token.text(), eol));
+      previous = token;
+    }
+    if (line != null) {
+      lines.add(line.toString());
     }
     return lines;
   }
 
+  /** Пробелы с переводом строки: так выглядит только разметка между тегами. */
+  private static boolean isLayoutWhitespace(String text) {
+    boolean newline = false;
+    for (int i = 0; i < text.length(); i++) {
+      char c = text.charAt(i);
+      if (c == '\r' || c == '\n') {
+        newline = true;
+      } else if (c != ' ' && c != '\t') {
+        return false;
+      }
+    }
+    return newline;
+  }
+
+  /** Закрывающий тег {@code close} закрывает открывающий {@code open}: между ними — содержимое элемента. */
+  private static boolean ownContent(Token open, Token close) {
+    return open != null && open.tag() && close.tag() && isOpeningTag(open.text())
+      && close.text().startsWith("</") && tagName(open.text()).equals(tagName(close.text()));
+  }
+
+  private static boolean isOpeningTag(String tag) {
+    return tag.startsWith("<") && !tag.startsWith("</") && !tag.startsWith("<!") && !tag.startsWith("<?")
+      && !tag.endsWith("/>");
+  }
+
+  /** Имя тега с префиксом: {@code <dcsset:item xsi:type="…">} — {@code dcsset:item}. */
+  private static String tagName(String tag) {
+    int from = tag.startsWith("</") ? 2 : 1;
+    int i = from;
+    while (i < tag.length() && " \t\r\n/>".indexOf(tag.charAt(i)) < 0) {
+      i++;
+    }
+    return tag.substring(from, i);
+  }
+
+  /**
+   * Теги и тексты фрагмента по порядку. Конец тега ищется с учётом кавычек атрибутов; секция
+   * CDATA — текст, комментарий — тег. Незакрытый тег — текст до конца фрагмента: разметку
+   * исправлять не нам, её отвергнет перечитка моделью.
+   */
+  private static List<Token> tokens(String fragment) {
+    List<Token> out = new ArrayList<>();
+    int i = 0;
+    int length = fragment.length();
+    while (i < length) {
+      if (fragment.charAt(i) != '<') {
+        int next = fragment.indexOf('<', i);
+        int end = next < 0 ? length : next;
+        out.add(new Token(fragment.substring(i, end), false));
+        i = end;
+        continue;
+      }
+      boolean cdata = fragment.startsWith("<![CDATA[", i);
+      int end;
+      if (cdata) {
+        end = closingIndex(fragment, i, "]]>");
+      } else if (fragment.startsWith("<!--", i)) {
+        end = closingIndex(fragment, i, "-->");
+      } else {
+        end = tagEndIndex(fragment, i);
+      }
+      if (end < 0) {
+        out.add(new Token(fragment.substring(i), false));
+        break;
+      }
+      out.add(new Token(fragment.substring(i, end), !cdata));
+      i = end;
+    }
+    return out;
+  }
+
+  /** Индекс за концом конструкции с маркером {@code closing}; {@code -1} — не закрыта. */
+  private static int closingIndex(String fragment, int from, String closing) {
+    int at = fragment.indexOf(closing, from);
+    return at < 0 ? -1 : at + closing.length();
+  }
+
+  /** Индекс за {@code >} тега, начатого в {@code lt}; кавычки атрибутов учитываются. */
+  private static int tagEndIndex(String fragment, int lt) {
+    char quote = 0;
+    for (int i = lt + 1; i < fragment.length(); i++) {
+      char c = fragment.charAt(i);
+      if (quote != 0) {
+        if (c == quote) {
+          quote = 0;
+        }
+      } else if (c == '"' || c == '\'') {
+        quote = c;
+      } else if (c == '>') {
+        return i + 1;
+      }
+    }
+    return -1;
+  }
+
   private static boolean isOpeningTagWithoutInlineClose(String line) {
-    return line.startsWith("<")
-      && !line.startsWith("</")
-      && !line.endsWith("/>")
-      && !line.contains("</");
+    return isOpeningTag(line) && !line.contains("</");
   }
 
   /** Отступ строки, в которой начинается участок. */

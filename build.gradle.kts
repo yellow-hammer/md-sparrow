@@ -445,6 +445,33 @@ fun resourceIndex(directory: File): String =
         .sorted()
         .joinToString("\n", postfix = "\n")
 
+/**
+ * Канонический эталон макета СКД (cf-dcs): описания макета отчёта и общего макета плюс содержимое
+ * Template.xml, снятые платформой. Эталон снят одним форматом - 2.20: описания для 2.12-2.19
+ * получаются проекцией (cf/FormatProjection), содержимое версии формата не несёт. Владелец и
+ * конфигурация в набор не входят: у пользователя они свои.
+ */
+val prepareCanonicalDcs = tasks.register("prepareCanonicalDcs") {
+    val target = layout.buildDirectory.dir("generated/golden-dcs")
+    inputs.dir(snapshotsDir).withPropertyName("эталоны")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        val version = "2.20"
+        val base = snapshotsDir.dir("$version/cf-dcs").asFile
+        for (relative in listOf("Reports/Отчет1/Templates", "CommonTemplates")) {
+            val source = File(base, relative)
+            if (!source.isDirectory) {
+                throw GradleException("В эталонах нет $version/cf-dcs/$relative: обновите submodule samples-1c-platform.")
+            }
+            source.copyRecursively(output.resolve(relative))
+        }
+        output.resolve("format.txt").writeText("$version\n")
+    }
+}
+
 /** Перечень эталонов, записанных 1С:EDT: edt-golden/index.txt. */
 val indexEdtGolden = tasks.register("indexEdtGolden") {
     val source = layout.projectDirectory.dir("src/main/resources/edt-golden")
@@ -504,6 +531,10 @@ tasks.named<Copy>("processResources") {
     // Канонический набор: golden/{cf,cfe,ext,form}/…, golden/format.txt, golden/rules/…, golden/index.txt
     from(prepareCanonicalGolden) {
         into("golden")
+    }
+    // Канонический эталон макета СКД: golden/dcs/…, golden/dcs/format.txt
+    from(prepareCanonicalDcs) {
+        into("golden/dcs")
     }
     // Перечень эталонов EDT: edt-golden/index.txt
     from(indexEdtGolden) {

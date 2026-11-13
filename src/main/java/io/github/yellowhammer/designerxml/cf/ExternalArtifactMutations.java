@@ -26,6 +26,7 @@ import jakarta.xml.bind.JAXBException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -116,7 +117,7 @@ public final class ExternalArtifactMutations {
       renameContent(srcDir, oldStem, targetName);
     }
     if (moveDir) {
-      Files.move(srcDir, dstDir);
+      moveRetrying(srcDir, dstDir);
     }
   }
 
@@ -317,7 +318,32 @@ public final class ExternalArtifactMutations {
   private static void renameContent(Path dir, String oldStem, String newStem) throws IOException {
     Path content = dir.resolve(oldStem);
     if (Files.isDirectory(content)) {
-      Files.move(content, dir.resolve(newStem));
+      moveRetrying(content, dir.resolve(newStem));
+    }
+  }
+
+  /**
+   * Перенос каталога с короткими повторами: на Windows каталог сразу после записи файлов
+   * бывает ненадолго занят антивирусом или индексатором, и {@code Files.move} отвечает
+   * {@code AccessDeniedException}, хотя прав достаточно. Повторы укладываются в пару секунд;
+   * устойчивый отказ прав доходит как есть.
+   */
+  private static void moveRetrying(Path source, Path target) throws IOException {
+    for (int attempt = 1; ; attempt++) {
+      try {
+        Files.move(source, target);
+        return;
+      } catch (AccessDeniedException denied) {
+        if (attempt == 10) {
+          throw denied;
+        }
+        try {
+          Thread.sleep(50L * attempt);
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+          throw denied;
+        }
+      }
     }
   }
 

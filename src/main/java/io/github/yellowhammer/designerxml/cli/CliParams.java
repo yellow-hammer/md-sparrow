@@ -108,7 +108,7 @@ final class CliParams {
   String parentId;
   /** Номер элемента того же владельца, перед которым встаёт элемент; пусто - в конец. */
   String beforeId;
-  /** Путь к данным элемента формы: {@code Объект.Реквизит}. */
+  /** Путь к данным элемента формы ({@code Объект.Реквизит}) или поля схемы компоновки. */
   String dataPath;
   /** Имя события платформы у формы или элемента: {@code OnCreateAtServer}, {@code OnChange}. */
   String event;
@@ -119,10 +119,27 @@ final class CliParams {
   /** Версия схемы в формате {@code V2_20} (как флаг {@code -v}). */
   String schemaVersion;
   String type;
+  /** Имя источника данных нового набора схемы компоновки. */
+  String dataSource;
+  /**
+   * Набор данных схемы компоновки, которому принадлежит поле: имя набора верхнего уровня либо путь
+   * {@code Объединение/Вложенный} у автозаполнения.
+   */
+  String dataSet;
+  /** Язык имён языка запросов у {@code cf-md-query-tables}: {@code ru} (по умолчанию) или {@code en}. */
+  String lang;
+  /** Имя варианта настроек схемы компоновки; пусто — только список вариантов. */
+  String variant;
+  /** Порядковый номер элемента схемы компоновки в файле с нуля: связи наборов и ресурсы. */
+  Integer index;
   String kind;
   String synonym;
   boolean synonymEmpty;
   boolean autoName;
+  /** Сделать новый макет СКД основной схемой компоновки владельца (cf-dcs-template-add). */
+  boolean makeMain;
+  /** Строгая проверка схемы компоновки (cf-dcs-validate): XSD с поправками на платформу вместо одного JAXB. */
+  boolean strict;
   /**
    * Не смотреть на правила поддержки: правка идёт так, будто поставки нет.
    *
@@ -211,6 +228,13 @@ final class CliParams {
     return value;
   }
 
+  int reqIndex() {
+    if (index == null) {
+      throw new IllegalArgumentException("обязательное поле не задано: index");
+    }
+    return index;
+  }
+
   Path path(String value) {
     return paths.apply(value);
   }
@@ -231,6 +255,13 @@ final class CliParams {
       return SchemaVersion.valueOf(v);
     } catch (IllegalArgumentException e) {
       SchemaVersion[] all = SchemaVersion.values();
+      // Номер формата из файла (2.20) вместо имени (V2_20): отказ «2.20 не поддержан» при
+      // поддержанном 2.20 сбивает с толку, поэтому называем нужную форму
+      String named = "V" + v.trim().replace('.', '_');
+      if (!v.startsWith("V") && java.util.Arrays.stream(all).anyMatch(known -> known.name().equals(named))) {
+        throw new IllegalArgumentException("schemaVersion задаётся именем формата " + named
+          + ", а не номером «" + v + "»");
+      }
       throw new IllegalArgumentException("формат выгрузки " + v.replaceFirst("^V", "").replace('_', '.')
         + " не поддержан; поддержаны " + all[0].metadataObjectVersionAttribute()
         + "-" + all[all.length - 1].metadataObjectVersionAttribute());

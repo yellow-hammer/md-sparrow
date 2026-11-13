@@ -240,6 +240,44 @@ final class XmlLines {
     }
   }
 
+  /**
+   * Прямые потомки элемента, открывающий тег которого начинается со смещения {@code elementStart}.
+   *
+   * <p>Дополняет {@link #children(String, List)}: путь имён находит только первый элемент,
+   * а по смещению из {@link Node#start()} адресуется любой из одноимённых.
+   *
+   * @param elementStart смещение символа {@code <} открывающего тега
+   * @return потомки в порядке текста; пусто, если элемента по смещению нет
+   */
+  static List<Node> childrenAt(String xml, int elementStart) {
+    try {
+      XMLStreamReader reader = reader(xml);
+      try {
+        while (reader.hasNext()) {
+          int event = reader.next();
+          if (event != XMLStreamConstants.START_ELEMENT || offset(reader) != elementStart) {
+            continue;
+          }
+          List<Node> result = new ArrayList<>();
+          while (reader.hasNext()) {
+            event = reader.next();
+            if (event == XMLStreamConstants.START_ELEMENT) {
+              result.add(readNode(xml, reader));
+            } else if (event == XMLStreamConstants.END_ELEMENT) {
+              return result;
+            }
+          }
+          return result;
+        }
+        return List.of();
+      } finally {
+        reader.close();
+      }
+    } catch (XMLStreamException e) {
+      throw new IllegalArgumentException("не удалось разобрать XML: " + e.getMessage(), e);
+    }
+  }
+
   /** Курсор на START_ELEMENT узла; после вызова - на его END_ELEMENT. */
   private static Node readNode(String xml, XMLStreamReader reader) throws XMLStreamException {
     String name = reader.getLocalName();

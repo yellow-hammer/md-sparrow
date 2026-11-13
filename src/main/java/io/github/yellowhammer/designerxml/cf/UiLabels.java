@@ -71,6 +71,21 @@ public final class UiLabels {
     return SECTIONS.getOrDefault("objectKinds", Map.of());
   }
 
+  /**
+   * Подписи примитивов типа значения схемы компоновки: {@code xs:string} -> «Строка».
+   *
+   * <p>Словарь типов СКД отдаёт их вместе с видами ссылок, чтобы окну типа не держать своих
+   * подписей.
+   */
+  public static Map<String, String> valueTypes() {
+    return SECTIONS.getOrDefault("valueTypes", Map.of());
+  }
+
+  /** Имена ссылочных типов, как их пишет платформа: {@code CatalogRef} -> «СправочникСсылка». */
+  public static Map<String, String> refTypeNames() {
+    return SECTIONS.getOrDefault("refTypeNames", Map.of());
+  }
+
   /** «Справочник «Имя» уже есть.» Вид берётся из {@link #objectKinds()}. */
   public static String alreadyExists(String kindTag, String name) {
     String kind = objectKinds().get(kindTag);

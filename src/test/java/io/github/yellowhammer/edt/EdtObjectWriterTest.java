@@ -399,6 +399,105 @@ class EdtObjectWriterTest {
     // Соседние реквизиты не тронуты
     assertThat(written.attributes.get(0).type.types).containsExactly("xs:boolean");
     assertThat(written.attributes.get(2).type).usingRecursiveComparison().isEqualTo(dto.attributes.get(2).type);
+    // Пустая строка к числу не подходит: значение заполнения сброшено, как его сбрасывает платформа
+    assertThat(middleLines(before, after)).contains("<fillValue xsi:type=\"core:UndefinedValue\"/>");
+  }
+
+  @Test
+  void сменаТипаСтавитЗначениеЗаполненияПоКанонуПлатформы() throws Exception {
+    Path file = copyOf("Catalogs/_ДемоПартнеры/_ДемоПартнеры.mdo");
+    String before = Files.readString(file, StandardCharsets.UTF_8);
+
+    // Булево «Истина» к строке не подходит: пустая строка, как у нового строкового реквизита
+    MdObjectPropertiesDto dto = EdtObjectProperties.readDto(file, model);
+    MdNamedPropertyDto client = dto.attributes.stream().filter(a -> a.name.equals("Клиент")).findFirst().orElseThrow();
+    MdTypeDescriptionDto string = new MdTypeDescriptionDto();
+    string.types.add("xs:string");
+    string.stringQualifiers = new MdTypeDescriptionDto.MdStringQualifiersDto();
+    string.stringQualifiers.length = "10";
+    string.stringQualifiers.allowedLength = "VARIABLE";
+    client.type = string;
+    EdtObjectWriter.writeDto(file, dto, model);
+
+    String after = Files.readString(file, StandardCharsets.UTF_8);
+    assertThat(middleLines(before, after))
+        .contains("<fillValue xsi:type=\"core:StringValue\"/>")
+        .doesNotContain("<value>true</value>", "<fillValue xsi:type=\"core:UndefinedValue\"/>");
+
+    // Составной тип со строкой пустую строку принимает: значение остаётся байт в байт
+    MdObjectPropertiesDto again = EdtObjectProperties.readDto(file, model);
+    MdNamedPropertyDto edited = again.attributes.stream().filter(a -> a.name.equals("Клиент")).findFirst().orElseThrow();
+    edited.type.types.add("xs:boolean");
+    EdtObjectWriter.writeDto(file, again, model);
+    assertThat(middleLines(after, Files.readString(file, StandardCharsets.UTF_8)))
+        .isNotEmpty()
+        .noneSatisfy(line -> assertThat(line).contains("fillValue"));
+  }
+
+  @Test
+  void значениеЗаполненияКаждогоУзлаКорпусаПодходитКЕгоТипу() throws IOException {
+    // Эхо корпуса: запись типа узла ssl31-edt (тем же или с другими квалификаторами) его значение
+    // заполнения не трогает
+    java.util.regex.Pattern typed = java.util.regex.Pattern.compile(
+        "<type>([\\s\\S]*?)</type>((?:(?!<type>)[\\s\\S])*?)<fillValue xsi:type=\"([^\"]*)\"");
+    java.util.regex.Pattern types = java.util.regex.Pattern.compile("<types>([^<]*)</types>");
+    java.util.Map<String, String> values = java.util.Map.of(
+        "core:StringValue", "xs:string", "core:NumberValue", "xs:decimal",
+        "core:BooleanValue", "xs:boolean", "core:DateValue", "xs:dateTime");
+    java.util.Map<String, String> primitives = java.util.Map.of(
+        "String", "xs:string", "Number", "xs:decimal", "Boolean", "xs:boolean", "Date", "xs:dateTime");
+    int nodes = 0;
+    List<String> touched = new ArrayList<>();
+    List<Path> files;
+    try (java.util.stream.Stream<Path> walk = Files.walk(source)) {
+      files = walk.filter(f -> f.toString().endsWith(".mdo")).toList();
+    }
+    for (Path file : files) {
+      String xml = Files.readString(file, StandardCharsets.UTF_8);
+      java.util.regex.Matcher m = typed.matcher(xml);
+      while (m.find()) {
+        MdTypeDescriptionDto own = new MdTypeDescriptionDto();
+        java.util.regex.Matcher t = types.matcher(m.group(1));
+        while (t.find()) {
+          String name = t.group(1);
+          if (primitives.containsKey(name)) {
+            own.types.add(primitives.get(name));
+          } else if (name.startsWith("DefinedType.") || name.startsWith("Characteristic.")) {
+            own.typeSets.add("cfg:" + name);
+          } else {
+            own.types.add("cfg:" + name);
+          }
+        }
+        String value = m.group(3).equals("core:UndefinedValue") ? null : values.getOrDefault(m.group(3), m.group(3));
+        nodes++;
+        if (io.github.yellowhammer.designerxml.cf.FillValueCanon.afterTypeChange(value, own)
+            != io.github.yellowhammer.designerxml.cf.FillValueCanon.Action.KEEP) {
+          touched.add(file.getFileName() + " " + m.group(3));
+        }
+      }
+    }
+    assertThat(touched).isEmpty();
+    assertThat(nodes).isGreaterThan(2500);
+  }
+
+  /** Строки нового текста между общим началом и общим концом двух файлов. */
+  private static List<String> middleLines(String before, String after) {
+    List<String> was = List.of(before.split("\\r?\\n", -1));
+    List<String> now = List.of(after.split("\\r?\\n", -1));
+    int head = 0;
+    while (head < was.size() && head < now.size() && was.get(head).equals(now.get(head))) {
+      head++;
+    }
+    int tail = 0;
+    while (tail < was.size() - head && tail < now.size() - head
+        && was.get(was.size() - 1 - tail).equals(now.get(now.size() - 1 - tail))) {
+      tail++;
+    }
+    List<String> changed = new ArrayList<>();
+    for (int index = head; index < now.size() - tail; index++) {
+      changed.add(now.get(index).trim());
+    }
+    return changed;
   }
 
   @Test
