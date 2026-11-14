@@ -17,7 +17,8 @@ name: "Вспомогательный: эталоны по версиям пла
 # артефакт roundtrip-<версия>; любой вердикт, кроме pass, platform и skipped, роняет задачу.
 #
 # Если задан edt_version, снятые эталоны импортируются в проекты 1C:EDT этой версии:
-# артефакт edt-<версия EDT> (src/**/*.mdo, формы, права). EDT CLI требует Java 17: Axiom JDK 17
+# артефакт edt-<версия EDT> (src/**/*.mdo, формы, права; в проекте ЭталонСКД из cf-dcs - схемы
+# компоновки данных src/**/Template.dcs). EDT CLI требует Java 17: Axiom JDK 17
 # ставит установщик EDT (1ce-installer-cli install all), а строку -vm в 1cedt.ini прописывает джоб -
 # ключа -vm 1cedtcli не принимает, а без строки в 1cedt.ini берёт java из PATH, то есть Java раннера.
 # Дисплей не нужен: без X 1cedtcli работает, если стоит libgtk-3-0.

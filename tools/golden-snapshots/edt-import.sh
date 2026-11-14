@@ -4,9 +4,12 @@
 # Для каждого формата <SNAPSHOTS>/<формат> создаёт в <OUT>/<формат>/ проекты:
 #   ЭталонСемя                    конфигурация из cf-bare-objects
 #   ЭталонСемя.ПустоеРасширение   расширение из cfe-empty (базовый проект ЭталонСемя)
+#   ЭталонСКД                     конфигурация из cf-dcs: отчёт и общий макет со схемой компоновки
+#                                 данных (src/**/Template.dcs)
 #   <Имя>                         внешние отчёт и обработка из external-files/empty/<Имя>
 # Каждый import - отдельный запуск 1cedtcli с таймаутом: в одном сеансе EDT 2026.1 команда
 # после import может зависнуть. Рабочая область своя на каждый формат: имена проектов совпадают.
+# У ЭталонСКД своя рабочая область: имя и UUID конфигурации в cf-dcs те же, что в cf-bare-objects.
 #
 # EDT 2026.1 требует Java 17: с другой версией (например 21) 1cedtcli показывает окно
 # «Неподдерживаемая Java» и ждёт ответа. Ключ -vm launcher 1cedtcli не принимает
@@ -30,6 +33,7 @@ SNAPSHOTS="${SNAPSHOTS:-$HERE/out}"
 OUT="${OUT:-$HERE/out-edt}"
 EDT_TIMEOUT="${EDT_TIMEOUT:-1800}"
 BASE=ЭталонСемя
+DCS=ЭталонСКД
 
 die() {
 	echo "ERROR: $*" >&2
@@ -97,13 +101,25 @@ edt_import() {
 	return $rc
 }
 
+# dcs_summary <проект>: число файлов Template.dcs в проекте, из них с CR и с BOM
+dcs_summary() {
+	local f n=0 cr=0 bom=0
+	while IFS= read -r -d '' f; do
+		n=$((n + 1))
+		grep -q $'\r' "$f" && cr=$((cr + 1))
+		[ "$(head -c 3 "$f")" = $'\xEF\xBB\xBF' ] && bom=$((bom + 1))
+	done < <(find "$1" -name Template.dcs -type f -print0)
+	echo "файлов Template.dcs: $n, с CR: $cr, с BOM: $bom"
+}
+
 FAILED=0
 DONE=0
 for FMT in $FORMATS; do
 	SRC="$SNAPSHOTS/$FMT"
 	DST="$OUT/$FMT"
 	WS="$WORK/ws-$FMT"
-	rm -rf "$DST" "$WS"
+	WS_DCS="$WORK/ws-dcs-$FMT"
+	rm -rf "$DST" "$WS" "$WS_DCS"
 	mkdir -p "$DST"
 	echo "== формат $FMT"
 	if [ -d "$SRC/cf-bare-objects" ]; then
@@ -119,6 +135,15 @@ for FMT in $FORMATS; do
 		if edt_import "cfe-$FMT.log" "$WS" --base-project-name "$BASE" \
 			--configuration-files "$(topath "$SRC/cfe-empty")" --project "$(topath "$DST/$BASE.ПустоеРасширение")"; then
 			echo "   $BASE.ПустоеРасширение: импортирован"
+			DONE=$((DONE + 1))
+		else
+			FAILED=$((FAILED + 1))
+		fi
+	fi
+	if [ -d "$SRC/cf-dcs" ]; then
+		if edt_import "dcs-$FMT.log" "$WS_DCS" --configuration-files "$(topath "$SRC/cf-dcs")" \
+			--project "$(topath "$DST/$DCS")"; then
+			echo "   $DCS: $(dcs_summary "$DST/$DCS")"
 			DONE=$((DONE + 1))
 		else
 			FAILED=$((FAILED + 1))
