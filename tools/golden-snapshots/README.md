@@ -297,6 +297,45 @@ python3 tools/golden-snapshots/roundtrip.py --jar build/libs/md-sparrow-<вер�
 `golden-snapshots` проверка включена по умолчанию (`roundtrip`) и идёт на той же платформе, что и
 съёмка; снимать эталоны при этом необязательно (`snapshots`).
 
+### Эталон cf-fill-value-platform
+
+`src/test/resources/cf-fill-value-platform/Documents/ЗаказПокупателя.xml` - выгрузка платформы, с которой
+`MdFillValueTest` сверяет значение заполнения после смены типа реквизита (`FillValueCanon`, правило - в
+[docs/cf-md-object.md](../../docs/cf-md-object.md)). Это ответ платформы на запись самого md-sparrow, а не снимок
+статичного семени, как эталоны `fixtures/samples-1c-platform`. Поэтому файл лежит рядом с тестом и переснимается,
+когда меняется запись нового документа или реквизита.
+
+**Что записано.** Тест повторяет эти операции md-sparrow в формате 2.20 (запись - каналом `apply-mutation`):
+
+1. `init-empty-cf`, затем `add-md-object`: справочник `Валюты`, перечисление `Статусы` со значениями `Новый` и
+   `Закрыт` (`cf-md-enum-value-add`), документ `ЗаказПокупателя`.
+2. `cf-md-attribute-add`: реквизиты документа `Валюта`, `Сумма` и `Статус`. Новый реквизит - строка с пустой
+   строкой в `FillValue`.
+3. `cf-md-object-get` и `cf-md-object-set` документа меняют типы: `Валюта` - `cfg:CatalogRef.Валюты`, `Сумма` -
+   `xs:decimal` 15,2 неотрицательное, `Статус` - `cfg:EnumRef.Статусы`.
+
+**Что загружено и выгружено.** ibcmd 8.3.27.2214 (формат 2.20) загружает конфигурацию обычным `config import` с
+проверкой, применяет её (`config check`, `config apply --force`) и выгружает `config export`. Из выгрузки взят только
+`Documents/ЗаказПокупателя.xml`: у трёх реквизитов в нём `<FillValue xsi:nil="true"/>` вместо пустой строки.
+
+**Как переснять.** Нужна платформа формата 2.20, то есть 8.3.27: тест пишет 2.20. Дерево из шагов 1-3 пишет
+md-sparrow, загружают и выгружают его команды ibcmd (`<база>` - каталог новой базы):
+
+```bash
+mkdir -p <база>/db <база>/data
+ibcmd infobase create --db-path=<база>/db --data=<база>/data --locale=ru
+ibcmd infobase config import --db-path=<база>/db --data=<база>/data <каталог md-sparrow>
+ibcmd infobase config check --db-path=<база>/db --data=<база>/data
+ibcmd infobase config apply --db-path=<база>/db --data=<база>/data --force
+ibcmd infobase config export --db-path=<база>/db --data=<база>/data <каталог выгрузки>
+cp <каталог выгрузки>/Documents/ЗаказПокупателя.xml src/test/resources/cf-fill-value-platform/Documents/
+```
+
+**Что сравнивается.** Тест пишет те же объекты во временный каталог и сравнивает `Documents/ЗаказПокупателя.xml` с
+ресурсом целиком, байт в байт: BOM и CRLF платформы, UUID (у md-sparrow они детерминированы), порядок и значения
+всех свойств, а не только `FillValue`. Поэтому файл копируется как есть, а в `.gitattributes` он помечен `-text`.
+Остальные файлы выгрузки не нужны. Новый файл годится, если `FillValue` трёх реквизитов по-прежнему `xsi:nil`.
+
 ## Файлы
 
 - [`dump.sh`](dump.sh) - съёмка; `dump.sh build-external` - только сборка `.epf`/`.erf` в `EXT_BIN`.
