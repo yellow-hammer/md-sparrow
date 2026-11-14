@@ -231,6 +231,12 @@ final class CliParams {
       return SchemaVersion.valueOf(v);
     } catch (IllegalArgumentException e) {
       SchemaVersion[] all = SchemaVersion.values();
+      // Номер (2.20) вместо имени (V2_20): подсказать имя, а не отказать «2.20 не поддержан»
+      String named = "V" + v.trim().replace('.', '_');
+      if (!v.startsWith("V") && java.util.Arrays.stream(all).anyMatch(known -> known.name().equals(named))) {
+        throw new IllegalArgumentException("schemaVersion задаётся именем формата " + named
+          + ", а не номером «" + v + "»");
+      }
       throw new IllegalArgumentException("формат выгрузки " + v.replaceFirst("^V", "").replace('_', '.')
         + " не поддержан; поддержаны " + all[0].metadataObjectVersionAttribute()
         + "-" + all[all.length - 1].metadataObjectVersionAttribute());
