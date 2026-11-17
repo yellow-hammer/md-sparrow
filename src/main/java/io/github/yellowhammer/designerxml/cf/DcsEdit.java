@@ -449,18 +449,13 @@ public final class DcsEdit {
   /**
    * Меняет подэлементы обычного поля набора по xs:sequence: замена, вставка или снятие.
    *
-   * <p>Ключи вне {@code props} не трогаются. {@code newDataPath} и {@code field} требуют непустой текст;
-   * путь, занятый другим полем без учёта регистра, отклоняется. {@code title}, {@code useRestriction},
-   * {@code attributeUseRestriction}, {@code role} и {@code valueType} (форма {@code cf-dcs-info})
-   * заменяются целиком, {@code null} или пустое значение снимает элемент. Флаги ограничений и роли
-   * пишутся только взведённые. Папки, вложенные наборы и поля наборов внутри объединения не правятся.
+   * <p>Ключи вне {@code props} не трогаются. {@code newDataPath} и {@code field} требуют непустой
+   * текст; путь, занятый другим полем без учёта регистра, отклоняется. Остальные свойства заменяются
+   * целиком, {@code null} или пустое значение снимает элемент, флаги ограничений и роли пишутся
+   * только взведённые. Папки, вложенные наборы и поля внутри объединения не правятся. Правка поля с
+   * {@code balance} без имени группы остатка дописывает пустое {@code <dcscom:balanceGroupName/>},
+   * как платформа. Эхо прочитанного файл не трогает.
    *
-   * <p>Правка поля, у роли которого взведён {@code balance} без имени группы остатка, дописывает пустое
-   * {@code <dcscom:balanceGroupName/>}, как платформа. Эхо прочитанного файл не трогает.
-   *
-   * @param dataSet имя набора данных верхнего уровня
-   * @param dataPath путь к данным поля
-   * @param props значения по именам свойств; неизвестное имя - отказ
    * @throws IllegalArgumentException если набора или поля нет, поле не обычное или значение не по формату
    */
   public static void setField(
@@ -718,18 +713,13 @@ public final class DcsEdit {
   /**
    * Добавляет связь наборов данных после последней связи, иначе после наборов данных.
    *
-   * <p>Наборы связи должны существовать на верхнем уровне схемы. Необязательные подэлементы пишутся
+   * <p>Наборы связи должны существовать на верхнем уровне схемы, необязательные подэлементы пишутся
    * только заданные. У связи с параметром незаданный {@code parameterListAllowed} пишется явным
-   * {@code false}, как хранит платформа. {@code parameterListAllowed=true} без параметра и
+   * {@code false}, как хранит платформа; {@code parameterListAllowed=true} без параметра и
    * {@code required=true} отклоняются: загрузка их не хранит.
    *
-   * @param payload свойства связи: обязательные {@code sourceDataSet}, {@code destinationDataSet},
-   *     {@code sourceExpression}, {@code destinationExpression}; необязательные {@code parameter},
-   *     {@code parameterListAllowed}, {@code linkConditionExpression}, {@code startExpression},
-   *     {@code required}
-   * @throws IllegalArgumentException если свойство неизвестно, обязательное не задано,
-   *     набора связи нет в схеме, задан {@code required=true} или {@code parameterListAllowed=true}
-   *     без непустого {@code parameter}
+   * @throws IllegalArgumentException если свойство неизвестно, обязательное не задано, набора
+   *     связи нет в схеме или заданы недопустимые {@code required}/{@code parameterListAllowed}
    */
   public static void addLink(Path templateXml, SchemaVersion version, Map<String, Object> payload)
     throws IOException, JAXBException {
@@ -781,20 +771,15 @@ public final class DcsEdit {
   /**
    * Меняет подэлементы связи наборов по xs:sequence: замена, вставка или снятие.
    *
-   * <p>Ключи вне {@code props} не трогаются. Обязательные подэлементы требуют непустой текст, наборы
-   * в {@code sourceDataSet} и {@code destinationDataSet} должны существовать. Необязательные снимаются
-   * {@code null}, строковые также пустым текстом. {@code required=true} допустим только эхом записанного
-   * ({@link #linkRequiredEdit}).
-   *
-   * <p>У связи с параметром {@code parameterListAllowed=null} пишется явным {@code false}; отсутствующий
-   * флаг дописывается так же при любой настоящей правке связи. Без параметра флаг разбирает
-   * {@link #linkListFlagEdit}: снятие параметра снимает и флаг. Эхо прочитанного файл не трогает.
+   * <p>Ключи вне {@code props} не трогаются, обязательные подэлементы требуют непустой текст, наборы
+   * должны существовать, необязательные снимаются {@code null}, строковые также пустым текстом.
+   * {@code required=true} допустим только эхом записанного ({@link #linkRequiredEdit}). У связи с
+   * параметром {@code parameterListAllowed=null} пишется явным {@code false}, без параметра флаг
+   * разбирает {@link #linkListFlagEdit}. Эхо прочитанного файл не трогает.
    *
    * @param index порядковый номер {@code dataSetLink} в файле с нуля
-   * @param props значения по именам подэлементов; неизвестное имя - отказ
-   * @throws IllegalArgumentException если связи с таким номером нет, свойство неизвестно,
-   *     значение не по формату, взводится {@code required=true} или {@code parameterListAllowed=true}
-   *     у связи без параметра
+   * @throws IllegalArgumentException если связи нет, свойство неизвестно, значение не по формату,
+   *     взводится {@code required=true} или {@code parameterListAllowed=true} у связи без параметра
    */
   public static void setLink(Path templateXml, SchemaVersion version, int index, Map<String, Object> props)
     throws IOException, JAXBException {
@@ -1078,14 +1063,11 @@ public final class DcsEdit {
    * Добавляет параметр после последнего параметра, иначе после ресурсов, вычисляемых полей, связей
    * и наборов данных.
    *
-   * <p>Пишется как у платформы: заголовок {@code v8:LocalStringType} с языком конфигурации, {@code use}
-   * только со значением {@code Always}, {@code value} и {@code useRestriction} всегда (без значения
-   * {@code xsi:nil}, без ограничения явный {@code false}). Значение (форма значения настроек или
-   * {@code {nil: true}}) должно подходить к типу {@code valueType} (форма {@code cf-dcs-info}).
+   * <p>Пишется как у платформы: заголовок {@code v8:LocalStringType} с языком конфигурации,
+   * {@code use} только со значением {@code Always}, {@code value} и {@code useRestriction} всегда
+   * (без значения {@code xsi:nil}, без ограничения явный {@code false}). Значение должно подходить
+   * к типу {@code valueType}.
    *
-   * @param payload свойства параметра: обязательный {@code name}; необязательные {@code title},
-   *     {@code expression}, {@code use} ({@code Always} или {@code Auto}), {@code useRestriction},
-   *     {@code valueType} и {@code value}
    * @throws IllegalArgumentException если свойство неизвестно, имя не задано или занято без учёта
    *     регистра, значение не по формату
    */
@@ -1144,25 +1126,14 @@ public final class DcsEdit {
   /**
    * Меняет подэлементы параметра схемы по xs:sequence: замена, вставка или снятие.
    *
-   * <p>Ключи вне {@code props} не трогаются. {@code newName} требует непустой текст; имя, занятое другим
-   * параметром без учёта регистра, отклоняется. Необязательные снимаются {@code null}, строковые также
-   * пустым текстом. {@code useRestriction=null} пишется явным {@code false}, {@code use=Auto} снимает
-   * элемент. Признаки {@code valueListAllowed}, {@code availableAsField} и {@code denyIncompleteValues}
-   * со значением по умолчанию снимаются.
-   *
-   * <p>{@code valueType}: форма {@code cf-dcs-info}. {@code value}: форма значений настроек;
-   * {@code {nil: true}} и {@code null} означают «не задано»: {@code xsi:nil}, а у списка ни одного
-   * {@code value}. Список значений ({@code valueTyped}) допустим только при {@code valueListAllowed=true}
-   * и пишется повторяющимися {@code value} без представлений, как хранит платформа: представление элемента
-   * отклоняется. Значение (у списка каждый элемент) должно подходить к типу; при смене типа без нового
-   * {@code value} проверяется записанное. Включение списка снимает {@code xsi:nil}; выключение списка
-   * из нескольких значений без нового {@code value} отклоняется.
+   * <p>Ключи вне {@code props} не трогаются, необязательные снимаются {@code null}, строковые также
+   * пустым текстом; имя, занятое другим параметром без учёта регистра, отклоняется. Значение (у
+   * списка каждый элемент) должно подходить к типу; список допустим только при
+   * {@code valueListAllowed=true} и пишется без представлений, как хранит платформа.
    *
    * <p>Любая настоящая правка дописывает недостающие {@code value} ({@code xsi:nil}) и
    * {@code useRestriction} ({@code false}), как платформа. Эхо прочитанного файл не трогает.
    *
-   * @param name имя параметра
-   * @param props значения по именам свойств; неизвестное имя - отказ
    * @throws IllegalArgumentException если параметра нет, свойство неизвестно или значение не по формату
    */
   public static void setParameter(Path templateXml, SchemaVersion version, String name, Map<String, Object> props)

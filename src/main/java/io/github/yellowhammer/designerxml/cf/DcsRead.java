@@ -211,18 +211,14 @@ public final class DcsRead {
    * Значение параметра корня ({@code value}) формой {@code valueTyped}; по нему же
    * {@code cf-dcs-set-parameter} узнаёт эхо.
    *
-   * <p>Список значений платформа хранит повторяющимися {@code value} без представлений. Несколько
+   * <p>Список платформа хранит повторяющимися {@code value} без представлений: несколько
    * {@code value}, а также один при {@code valueListAllowed=true}, отдаются формой
-   * {@code {type: "v8:ValueListType", list: {items: [{value}]}}}. Один {@code value} без списка и элемент
-   * {@code v8:ValueListType} (с представлениями) отдаются как записаны.
+   * {@code {type: "v8:ValueListType", list: {items: [{value}]}}}. Одиночный
+   * {@code <value xsi:nil="true"/>} при {@code valueListAllowed=true} - список из одного элемента
+   * «не задано», платформа отличает его от пустого списка. {@code nil} рядом с другими
+   * {@code value} загрузка отбрасывает: такой список читается как есть, а запись отклоняется
+   * ({@link DcsValueTypeEdit#parameterValuesXml}).
    *
-   * <p>Одиночный {@code <value xsi:nil="true"/>} при {@code valueListAllowed=true}: список из одного
-   * элемента «значение не задано», платформа отличает его от пустого списка. {@code nil} рядом с другими
-   * {@code value} загрузка отбрасывает: такой список читается как есть, эхо его не меняет, а запись
-   * отклоняется ({@link DcsValueTypeEdit#parameterValuesXml}).
-   *
-   * @param children прямые потомки параметра
-   * @param xmlns объявления пространств имён корня файла
    * @return {@code null}, если {@code value} нет
    */
   static Map<String, Object> parameterValueTyped(String text, List<XmlLines.Node> children, String xmlns) {
