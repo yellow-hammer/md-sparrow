@@ -177,5 +177,24 @@
     "StyleItem": "Элемент стиля",
     "Style": "Стиль",
     "PaletteColor": "Цвет палитры"
+  },
+  "valueTypes": {
+    "xs:string": "Строка",
+    "xs:decimal": "Число",
+    "xs:dateTime": "Дата",
+    "xs:boolean": "Булево",
+    "v8:StandardPeriod": "Стандартный период",
+    "v8:UUID": "Уникальный идентификатор"
+  },
+  "refTypeNames": {
+    "CatalogRef": "СправочникСсылка",
+    "DocumentRef": "ДокументСсылка",
+    "EnumRef": "ПеречислениеСсылка",
+    "ChartOfCharacteristicTypesRef": "ПланВидовХарактеристикСсылка",
+    "ChartOfAccountsRef": "ПланСчетовСсылка",
+    "ChartOfCalculationTypesRef": "ПланВидовРасчетаСсылка",
+    "ExchangePlanRef": "ПланОбменаСсылка",
+    "BusinessProcessRef": "БизнесПроцессСсылка",
+    "TaskRef": "ЗадачаСсылка"
   }
 }

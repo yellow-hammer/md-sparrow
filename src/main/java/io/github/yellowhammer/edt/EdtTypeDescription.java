@@ -57,12 +57,18 @@ import io.github.yellowhammer.edt.EdtObjectReader.EdtNode;
  */
 final class EdtTypeDescription {
 
-  /** Примитивы платформы: имя EDT - запись конфигуратора. */
+  /**
+   * Примитивы платформы: имя EDT - запись конфигуратора.
+   *
+   * <p>Двоичные данные конфигуратор пишет как {@code xs:base64Binary}: имени {@code BinaryData}
+   * в схемах выгрузки нет.
+   */
   private static final Map<String, String> PRIMITIVES = Map.of(
       "String", "xs:string",
       "Number", "xs:decimal",
       "Boolean", "xs:boolean",
-      "Date", "xs:dateTime");
+      "Date", "xs:dateTime",
+      "BinaryData", "xs:base64Binary");
 
   private static final String CONFIGURATION_PREFIX = "cfg";
 

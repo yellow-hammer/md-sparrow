@@ -1,0 +1,417 @@
+{
+ "generator": "tools/golden-snapshots/dcs-inputs.mjs",
+ "note": "Собрано модулями webview редактора схем расширения: не править руками, пересобрать генератором.",
+ "sources": {
+  "dcs-editor-query-model.js": "784e00aba204287b0969890c8cc8c49555d20cc5af3f20dd700f2b73d7ad3fea",
+  "dcs-editor-query-edit.js": "162c0de9d2687c7898ac254d769ddcacb2013470edede437d39644a5421aef1b",
+  "dcs-editor-settings-wizard.js": "78393479d82c892fe39709d3ebd93a73c69dec284c22a78bb5c724e10c3ddbe1"
+ },
+ "chartTypes": [
+  "Line",
+  "Step",
+  "StackedLine",
+  "Area",
+  "StackedArea",
+  "NormalizedArea",
+  "Column",
+  "StackedColumn",
+  "NormalizedColumn",
+  "Column3D",
+  "StackedColumn3D",
+  "NormalizedColumn3D",
+  "Bar",
+  "StackedBar",
+  "NormalizedBar",
+  "Bar3D",
+  "StackedBar3D",
+  "NormalizedBar3D",
+  "Pie",
+  "Pie3D",
+  "Donut",
+  "Donut3D",
+  "Stock",
+  "OpenHighLowClose",
+  "BarGraph",
+  "CeilGraph",
+  "TapeGraph",
+  "PyramidGraph",
+  "WireframeSurface",
+  "Surface",
+  "ConvexSurface",
+  "ConcaveSurface",
+  "ShadedSurface",
+  "RadarLine",
+  "RadarArea",
+  "RadarStackedLine",
+  "RadarStackedArea",
+  "RadarNormalizedArea",
+  "Waterfall",
+  "Honeycomb",
+  "Gauge",
+  "Funnel",
+  "Funnel3D",
+  "NormalizedFunnel",
+  "NormalizedFunnel3D",
+  "Scatter",
+  "Bubble"
+ ],
+ "queries": [
+  {
+   "dataSet": "ЗаказыСВалютами",
+   "what": "Таблицы и поля, Связи (ЛЕВОЕ), Условия (МЕЖДУ с &), Порядок, Дополнительно (ПЕРВЫЕ, РАЗЛИЧНЫЕ)",
+   "text": "ВЫБРАТЬ РАЗЛИЧНЫЕ ПЕРВЫЕ 100\n\tЗаказ.Ссылка КАК Ссылка,\n\tЗаказ.Дата КАК Дата,\n\tЗаказ.Сумма КАК Сумма,\n\tВалюты.Наименование КАК ВалютаНаименование\nИЗ\n\tДокумент.ЗаказПокупателя КАК Заказ\n\t\tЛЕВОЕ СОЕДИНЕНИЕ Справочник.Валюты КАК Валюты\n\t\tПО Заказ.Валюта = Валюты.Ссылка\nГДЕ\n\tЗаказ.Дата МЕЖДУ &НачалоПериода И &КонецПериода\nУПОРЯДОЧИТЬ ПО\n\tДата УБЫВ",
+   "parameters": [
+    "НачалоПериода",
+    "КонецПериода"
+   ]
+  },
+  {
+   "dataSet": "ЗаказыПоСтатусу",
+   "what": "Связи (ВНУТРЕННЕЕ), Условия (простое «=»), Дополнительно (РАЗРЕШЕННЫЕ)",
+   "text": "ВЫБРАТЬ РАЗРЕШЕННЫЕ\n\tЗаказ.Ссылка КАК Ссылка,\n\tСтатусы.Ссылка КАК Ссылка1\nИЗ\n\tДокумент.ЗаказПокупателя КАК Заказ\n\t\tВНУТРЕННЕЕ СОЕДИНЕНИЕ Перечисление.Статусы КАК Статусы\n\t\tПО Заказ.Статус = Статусы.Ссылка\nГДЕ\n\tСтатусы.Ссылка = &СтатусЗаказа",
+   "parameters": [
+    "СтатусЗаказа"
+   ]
+  },
+  {
+   "dataSet": "СуммыПоВалютам",
+   "what": "Группировка (Сумма, Количество различных), Условия (агрегат - ИМЕЮЩИЕ), Порядок, Автоупорядочивание",
+   "text": "ВЫБРАТЬ\n\tЗаказ.Валюта КАК Валюта,\n\tСУММА(Заказ.Сумма) КАК Сумма,\n\tКОЛИЧЕСТВО(РАЗЛИЧНЫЕ Заказ.Ссылка) КАК Ссылка\nИЗ\n\tДокумент.ЗаказПокупателя КАК Заказ\nСГРУППИРОВАТЬ ПО\n\tЗаказ.Валюта\nИМЕЮЩИЕ\n\tСУММА(Заказ.Сумма) > &Порог\nУПОРЯДОЧИТЬ ПО\n\tВалюта\nАВТОУПОРЯДОЧИВАНИЕ",
+   "parameters": [
+    "Порог"
+   ]
+  },
+  {
+   "dataSet": "ДокументыИВалюты",
+   "what": "Объединения/Псевдонимы (ОБЪЕДИНИТЬ ВСЕ, части по позициям)",
+   "text": "ВЫБРАТЬ\n\tЗаказ.Ссылка КАК Объект,\n\tЗаказ.Номер КАК Код\nИЗ\n\tДокумент.ЗаказПокупателя КАК Заказ\n\nОБЪЕДИНИТЬ ВСЕ\n\nВЫБРАТЬ\n\tВалюты.Ссылка,\n\tВалюты.Код\nИЗ\n\tСправочник.Валюты КАК Валюты",
+   "parameters": []
+  },
+  {
+   "dataSet": "ПакетСВременнойТаблицей",
+   "what": "Пакет запросов (ПОМЕСТИТЬ, УНИЧТОЖИТЬ), Индекс (ИНДЕКСИРОВАТЬ ПО), Временные таблицы",
+   "text": "ВЫБРАТЬ\n\tЗаказ.Ссылка КАК Ссылка,\n\tЗаказ.Валюта КАК Валюта,\n\tЗаказ.Сумма КАК Сумма\nПОМЕСТИТЬ ВТ_Заказы\nИЗ\n\tДокумент.ЗаказПокупателя КАК Заказ\nИНДЕКСИРОВАТЬ ПО\n\tВалюта\n;\n\n////////////////////////////////////////////////////////////////////////////////\nВЫБРАТЬ\n\tВТ_Заказы.Ссылка КАК Ссылка,\n\tВТ_Заказы.Сумма КАК Сумма\nИЗ\n\tВТ_Заказы КАК ВТ_Заказы\n;\n\n////////////////////////////////////////////////////////////////////////////////\nУНИЧТОЖИТЬ ВТ_Заказы",
+   "parameters": []
+  },
+  {
+   "dataSet": "КомпоновкаДанных",
+   "what": "Компоновка данных (необязательное соединение, {ВЫБРАТЬ} с .*, {ГДЕ} поле и условие с &)",
+   "text": "ВЫБРАТЬ\n\tЗаказ.Ссылка КАК Ссылка,\n\tЗаказ.Сумма КАК Сумма,\n\tВалюты.Код КАК Код\n{ВЫБРАТЬ\n\tСсылка.* КАК Заказ,\n\tСумма}\nИЗ\n\tДокумент.ЗаказПокупателя КАК Заказ\n\t\t{ЛЕВОЕ СОЕДИНЕНИЕ Справочник.Валюты КАК Валюты\n\t\tПО Заказ.Валюта = Валюты.Ссылка}\n{ГДЕ\n\tЗаказ.Статус,\n\t(Заказ.Сумма >= &МинимальнаяСумма)}",
+   "parameters": [
+    "МинимальнаяСумма"
+   ]
+  },
+  {
+   "dataSet": "ТекстИКонструктор",
+   "what": "сплайс по запросам пакета: набранный запрос с комментарием, литералом \"<&>\" и пробелами в конце строк + запрос конструктора",
+   "text": "// набрано в окне «Запрос…»: срез выводится дословно\nВЫБРАТЬ   \n\tВалюты.Ссылка КАК Ссылка,\n\tВалюты.Код КАК Код\nПОМЕСТИТЬ ВТ_Валюты\nИЗ\n\tСправочник.Валюты КАК Валюты\nГДЕ\n\tВалюты.Наименование <> \"<&>\" // литерал с разметкой  \n\tИ Валюты.Код ПОДОБНО \"R%\"\n;\n\n////////////////////////////////////////////////////////////////////////////////\nВЫБРАТЬ\n\tВТ_Валюты.Ссылка КАК Ссылка,\n\tВТ_Валюты.Код КАК Код\nИЗ\n\tВТ_Валюты КАК ВТ_Валюты",
+   "parameters": []
+  }
+ ],
+ "wizard": [
+  {
+   "variant": "МастерСписок",
+   "kind": "list",
+   "what": "Список: группировки с типами иерархии, детальные записи, поля и порядок",
+   "operations": [
+    {
+     "op": "cf-dcs-add-settings-variant",
+     "name": "МастерСписок",
+     "payload": {
+      "presentation": "Мастер: список"
+     }
+    },
+    {
+     "op": "cf-dcs-set-selection",
+     "variant": "МастерСписок",
+     "payload": {
+      "path": [],
+      "items": [
+       {
+        "kind": "field",
+        "field": "Заказ"
+       },
+       {
+        "kind": "field",
+        "field": "Дата"
+       },
+       {
+        "kind": "field",
+        "field": "Сумма"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-set-order",
+     "variant": "МастерСписок",
+     "payload": {
+      "path": [],
+      "items": [
+       {
+        "kind": "field",
+        "field": "Дата",
+        "orderType": "Desc"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерСписок",
+     "payload": {
+      "parentPath": [],
+      "list": "structure",
+      "kind": "group",
+      "groupFields": [
+       {
+        "field": "Валюта",
+        "groupType": "Hierarchy"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерСписок",
+     "payload": {
+      "parentPath": [
+       {
+        "list": "structure",
+        "index": 0
+       }
+      ],
+      "list": "structure",
+      "kind": "group",
+      "groupFields": [
+       {
+        "field": "Статус",
+        "groupType": "Items"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерСписок",
+     "payload": {
+      "parentPath": [
+       {
+        "list": "structure",
+        "index": 0
+       },
+       {
+        "list": "structure",
+        "index": 0
+       }
+      ],
+      "list": "structure",
+      "kind": "group"
+     }
+    }
+   ]
+  },
+  {
+   "variant": "МастерТаблица",
+   "kind": "table",
+   "what": "Таблица: группировка «Таблицы», строки и колонки",
+   "operations": [
+    {
+     "op": "cf-dcs-add-settings-variant",
+     "name": "МастерТаблица",
+     "payload": {
+      "presentation": "Мастер: таблица"
+     }
+    },
+    {
+     "op": "cf-dcs-set-selection",
+     "variant": "МастерТаблица",
+     "payload": {
+      "path": [],
+      "items": [
+       {
+        "kind": "field",
+        "field": "Сумма"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерТаблица",
+     "payload": {
+      "parentPath": [],
+      "list": "structure",
+      "kind": "group",
+      "groupFields": [
+       {
+        "field": "Статус"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерТаблица",
+     "payload": {
+      "parentPath": [
+       {
+        "list": "structure",
+        "index": 0
+       }
+      ],
+      "list": "structure",
+      "kind": "table"
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерТаблица",
+     "payload": {
+      "parentPath": [
+       {
+        "list": "structure",
+        "index": 0
+       },
+       {
+        "list": "structure",
+        "index": 0
+       }
+      ],
+      "list": "columns",
+      "groupFields": [
+       {
+        "field": "Дата"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерТаблица",
+     "payload": {
+      "parentPath": [
+       {
+        "list": "structure",
+        "index": 0
+       },
+       {
+        "list": "structure",
+        "index": 0
+       }
+      ],
+      "list": "rows",
+      "groupFields": [
+       {
+        "field": "Валюта",
+        "groupType": "HierarchyOnly"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "variant": "МастерДиаграмма",
+   "kind": "chart",
+   "what": "Диаграмма: точки и серии, выбор [Auto] у диаграммы, ТипДиаграммы в корне",
+   "operations": [
+    {
+     "op": "cf-dcs-add-settings-variant",
+     "name": "МастерДиаграмма",
+     "payload": {
+      "presentation": "Мастер: диаграмма"
+     }
+    },
+    {
+     "op": "cf-dcs-set-selection",
+     "variant": "МастерДиаграмма",
+     "payload": {
+      "path": [],
+      "items": [
+       {
+        "kind": "field",
+        "field": "Сумма"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерДиаграмма",
+     "payload": {
+      "parentPath": [],
+      "list": "structure",
+      "kind": "chart"
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерДиаграмма",
+     "payload": {
+      "parentPath": [
+       {
+        "list": "structure",
+        "index": 0
+       }
+      ],
+      "list": "points",
+      "groupFields": [
+       {
+        "field": "Валюта"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-add-structure-item",
+     "variant": "МастерДиаграмма",
+     "payload": {
+      "parentPath": [
+       {
+        "list": "structure",
+        "index": 0
+       }
+      ],
+      "list": "series",
+      "groupFields": [
+       {
+        "field": "Статус"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-set-selection",
+     "variant": "МастерДиаграмма",
+     "payload": {
+      "path": [
+       {
+        "list": "structure",
+        "index": 0
+       }
+      ],
+      "items": [
+       {
+        "kind": "auto"
+       }
+      ]
+     }
+    },
+    {
+     "op": "cf-dcs-set-parameter-value",
+     "variant": "МастерДиаграмма",
+     "payload": {
+      "section": "output",
+      "path": [],
+      "parameter": "ТипДиаграммы",
+      "value": {
+       "type": "v8ui:ChartType",
+       "text": "Pie3D"
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -44,6 +44,13 @@ public final class MdTypeDescriptionDto {
    * ссылка: {@code cfg:DefinedType.ДенежнаяСумма}.
    */
   public List<String> typeSets;
+  /**
+   * Определяемые типы схемы компоновки ({@code v8:TypeId}): UUID сгенерированного типа.
+   *
+   * <p>В схеме компоновки платформа пишет определяемый тип идентификатором, а не ссылкой
+   * {@code cfg:DefinedType.Имя}. У метаданных поле {@code null}, ключа в их JSON нет.
+   */
+  public List<String> typeIds;
   public MdStringQualifiersDto stringQualifiers;
   public MdNumberQualifiersDto numberQualifiers;
   public MdDateQualifiersDto dateQualifiers;
