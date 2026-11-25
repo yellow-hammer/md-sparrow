@@ -81,7 +81,7 @@ public final class DcsValueTypes {
   /** «Любая ссылка» выгрузки конфигуратора. */
   public static final String ANY_REF_DESIGNER = "cfg:AnyIBRef";
 
-  /** «Любая ссылка» проекта 1С:EDT. */
+  /** «Любая ссылка» проекта 1С:EDT и выгрузки конфигуратора до формата 2.16. */
   public static final String ANY_REF_EDT = "cfg:AnyRef";
 
   private static final String CONFIG_PREFIX = "cfg:";
@@ -138,22 +138,26 @@ public final class DcsValueTypes {
 
     private final boolean edt;
     private final Path configuration;
+    private final String anyRef;
     private final TypeCompositions compositions;
 
-    private Context(boolean edt, Path configuration) {
+    private Context(boolean edt, Path configuration, SchemaVersion version) {
       this.edt = edt;
       this.configuration = configuration;
+      // До 8.3.23 Конфигуратор хранит AnyRef и при загрузке молча удаляет AnyIBRef.
+      this.anyRef = edt || version.compareTo(SchemaVersion.V2_16) < 0 ? ANY_REF_EDT : ANY_REF_DESIGNER;
       this.compositions = TypeCompositions.ofConfiguration(configuration);
     }
 
     /**
      * @param templateFile файл схемы: {@code Ext/Template.xml} выгрузки или {@code Template.dcs} EDT
+     * @param version формат файла схемы
      * @return контекст с найденной над файлом конфигурацией, если она есть
      */
-    public static Context of(Path templateFile) {
+    public static Context of(Path templateFile, SchemaVersion version) {
       return new Context(
         templateFile != null && EdtLayout.isSchemaFile(templateFile.toString()),
-        ConfigurationLanguage.configurationFileOf(templateFile));
+        ConfigurationLanguage.configurationFileOf(templateFile), version);
     }
 
     /** Схема проекта 1С:EDT ({@code Template.dcs}). */
@@ -168,7 +172,7 @@ public final class DcsValueTypes {
 
     /** Текст «любой ссылки» в формате файла схемы. */
     public String anyRef() {
-      return edt ? ANY_REF_EDT : ANY_REF_DESIGNER;
+      return anyRef;
     }
 
     /** Имя определяемого типа по UUID сгенерированного типа; {@code null} — не найден. */
@@ -258,7 +262,7 @@ public final class DcsValueTypes {
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> typeCompositions() {
       List<Map<String, Object>> rows = compositions.collected();
-      if (edt) {
+      if (!ANY_REF_DESIGNER.equals(anyRef)) {
         for (Map<String, Object> row : rows) {
           // collected() отдаёт свежие списки: правка записи кэш класса не трогает
           anyRefOfSchema((List<String>) row.get("typeSets"));
@@ -268,18 +272,18 @@ public final class DcsValueTypes {
     }
 
     /**
-     * Состав в записи схемы: {@link TypeCompositions} отдаёт запись конфигуратора, а схема 1С:EDT
-     * пишет «любую ссылку» как {@code cfg:AnyRef}.
+     * Состав в записи схемы: {@link TypeCompositions} отдаёт «любую ссылку» в записи нового
+     * конфигуратора, а у проекта EDT и старой выгрузки используется {@code cfg:AnyRef}.
      */
     private MdTypeDescriptionDto schemaForm(MdTypeDescriptionDto composition) {
-      if (composition != null && edt) {
+      if (composition != null && !ANY_REF_DESIGNER.equals(anyRef)) {
         anyRefOfSchema(composition.typeSets);
       }
       return composition;
     }
 
-    private static void anyRefOfSchema(List<String> typeSets) {
-      typeSets.replaceAll(typeSet -> ANY_REF_DESIGNER.equals(typeSet) ? ANY_REF_EDT : typeSet);
+    private void anyRefOfSchema(List<String> typeSets) {
+      typeSets.replaceAll(typeSet -> ANY_REF_DESIGNER.equals(typeSet) ? anyRef : typeSet);
     }
 
     /** Файл описания определяемого типа: {@code DefinedTypes/<Имя>.xml} выгрузки или {@code .mdo} EDT. */
@@ -497,7 +501,7 @@ public final class DcsValueTypes {
       }
     }
     for (String typeSet : dto.typeSets) {
-      if (!isDictionaryTypeSet(typeSet, context.edt())) {
+      if (!isDictionaryTypeSet(typeSet, context.anyRef())) {
         return "набор типов «" + typeSet + "» правится в конфигураторе";
       }
     }
@@ -543,13 +547,13 @@ public final class DcsValueTypes {
    * Набор типов ({@code v8:TypeSet}) из белого словаря.
    *
    * @param typeSet текст набора с нормализованным префиксом
-   * @param edt схема проекта 1С:EDT: там «любая ссылка» пишется {@code AnyRef}
+   * @param anyRef запись «любой ссылки» для этого формата
    */
-  public static boolean isDictionaryTypeSet(String typeSet, boolean edt) {
+  static boolean isDictionaryTypeSet(String typeSet, String anyRef) {
     if (typeSet == null || !typeSet.startsWith(CONFIG_PREFIX)) {
       return false;
     }
-    return typeSet.equals(edt ? ANY_REF_EDT : ANY_REF_DESIGNER)
+    return typeSet.equals(anyRef)
       || REF_TYPE_SET.matcher(typeSet).matches()
       || CHARACTERISTIC.matcher(typeSet).matches();
   }

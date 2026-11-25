@@ -61,7 +61,7 @@ public final class DcsRead {
   public static Map<String, Object> info(Path templateXml, SchemaVersion version)
     throws IOException, JAXBException {
     Object schema = schemaRoot(templateXml, version);
-    DcsValueTypes.Context types = DcsValueTypes.Context.of(templateXml);
+    DcsValueTypes.Context types = DcsValueTypes.Context.of(templateXml, version);
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("dataSets", dataSets(schema, types));
     out.put("calculatedFields", calculatedFields(schema, types));

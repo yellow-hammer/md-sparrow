@@ -147,6 +147,30 @@ class DcsTemplateScaffoldTest {
     assertThat(DcsXsdValidation.validate(schema, version)).containsEntry("ok", true);
   }
 
+  @ParameterizedTest
+  @EnumSource(value = SchemaVersion.class, names = {"V2_12", "V2_15", "V2_16", "V2_21"})
+  void любаяСсылкаЗаписываетсяВФорматеМакета(SchemaVersion version) throws Exception {
+    Path owner = copy(GoldenSnapshots.format(version).resolve(GoldenSnapshots.CF).resolve(REPORT_XML),
+      workspace.resolve(REPORT_XML));
+    DcsTemplateScaffold.add(owner, version, TEMPLATE_NAME, true);
+    Path schema = workspace.resolve(TEMPLATE_CONTENT);
+    boolean old = version.compareTo(SchemaVersion.V2_16) < 0;
+    String name = old ? "AnyRef" : "AnyIBRef";
+    String foreign = old ? "AnyIBRef" : "AnyRef";
+    String typeSet = "cfg:" + name;
+    String before = Files.readString(schema);
+    assertThat(DcsTypeDictionary.read(schema, version)).containsEntry("anyRef", typeSet);
+
+    assertThatThrownBy(() -> DcsEdit.addParameter(schema, version, Map.of(
+      "name", "ЛюбаяСсылка", "valueType", Map.of("typeSets", List.of("cfg:" + foreign)))))
+      .isInstanceOf(IllegalArgumentException.class).hasMessageContaining(typeSet);
+    assertThat(Files.readString(schema)).isEqualTo(before);
+
+    DcsEdit.addParameter(schema, version, Map.of("name", "ЛюбаяСсылка", "valueType", Map.of("typeSets", List.of(typeSet))));
+    assertThat(Files.readString(schema)).contains(">d4p1:" + name + "</v8:TypeSet>");
+    assertThat(DcsXsdValidation.validate(schema, version)).containsEntry("ok", true);
+  }
+
   // --- удаление --------------------------------------------------------------------------------
 
   @ParameterizedTest

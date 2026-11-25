@@ -63,7 +63,7 @@ public final class DcsTypeDictionary {
    */
   public static Map<String, Object> read(Path templateFile, SchemaVersion version)
     throws IOException, JAXBException {
-    DcsValueTypes.Context context = DcsValueTypes.Context.of(templateFile);
+    DcsValueTypes.Context context = DcsValueTypes.Context.of(templateFile, version);
     Path configuration = context.configuration();
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("configurationFound", configuration != null);

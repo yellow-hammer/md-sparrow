@@ -131,7 +131,7 @@ class DcsValueTypeReadTest {
       }
 
       // Модель целиком, вместе с вложенными схемами, которых cf-dcs-info не раскрывает
-      DcsValueTypes.Context context = DcsValueTypes.Context.of(schema);
+      DcsValueTypes.Context context = DcsValueTypes.Context.of(schema, SchemaVersion.V2_20);
       walkTypes(DcsRead.schemaRoot(schema, SchemaVersion.V2_20),
         typeDescription -> modelBlocks.add(DcsValueTypes.read(typeDescription, context, null)));
 
@@ -193,7 +193,7 @@ class DcsValueTypeReadTest {
 
     List<Map<String, Object>> blocks = new ArrayList<>();
     for (Path schema : schemas) {
-      DcsValueTypes.Context context = DcsValueTypes.Context.of(schema);
+      DcsValueTypes.Context context = DcsValueTypes.Context.of(schema, SchemaVersion.V2_20);
       assertThat(context.edt()).isTrue();
       walkTypes(DcsRead.schemaRoot(schema, SchemaVersion.V2_20),
         typeDescription -> blocks.add(DcsValueTypes.read(typeDescription, context, null)));
@@ -462,7 +462,7 @@ class DcsValueTypeReadTest {
       .contains("cfg:CatalogObject._ДемоОрганизации");
 
     // Тот же состав, что раскрывает правило совместимости значения параметра
-    DcsValueTypes.Context context = DcsValueTypes.Context.of(schema);
+    DcsValueTypes.Context context = DcsValueTypes.Context.of(schema, SchemaVersion.V2_20);
     for (Map<String, Object> row : definedTypes) {
       MdTypeDescriptionDto rule = context.definedTypeComposition((String) row.get("typeId"));
       Map<String, Object> composition = composition(definedTypes, (String) row.get("name"));

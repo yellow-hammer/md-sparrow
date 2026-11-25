@@ -144,7 +144,7 @@ final class DcsValueTypeEdit {
 
   private static Edit editOver(Path templateXml, SchemaVersion version, String text, MdTypeDescriptionDto current,
     Object payload, int ownerDepth) throws IOException, JAXBException {
-    DcsValueTypes.Context context = DcsValueTypes.Context.of(templateXml);
+    DcsValueTypes.Context context = DcsValueTypes.Context.of(templateXml, version);
     MdTypeDescriptionDto fresh = parse(payload, context);
     if (same(fresh, current)) {
       return new Edit(current, false, null);
@@ -482,14 +482,14 @@ final class DcsValueTypeEdit {
       }
       boolean recorded = current != null && current.typeSets.contains(typeSet);
       if (typeSet.equals(DcsValueTypes.ANY_REF_DESIGNER) || typeSet.equals(DcsValueTypes.ANY_REF_EDT)) {
-        throw new IllegalArgumentException("«Любая ссылка» в "
-          + (context.edt() ? "проекте 1С:EDT" : "выгрузке конфигуратора") + " пишется «" + context.anyRef()
+        String format = context.edt() ? "проекте 1С:EDT" : "выгрузке конфигуратора " + version.metadataObjectVersionAttribute();
+        throw new IllegalArgumentException("«Любая ссылка» в " + format + " пишется «" + context.anyRef()
           + "», а не «" + typeSet + "».");
       }
       if (typeSet.startsWith(JOURNAL_PREFIX)) {
         throw journal(typeSet);
       }
-      if (!DcsValueTypes.isDictionaryTypeSet(typeSet, context.edt())) {
+      if (!DcsValueTypes.isDictionaryTypeSet(typeSet, context.anyRef())) {
         throw outside(typeSet, recorded);
       }
       if (recorded) {
@@ -761,7 +761,8 @@ final class DcsValueTypeEdit {
   static void checkParameterValue(Path templateXml, String text, List<XmlLines.Node> children, Edit typeEdit,
     List<String> valuesXml, boolean list, SchemaVersion version) {
     MdTypeDescriptionDto type = withDefinedTypes(
-      typeEdit != null ? typeEdit.fresh() : current(text, children, version), DcsValueTypes.Context.of(templateXml));
+      typeEdit != null ? typeEdit.fresh() : current(text, children, version),
+      DcsValueTypes.Context.of(templateXml, version));
     if (valuesXml != null) {
       for (String valueXml : valuesXml) {
         if (!fits(valueXml, type, list)) {

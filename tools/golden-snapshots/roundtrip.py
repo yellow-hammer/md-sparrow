@@ -701,7 +701,7 @@ def dcs_inputs_problems(data):
     return problems
 
 
-def dcs_grid(inputs):
+def dcs_grid(inputs, fmt='2.20'):
     """Сетка целиком: таблица DCS_GRID и элементы из входов редактора (конструктор запроса - схема Отчет2, мастер -
     варианты основной схемы).
 
@@ -709,6 +709,13 @@ def dcs_grid(inputs):
     типа), и автозаполнение. У последнего запроса набор с autoFillFields=false, автозаполнения нет.
     """
     entries = list(DCS_GRID)
+    if tuple(map(int, fmt.split('.'))) < (2, 16):
+        # Конфигуратор до 8.3.23 выгружает «любую ссылку» как AnyRef.
+        index = next(i for i, entry in enumerate(entries) if entry['id'] == 'типы-параметров')
+        entry = entries[index]
+        entries[index] = dict(entry, steps=[
+            dict(op, payload=dict(op['payload'], valueType={'typeSets': ['cfg:AnyRef']}))
+            if op.get('payload', {}).get('name') == 'ЛюбаяСсылка' else op for op in entry['steps']])
     entries.append(grid('отчет-запросов', 3, 'второй отчёт с основной схемой - под тексты конструктора запроса', [
         step('add-md-object', configurationXml='@conf', type='REPORT', name='Отчет2'),
         step('cf-dcs-template-add', '@report2', name='ОсновнаяСхемаКомпоновкиДанных', makeMain=True)]))

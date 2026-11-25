@@ -271,7 +271,7 @@ class TypeCompositionsTest {
     assertThat(designer.typeSets).containsExactly("cfg:AnyIBRef", "cfg:CatalogRef");
 
     // Запись схемы EDT: «любая ссылка» — AnyRef, хранилище значения — тип, а не набор
-    DcsValueTypes.Context context = DcsValueTypes.Context.of(template);
+    DcsValueTypes.Context context = DcsValueTypes.Context.of(template, SchemaVersion.V2_20);
     assertThat(context.edt()).isTrue();
     MdTypeDescriptionDto schema = context.definedTypeComposition(typeId.toUpperCase());
     assertThat(schema.types).containsExactly(
