@@ -103,7 +103,7 @@ class DcsTemplateScaffoldTest {
 
   @ParameterizedTest
   @EnumSource(SchemaVersion.class)
-  void проверкаМодельюФорматаБезXsdСкдОтказываетАСтрогаяПроходит(SchemaVersion version) throws Exception {
+  void обеПроверкиУчитываютНаличиеXsdСкдВФормате(SchemaVersion version) throws Exception {
     Path owner = copy(GoldenSnapshots.format(version).resolve(GoldenSnapshots.CF).resolve(REPORT_XML),
       workspace.resolve(REPORT_XML));
     DcsTemplateScaffold.add(owner, version, TEMPLATE_NAME, true);
@@ -125,6 +125,26 @@ class DcsTemplateScaffoldTest {
     Map<String, Object> strict = readJson(Map.of(
       "op", "cf-dcs-validate", "objectXml", content, "schemaVersion", version.name(), "strict", true));
     assertThat(strict).containsEntry("ok", version.compareTo(SchemaVersion.V2_12) >= 0);
+  }
+
+  @Test
+  void параметрДобавляетсяВПустуюСхемуДоВариантаНастроек() throws Exception {
+    SchemaVersion version = SchemaVersion.V2_20;
+    Path owner = copy(GoldenSnapshots.format(version).resolve(GoldenSnapshots.CF).resolve(REPORT_XML),
+      workspace.resolve(REPORT_XML));
+    DcsTemplateScaffold.add(owner, version, TEMPLATE_NAME, true);
+    Path schema = workspace.resolve(TEMPLATE_CONTENT);
+    String before = Files.readString(schema);
+
+    DcsEdit.addParameter(schema, version, Map.of("name", "Период"));
+
+    String block = "\t<parameter>\r\n"
+      + "\t\t<name>Период</name>\r\n"
+      + "\t\t<value xsi:nil=\"true\"/>\r\n"
+      + "\t\t<useRestriction>false</useRestriction>\r\n"
+      + "\t</parameter>\r\n";
+    assertThat(Files.readString(schema)).isEqualTo(before.replace("\t<settingsVariant>", block + "\t<settingsVariant>"));
+    assertThat(DcsXsdValidation.validate(schema, version)).containsEntry("ok", true);
   }
 
   // --- удаление --------------------------------------------------------------------------------

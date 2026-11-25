@@ -1115,8 +1115,10 @@ public final class DcsEdit {
         });
       }
       block.append("</parameter>");
-      String updated = XmlGranularPatch.apply(
-        text, List.of(blockInsertion(text, roots, PARAMETER_PREDECESSORS, "parameter", block.toString())));
+      XmlLines.Node anchor = insertionAnchor(roots, PARAMETER_PREDECESSORS, "parameter");
+      String indent = anchor == null ? "\t" : XmlLines.indentAt(text, anchor.start());
+      String eol = XmlLines.newline(text);
+      String updated = insertBlock(text, anchor, XmlGranularPatch.formatInsertion(text, indent, block.toString()) + eol, eol);
       DcsRead.verify(updated, version);
       Files.writeString(templateXml, updated, StandardCharsets.UTF_8);
       return null;
