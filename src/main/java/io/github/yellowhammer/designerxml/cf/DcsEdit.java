@@ -567,7 +567,7 @@ public final class DcsEdit {
   }
 
   /**
-   * Дописывает в набор-запрос поля по списку выборки его текста ({@link DcsAutofill}).
+   * Дописывает в набор-запрос поля по списку выборки его текста ({@link DcsQueryModel}).
    *
    * <p>Тип поля из текста не вывести, поэтому новое поле получает только {@code dataPath} и {@code field}.
    * Добавляются недостающие колонки (сверка по {@code dataPath} и {@code field} без учёта регистра)
@@ -599,7 +599,7 @@ public final class DcsEdit {
       throw new IllegalArgumentException(
         "Текст запроса набора данных " + setName + " пуст: заполнять поля не из чего.");
     }
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection(query);
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection(query);
     List<XmlLines.Node> children = XmlLines.childrenAt(text, target.start());
     // Сверка и по field: путь поля может отличаться от колонки (Итоги.СуммаОплаты у СуммаОплаты).
     // Регистр не учитывается, как в платформе
@@ -617,7 +617,7 @@ public final class DcsEdit {
     }
     List<String> added = new ArrayList<>();
     StringBuilder block = new StringBuilder();
-    for (DcsAutofill.Field field : selection.fields()) {
+    for (DcsQueryModel.Field field : selection.fields()) {
       // повтор имени внутри выборки тоже пропускается
       if (!taken.add(field.name().toUpperCase(Locale.ROOT))) {
         continue;
@@ -629,7 +629,7 @@ public final class DcsEdit {
         .append("</field>");
     }
     List<Map<String, String>> skipped = new ArrayList<>();
-    for (DcsAutofill.Skipped miss : selection.skipped()) {
+    for (DcsQueryModel.Skipped miss : selection.skipped()) {
       Map<String, String> row = new LinkedHashMap<>();
       row.put("expression", miss.expression());
       row.put("reason", miss.reason());

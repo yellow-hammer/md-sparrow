@@ -47,7 +47,7 @@ import java.util.stream.Stream;
 
 /**
  * Заполнение полей набора-запроса по тексту его запроса: разбор списка выборки
- * ({@link DcsAutofill}), мутация cf-dcs-autofill-fields ({@link DcsEdit#autofillFields}) на копиях
+ * ({@link DcsQueryModel}), мутация cf-dcs-autofill-fields ({@link DcsEdit#autofillFields}) на копиях
  * схем ssl31, канал apply-mutation.
  */
 class DcsAutofillTest {
@@ -82,14 +82,14 @@ class DcsAutofillTest {
 
   @Test
   void parserResolvesAliasesPathsAndPrefixes() {
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection("ВЫБРАТЬ РАЗРЕШЕННЫЕ РАЗЛИЧНЫЕ ПЕРВЫЕ 10\n"
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection("ВЫБРАТЬ РАЗРЕШЕННЫЕ РАЗЛИЧНЫЕ ПЕРВЫЕ 10\n"
       + "\tТаблица.Поле КАК Псевдоним,\n"
       + "\tТаблица.Вложено.Реквизит,\n"
       + "\tСсылка,\n"
       + "\tЕСТЬNULL(Таблица.Цена, 0) как Цена\n"
       + "ИЗ\n\tСправочник.Номенклатура КАК Таблица");
 
-    assertThat(selection.fields()).extracting(DcsAutofill.Field::name)
+    assertThat(selection.fields()).extracting(DcsQueryModel.Field::name)
       .containsExactly("Псевдоним", "ВложеноРеквизит", "Ссылка", "Цена");
     // у поля без псевдонима имя - склейка сегментов после алиаса, выражение сохраняется целиком
     assertThat(selection.fields().get(1).expression()).isEqualTo("Таблица.Вложено.Реквизит");
@@ -100,33 +100,33 @@ class DcsAutofillTest {
   @Test
   void parserNamesDereferenceColumnByGluedSegmentsAfterAlias() {
     // так колонку разыменования без псевдонима называет платформа
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection("ВЫБРАТЬ\n"
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection("ВЫБРАТЬ\n"
       + "\tФайлы.Ссылка,\n"
       + "\tФайлы.Автор.Наименование,\n"
       + "\tФайлы . Автор . Владелец . Код,\n"
       + "\tФайлы.Автор.Наименование КАК Автор\n"
       + "ИЗ\n\tСправочник.Файлы КАК Файлы");
 
-    assertThat(selection.fields()).extracting(DcsAutofill.Field::name)
+    assertThat(selection.fields()).extracting(DcsQueryModel.Field::name)
       .containsExactly("Ссылка", "АвторНаименование", "АвторВладелецКод", "Автор");
     assertThat(selection.fields().get(2).expression()).isEqualTo("Файлы . Автор . Владелец . Код");
     // путь из одного сегмента - сам сегмент; английский текст - по тем же правилам
-    assertThat(DcsAutofill.parseSelection("SELECT Code, T.Owner.Description FROM Catalog.Items AS T").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Code", "OwnerDescription");
+    assertThat(DcsQueryModel.parseSelection("SELECT Code, T.Owner.Description FROM Catalog.Items AS T").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("Code", "OwnerDescription");
   }
 
   @Test
   void parserAcceptsEnglishKeywords() {
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection(
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection(
       "SELECT ALLOWED DISTINCT TOP 5\n\tT.Item AS Item,\n\tT.Code\nFROM Catalog.Items AS T");
 
-    assertThat(selection.fields()).extracting(DcsAutofill.Field::name).containsExactly("Item", "Code");
+    assertThat(selection.fields()).extracting(DcsQueryModel.Field::name).containsExactly("Item", "Code");
     assertThat(selection.skipped()).isEmpty();
   }
 
   @Test
   void parserKeepsStringsCommentsAndBracketsWhole() {
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection("ВЫБРАТЬ // комментарий: запятая, ИЗ - не граница\n"
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection("ВЫБРАТЬ // комментарий: запятая, ИЗ - не граница\n"
       + "\tВЫБОР КОГДА Т.Вид = \"Товар, услуга\" ТОГДА 1 ИНАЧЕ 0 КОНЕЦ КАК Признак,\n"
       + "\t\"Строка \"\"с кавычками\"\", и запятой\" КАК Константа,\n"
       + "\tСУММА(ВЫБОР КОГДА Т.Сумма > 0 ТОГДА Т.Сумма ИНАЧЕ 0 КОНЕЦ) КАК Сумма, // хвост строки\n"
@@ -134,111 +134,111 @@ class DcsAutofillTest {
       + "ИЗ Документ.Счет КАК Т");
 
     // КАК и ИЗ внутри строк, комментариев и скобок не разбираются
-    assertThat(selection.fields()).extracting(DcsAutofill.Field::name)
+    assertThat(selection.fields()).extracting(DcsQueryModel.Field::name)
       .containsExactly("Признак", "Константа", "Сумма", "ЧислоВалют");
     assertThat(selection.skipped()).isEmpty();
   }
 
   @Test
   void parserTakesFirstQueryOfUnion() {
-    assertThat(DcsAutofill.parseSelection(
+    assertThat(DcsQueryModel.parseSelection(
       "ВЫБРАТЬ Т.А КАК Первый ИЗ Х КАК Т ОБЪЕДИНИТЬ ВСЕ ВЫБРАТЬ Б ИЗ У").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Первый");
+      .extracting(DcsQueryModel.Field::name).containsExactly("Первый");
     // объединение без ИЗ в первом запросе
-    assertThat(DcsAutofill.parseSelection("ВЫБРАТЬ 1 КАК Один ОБЪЕДИНИТЬ ВЫБРАТЬ 2").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Один");
+    assertThat(DcsQueryModel.parseSelection("ВЫБРАТЬ 1 КАК Один ОБЪЕДИНИТЬ ВЫБРАТЬ 2").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("Один");
   }
 
   @Test
   void parserTakesLastSelectionQueryOfBatch() {
-    assertThat(DcsAutofill.parseSelection("ВЫБРАТЬ 1 КАК Один;\nВЫБРАТЬ 2 КАК Два").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Два");
+    assertThat(DcsQueryModel.parseSelection("ВЫБРАТЬ 1 КАК Один;\nВЫБРАТЬ 2 КАК Два").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("Два");
     // запрос с ПОМЕСТИТЬ полей набора не даёт
-    assertThat(DcsAutofill.parseSelection(
+    assertThat(DcsQueryModel.parseSelection(
       "ВЫБРАТЬ Т.А КАК Первый ПОМЕСТИТЬ ВТ ИЗ Х КАК Т;\nВЫБРАТЬ В.Б КАК Второй ИЗ ВТ КАК В").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Второй");
+      .extracting(DcsQueryModel.Field::name).containsExactly("Второй");
     // УНИЧТОЖИТЬ в конце пакета выборкой не является; ДОБАВИТЬ пишет во временную таблицу
-    assertThat(DcsAutofill.parseSelection("ВЫБРАТЬ 1 КАК А ПОМЕСТИТЬ ВТ;\n"
+    assertThat(DcsQueryModel.parseSelection("ВЫБРАТЬ 1 КАК А ПОМЕСТИТЬ ВТ;\n"
       + "ВЫБРАТЬ В.А КАК Итог ИЗ ВТ КАК В;\n"
       + "ВЫБРАТЬ 2 КАК А ДОБАВИТЬ ВТ;\n"
       + "УНИЧТОЖИТЬ ВТ;").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Итог");
+      .extracting(DcsQueryModel.Field::name).containsExactly("Итог");
     // английские ключевые слова равноправны
-    assertThat(DcsAutofill.parseSelection("SELECT 1 AS One INTO TT;\nSELECT TT.One AS Last FROM TT AS TT;\nDROP TT")
-      .fields()).extracting(DcsAutofill.Field::name).containsExactly("Last");
+    assertThat(DcsQueryModel.parseSelection("SELECT 1 AS One INTO TT;\nSELECT TT.One AS Last FROM TT AS TT;\nDROP TT")
+      .fields()).extracting(DcsQueryModel.Field::name).containsExactly("Last");
   }
 
   @Test
   void parserDoesNotSplitBatchInsideStringsCommentsAndBraces() {
     // ; в строке, комментарии и блоке {…} запросы не делит; ПОМЕСТИТЬ в строке и Т.Добавить не ключевые слова
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection("ВЫБРАТЬ \"а;б ПОМЕСТИТЬ\" КАК Строка, "
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection("ВЫБРАТЬ \"а;б ПОМЕСТИТЬ\" КАК Строка, "
       + "Т.Добавить КАК Флаг // ; ПОМЕСТИТЬ\nИЗ Х КАК Т {ГДЕ Т.А = \";\"}");
 
-    assertThat(selection.fields()).extracting(DcsAutofill.Field::name).containsExactly("Строка", "Флаг");
+    assertThat(selection.fields()).extracting(DcsQueryModel.Field::name).containsExactly("Строка", "Флаг");
   }
 
   @Test
   void parserEndsSelectionAtNextClauseOfQueryWithoutSource() {
     // запрос без ИЗ: последняя запись не поглощает ГДЕ
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection(
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection(
       "ВЫБРАТЬ\n\tNULL КАК ОбъектСсылка,\n\t0    КАК ОбщееКоличество\nГДЕ\n\tЛОЖЬ");
-    assertThat(selection.fields()).extracting(DcsAutofill.Field::name).containsExactly("ОбъектСсылка", "ОбщееКоличество");
+    assertThat(selection.fields()).extracting(DcsQueryModel.Field::name).containsExactly("ОбъектСсылка", "ОбщееКоличество");
     assertThat(selection.skipped()).isEmpty();
     // блок {ГДЕ …} перед ГДЕ пропускается, граница — само ГДЕ
-    assertThat(DcsAutofill.parseSelection(
+    assertThat(DcsQueryModel.parseSelection(
       "ВЫБРАТЬ\n\t&Причина КАК Причина,\n\t&Е5 КАК Колонка\n{ГДЕ\n\t(&Причина) КАК Причина}\nГДЕ Ложь").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Причина", "Колонка");
+      .extracting(DcsQueryModel.Field::name).containsExactly("Причина", "Колонка");
     // прочие предложения и английские ключевые слова
-    assertThat(DcsAutofill.parseSelection("SELECT 1 AS One WHERE FALSE").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("One");
-    assertThat(DcsAutofill.parseSelection("ВЫБРАТЬ 1 КАК Один УПОРЯДОЧИТЬ ПО Один").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Один");
-    assertThat(DcsAutofill.parseSelection("ВЫБРАТЬ 1 КАК Один\nДЛЯ ИЗМЕНЕНИЯ").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Один");
+    assertThat(DcsQueryModel.parseSelection("SELECT 1 AS One WHERE FALSE").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("One");
+    assertThat(DcsQueryModel.parseSelection("ВЫБРАТЬ 1 КАК Один УПОРЯДОЧИТЬ ПО Один").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("Один");
+    assertThat(DcsQueryModel.parseSelection("ВЫБРАТЬ 1 КАК Один\nДЛЯ ИЗМЕНЕНИЯ").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("Один");
   }
 
   @Test
   void parserKeepsFieldAndParameterNamedLikeClause() {
     // имя после точки или & — поле или параметр, а не начало предложения
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection(
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection(
       "ВЫБРАТЬ Т.Итоги КАК Сумма, Т.Для, &Где КАК Условие ИЗ Х КАК Т");
-    assertThat(selection.fields()).extracting(DcsAutofill.Field::name).containsExactly("Сумма", "Для", "Условие");
+    assertThat(selection.fields()).extracting(DcsQueryModel.Field::name).containsExactly("Сумма", "Для", "Условие");
     assertThat(selection.skipped()).isEmpty();
-    assertThat(DcsAutofill.parseSelection("SELECT T.Index AS I, T . Order AS O, &Where AS W FROM X AS T").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("I", "O", "W");
+    assertThat(DcsQueryModel.parseSelection("SELECT T.Index AS I, T . Order AS O, &Where AS W FROM X AS T").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("I", "O", "W");
   }
 
   @Test
   void parserKeepsTableAndColumnAliasesNamedLikeClause() {
     // псевдоним таблицы перед точкой: список не обрывается на первом же поле
-    DcsAutofill.Selection tableAlias = DcsAutofill.parseSelection(
+    DcsQueryModel.Selection tableAlias = DcsQueryModel.parseSelection(
       "ВЫБРАТЬ Итоги.Ссылка КАК Ссылка, Итоги . Код КАК Код ИЗ Справочник.Валюты КАК Итоги");
-    assertThat(tableAlias.fields()).extracting(DcsAutofill.Field::name).containsExactly("Ссылка", "Код");
+    assertThat(tableAlias.fields()).extracting(DcsQueryModel.Field::name).containsExactly("Ссылка", "Код");
     assertThat(tableAlias.skipped()).isEmpty();
     // псевдоним колонки после КАК/AS
-    DcsAutofill.Selection columnAlias = DcsAutofill.parseSelection(
+    DcsQueryModel.Selection columnAlias = DcsQueryModel.parseSelection(
       "ВЫБРАТЬ Т.Ссылка КАК Ссылка, Т.Код КАК Итоги, Т.Имя КАК Где2 ИЗ Справочник.Валюты КАК Т");
-    assertThat(columnAlias.fields()).extracting(DcsAutofill.Field::name).containsExactly("Ссылка", "Итоги", "Где2");
+    assertThat(columnAlias.fields()).extracting(DcsQueryModel.Field::name).containsExactly("Ссылка", "Итоги", "Где2");
     assertThat(columnAlias.skipped()).isEmpty();
-    assertThat(DcsAutofill.parseSelection("SELECT T.Ref AS Ref, T.Code AS Order, T.Name AS Totals FROM X AS T").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Ref", "Order", "Totals");
-    assertThat(DcsAutofill.parseSelection("SELECT Index.Ref AS Ref, Index.Code AS Index FROM X AS Index").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Ref", "Index");
+    assertThat(DcsQueryModel.parseSelection("SELECT T.Ref AS Ref, T.Code AS Order, T.Name AS Totals FROM X AS T").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("Ref", "Order", "Totals");
+    assertThat(DcsQueryModel.parseSelection("SELECT Index.Ref AS Ref, Index.Code AS Index FROM X AS Index").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("Ref", "Index");
     // первое слово предложения из двух слов без второго — имя, а не граница
-    assertThat(DcsAutofill.parseSelection("ВЫБРАТЬ 1 КАК А, 2 КАК Для ГДЕ ЛОЖЬ").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("А", "Для");
+    assertThat(DcsQueryModel.parseSelection("ВЫБРАТЬ 1 КАК А, 2 КАК Для ГДЕ ЛОЖЬ").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("А", "Для");
     // контроль: настоящие предложения заканчивают список
-    assertThat(DcsAutofill.parseSelection("ВЫБРАТЬ NULL КАК А, 0 КАК Б ГДЕ ЛОЖЬ").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("А", "Б");
-    assertThat(DcsAutofill.parseSelection("SELECT 1 AS One ORDER BY One").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("One");
-    assertThat(DcsAutofill.parseSelection("ВЫБРАТЬ 1 КАК Один // примечание\nСГРУППИРОВАТЬ // ещё\n ПО Один").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Один");
+    assertThat(DcsQueryModel.parseSelection("ВЫБРАТЬ NULL КАК А, 0 КАК Б ГДЕ ЛОЖЬ").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("А", "Б");
+    assertThat(DcsQueryModel.parseSelection("SELECT 1 AS One ORDER BY One").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("One");
+    assertThat(DcsQueryModel.parseSelection("ВЫБРАТЬ 1 КАК Один // примечание\nСГРУППИРОВАТЬ // ещё\n ПО Один").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("Один");
   }
 
   @Test
   void parserRefusesBatchWithoutSelection() {
-    assertThatThrownBy(() -> DcsAutofill.parseSelection("ВЫБРАТЬ 1 КАК А ПОМЕСТИТЬ ВТ;\nУНИЧТОЖИТЬ ВТ"))
+    assertThatThrownBy(() -> DcsQueryModel.parseSelection("ВЫБРАТЬ 1 КАК А ПОМЕСТИТЬ ВТ;\nУНИЧТОЖИТЬ ВТ"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessageContaining("нет запроса выборки");
   }
@@ -246,29 +246,29 @@ class DcsAutofillTest {
   @Test
   void parserTreatsKeywordNamedParameterAsParameter() {
     // единственный запрос с параметром &Добавить остаётся выборкой
-    assertThat(DcsAutofill.parseSelection("ВЫБРАТЬ Т.А КАК Поле ИЗ Х КАК Т ГДЕ Т.Б = &Добавить").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Поле");
-    assertThat(DcsAutofill.parseSelection("SELECT T.A AS Field FROM X AS T WHERE T.B = &Into OR T.C = &Add")
-      .fields()).extracting(DcsAutofill.Field::name).containsExactly("Field");
+    assertThat(DcsQueryModel.parseSelection("ВЫБРАТЬ Т.А КАК Поле ИЗ Х КАК Т ГДЕ Т.Б = &Добавить").fields())
+      .extracting(DcsQueryModel.Field::name).containsExactly("Поле");
+    assertThat(DcsQueryModel.parseSelection("SELECT T.A AS Field FROM X AS T WHERE T.B = &Into OR T.C = &Add")
+      .fields()).extracting(DcsQueryModel.Field::name).containsExactly("Field");
     // в пакете такой запрос не пропускается в пользу предыдущей выборки
-    assertThat(DcsAutofill.parseSelection(
+    assertThat(DcsQueryModel.parseSelection(
       "ВЫБРАТЬ 1 КАК Первый;\nВЫБРАТЬ Т.Б КАК Второй ИЗ Х КАК Т ГДЕ Т.В = &Поместить").fields())
-      .extracting(DcsAutofill.Field::name).containsExactly("Второй");
+      .extracting(DcsQueryModel.Field::name).containsExactly("Второй");
   }
 
   @Test
   void parserSkipsDcsExtensionBraces() {
     // блок {ВЫБРАТЬ …} пропускается целиком, звёздочка внутри него отказа не вызывает
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection(
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection(
       "ВЫБРАТЬ\n\tТ.А КАК А\n{ВЫБРАТЬ\n\tА.*}\nИЗ Х КАК Т");
 
-    assertThat(selection.fields()).extracting(DcsAutofill.Field::name).containsExactly("А");
+    assertThat(selection.fields()).extracting(DcsQueryModel.Field::name).containsExactly("А");
     assertThat(selection.skipped()).isEmpty();
   }
 
   @Test
   void parserSendsNamelessExpressionsToSkipped() {
-    DcsAutofill.Selection selection = DcsAutofill.parseSelection("ВЫБРАТЬ\n"
+    DcsQueryModel.Selection selection = DcsQueryModel.parseSelection("ВЫБРАТЬ\n"
       + "\tТ.Поле + 1,\n"
       + "\tКОЛИЧЕСТВО(Т.Поле),\n"
       + "\t&Параметр,\n"
@@ -278,8 +278,8 @@ class DcsAutofillTest {
       + "\tТ.Годное КАК Годное,\n"
       + "ИЗ Х КАК Т");
 
-    assertThat(selection.fields()).extracting(DcsAutofill.Field::name).containsExactly("Годное");
-    assertThat(selection.skipped()).extracting(DcsAutofill.Skipped::expression).containsExactly(
+    assertThat(selection.fields()).extracting(DcsQueryModel.Field::name).containsExactly("Годное");
+    assertThat(selection.skipped()).extracting(DcsQueryModel.Skipped::expression).containsExactly(
       "Т.Поле + 1", "КОЛИЧЕСТВО(Т.Поле)", "&Параметр", "2", "\"строка\"", "Т.Поле КАК 5", "");
     // у каждой пропущенной записи своя причина
     assertThat(selection.skipped().get(0).reason()).contains("нет псевдонима");
@@ -289,19 +289,19 @@ class DcsAutofillTest {
 
   @Test
   void parserRefusesStarAndTextWithoutSelect() {
-    assertThatThrownBy(() -> DcsAutofill.parseSelection("ВЫБРАТЬ *"))
+    assertThatThrownBy(() -> DcsQueryModel.parseSelection("ВЫБРАТЬ *"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessageContaining("звёздочк");
-    assertThatThrownBy(() -> DcsAutofill.parseSelection("ВЫБРАТЬ\n\tТ.* \nИЗ Х КАК Т"))
+    assertThatThrownBy(() -> DcsQueryModel.parseSelection("ВЫБРАТЬ\n\tТ.* \nИЗ Х КАК Т"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessageContaining("звёздочк");
-    assertThatThrownBy(() -> DcsAutofill.parseSelection("SELECT * FROM X"))
+    assertThatThrownBy(() -> DcsQueryModel.parseSelection("SELECT * FROM X"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessageContaining("звёздочк");
-    assertThatThrownBy(() -> DcsAutofill.parseSelection("ПОМЕСТИТЬ ВТ"))
+    assertThatThrownBy(() -> DcsQueryModel.parseSelection("ПОМЕСТИТЬ ВТ"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessageContaining("не начинается с ВЫБРАТЬ");
-    assertThatThrownBy(() -> DcsAutofill.parseSelection("  // только комментарий\n"))
+    assertThatThrownBy(() -> DcsQueryModel.parseSelection("  // только комментарий\n"))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessageContaining("не начинается с ВЫБРАТЬ");
   }

@@ -264,6 +264,9 @@ dependencies {
     implementation("org.glassfish.jaxb:jaxb-runtime:4.0.5")
     implementation("info.picocli:picocli:4.7.7")
     implementation("com.google.code.gson:gson:2.14.0")
+    // Автозаполнение СКД использует ту же модель запроса, что конструктор.
+    implementation("org.graalvm.polyglot:polyglot:25.0.3")
+    runtimeOnly("org.graalvm.js:js-language:25.0.3")
     implementation("com.fasterxml.woodstox:woodstox-core:7.1.0")
 
     // Модель формата EDT читается динамически по .ecore из хранилища схем:
@@ -530,9 +533,6 @@ tasks.named<Copy>("processResources") {
     from(prepareDesignerTypeSchemas) {
         into("designer-schemas")
     }
-    // Канонический набор: golden/{cf,cfe,ext,form}/…, golden/format.txt, golden/rules/…, golden/index.txt
-    from(prepareCanonicalGolden) {
-        into("golden")
     // Строгая проверка СКД использует XSD той версии, в которой выгружен макет.
     from(schemasDir) {
         include("*/v8.1c.ru-8.1-data-composition-system-*.xsd")
@@ -540,6 +540,9 @@ tasks.named<Copy>("processResources") {
         include("*/v8.1c.ru-8.1-data-enterprise.xsd", "*/v8.1c.ru-8.2-data-spreadsheet.xsd")
         into("dcs-schemas")
     }
+    // Канонический набор: golden/{cf,cfe,ext,form}/…, golden/format.txt, golden/rules/…, golden/index.txt
+    from(prepareCanonicalGolden) {
+        into("golden")
     }
     // Канонический эталон макета СКД: golden/dcs/… (формат - golden/format.txt)
     from(prepareCanonicalDcs) {

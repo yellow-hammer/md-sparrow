@@ -28,7 +28,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -104,55 +103,7 @@ public final class DcsQueryParameters {
    * {@code "…"} и комментариях {@code //…} нет.
    */
   static List<String> names(String query) {
-    Set<String> seen = new LinkedHashSet<>();
-    List<String> out = new ArrayList<>();
-    int i = 0;
-    while (i < query.length()) {
-      char c = query.charAt(i);
-      if (c == '"') {
-        i++;
-        while (i < query.length()) {
-          if (query.charAt(i) == '"') {
-            if (i + 1 < query.length() && query.charAt(i + 1) == '"') {
-              i += 2;
-              continue;
-            }
-            break;
-          }
-          i++;
-        }
-        i++;
-        continue;
-      }
-      if (c == '/' && i + 1 < query.length() && query.charAt(i + 1) == '/') {
-        while (i < query.length() && query.charAt(i) != '\n') {
-          i++;
-        }
-        continue;
-      }
-      if (c == '&' && i + 1 < query.length() && identifierStart(query.charAt(i + 1))) {
-        int end = i + 1;
-        while (end < query.length() && identifierPart(query.charAt(end))) {
-          end++;
-        }
-        String name = query.substring(i + 1, end);
-        if (seen.add(upper(name))) {
-          out.add(name);
-        }
-        i = end;
-        continue;
-      }
-      i++;
-    }
-    return out;
-  }
-
-  private static boolean identifierStart(char c) {
-    return Character.isLetter(c) || c == '_';
-  }
-
-  private static boolean identifierPart(char c) {
-    return Character.isLetterOrDigit(c) || c == '_';
+    return DcsQueryModel.parametersOf(query);
   }
 
   private static String upper(String value) {
