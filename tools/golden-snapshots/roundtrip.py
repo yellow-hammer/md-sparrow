@@ -701,7 +701,7 @@ def dcs_inputs_problems(data):
     return problems
 
 
-def dcs_grid(inputs, fmt='2.20'):
+def dcs_grid(inputs, fmt):
     """Сетка целиком: таблица DCS_GRID и элементы из входов редактора (конструктор запроса - схема Отчет2, мастер -
     варианты основной схемы).
 
@@ -1462,7 +1462,7 @@ class Roundtrip:
         до конца подготовки (следующие элементы могли их переписать).
         """
         inputs = load_dcs_inputs(self.dcs_inputs)
-        entries = dcs_grid(inputs)
+        entries = dcs_grid(inputs, self.format)
         log('  сетка: элементов %d (запросов конструктора %d, пакетов мастера %d)' % (
             len(entries), len(inputs['queries']), len(inputs['wizard'])))
         before = grid_snapshot(cf)
@@ -2380,7 +2380,12 @@ def self_test_grid_rules(t, tmp):
         problems = dcs_inputs_problems(broken)
         t.check('входы, отрицательный контроль: таблица вне окружения, повтор имени набора, операция вне каталога',
                 len(problems) == 3 and 'Справочник.НетТакого' in ' '.join(problems), problems)
-        entries = dcs_grid(inputs)
+        entries = dcs_grid(inputs, '2.16')
+        legacy_entries = dcs_grid(inputs, '2.15')
+        for case, any_ref in ((legacy_entries, 'cfg:AnyRef'), (entries, 'cfg:AnyIBRef')):
+            type_sets = [s['payload']['valueType']['typeSets'] for e in case if e['id'] == 'типы-параметров'
+                         for s in e['steps'] if s.get('payload', {}).get('name') == 'ЛюбаяСсылка']
+            t.check('сетка проверяет «любую ссылку» записью %s' % any_ref, type_sets == [[any_ref]], type_sets)
         gids = [e['id'] for e in entries]
         declared = {s['payload']['name'].lower() for e in entries for s in e['steps']
                     if s['op'] == 'cf-dcs-add-parameter' and s['objectXml'] == '@queries'}
