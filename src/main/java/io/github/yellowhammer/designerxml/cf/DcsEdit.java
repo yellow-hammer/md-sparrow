@@ -517,7 +517,7 @@ public final class DcsEdit {
       }
       if (props.containsKey("role")) {
         Optional<XmlGranularPatch.Replacement> role =
-          optionalBlock(text, children, FIELD_SEQUENCE, "role", roleXml(props.get("role")));
+          optionalBlock(text, children, FIELD_SEQUENCE, "role", roleXml(props.get("role"), version));
         // Эхо роли, отличное от файла только пустым balanceGroupName, считается дополнением, а не правкой
         boolean echo = role.isPresent() && roleCompletion.isPresent()
           && fieldPatched(text, List.of(role.get())).equals(fieldPatched(text, List.of(roleCompletion.get())));
@@ -1599,7 +1599,7 @@ public final class DcsEdit {
    * Роль поля: дети в пространстве dcscom по xs:sequence; без единого значения - пусто. При взведённом
    * {@code balance} пустое имя группы остатка пишется {@code <dcscom:balanceGroupName/>}, как платформа.
    */
-  private static String roleXml(Object value) {
+  private static String roleXml(Object value, SchemaVersion version) {
     if (value == null) {
       return "";
     }
@@ -1619,6 +1619,10 @@ public final class DcsEdit {
         balance = text != null;
       }
       if (text != null) {
+        if ("isMain".equals(name) && version.compareTo(SchemaVersion.V2_21) < 0) {
+          throw new IllegalArgumentException("Признак «Основное поле» (isMain) появился в формате 2.21. Формат файла: "
+            + version.metadataObjectVersionAttribute() + ".");
+        }
         children.append("<dcscom:").append(name).append('>').append(text)
           .append("</dcscom:").append(name).append('>');
       } else if (balance && "balanceGroupName".equals(name)) {

@@ -521,6 +521,11 @@ public final class DcsRead {
       : value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 
+  static String unsupportedFormat(SchemaVersion version) {
+    return "Схема компоновки данных в формате " + version.metadataObjectVersionAttribute()
+      + " не поддержана: в XSD этого формата нет полного набора схем СКД.";
+  }
+
   /** Модель схемы. Видна пакету: проверка корпуса обходит и вложенные схемы, которых {@link #info} не раскрывает. */
   static Object schemaRoot(Path templateXml, SchemaVersion version) throws IOException, JAXBException {
     // Платформа пишет корень DataCompositionSchema с заглавной, а схема XSD
@@ -531,11 +536,7 @@ public final class DcsRead {
         "io.github.yellowhammer.designerxml.jaxb." + version.name().toLowerCase(java.util.Locale.ROOT)
           + ".v8_1_dcs_schema.DataCompositionSchema");
     } catch (ClassNotFoundException e) {
-      // В XSD 2.10-2.11 нет схем СКД schema, common и area-template. Модель нового формата, как у строгой
-      // проверки, здесь не подставляется: через этот метод проверяется каждая правка, и модель нового формата
-      // пропустила бы элемент, которого платформа 8.3.17-8.3.18 не знает
-      throw new IllegalArgumentException("Схема компоновки данных в формате " + version.metadataObjectVersionAttribute()
-        + " не поддержана: в XSD этого формата нет полного набора схем СКД.", e);
+      throw new IllegalArgumentException(unsupportedFormat(version), e);
     }
     try (var in = java.nio.file.Files.newInputStream(templateXml)) {
       JAXBElement<?> element = version.jaxbContext().createUnmarshaller()

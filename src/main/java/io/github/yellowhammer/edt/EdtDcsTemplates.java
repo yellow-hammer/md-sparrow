@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import javax.xml.stream.XMLStreamException;
@@ -37,6 +38,7 @@ import javax.xml.stream.XMLStreamException;
 import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EStructuralFeature;
 
+import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.cf.CatalogNameConstraints;
 import io.github.yellowhammer.designerxml.cf.DcsSettingsNamespaces;
 import io.github.yellowhammer.designerxml.cf.DcsTemplateScaffold;
@@ -65,6 +67,18 @@ public final class EdtDcsTemplates {
   private static final String INDENT = "  ";
 
   private EdtDcsTemplates() {
+  }
+
+  /**
+   * Формат платформы из манифеста проекта, которому принадлежит файл схемы.
+   *
+   * @param schemaFile файл {@code Template.dcs}
+   * @return формат по {@code Runtime-Version}, если файл лежит в проекте с манифестом
+   * @throws IOException если манифест не читается
+   */
+  public static Optional<SchemaVersion> formatOfSchema(Path schemaFile) throws IOException {
+    Path sources = EdtSupportRules.sourceRoot(schemaFile);
+    return sources == null ? Optional.empty() : EdtProjectManifest.format(sources.getParent());
   }
 
   /**

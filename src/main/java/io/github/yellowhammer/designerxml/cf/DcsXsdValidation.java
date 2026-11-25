@@ -57,6 +57,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,10 +70,8 @@ import java.util.regex.Pattern;
  * Строгая проверка схемы компоновки данных: XSD-валидация по схемам СКД {@code namespace-forest}
  * с поправками «как пишет платформа» ({@link DcsXsdShims}) плюс JAXB-чтение.
  * <p>
- * Схемы берутся из ресурсов сборки ({@code designer-schemas/…}, самый новый формат submodule): схема
- * нового формата принимает файлы прежних, а объявления пространств имён, которыми различаются форматы
- * (в 2.21 {@code xmlns:pal} у настроек варианта), XSD не проверяет. В набор входит и {@code data/enterprise}:
- * его перечисления платформа пишет в {@code xsi:type} значений настроек, хотя схемы СКД его не импортируют.
+ * В набор формата входит и {@code data/enterprise}: его перечисления платформа пишет
+ * в {@code xsi:type} значений настроек, хотя схемы СКД его не импортируют.
  * <p>
  * Типы из пространств, схем которых в коллекции нет (типы конфигурации, диаграммы, цвета и стили),
  * проверяются как непрозрачные значения: для каждого такого типа из файла добавляется заглушка,
@@ -81,8 +80,7 @@ import java.util.regex.Pattern;
  */
 public final class DcsXsdValidation {
 
-  /** Каталог схем конфигуратора в ресурсах сборки (кладёт gradle-задача prepareDesignerTypeSchemas). */
-  private static final String SCHEMAS_RESOURCE_DIR = "/designer-schemas";
+  private static final Map<SchemaVersion, DcsXsdValidation> FORMATS = new EnumMap<>(SchemaVersion.class);
 
   /** Пространство имён набора строгой проверки → файл XSD в ресурсах сборки. */
   private static final Map<String, String> NS_TO_XSD_FILE = Map.ofEntries(
@@ -104,16 +102,28 @@ public final class DcsXsdValidation {
    * Схема проверки и заглушенные ею типы. Заглушки копятся по всем проверенным файлам: лишние типы
    * на проверку не влияют, а схема не пересобирается для каждого файла.
    */
-  private static Schema schema;
-  private static final Map<String, Set<String>> stubbed = new TreeMap<>();
+  private final String resourceDir;
+  private final Map<String, Set<String>> stubbed = new TreeMap<>();
+  private Schema schema;
 
-  private DcsXsdValidation() {
+  private DcsXsdValidation(SchemaVersion version) {
+    resourceDir = "/dcs-schemas/" + version.metadataObjectVersionAttribute();
+  }
+
+  private static synchronized DcsXsdValidation format(SchemaVersion version) {
+    return FORMATS.computeIfAbsent(version, DcsXsdValidation::new);
+  }
+
+  /** Проверяет схему как файл последнего формата. */
+  public static Map<String, Object> validate(Path templateXml) {
+    return validate(templateXml, SchemaVersion.values()[SchemaVersion.values().length - 1]);
   }
 
   /**
    * Строгая проверка файла схемы компоновки (выгрузка конфигуратора или {@code Template.dcs} 1С:EDT).
    *
    * @param templateXml путь к файлу схемы
+   * @param version формат исходного файла
    * @return {@code {ok, errors: [{message, line?, column?}], warnings: [{message, parameter?, dataSet?, link?,
    *     kind}]}}; предупреждения на {@code ok} не влияют и идут по порядку: необъявленные параметры
    *     запросов ({@link DcsQueryParameters}, с {@code dataSet}), списки значений {@code v8:ValueListType},
@@ -121,14 +131,19 @@ public final class DcsXsdValidation {
    *     без параметра связи ({@link DcsLegacyLinkListFlags}, {@code link} вместо {@code parameter})
    * @throws IllegalArgumentException файла нет или схемы сборки не собираются
    */
-  public static Map<String, Object> validate(Path templateXml) {
+  public static Map<String, Object> validate(Path templateXml, SchemaVersion version) {
     if (!Files.isRegularFile(templateXml)) {
       throw new IllegalArgumentException("Файл схемы компоновки не найден: " + templateXml.toAbsolutePath());
     }
-    List<Map<String, Object>> errors = xsdErrors(templateXml);
+    DcsXsdValidation format = format(version);
+    if (DcsXsdValidation.class.getResource(format.resourceDir + "/" + DcsXsdShims.DCS_SCHEMA_XSD) == null) {
+      return Map.of("ok", false, "errors", List.of(Map.of("message", DcsRead.unsupportedFormat(version))),
+        "warnings", List.of());
+    }
+    List<Map<String, Object>> errors = format.xsdErrors(templateXml);
     if (errors.isEmpty()) {
       // Валидный по XSD файл должен ещё читаться моделью: иначе его не возьмут чтение и правка
-      jaxbError(templateXml).ifPresent(errors::add);
+      jaxbError(templateXml, version).ifPresent(errors::add);
     }
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("ok", errors.isEmpty());
@@ -145,7 +160,7 @@ public final class DcsXsdValidation {
   }
 
   /** Все несоответствия схеме: валидатор не останавливается на первом, кроме испорченной разметки. */
-  private static List<Map<String, Object>> xsdErrors(Path templateXml) {
+  private List<Map<String, Object>> xsdErrors(Path templateXml) {
     List<Map<String, Object>> errors = new ArrayList<>();
     try {
       Validator validator = schemaFor(templateXml).newValidator();
@@ -182,20 +197,14 @@ public final class DcsXsdValidation {
   }
 
   /** Ошибка JAXB-чтения модели ({@link DcsRead#validate}). */
-  private static java.util.Optional<Map<String, Object>> jaxbError(Path templateXml) {
-    Map<String, Object> read = DcsRead.validate(templateXml, latestVersion());
+  private static java.util.Optional<Map<String, Object>> jaxbError(Path templateXml, SchemaVersion version) {
+    Map<String, Object> read = DcsRead.validate(templateXml, version);
     if (Boolean.TRUE.equals(read.get("valid"))) {
       return java.util.Optional.empty();
     }
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("message", String.valueOf(read.get("error")));
     return java.util.Optional.of(out);
-  }
-
-  /** Версия для JAXB-чтения: модель схемы компоновки одна во всех форматах, берётся самая новая. */
-  private static SchemaVersion latestVersion() {
-    SchemaVersion[] all = SchemaVersion.values();
-    return all[all.length - 1];
   }
 
   private static Map<String, Object> errorEntry(SAXException e) {
@@ -216,13 +225,16 @@ public final class DcsXsdValidation {
    * Схема проверки, покрывающая {@code xsi:type} файла: типы из пространств без XSD заглушаются.
    * Собирается один раз и пересобирается, только когда файл приносит ещё не заглушенный тип.
    */
-  private static synchronized Schema schemaFor(Path templateXml) throws IOException, SAXException {
+  private synchronized Schema schemaFor(Path templateXml) throws IOException, SAXException {
     Map<String, Set<String>> unknown = unknownXsiTypes(templateXml);
     boolean grown = false;
     for (Map.Entry<String, Set<String>> e : unknown.entrySet()) {
       grown |= stubbed.computeIfAbsent(e.getKey(), ns -> new TreeSet<>()).addAll(e.getValue());
     }
-    if (schema == null || grown) {
+    if (grown) {
+      schema = null;
+    }
+    if (schema == null) {
       schema = buildSchema();
     }
     return schema;
@@ -267,7 +279,7 @@ public final class DcsXsdValidation {
   }
 
   /** Собирает схему из ресурсов сборки с подменами {@link DcsXsdShims} и заглушками неизвестных пространств. */
-  private static Schema buildSchema() throws IOException, SAXException {
+  private Schema buildSchema() throws IOException, SAXException {
     SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
     factory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
     factory.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
@@ -306,16 +318,16 @@ public final class DcsXsdValidation {
   }
 
   /** Текст схемы из ресурсов сборки после подмен {@link DcsXsdShims}. */
-  private static Source patchedSource(String fileName) throws IOException, SAXException {
+  private Source patchedSource(String fileName) throws IOException, SAXException {
     return new StreamSource(new StringReader(patchedSchema(fileName)), resourceSystemId(fileName));
   }
 
   /** Адрес схемы в ресурсах сборки; вызывается, когда ресурс уже прочитан. */
-  private static String resourceSystemId(String fileName) {
-    return DcsXsdValidation.class.getResource(SCHEMAS_RESOURCE_DIR + "/" + fileName).toString();
+  private String resourceSystemId(String fileName) {
+    return DcsXsdValidation.class.getResource(resourceDir + "/" + fileName).toString();
   }
 
-  private static String patchedSchema(String fileName) throws IOException, SAXException {
+  private String patchedSchema(String fileName) throws IOException, SAXException {
     Document doc = parseSchema(fileName);
     DcsXsdShims.apply(fileName, doc);
     try {
@@ -331,11 +343,11 @@ public final class DcsXsdValidation {
     }
   }
 
-  private static Document parseSchema(String fileName) throws IOException, SAXException {
-    InputStream stream = DcsXsdValidation.class.getResourceAsStream(SCHEMAS_RESOURCE_DIR + "/" + fileName);
+  private Document parseSchema(String fileName) throws IOException, SAXException {
+    InputStream stream = DcsXsdValidation.class.getResourceAsStream(resourceDir + "/" + fileName);
     if (stream == null) {
       throw new IllegalArgumentException(
-        "В сборке нет схемы конфигуратора: " + SCHEMAS_RESOURCE_DIR + "/" + fileName);
+        "В сборке нет схемы конфигуратора: " + resourceDir + "/" + fileName);
     }
     try (InputStream in = stream) {
       DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -360,7 +372,7 @@ public final class DcsXsdValidation {
   }
 
   /** Разрешение import схем набора по пространству имён из ресурсов сборки, с подменами. */
-  private static final class ResourceSchemaResolver implements LSResourceResolver {
+  private final class ResourceSchemaResolver implements LSResourceResolver {
 
     private final DOMImplementationLS domLs;
 

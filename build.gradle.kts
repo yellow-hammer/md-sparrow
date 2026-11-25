@@ -533,6 +533,13 @@ tasks.named<Copy>("processResources") {
     // Канонический набор: golden/{cf,cfe,ext,form}/…, golden/format.txt, golden/rules/…, golden/index.txt
     from(prepareCanonicalGolden) {
         into("golden")
+    // Строгая проверка СКД использует XSD той версии, в которой выгружен макет.
+    from(schemasDir) {
+        include("*/v8.1c.ru-8.1-data-composition-system-*.xsd")
+        include("*/v8.1c.ru-8.1-data-core.xsd", "*/v8.1c.ru-8.1-data-ui.xsd")
+        include("*/v8.1c.ru-8.1-data-enterprise.xsd", "*/v8.1c.ru-8.2-data-spreadsheet.xsd")
+        into("dcs-schemas")
+    }
     }
     // Канонический эталон макета СКД: golden/dcs/… (формат - golden/format.txt)
     from(prepareCanonicalDcs) {

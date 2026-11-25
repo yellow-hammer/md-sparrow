@@ -380,9 +380,8 @@ final class ReadJsonCmd implements Callable<Integer> {
         return gson.toJson(SpreadsheetRead.read(p.reqPath(p.objectXml, "objectXml"), p.version()));
       }
       case "cf-dcs-validate": {
-        // strict не требует schemaVersion: XSD схемы компоновки один на все форматы
         return gson.toJson(p.strict
-          ? DcsXsdValidation.validate(p.reqPath(p.objectXml, "objectXml"))
+          ? DcsXsdValidation.validate(p.reqPath(p.objectXml, "objectXml"), p.version())
           : DcsRead.validate(p.reqPath(p.objectXml, "objectXml"), p.version()));
       }
       case "cf-support-get": {

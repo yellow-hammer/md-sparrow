@@ -122,9 +122,9 @@ class DcsTemplateScaffoldTest {
         .contains("в формате " + version.metadataObjectVersionAttribute())
         .contains("нет полного набора схем СКД");
     }
-    // Строгая проверка идёт по XSD самого нового формата
-    Map<String, Object> strict = readJson(Map.of("op", "cf-dcs-validate", "objectXml", content, "strict", true));
-    assertThat(strict).containsEntry("ok", true);
+    Map<String, Object> strict = readJson(Map.of(
+      "op", "cf-dcs-validate", "objectXml", content, "schemaVersion", version.name(), "strict", true));
+    assertThat(strict).containsEntry("ok", version.compareTo(SchemaVersion.V2_12) >= 0);
   }
 
   // --- удаление --------------------------------------------------------------------------------

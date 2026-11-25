@@ -26,9 +26,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.edt.EdtDcsTemplates;
 import io.github.yellowhammer.edt.EdtLayout;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -244,11 +246,15 @@ final class CliParams {
   }
 
   SchemaVersion version() {
-    // Схему компоновки описывает одна и та же модель во всех версиях формата, а
-    // у проекта 1С:EDT версии выгрузки нет вовсе
+    // Template.dcs не содержит номера формата. В проекте его определяет Runtime-Version.
     if ((schemaVersion == null || schemaVersion.isBlank()) && EdtLayout.isSchemaFile(objectXml)) {
       SchemaVersion[] all = SchemaVersion.values();
-      return all[all.length - 1];
+      try {
+        // Версия нужна до правки, даже когда пути записи уже перенаправлены в сеанс.
+        return EdtDcsTemplates.formatOfSchema(Path.of(objectXml)).orElse(all[all.length - 1]);
+      } catch (IOException e) {
+        throw new UncheckedIOException("Не удалось прочитать манифест проекта 1С:EDT.", e);
+      }
     }
     String v = req(schemaVersion, "schemaVersion");
     try {

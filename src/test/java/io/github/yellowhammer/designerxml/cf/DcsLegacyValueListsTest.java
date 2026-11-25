@@ -99,7 +99,7 @@ class DcsLegacyValueListsTest {
     assertThat(String.valueOf(size.get("valueTyped"))).contains("presentation=десять");
 
     // Канал read-json отдаёт то же предупреждение
-    Map<String, Object> strict = readJson(Map.of("op", "cf-dcs-validate", "objectXml", dcs.toString(), "strict", true));
+    Map<String, Object> strict = readJson(Map.of("op", "cf-dcs-validate", "objectXml", dcs.toString(), "schemaVersion", "V2_20", "strict", true));
     assertThat(strict.get("ok")).isEqualTo(true);
     assertThat(strict.get("warnings")).isEqualTo(answer.get("warnings"));
   }

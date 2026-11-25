@@ -22,8 +22,10 @@
 package io.github.yellowhammer.designerxml.cf;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.gson.Gson;
+import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.Ssl31SubmodulePaths;
 import io.github.yellowhammer.designerxml.cli.DesignerXmlCli;
 import org.junit.jupiter.api.Test;
@@ -89,7 +91,7 @@ class DcsXsdValidationTest {
   private static List<String> failures(List<Path> corpus) {
     List<String> out = new ArrayList<>();
     for (Path file : corpus) {
-      Map<String, Object> answer = DcsXsdValidation.validate(file);
+      Map<String, Object> answer = DcsXsdValidation.validate(file, SchemaVersion.V2_20);
       if (!Boolean.TRUE.equals(answer.get("ok"))) {
         out.add(file + " -> " + answer.get("errors"));
       }
@@ -186,7 +188,7 @@ class DcsXsdValidationTest {
     Path dcs = copyPlainSchema();
 
     Map<String, Object> strict = parseJson(readJson(Map.of(
-      "op", "cf-dcs-validate", "objectXml", dcs.toString(), "strict", true)));
+      "op", "cf-dcs-validate", "objectXml", dcs.toString(), "schemaVersion", "V2_20", "strict", true)));
     assertThat(strict.get("ok")).isEqualTo(true);
     assertThat(strict.get("errors")).isEqualTo(List.of());
 
@@ -205,10 +207,49 @@ class DcsXsdValidationTest {
       "<dataSourceType>Local</dataSourceType><чужойЭлемент/>");
 
     Map<String, Object> answer = parseJson(readJson(Map.of(
-      "op", "cf-dcs-validate", "objectXml", dcs.toString(), "strict", true)));
+      "op", "cf-dcs-validate", "objectXml", dcs.toString(), "schemaVersion", "V2_20", "strict", true)));
 
     assertThat(answer.get("ok")).isEqualTo(false);
     assertThat(String.valueOf(answer.get("errors"))).contains("чужойЭлемент");
+  }
+
+  @Test
+  void roleFlagIsAcceptedOnlySince221() throws Exception {
+    Path dcs = copyPlainSchema();
+    byte[] before = Files.readAllBytes(dcs);
+    Map<String, Object> change = Map.of("role", Map.of("isMain", true));
+
+    assertThatThrownBy(() -> DcsEdit.setField(dcs, SchemaVersion.V2_20, "ОсновнойЗапрос", "Выявлено", change))
+      .isInstanceOf(IllegalArgumentException.class).hasMessageContainingAll("isMain", "2.20", "2.21");
+    assertThat(Files.readAllBytes(dcs)).isEqualTo(before);
+
+    DcsEdit.setField(dcs, SchemaVersion.V2_21, "ОсновнойЗапрос", "Выявлено", change);
+    Map<String, Object> latest = parseJson(readJson(Map.of(
+      "op", "cf-dcs-validate", "objectXml", dcs.toString(), "schemaVersion", "V2_21", "strict", true)));
+    Map<String, Object> previous = parseJson(readJson(Map.of(
+      "op", "cf-dcs-validate", "objectXml", dcs.toString(), "schemaVersion", "V2_20", "strict", true)));
+    assertThat(latest).containsEntry("ok", true);
+    assertThat(previous).containsEntry("ok", false);
+    assertThat(firstError(previous).get("message").toString()).contains("isMain");
+  }
+
+  @Test
+  void edtProjectRuntimeSelectsStrictSchema() throws Exception {
+    Path original = copyPlainSchema();
+    DcsEdit.setField(original, SchemaVersion.V2_21, "ОсновнойЗапрос", "Выявлено",
+      Map.of("role", Map.of("isMain", true)));
+    Path project = Files.createDirectory(tempDir.resolve("project"));
+    Path configuration = Files.createDirectories(project.resolve("src/Configuration")).resolve("Configuration.mdo");
+    Files.createFile(configuration);
+    Path manifest = Files.createDirectory(project.resolve("DT-INF")).resolve("PROJECT.PMF");
+    Files.writeString(manifest, "Runtime-Version: 8.3.27\n");
+    Path schema = Files.copy(original,
+      Files.createDirectories(project.resolve("src/Reports/Отчет/Templates/Схема")).resolve("Template.dcs"));
+    Map<String, Object> request = Map.of("op", "cf-dcs-validate", "objectXml", schema.toString(), "strict", true);
+
+    assertThat(firstError(parseJson(readJson(request))).get("message").toString()).contains("isMain");
+    Files.writeString(manifest, "Runtime-Version: 8.5.1\n");
+    assertThat(parseJson(readJson(request))).containsEntry("ok", true);
   }
 
   // --- общее -----------------------------------------------------------------------------------

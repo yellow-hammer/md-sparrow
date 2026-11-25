@@ -125,7 +125,7 @@ class DcsQueryParametersTest {
       "ВЫБРАТЬ\n\tТ.Размер КАК Размер\nИЗ\n\tРегистрСведений.РазмерОбъектовМетаданныхПриложений КАК Т\n"
         + "ГДЕ\n\tТ.Период >= &НовыйПараметр");
 
-    Map<String, Object> strict = readJson(Map.of("op", "cf-dcs-validate", "objectXml", dcs.toString(), "strict", true));
+    Map<String, Object> strict = readJson(Map.of("op", "cf-dcs-validate", "objectXml", dcs.toString(), "schemaVersion", "V2_20", "strict", true));
     assertThat(strict.get("ok")).isEqualTo(true);
     assertThat(String.valueOf(strict.get("warnings"))).contains("&НовыйПараметр не объявлен в схеме");
 
