@@ -50,13 +50,10 @@ import java.util.regex.Pattern;
  */
 public final class CfeBorrow {
 
-  private static final Pattern ROOT_NODE = Pattern.compile("<([A-Za-z]+) uuid=\"[0-9a-fA-F-]+\">");
+  private static final Pattern ROOT_NODE = Pattern.compile("<([A-Za-z]+) uuid=\"([0-9a-fA-F-]+)\">");
   private static final Pattern ANY_UUID = Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
 
-  /**
-   * Виды, у которых в MDClasses есть элемент {@code ChildObjects}.
-   * В форматах 2.10–2.21 набор один и тот же.
-   */
+  /** Виды, у которых в MDClasses есть элемент {@code ChildObjects}. */
   private static final Set<String> CHILD_OBJECT_TYPES = Set.of(
     "AccountingRegister",
     "AccumulationRegister",
@@ -82,6 +79,7 @@ public final class CfeBorrow {
     "InformationRegister",
     "IntegrationService",
     "Operation",
+    "Queue",
     "Recalculation",
     "Report",
     "Sequence",
@@ -102,11 +100,11 @@ public final class CfeBorrow {
    * расширение с ролью не загружает).
    */
   private static final List<KindProperty> KIND_PROPERTIES = List.of(
-    new KindProperty("Document", "RegisterRecords", false, SchemaVersion.V2_10, SchemaVersion.V2_21),
-    new KindProperty("Subsystem", "Content", false, SchemaVersion.V2_10, SchemaVersion.V2_21),
-    new KindProperty("DefinedType", "Type", false, SchemaVersion.V2_10, SchemaVersion.V2_21),
+    new KindProperty("Document", "RegisterRecords", false, SchemaVersion.V2_10, SchemaVersion.V2_22),
+    new KindProperty("Subsystem", "Content", false, SchemaVersion.V2_10, SchemaVersion.V2_22),
+    new KindProperty("DefinedType", "Type", false, SchemaVersion.V2_10, SchemaVersion.V2_22),
     new KindProperty("CommonForm", "FormType", true, SchemaVersion.V2_10, SchemaVersion.V2_21),
-    new KindProperty("CommonTemplate", "TemplateType", true, SchemaVersion.V2_15, SchemaVersion.V2_21),
+    new KindProperty("CommonTemplate", "TemplateType", true, SchemaVersion.V2_15, SchemaVersion.V2_22),
     new KindProperty("CommonPicture", "AvailabilityForChoice", true, SchemaVersion.V2_10, SchemaVersion.V2_14),
     new KindProperty("CommonPicture", "AvailabilityForAppearance", true, SchemaVersion.V2_10, SchemaVersion.V2_14),
     new KindProperty("XDTOPackage", "Namespace", true, SchemaVersion.V2_10, SchemaVersion.V2_18));
@@ -158,7 +156,7 @@ public final class CfeBorrow {
       throw new IllegalArgumentException("Объект уже заимствован: " + name);
     }
 
-    String adopted = buildAdoptedXml(original, containerLocal, name, version);
+    String adopted = buildAdoptedXml(original, containerLocal, root.group(2), name, version);
     MdObjectStructureRead.read(adopted.getBytes(StandardCharsets.UTF_8), version);
 
     String configuration = Files.readString(extensionConfigurationXml, StandardCharsets.UTF_8);
@@ -181,7 +179,7 @@ public final class CfeBorrow {
   }
 
   private static String buildAdoptedXml(
-    String original, String containerLocal, String name, SchemaVersion version) {
+    String original, String containerLocal, String originalUuid, String name, SchemaVersion version) {
     String eol = original.contains("\r\n") ? "\r\n" : "\n";
     int rootStart = original.indexOf("<" + containerLocal + " uuid=");
     String header = original.substring(0, rootStart);
@@ -202,7 +200,17 @@ public final class CfeBorrow {
     if (!belongingFirst) {
       out.append(belonging);
     }
+    if (FormatProjection.hasElement(version, List.of(containerLocal, "Properties", "ActionOnConfigurationObjectMissing"))) {
+      out.append("\t\t\t<ExtendedConfigurationObject>").append(originalUuid)
+        .append("</ExtendedConfigurationObject>").append(eol);
+      out.append("\t\t\t<ActionOnConfigurationObjectMissing>Auto</ActionOnConfigurationObjectMissing>").append(eol);
+    }
     out.append(kindProperties(original, containerLocal, version, eol));
+    if (FormatProjection.hasElement(version,
+      List.of(containerLocal, "Properties", "ActionOnConfigurationExtensionChangeError"))) {
+      out.append("\t\t\t<ActionOnConfigurationExtensionChangeError>Warning</ActionOnConfigurationExtensionChangeError>")
+        .append(eol);
+    }
     out.append("\t\t</Properties>").append(eol);
     if (CHILD_OBJECT_TYPES.contains(containerLocal)) {
       out.append("\t\t<ChildObjects/>").append(eol);

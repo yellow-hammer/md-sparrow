@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import io.github.yellowhammer.designerxml.SchemaVersion;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,6 +33,8 @@ import java.util.Map;
  * Соответствие тегов {@code ChildObjects} группам дерева конфигуратора (порядок групп — как в UI).
  */
 public final class MetadataTreeTagGroups {
+
+  private static final String QUEUE_SUBGROUP = "common_queue";
 
   public static final String GROUP_ID_COMMON = "common";
 
@@ -51,6 +55,7 @@ public final class MetadataTreeTagGroups {
     new CommonSubgroupDef("common_filtercriterion", "Критерии отбора", "symbol-misc", List.of("FilterCriterion")),
     new CommonSubgroupDef("common_eventsubscription", "Подписки на события", "globe", List.of("EventSubscription")),
     new CommonSubgroupDef("common_scheduledjob", "Регламентные задания", "globe", List.of("ScheduledJob")),
+    new CommonSubgroupDef(QUEUE_SUBGROUP, "Очереди", "list-ordered", List.of("Queue")),
     new CommonSubgroupDef("common_bot", "Боты", "plug", List.of("Bot")),
     new CommonSubgroupDef("common_functionaloption", "Функциональные опции", "symbol-misc", List.of("FunctionalOption")),
     new CommonSubgroupDef(
@@ -168,6 +173,12 @@ public final class MetadataTreeTagGroups {
    */
   public static List<MetadataTreeGroupPayload> buildGroups(List<ChildObjectEntry> entries)
     throws IOException {
+    return buildGroups(entries, null);
+  }
+
+  static List<MetadataTreeGroupPayload> buildGroups(List<ChildObjectEntry> entries, SchemaVersion version)
+    throws IOException {
+    boolean showQueues = version != null && FormatProjection.hasObjectKind("Queue", version);
     Map<String, List<MetadataTreeItemPayload>> byGroup = new LinkedHashMap<>();
     for (GroupDef g : ORDERED_GROUPS) {
       if (GROUP_ID_COMMON.equals(g.id())) {
@@ -211,11 +222,15 @@ public final class MetadataTreeTagGroups {
       if (GROUP_ID_COMMON.equals(g.id())) {
         List<MetadataSubgroupPayload> subgroups = new ArrayList<>();
         for (CommonSubgroupDef c : COMMON_SUBGROUPS) {
+          if (QUEUE_SUBGROUP.equals(c.id()) && !showQueues && byCommonSubgroup.get(c.id()).isEmpty()) {
+            continue;
+          }
           subgroups.add(new MetadataSubgroupPayload(
             c.id(),
             c.label(),
             c.iconHint(),
-            List.copyOf(byCommonSubgroup.get(c.id()))));
+            List.copyOf(byCommonSubgroup.get(c.id())),
+            QUEUE_SUBGROUP.equals(c.id()) ? showQueues && GoldenScaffold.hasGolden(MdObjectAddType.QUEUE, version) : null));
         }
         out.add(new MetadataTreeGroupPayload(
           g.id(),
@@ -267,8 +282,12 @@ public final class MetadataTreeTagGroups {
     String id,
     String label,
     String iconHint,
-    List<MetadataTreeItemPayload> items
+    List<MetadataTreeItemPayload> items,
+    Boolean canAdd
   ) {
+    MetadataSubgroupPayload(String id, String label, String iconHint, List<MetadataTreeItemPayload> items) {
+      this(id, label, iconHint, items, null);
+    }
   }
 
   public record MetadataTreeGroupPayload(

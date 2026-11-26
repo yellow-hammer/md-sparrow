@@ -42,7 +42,7 @@ final class ConfigurationChildObjectsOrder {
 
   private static final String CONFIGURATION = "Configuration";
 
-  /** Виды всех форматов в порядке записи платформы (выгрузка 8.5.1, формат 2.21). */
+  /** Виды всех форматов в порядке записи платформы. */
   private static final List<String> PLATFORM_ORDER = List.of(
     "Language",
     "Subsystem",
@@ -70,6 +70,7 @@ final class ConfigurationChildObjectsOrder {
     "DefinedType",
     "Bot",
     "PaletteColor",
+    "Queue",
     "CommonCommand",
     "CommandGroup",
     "Constant",

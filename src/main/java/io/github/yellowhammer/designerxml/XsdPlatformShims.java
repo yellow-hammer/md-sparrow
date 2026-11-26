@@ -160,8 +160,8 @@ final class XsdPlatformShims {
 
   /**
    * {@code ConfigurationChildObjects}: виды, добавленные в XDTO позже, стоят в конце последовательности, а платформа
-   * пишет их на своих местах — {@code WebSocketClient} после {@code WSReference}, {@code Bot} и {@code PaletteColor}
-   * после {@code DefinedType}.
+   * пишет их на своих местах — {@code WebSocketClient} после {@code WSReference},
+   * {@code Bot}, {@code PaletteColor} и {@code Queue} после {@code DefinedType}.
    *
    * @param xsd схема {@code MDClasses}
    */
@@ -172,6 +172,7 @@ final class XsdPlatformShims {
         moveAfter(sequence, "WebSocketClient", "WSReference");
         moveAfter(sequence, "Bot", "DefinedType");
         moveAfter(sequence, "PaletteColor", "Bot");
+        moveAfter(sequence, "Queue", "PaletteColor");
       });
   }
 

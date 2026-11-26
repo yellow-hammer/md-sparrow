@@ -92,7 +92,7 @@ class EdtConfigurationScaffoldTest {
   }
 
   @ParameterizedTest
-  @EnumSource(SchemaVersion.class)
+  @EnumSource(value = SchemaVersion.class, names = "V2_22", mode = EnumSource.Mode.EXCLUDE)
   void проектКакИмпортEDTНовойКонфигурацииФормата(SchemaVersion version) throws Exception {
     Path reference = bareImport(version);
     Path project = workDir.resolve("Проект");
@@ -243,9 +243,9 @@ class EdtConfigurationScaffoldTest {
   }
 
   @Test
-  void эталонСнятСФорматаНовейшейПлатформы() throws Exception {
-    SchemaVersion[] all = SchemaVersion.values();
-    assertThat(EdtConfigurationScaffold.canonicalVersion()).isEqualTo(all[all.length - 1]);
+  void созданиеДоступноПоЭталонуEDT() throws Exception {
+    assertThat(EdtConfigurationScaffold.canScaffold(SchemaVersion.V2_21)).isTrue();
+    assertThat(EdtConfigurationScaffold.canScaffold(SchemaVersion.V2_22)).isFalse();
   }
 
   /**

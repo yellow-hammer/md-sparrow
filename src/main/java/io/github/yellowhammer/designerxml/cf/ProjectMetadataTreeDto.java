@@ -88,8 +88,12 @@ public record ProjectMetadataTreeDto(
     String id,
     String label,
     String iconHint,
-    List<MetadataItemDto> items
+    List<MetadataItemDto> items,
+    Boolean canAdd
   ) {
+    public MetadataSubgroupDto(String id, String label, String iconHint, List<MetadataItemDto> items) {
+      this(id, label, iconHint, items, null);
+    }
   }
 
   public record MetadataItemDto(

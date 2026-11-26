@@ -964,6 +964,7 @@ class MdObjectPropertiesEditTest {
       case CALCULATION_REGISTER -> "calculationRegister";
       case BUSINESS_PROCESS -> "businessProcess";
       case INTEGRATION_SERVICE -> "integrationService";
+      case QUEUE -> "queue";
     };
   }
 }

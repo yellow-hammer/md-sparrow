@@ -46,6 +46,8 @@ public final class MdReportPropertiesDto {
   // Только отчёт
   /** Основная схема компоновки данных. */
   public String mainDataCompositionSchema;
+  /** Основная схема системы аналитики, с формата 2.22. */
+  public String mainAnalyticsSystemSchema;
   public String defaultSettingsForm;
   public String auxiliarySettingsForm;
   public String defaultVariantForm;

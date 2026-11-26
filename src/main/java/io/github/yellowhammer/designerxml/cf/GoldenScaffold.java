@@ -53,7 +53,8 @@ public final class GoldenScaffold {
    */
   private static final Map<MdObjectAddType, String> PROTO_BY_SEED = Map.of(
     MdObjectAddType.DOCUMENT_NUMERATOR, "Нумератор1",
-    MdObjectAddType.EXTERNAL_DATA_SOURCE, "ВнешнийИсточник1");
+    MdObjectAddType.EXTERNAL_DATA_SOURCE, "ВнешнийИсточник1",
+    MdObjectAddType.QUEUE, "ОчередьПустая");
 
   /** Имя внешнего объекта-прототипа в эталоне (external-files/empty). */
   private static final Map<ExternalArtifactKind, String> EXTERNAL_PROTO = Map.ofEntries(
@@ -135,13 +136,18 @@ public final class GoldenScaffold {
     return cached;
   }
 
+  /** Формат, для которого есть исходные эталоны или проекция более нового эталона. */
+  public static boolean canScaffold(SchemaVersion version) {
+    return version.compareTo(canonicalVersion()) <= 0;
+  }
+
   /**
    * Можно ли создать объект вида {@code type} в формате {@code version}: канонический эталон вида
    * есть в jar, формат не новее канонического и вид в формате уже существует.
    */
   public static boolean hasGolden(MdObjectAddType type, SchemaVersion version) {
     return resourceUrl(CANONICAL_CF + objectRelative(type)) != null
-      && version.compareTo(canonicalVersion()) <= 0
+      && canScaffold(version)
       && type.existsIn(version);
   }
 
@@ -165,6 +171,7 @@ public final class GoldenScaffold {
    */
   public static Map<String, String> generateObjectFiles(
     MdObjectAddType type, String targetName, SchemaVersion version) throws IOException {
+    type.requireIn(version);
     String proto = protoName(type);
     String seed = "scaffold|" + version.name() + "|" + type + "|" + targetName;
     Map<String, String> files = new LinkedHashMap<>();

@@ -110,7 +110,7 @@ ALL_KINDS = (
     'XDTO_PACKAGE WEB_SERVICE HTTP_SERVICE WS_REFERENCE WEB_SOCKET_CLIENT EVENT_SUBSCRIPTION SCHEDULED_JOB '
     'SETTINGS_STORAGE FUNCTIONAL_OPTION FUNCTIONAL_OPTIONS_PARAMETER DEFINED_TYPE BOT PALETTE_COLOR COMMON_COMMAND '
     'COMMAND_GROUP COMMON_FORM SEQUENCE DOCUMENT_JOURNAL INFORMATION_REGISTER ACCUMULATION_REGISTER '
-    'ACCOUNTING_REGISTER CALCULATION_REGISTER BUSINESS_PROCESS INTEGRATION_SERVICE').split()
+    'ACCOUNTING_REGISTER CALCULATION_REGISTER BUSINESS_PROCESS INTEGRATION_SERVICE QUEUE').split()
 
 # Виды основной конфигурации сценария extension: голыми они проходят config import с проверкой. Веб- и
 # HTTP-сервисы, подписки на события, регламентные задания, функциональные опции и их параметры, общие
@@ -144,6 +144,9 @@ NODES = (
         ('cf-form-add', {'name': 'ФормаДокумента'}))),
     ('ENUM', 'Enums', 'Перечисление', (
         ('cf-md-enum-value-add', {'name': 'Значение'}),)),
+    ('QUEUE', 'Queues', 'Очередь', (
+        ('cf-md-dimension-add', {'name': 'Измерение'}),
+        ('cf-md-attribute-add', {'name': 'Реквизит'}))),
     ('INFORMATION_REGISTER', 'InformationRegisters', 'РегистрСведений', (
         ('cf-md-dimension-add', {'name': 'Измерение'}),
         ('cf-md-resource-add', {'name': 'Ресурс'}),
@@ -1294,6 +1297,8 @@ class Roundtrip:
                 raise
         log('  видов нет в формате:', ', '.join(absent) or 'нет')
         for kind, folder, owner, ops in NODES:
+            if kind in absent:
+                continue
             obj = str(cf / folder / (owner + '.xml'))
             for op, extra in ops:
                 self.ms({'op': op, 'objectXml': obj, **extra})

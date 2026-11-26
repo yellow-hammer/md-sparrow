@@ -139,6 +139,7 @@
     "HTTPServiceRef": "HTTP-сервис",
     "IntegrationService": "Сервис интеграции",
     "IntegrationServiceRef": "Сервис интеграции",
+    "Queue": "Очередь",
     "ExternalDataSource": "Внешний источник данных",
     "ExternalDataSourceRef": "Внешний источник данных",
     "CommonModule": "Общий модуль",

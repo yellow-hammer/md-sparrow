@@ -71,9 +71,8 @@ class ConfigurationChildObjectsOrderTest {
 
   @Test
   void цветПалитрыИзвестенФормату2_21() throws Exception {
-    // Последний формат знает все виды: до 2.21 цвета палитры в составе не было
-    SchemaVersion latest = SchemaVersion.values()[SchemaVersion.values().length - 1];
-    SchemaVersion previous = SchemaVersion.values()[SchemaVersion.values().length - 2];
+    SchemaVersion latest = SchemaVersion.V2_21;
+    SchemaVersion previous = SchemaVersion.V2_20;
     List<String> added = new ArrayList<>(ChildNodeOp.schemaChildren(latest, CONFIGURATION));
     added.removeAll(ChildNodeOp.schemaChildren(previous, CONFIGURATION));
 
@@ -82,6 +81,13 @@ class ConfigurationChildObjectsOrderTest {
       assertThat(unknownTypes(latest, kind)).as("%s в %s", kind, latest).isEmpty();
       assertThat(unknownTypes(previous, kind)).as("%s в %s", kind, previous).containsExactly(kind);
     }
+  }
+
+  @Test
+  void очередьВСоставе2_22ПослеЦветаПалитры() {
+    assertThat(ConfigurationChildObjectsOrder.tagOrder(SchemaVersion.V2_21)).doesNotContain("Queue");
+    assertThat(ConfigurationChildObjectsOrder.tagOrder(SchemaVersion.V2_22))
+      .containsSequence("PaletteColor", "Queue", "CommonCommand");
   }
 
   /**

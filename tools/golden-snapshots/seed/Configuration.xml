@@ -63,6 +63,7 @@
 			<DefinedType>ОпределяемыйТип1</DefinedType>
 			<Bot>Бот1</Bot>
 			<PaletteColor>ЦветПалитры1</PaletteColor>
+			<Queue>ОчередьПустая</Queue>
 			<CommonCommand>ОбщаяКоманда1</CommonCommand>
 			<CommandGroup>ГруппаКоманд1</CommandGroup>
 			<Constant>Константа1</Constant>

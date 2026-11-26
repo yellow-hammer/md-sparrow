@@ -690,7 +690,7 @@ class ApplyMutationCmdTest {
     }
 
     assertThat(exit).isEqualTo(2);
-    assertThat(err.toString(StandardCharsets.UTF_8)).contains("формат выгрузки 2.4 не поддержан", "2.10-2.21");
+    assertThat(err.toString(StandardCharsets.UTF_8)).contains("формат выгрузки 2.4 не поддержан", "2.10-2.22");
   }
 
   @Test

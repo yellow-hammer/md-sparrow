@@ -52,6 +52,7 @@ public final class MdReportPropertiesBridge {
     d.extendedPresentation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExtendedPresentation"));
     d.explanation = LocalStringSync.first(JaxbReflect.getOptional(p, "getExplanation"));
     d.mainDataCompositionSchema = JaxbReflect.getStringOptional(p, "getMainDataCompositionSchema");
+    d.mainAnalyticsSystemSchema = JaxbReflect.getStringOptional(p, "getMainAnalyticsSystemSchema");
     d.defaultSettingsForm = JaxbReflect.getStringOptional(p, "getDefaultSettingsForm");
     d.auxiliarySettingsForm = JaxbReflect.getStringOptional(p, "getAuxiliarySettingsForm");
     d.defaultVariantForm = JaxbReflect.getStringOptional(p, "getDefaultVariantForm");
@@ -78,6 +79,7 @@ public final class MdReportPropertiesBridge {
     ensureAndSetRu(p, "getExtendedPresentation", "setExtendedPresentation", d.extendedPresentation);
     ensureAndSetRu(p, "getExplanation", "setExplanation", d.explanation);
     JaxbReflect.setOptional(p, "setMainDataCompositionSchema", d.mainDataCompositionSchema);
+    JaxbReflect.setOptional(p, "setMainAnalyticsSystemSchema", d.mainAnalyticsSystemSchema);
     JaxbReflect.setOptional(p, "setDefaultSettingsForm", d.defaultSettingsForm);
     JaxbReflect.setOptional(p, "setAuxiliarySettingsForm", d.auxiliarySettingsForm);
     JaxbReflect.setOptional(p, "setDefaultVariantForm", d.defaultVariantForm);

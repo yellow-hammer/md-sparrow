@@ -53,6 +53,15 @@ public final class MdObjectPropertyEnums {
   public static Map<String, List<String>> forVersion(SchemaVersion version) {
     Map<String, List<String>> out = new LinkedHashMap<>();
     collect(out, "configuration", propertiesClass(version, "Configuration"));
+    for (SchemaVersion platform : SchemaVersion.values()) {
+      String mode = UnknownEnumValues.constantName(ConfigurationFormatRules.compatibilityMode(platform));
+      if (platform.compareTo(version) < 0) {
+        out.get("configuration.compatibilityMode").add(mode);
+      }
+      if (platform.compareTo(version) <= 0) {
+        out.get("configuration.configurationExtensionCompatibilityMode").add(mode);
+      }
+    }
     // Узлы состава лежат списками, а не блоками DTO: их перечисления собираются
     // под общим ключом вида, чтобы палитра реквизита знала допустимые значения
     for (String childKind : CHILD_KINDS) {

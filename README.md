@@ -4,7 +4,7 @@
 [![telegram chat](resources/badges/telegram-chat.png)](https://t.me/wonder_yellow)
 [![Ask Devin](resources/badges/deepwiki-badge.png)](https://deepwiki.com/yellow-hammer/md-sparrow)
 
-Чтение и запись XML метаданных 1С (`MetaDataObject`) по XSD из [namespace-forest](https://github.com/yellow-hammer/namespace-forest). Поддержаны все версии формата выгрузки от 2.10 до 2.21.
+Чтение и запись XML метаданных 1С (`MetaDataObject`) по XSD из [namespace-forest](https://github.com/yellow-hammer/namespace-forest). Поддержаны версии формата выгрузки от 2.10 до 2.22. Создание объектов из эталонов доступно для форматов, для которых в сборку включены соответствующие выгрузки платформы.
 
 Работает и как Java-библиотека, и как CLI: подходит и для встраивания в инструменты разработки, и для скриптов сборки.
 

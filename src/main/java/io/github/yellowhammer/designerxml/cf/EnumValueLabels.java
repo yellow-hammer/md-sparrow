@@ -124,6 +124,9 @@ public final class EnumValueLabels {
     put(m, "DENY", "Запретить");
     put(m, "DONT_CHECK", "Не проверять");
     put(m, "SHOW_ERROR", "Выдавать ошибку");
+    put(m, "ERROR", "Ошибка");
+    put(m, "WARNING", "Предупреждение");
+    put(m, "IGNORE", "Игнорировать");
     put(m, "MAKE_DISABLE", "Выключать");
     put(m, "DONT_CHANGE_BEHAVIOR", "Не менять поведение");
 

@@ -271,6 +271,7 @@ public final class MdObjectPropertiesGranularPatch {
       case "documentNumerator" -> "DocumentNumerator";
       case "eventSubscription" -> "EventSubscription";
       case "scheduledJob" -> "ScheduledJob";
+      case "queue" -> "Queue";
       case "commonCommand" -> "CommonCommand";
       case "externalDataSource" -> "ExternalDataSource";
       case "role" -> "Role";

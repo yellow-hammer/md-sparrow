@@ -22,7 +22,7 @@ import uuid
 from pathlib import Path
 
 # С какого формата вид входит в состав конфигурации (выбор MetaDataObject в XSD)
-KIND_SINCE = {"Bot": "2.11", "WebSocketClient": "2.20", "PaletteColor": "2.21"}
+KIND_SINCE = {"Bot": "2.11", "WebSocketClient": "2.20", "PaletteColor": "2.21", "Queue": "2.22"}
 
 ROOT_RE = re.compile(r"<MetaDataObject\b[^>]*>\s*<(\w+)\b")
 NAME_RE = re.compile(r"<Properties>\s*<Name>([^<]+)</Name>")
@@ -92,7 +92,7 @@ def register(owner):
 
 
 # Вид-владелец -> его узлы: те, что добавляет md-sparrow, у видов, чья схема их допускает
-# (<Вид>ChildObjects XSD, от 2.10 до 2.21 не меняется).
+# (<Вид>ChildObjects XSD).
 NODES = {
     **{kind: lambda k, o: with_tabular(k, o) + command(o, "Команда1") for kind in (
         "Catalog", "Document", "DataProcessor", "Report", "ChartOfCharacteristicTypes",
@@ -107,6 +107,7 @@ NODES = {
     **{kind: lambda k, o: register(o) + command(o, "Команда1") for kind in (
         "InformationRegister", "AccumulationRegister", "AccountingRegister", "CalculationRegister")},
     "Sequence": lambda k, o: data_node(o, "Dimension", "Измерение1"),
+    "Queue": lambda k, o: data_node(o, "Dimension", "Измерение1") + data_node(o, "Attribute", "Реквизит1"),
     # внешние: команд у них нет
     "ExternalDataProcessor": with_tabular,
     "ExternalReport": with_tabular,
@@ -270,6 +271,10 @@ def cmd_assemble(a):
             copy_object(deps, rel, out, text)
             aux.append({"kind": kind, "name": name, "path": rel, "for": sorted(users)})
     cfg = read(seed / "Configuration.xml")
+    if "Queue" in kinds:
+        cfg = re.sub(r'(<MetaDataObject\b[^>]*\bversion=")[0-9.]+(")', rf'\g<1>{fmt}\g<2>', cfg, count=1)
+        cfg = cfg.replace("<CompatibilityMode>Version8_3_12</CompatibilityMode>",
+                          "<CompatibilityMode>DontUse</CompatibilityMode>")
     entries = [(k, n) for k, n in children_of(cfg) if k == "Language" or k in kinds]
     for item in aux:
         same = [i for i, (k, _) in enumerate(entries) if k == item["kind"]]

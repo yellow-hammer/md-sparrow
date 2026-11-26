@@ -141,6 +141,7 @@ final class MdSimplePropertiesGranularSerial {
     c.text("DefaultForm", b.defaultForm, i.defaultForm);
     c.text("AuxiliaryForm", b.auxiliaryForm, i.auxiliaryForm);
     c.text("MainDataCompositionSchema", b.mainDataCompositionSchema, i.mainDataCompositionSchema);
+    c.text("MainAnalyticsSystemSchema", b.mainAnalyticsSystemSchema, i.mainAnalyticsSystemSchema);
     c.text("DefaultSettingsForm", b.defaultSettingsForm, i.defaultSettingsForm);
     c.text("AuxiliarySettingsForm", b.auxiliarySettingsForm, i.auxiliarySettingsForm);
     c.text("DefaultVariantForm", b.defaultVariantForm, i.defaultVariantForm);

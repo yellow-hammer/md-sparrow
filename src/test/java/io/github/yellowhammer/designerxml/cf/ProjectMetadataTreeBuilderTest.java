@@ -264,6 +264,19 @@ class ProjectMetadataTreeBuilderTest {
   }
 
   @Test
+  void queuesInCommonBetweenScheduledJobsAndBots() throws Exception {
+    var groups = MetadataTreeTagGroups.buildGroups(List.of(new ChildObjectEntry("Queue", "Очередь1")));
+    var common = groups.stream().filter(g -> "common".equals(g.id())).findFirst().orElseThrow();
+    var subgroupIds = common.subgroups().stream().map(MetadataTreeTagGroups.MetadataSubgroupPayload::id).toList();
+    int queueIndex = subgroupIds.indexOf("common_queue");
+    assertThat(queueIndex).isPositive();
+    assertThat(subgroupIds.subList(queueIndex - 1, queueIndex + 2))
+      .containsExactly("common_scheduledjob", "common_queue", "common_bot");
+    assertThat(common.subgroups().get(queueIndex).items())
+      .containsExactly(new MetadataTreeTagGroups.MetadataTreeItemPayload("Queue", "Очередь1"));
+  }
+
+  @Test
   void unmappedObjectTypeInBuildGroupsThrows() {
     var entries =
       List.of(

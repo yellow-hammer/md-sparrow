@@ -81,6 +81,11 @@ class FormatProjectionTest {
       String actual = GoldenSnapshots.read(expected);
       if (CfLayout.CONFIGURATION_XML.equals(file)) {
         projected = withCompositionOf(projected, actual);
+        if (canonical().compareTo(SchemaVersion.V2_22) >= 0 && version.compareTo(SchemaVersion.V2_22) < 0) {
+          // Семя 2.22 снято без режима совместимости, чтобы можно было добавить очередь.
+          assertThat(ScaffoldPropertyEdit.leaf(projected, "CompatibilityMode")).contains("DontUse");
+          projected = ScaffoldPropertyEdit.setLeaf(projected, "CompatibilityMode", "Version8_3_12");
+        }
       }
       softly.assertThat(projected).as("%s в формате %s", file, version).isEqualTo(actual);
       compared++;

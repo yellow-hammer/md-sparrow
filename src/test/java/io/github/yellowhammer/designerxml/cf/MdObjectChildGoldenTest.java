@@ -113,7 +113,11 @@ class MdObjectChildGoldenTest {
 
     SoftAssertions softly = new SoftAssertions();
     for (String relative : owners) {
-      Owner owner = Owner.of(FormatProjection.project(GoldenSnapshots.read(canonical, NODES, relative), version));
+      String source = GoldenSnapshots.read(canonical, NODES, relative);
+      if (!FormatProjection.hasObjectKind(Owner.of(source).kind(), version)) {
+        continue;
+      }
+      Owner owner = Owner.of(FormatProjection.project(source, version));
       Path file = workspace.resolve(version.name()).resolve(relative);
       Files.createDirectories(file.getParent());
       Files.writeString(file, owner.bare(), StandardCharsets.UTF_8);
@@ -173,7 +177,11 @@ class MdObjectChildGoldenTest {
     SchemaVersion canonical = GoldenSnapshots.canonical();
     SoftAssertions softly = new SoftAssertions();
     for (String relative : GoldenSnapshots.files(canonical, NODES)) {
-      Owner owner = Owner.of(FormatProjection.project(GoldenSnapshots.read(canonical, NODES, relative), version));
+      String source = GoldenSnapshots.read(canonical, NODES, relative);
+      if (!FormatProjection.hasObjectKind(Owner.of(source).kind(), version)) {
+        continue;
+      }
+      Owner owner = Owner.of(FormatProjection.project(source, version));
       List<String> runs = new ArrayList<>();
       for (String run : List.of("первый", "второй")) {
         Path file = workspace.resolve(version.name() + "-" + run).resolve(relative);
