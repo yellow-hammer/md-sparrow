@@ -19,7 +19,7 @@
              cf-md-object-set меняет флаги «Сервер», «Вызов сервера» и «Внешнее соединение»
   dcs        схемы компоновки данных: окружение (объекты, на которые ссылаются схемы) и макеты СКД отчёта,
              обработки и общий макет с правками редактора; обычный config import с проверкой. Вердикт - только
-             по файлам СКД, отличия окружения идут в envDiffs. Только форматы 2.12-2.21 (иначе skipped)
+             по файлам СКД, отличия окружения идут в envDiffs. Только форматы 2.12-2.22 (иначе skipped)
 
 Сценарий dcs умеет идти в две фазы - md-sparrow (Java) и ibcmd бывают на разных машинах:
 
@@ -192,7 +192,7 @@ COMPOSITE_TYPE = {
 # ---------- сценарий dcs ----------
 # Форматы сценария dcs, вне них skipped. В 2.10-2.11 в XSD нет полного набора схем СКД, и в правках схемы md-sparrow
 # там отказывает. Верхняя граница - самый новый формат с эталоном cf-dcs в samples-1c-platform (empty_schema_etalon)
-DCS_FORMATS = ((2, 12), (2, 21))
+DCS_FORMATS = ((2, 12), (2, 22))
 DCS_FORMATS_TEXT = '%d.%d-%d.%d' % (DCS_FORMATS[0] + DCS_FORMATS[1])
 
 # Окружение схем: объекты, на которые ссылаются схемы и запросы. Только виды, которые голыми проходят config import
@@ -2121,13 +2121,13 @@ def self_test_rules(t, tmp):
         t.check('путь вне диска Windows - отказ', False)
     except Failure:
         t.check('путь вне диска Windows - отказ', True)
-    t.check('форматы dcs: 2.12-2.21, вне них 2.10-2.11 и новее 2.21',
-            DCS_FORMATS_TEXT == '2.12-2.21' and dcs_format_ok('2.12') and dcs_format_ok('2.20') and dcs_format_ok('2.21')
-            and not dcs_format_ok('2.11') and not dcs_format_ok('2.10') and not dcs_format_ok('2.22')
+    t.check('форматы dcs: 2.12-2.22, вне них 2.10-2.11 и новее 2.22',
+            DCS_FORMATS_TEXT == '2.12-2.22' and dcs_format_ok('2.12') and dcs_format_ok('2.20') and dcs_format_ok('2.22')
+            and not dcs_format_ok('2.11') and not dcs_format_ok('2.10') and not dcs_format_ok('2.23')
             and not dcs_format_ok(None))
-    notes = {fmt: dcs_format_note(fmt) for fmt in ('2.11', '2.22')}
-    t.check('форматы dcs: причина пропуска - нет схем СКД в XSD (2.11) или нет эталона формата (2.22)',
-            'нет полного набора схем СКД' in notes['2.11'] and 'эталон cf-dcs' in notes['2.22'], notes)
+    notes = {fmt: dcs_format_note(fmt) for fmt in ('2.11', '2.23')}
+    t.check('форматы dcs: причина пропуска - нет схем СКД в XSD (2.11) или нет эталона формата (2.23)',
+            'нет полного набора схем СКД' in notes['2.11'] and 'эталон cf-dcs' in notes['2.23'], notes)
     t.check('вердикт dcs', dcs_status([], []) == 'pass' and dcs_status(['x'], []) == 'accepted-normalized'
             and dcs_status([], ['x']) == 'unstable-roundtrip')
     try:
@@ -2431,7 +2431,7 @@ def self_test_grid_rules(t, tmp):
 
 
 def dcs_format_list():
-    """Форматы сценария dcs по порядку: 2.12, 2.13, ... 2.21 (граница DCS_FORMATS в одной версии 2.x)."""
+    """Форматы сценария dcs по порядку: 2.12, 2.13, ... 2.22 (граница DCS_FORMATS в одной версии 2.x)."""
     (major, low), (_, high) = DCS_FORMATS
     return ['%d.%d' % (major, minor) for minor in range(low, high + 1)]
 
@@ -2637,11 +2637,11 @@ def self_test_flow(t, root, manifest, tmp, schemas, env_rel):
         got = (r.get('status'), r.get('envDiffs'), r.get('typeOrder'))
         t.check('поток --prepared: %s -> %s' % (name, status), got == (status, env_diffs, type_order), got)
     skipped = {}
-    for fmt in ('2.11', '2.22'):
+    for fmt in ('2.11', '2.23'):
         rt = ImitatedPlatform(tmp / 'flow', fmt)
         rt.dcs_verify(root, manifest)
         skipped[fmt] = (rt.results['dcs']['status'], rt.results['dcs']['note'])
-    t.check('поток --prepared: формат вне %s (2.11, 2.22) -> skipped с причиной' % DCS_FORMATS_TEXT,
+    t.check('поток --prepared: формат вне %s (2.11, 2.23) -> skipped с причиной' % DCS_FORMATS_TEXT,
             all(status == 'skipped' and note == dcs_format_note(fmt) for fmt, (status, note) in skipped.items()),
             skipped)
 
