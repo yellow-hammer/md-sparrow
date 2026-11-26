@@ -328,6 +328,11 @@ public final class ProjectMetadataTreeBuilder {
     ObjectHead.Head head = relativePath == null || relativePath.isEmpty()
         ? ObjectHead.Head.EMPTY
         : ObjectHead.read(projectRoot.resolve(relativePath));
+    String templateKind = null;
+    if ("CommonTemplate".equals(objectType) && relativePath != null && !relativePath.isEmpty()) {
+      Path directory = projectRoot.resolve(relativePath).resolveSibling(name);
+      templateKind = ChildContentFile.templateKind(ChildContentFile.fileIn(directory, "Template"));
+    }
     return new ProjectMetadataTreeDto.MetadataItemDto(
       objectType,
       name,
@@ -335,7 +340,8 @@ public final class ProjectMetadataTreeBuilder {
       readBelonging ? head.objectBelonging() : null,
       supportState(head, supportRules),
       LocalStrings.pick(head.synonym()),
-      MdObjectOpen.resolve(objectType, projectRoot, relativePath));
+      MdObjectOpen.resolve(objectType, projectRoot, relativePath),
+      templateKind);
   }
 
   /** Режим поддержки объекта по правилам поставщика; пусто без правил или записи. */

@@ -44,9 +44,10 @@ public final class MetaDataObjectHeadReader {
    * Значение {@code version} у корневого элемента (например {@code "2.21"}).
    */
   public static String readMetaDataObjectVersion(Path configurationXml) throws IOException {
-    byte[] buf = Files.readAllBytes(configurationXml);
-    int n = Math.min(buf.length, HEAD_BYTES);
-    String head = new String(buf, 0, n, StandardCharsets.UTF_8);
+    String head;
+    try (var input = Files.newInputStream(configurationXml)) {
+      head = new String(input.readNBytes(HEAD_BYTES), StandardCharsets.UTF_8);
+    }
     Matcher m = VERSION_RE.matcher(head);
     if (!m.find()) {
       throw new IOException("В начале файла нет атрибута version у MetaDataObject.");

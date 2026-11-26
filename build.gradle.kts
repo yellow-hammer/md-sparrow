@@ -264,6 +264,9 @@ dependencies {
     implementation("org.glassfish.jaxb:jaxb-runtime:4.0.5")
     implementation("info.picocli:picocli:4.7.7")
     implementation("com.google.code.gson:gson:2.14.0")
+    // Автозаполнение СКД использует ту же модель запроса, что конструктор.
+    implementation("org.graalvm.polyglot:polyglot:25.0.3")
+    runtimeOnly("org.graalvm.js:js-language:25.0.3")
     implementation("com.fasterxml.woodstox:woodstox-core:7.1.0")
 
     // Модель формата EDT читается динамически по .ecore из хранилища схем:
@@ -445,6 +448,35 @@ fun resourceIndex(directory: File): String =
         .sorted()
         .joinToString("\n", postfix = "\n")
 
+/**
+ * Канонический эталон макета СКД (cf-dcs) формата golden/format.txt: описания макета отчёта и общего
+ * макета с их Template.xml. Старые форматы: описания - проекцией (cf/FormatProjection), Template.xml -
+ * снятием объявлений пространств имён, которых формат ещё не пишет (cf/DcsSettingsNamespaces).
+ * Владелец и конфигурация в набор не входят: у пользователя они свои.
+ */
+val prepareCanonicalDcs = tasks.register("prepareCanonicalDcs") {
+    val version = canonicalGoldenVersion()
+    val target = layout.buildDirectory.dir("generated/golden-dcs")
+    inputs.dir(snapshotsDir).withPropertyName("эталоны")
+    outputs.dir(target)
+    doLast {
+        val output = target.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        if (version == null) {
+            throw GradleException("Эталоны не найдены: $snapshotsDir. Обновите submodule samples-1c-platform.")
+        }
+        val base = snapshotsDir.dir("$version/cf-dcs").asFile
+        for (relative in listOf("Reports/Отчет1/Templates", "CommonTemplates")) {
+            val source = File(base, relative)
+            if (!source.isDirectory) {
+                throw GradleException("В эталонах формата $version нет cf-dcs/$relative: канонический набор неполон.")
+            }
+            source.copyRecursively(output.resolve(relative))
+        }
+    }
+}
+
 /** Перечень эталонов, записанных 1С:EDT: edt-golden/index.txt. */
 val indexEdtGolden = tasks.register("indexEdtGolden") {
     val source = layout.projectDirectory.dir("src/main/resources/edt-golden")
@@ -501,9 +533,20 @@ tasks.named<Copy>("processResources") {
     from(prepareDesignerTypeSchemas) {
         into("designer-schemas")
     }
+    // Строгая проверка СКД использует XSD той версии, в которой выгружен макет.
+    from(schemasDir) {
+        include("*/v8.1c.ru-8.1-data-composition-system-*.xsd")
+        include("*/v8.1c.ru-8.1-data-core.xsd", "*/v8.1c.ru-8.1-data-ui.xsd")
+        include("*/v8.1c.ru-8.1-data-enterprise.xsd", "*/v8.1c.ru-8.2-data-spreadsheet.xsd")
+        into("dcs-schemas")
+    }
     // Канонический набор: golden/{cf,cfe,ext,form}/…, golden/format.txt, golden/rules/…, golden/index.txt
     from(prepareCanonicalGolden) {
         into("golden")
+    }
+    // Канонический эталон макета СКД: golden/dcs/… (формат - golden/format.txt)
+    from(prepareCanonicalDcs) {
+        into("golden/dcs")
     }
     // Перечень эталонов EDT: edt-golden/index.txt
     from(indexEdtGolden) {

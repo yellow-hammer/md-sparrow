@@ -341,6 +341,7 @@ public final class MdObjectStructureRead {
       if (content != null) {
         template.contentFile = objectDir.relativize(content).toString().replace('\\', '/');
         template.binaryContent = ChildContentFile.isBinary(content);
+        template.templateContentKind = ChildContentFile.templateKind(content);
       }
     }
     Path formsDir = objectDir.resolve("Forms");

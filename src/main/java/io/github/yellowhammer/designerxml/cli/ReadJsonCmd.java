@@ -26,9 +26,15 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.cf.EnumValueLabels;
+import io.github.yellowhammer.designerxml.cf.ChildContentFile;
+import io.github.yellowhammer.designerxml.cf.MetaDataObjectHeadReader;
+import io.github.yellowhammer.designerxml.cf.ObjectBelongingReader;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
 import io.github.yellowhammer.designerxml.cf.DcsRead;
+import io.github.yellowhammer.designerxml.cf.DcsSettingsRead;
+import io.github.yellowhammer.designerxml.cf.DcsTypeDictionary;
+import io.github.yellowhammer.designerxml.cf.DcsXsdValidation;
 import io.github.yellowhammer.designerxml.cf.SpreadsheetRead;
 import io.github.yellowhammer.designerxml.cf.ObjectRights;
 import io.github.yellowhammer.designerxml.cf.RoleRightsCatalog;
@@ -51,6 +57,7 @@ import io.github.yellowhammer.designerxml.cf.GoldenScaffold;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
+import io.github.yellowhammer.designerxml.cf.MdQueryTables;
 import io.github.yellowhammer.edt.EdtConfigurationLists;
 import io.github.yellowhammer.edt.EdtConfigurationScaffold;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
@@ -153,6 +160,7 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-md-graph",
     "cf-md-object-get",
     "cf-md-object-structure-get",
+    "cf-md-query-tables",
     "cf-md-object-enums",
     "cf-md-object-open-get",
     "cf-md-subsystem-tree",
@@ -170,7 +178,10 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-form-item-properties",
     "cf-form-standard-commands",
     "cf-dcs-info",
+    "cf-dcs-settings-info",
     "cf-dcs-validate",
+    "cf-dcs-type-dictionary",
+    "cf-template-content-kind",
     "cf-spreadsheet-get",
     "cf-support-object-get",
     "cf-support-get",
@@ -257,6 +268,17 @@ final class ReadJsonCmd implements Callable<Integer> {
       return edtSupport;
     }
     switch (p.op) {
+      case "cf-metadata-file-info": {
+        Path file = p.reqPath(p.objectXml, "objectXml");
+        String version = MetaDataObjectHeadReader.readMetaDataObjectVersion(file);
+        String schema = MetaDataObjectHeadReader.toSchemaVersionFlag(version);
+        boolean extension = "Configuration.xml".equalsIgnoreCase(file.getFileName().toString())
+          && ObjectBelongingReader.read(file) != null;
+        return gson.toJson(Map.of("schemaVersion", schema, "configurationExtension", extension));
+      }
+      case "cf-template-content-kind": {
+        return gson.toJson(ChildContentFile.templateKind(p.reqPath(p.objectXml, "objectXml")));
+      }
       case "cf-md-object-get": {
         java.nio.file.Path objectFile = p.reqPath(p.objectXml, "objectXml");
         // Формат виден по файлу: у проекта EDT свой объект и своя версия схем
@@ -308,6 +330,13 @@ final class ReadJsonCmd implements Callable<Integer> {
           ? EdtObjectStructure.read(structureFile, EdtModel.bundled())
           : MdObjectStructureRead.read(structureFile, p.version());
         return gson.toJson(dto);
+      }
+      case "cf-md-query-tables": {
+        java.nio.file.Path objectFile = p.reqPath(p.objectXml, "objectXml");
+        // serializeNulls: поле без выводимого типа приходит с type: null, а не без ключа
+        Gson withNulls = new GsonBuilder().disableHtmlEscaping().serializeNulls().create();
+        return withNulls.toJson(MdQueryTables.read(
+          objectFile, EdtLayout.isObjectFile(objectFile) ? null : p.version(), p.lang));
       }
       case "cf-md-object-open-get": {
         java.nio.file.Path root = p.reqPath(p.projectRoot, "projectRoot");
@@ -363,11 +392,19 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "cf-dcs-info": {
         return gson.toJson(DcsRead.info(p.reqPath(p.objectXml, "objectXml"), p.version()));
       }
+      case "cf-dcs-settings-info": {
+        return gson.toJson(DcsSettingsRead.info(p.reqPath(p.objectXml, "objectXml"), p.version(), p.variant));
+      }
+      case "cf-dcs-type-dictionary": {
+        return gson.toJson(DcsTypeDictionary.read(p.reqPath(p.objectXml, "objectXml"), p.version()));
+      }
       case "cf-spreadsheet-get": {
         return gson.toJson(SpreadsheetRead.read(p.reqPath(p.objectXml, "objectXml"), p.version()));
       }
       case "cf-dcs-validate": {
-        return gson.toJson(DcsRead.validate(p.reqPath(p.objectXml, "objectXml"), p.version()));
+        return gson.toJson(p.strict
+          ? DcsXsdValidation.validate(p.reqPath(p.objectXml, "objectXml"), p.version())
+          : DcsRead.validate(p.reqPath(p.objectXml, "objectXml"), p.version()));
       }
       case "cf-support-get": {
         java.nio.file.Path root = p.reqPath(p.configurationXml, "configurationXml").toAbsolutePath().getParent();

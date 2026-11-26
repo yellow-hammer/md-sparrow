@@ -138,6 +138,7 @@ public final class EdtObjectStructure {
       if (content != null) {
         item.contentFile = objectMdo.getParent().relativize(content).toString().replace('\\', '/');
         item.binaryContent = ChildContentFile.isBinary(content);
+        item.templateContentKind = ChildContentFile.templateKind(content);
       }
       dto.templates.add(item);
     }

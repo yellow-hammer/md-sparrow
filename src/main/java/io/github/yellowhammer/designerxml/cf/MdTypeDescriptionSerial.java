@@ -37,14 +37,16 @@ final class MdTypeDescriptionSerial {
 
   /**
    * Типы ({@code v8:Type}), затем наборы типов ({@code v8:TypeSet}, источник подписки вида
-   * {@code cfg:CatalogObject}) и квалификаторы в порядке схемы.
+   * {@code cfg:CatalogObject}), идентификаторы определяемых типов ({@code v8:TypeId}) и
+   * квалификаторы в порядке схемы.
    *
    * @param localName имя элемента-обёртки ({@code Type}, {@code Source})
    */
   static String typeElement(String localName, MdTypeDescriptionDto dto) {
     List<String> types = dto == null || dto.types == null ? List.of() : dto.types;
     List<String> typeSets = dto == null || dto.typeSets == null ? List.of() : dto.typeSets;
-    if (types.isEmpty() && typeSets.isEmpty()) {
+    List<String> typeIds = dto == null || dto.typeIds == null ? List.of() : dto.typeIds;
+    if (types.isEmpty() && typeSets.isEmpty() && typeIds.isEmpty()) {
       return "<" + localName + "/>";
     }
     StringBuilder sb = new StringBuilder();
@@ -54,6 +56,9 @@ final class MdTypeDescriptionSerial {
     }
     for (String typeSet : typeSets) {
       sb.append(typeTag("v8:TypeSet", typeSet));
+    }
+    for (String typeId : typeIds) {
+      sb.append(leaf("v8:TypeId", typeId.trim()));
     }
     // Порядок квалификаторов задан схемой: число, строка, дата, двоичные данные
     if (dto.numberQualifiers != null) {

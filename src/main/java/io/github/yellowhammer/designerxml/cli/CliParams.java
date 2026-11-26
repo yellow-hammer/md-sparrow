@@ -26,9 +26,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.SchemaVersion;
+import io.github.yellowhammer.edt.EdtDcsTemplates;
 import io.github.yellowhammer.edt.EdtLayout;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -108,7 +110,7 @@ final class CliParams {
   String parentId;
   /** Номер элемента того же владельца, перед которым встаёт элемент; пусто - в конец. */
   String beforeId;
-  /** Путь к данным элемента формы: {@code Объект.Реквизит}. */
+  /** Путь к данным элемента формы ({@code Объект.Реквизит}) или поля схемы компоновки. */
   String dataPath;
   /** Имя события платформы у формы или элемента: {@code OnCreateAtServer}, {@code OnChange}. */
   String event;
@@ -119,10 +121,27 @@ final class CliParams {
   /** Версия схемы в формате {@code V2_20} (как флаг {@code -v}). */
   String schemaVersion;
   String type;
+  /** Имя источника данных нового набора схемы компоновки. */
+  String dataSource;
+  /**
+   * Набор данных схемы компоновки, которому принадлежит поле: имя набора верхнего уровня либо путь
+   * {@code Объединение/Вложенный} у автозаполнения.
+   */
+  String dataSet;
+  /** Язык имён языка запросов у {@code cf-md-query-tables}: {@code ru} (по умолчанию) или {@code en}. */
+  String lang;
+  /** Имя варианта настроек схемы компоновки; пусто - только список вариантов. */
+  String variant;
+  /** Порядковый номер элемента схемы компоновки в файле с нуля: связи наборов и ресурсы. */
+  Integer index;
   String kind;
   String synonym;
   boolean synonymEmpty;
   boolean autoName;
+  /** Сделать новый макет СКД основной схемой компоновки владельца (cf-dcs-template-add). */
+  boolean makeMain;
+  /** Строгая проверка схемы компоновки (cf-dcs-validate): XSD с поправками на платформу вместо одного JAXB. */
+  boolean strict;
   /**
    * Не смотреть на правила поддержки: правка идёт так, будто поставки нет.
    *
@@ -211,6 +230,13 @@ final class CliParams {
     return value;
   }
 
+  int reqIndex() {
+    if (index == null) {
+      throw new IllegalArgumentException("обязательное поле не задано: index");
+    }
+    return index;
+  }
+
   Path path(String value) {
     return paths.apply(value);
   }
@@ -220,17 +246,27 @@ final class CliParams {
   }
 
   SchemaVersion version() {
-    // Схему компоновки описывает одна и та же модель во всех версиях формата, а
-    // у проекта 1С:EDT версии выгрузки нет вовсе
+    // Template.dcs не содержит номера формата. В проекте его определяет Runtime-Version.
     if ((schemaVersion == null || schemaVersion.isBlank()) && EdtLayout.isSchemaFile(objectXml)) {
       SchemaVersion[] all = SchemaVersion.values();
-      return all[all.length - 1];
+      try {
+        // Версия нужна до правки, даже когда пути записи уже перенаправлены в сеанс.
+        return EdtDcsTemplates.formatOfSchema(Path.of(objectXml)).orElse(all[all.length - 1]);
+      } catch (IOException e) {
+        throw new UncheckedIOException("Не удалось прочитать манифест проекта 1С:EDT.", e);
+      }
     }
     String v = req(schemaVersion, "schemaVersion");
     try {
       return SchemaVersion.valueOf(v);
     } catch (IllegalArgumentException e) {
       SchemaVersion[] all = SchemaVersion.values();
+      // Номер (2.20) вместо имени (V2_20): подсказать имя, а не отказать «2.20 не поддержан»
+      String named = "V" + v.trim().replace('.', '_');
+      if (!v.startsWith("V") && java.util.Arrays.stream(all).anyMatch(known -> known.name().equals(named))) {
+        throw new IllegalArgumentException("schemaVersion задаётся именем формата " + named
+          + ", а не номером «" + v + "»");
+      }
       throw new IllegalArgumentException("формат выгрузки " + v.replaceFirst("^V", "").replace('_', '.')
         + " не поддержан; поддержаны " + all[0].metadataObjectVersionAttribute()
         + "-" + all[all.length - 1].metadataObjectVersionAttribute());
