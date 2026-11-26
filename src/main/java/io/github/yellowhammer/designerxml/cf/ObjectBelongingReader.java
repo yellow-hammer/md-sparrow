@@ -81,6 +81,8 @@ public final class ObjectBelongingReader {
     }
     XMLInputFactory factory = new WstxInputFactory();
     factory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
+    factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+    factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
     try (InputStream in = Files.newInputStream(objectXml)) {
       XMLStreamReader reader = factory.createXMLStreamReader(in);
       try {

@@ -26,6 +26,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.cf.EnumValueLabels;
+import io.github.yellowhammer.designerxml.cf.ChildContentFile;
+import io.github.yellowhammer.designerxml.cf.MetaDataObjectHeadReader;
+import io.github.yellowhammer.designerxml.cf.ObjectBelongingReader;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
 import io.github.yellowhammer.designerxml.cf.SubsystemCommandInterfaceFile;
 import io.github.yellowhammer.designerxml.cf.DcsRead;
@@ -178,6 +181,7 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-dcs-settings-info",
     "cf-dcs-validate",
     "cf-dcs-type-dictionary",
+    "cf-template-content-kind",
     "cf-spreadsheet-get",
     "cf-support-object-get",
     "cf-support-get",
@@ -264,6 +268,17 @@ final class ReadJsonCmd implements Callable<Integer> {
       return edtSupport;
     }
     switch (p.op) {
+      case "cf-metadata-file-info": {
+        Path file = p.reqPath(p.objectXml, "objectXml");
+        String version = MetaDataObjectHeadReader.readMetaDataObjectVersion(file);
+        String schema = MetaDataObjectHeadReader.toSchemaVersionFlag(version);
+        boolean extension = "Configuration.xml".equalsIgnoreCase(file.getFileName().toString())
+          && ObjectBelongingReader.read(file) != null;
+        return gson.toJson(Map.of("schemaVersion", schema, "configurationExtension", extension));
+      }
+      case "cf-template-content-kind": {
+        return gson.toJson(ChildContentFile.templateKind(p.reqPath(p.objectXml, "objectXml")));
+      }
       case "cf-md-object-get": {
         java.nio.file.Path objectFile = p.reqPath(p.objectXml, "objectXml");
         // Формат виден по файлу: у проекта EDT свой объект и своя версия схем

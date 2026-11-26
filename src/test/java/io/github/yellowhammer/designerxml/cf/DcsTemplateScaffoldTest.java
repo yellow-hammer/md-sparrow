@@ -98,7 +98,40 @@ class DcsTemplateScaffoldTest {
         .isEqualTo(Files.readAllBytes(dcsPath(version, content)));
     }
     assertThat(MdObjectStructureRead.read(owner, version).templates)
-      .extracting(template -> template.name).containsExactly(TEMPLATE_NAME);
+      .singleElement().satisfies(template -> {
+        assertThat(template.name).isEqualTo(TEMPLATE_NAME);
+        assertThat(template.templateContentKind).isEqualTo("dcs");
+      });
+  }
+
+  @Test
+  void cliОтличаетСхемуПоКорнюИЧитаетФорматОписания() throws Exception {
+    Path scheme = dcsPath(SchemaVersion.V2_21, COMMON_CONTENT);
+    assertThat(readJson(Map.of("op", "cf-template-content-kind", "objectXml", scheme.toString()), String.class))
+      .isEqualTo("dcs");
+
+    Path text = workspace.resolve("Текст.xml");
+    Files.writeString(text, """
+      <!-- DataCompositionSchema -->
+      <text xmlns:dcs="http://v8.1c.ru/8.1/data-composition-system/schema"/>
+      """);
+    assertThat(readJson(Map.of("op", "cf-template-content-kind", "objectXml", text.toString()), String.class))
+      .isEqualTo("text");
+
+    Path descriptor = dcsPath(SchemaVersion.V2_21, COMMON_DESCRIPTOR);
+    assertThat(readJson(Map.of("op", "cf-metadata-file-info", "objectXml", descriptor.toString())))
+      .isEqualTo(Map.of("schemaVersion", "V2_21", "configurationExtension", false));
+
+    Path configuration = workspace.resolve("Configuration.xml");
+    Files.writeString(configuration, """
+      <MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" version="2.10">
+        <Configuration>
+          <Properties><ObjectBelonging>Adopted</ObjectBelonging></Properties>
+        </Configuration>
+      </MetaDataObject>
+      """);
+    assertThat(readJson(Map.of("op", "cf-metadata-file-info", "objectXml", configuration.toString())))
+      .isEqualTo(Map.of("schemaVersion", "V2_10", "configurationExtension", true));
   }
 
   @ParameterizedTest
@@ -305,6 +338,10 @@ class DcsTemplateScaffoldTest {
   /** Запуск канала read-json: ответ stdout разобран как JSON-объект. */
   @SuppressWarnings("unchecked")
   private Map<String, Object> readJson(Map<String, ?> params) throws Exception {
+    return readJson(params, Map.class);
+  }
+
+  private <T> T readJson(Map<String, ?> params, Class<T> responseType) throws Exception {
     Path paramsFile = Files.createTempFile(workspace, "params", ".json");
     Files.writeString(paramsFile, new com.google.gson.Gson().toJson(params), StandardCharsets.UTF_8);
     ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -318,7 +355,7 @@ class DcsTemplateScaffoldTest {
       System.setOut(previous);
     }
     assertThat(exit).isZero();
-    return new com.google.gson.Gson().fromJson(buffer.toString(StandardCharsets.UTF_8), Map.class);
+    return new com.google.gson.Gson().fromJson(buffer.toString(StandardCharsets.UTF_8), responseType);
   }
 
   // --- вспомогательное -------------------------------------------------------------------------

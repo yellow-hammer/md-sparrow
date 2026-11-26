@@ -121,7 +121,13 @@ public record ProjectMetadataTreeDto(
      * Что открывать по клику в IDE: форма, модуль или окно свойств.
      * Пусто, если у объекта нет файла. Пути — относительно корня проекта.
      */
-    MdObjectOpen.Target open
+    MdObjectOpen.Target open,
+    /** Вид содержимого общего макета. */
+    String templateContentKind
   ) {
+    public MetadataItemDto(String objectType, String name, String relativePath, String objectBelonging,
+                           String support, String synonym, MdObjectOpen.Target open) {
+      this(objectType, name, relativePath, objectBelonging, support, synonym, open, null);
+    }
   }
 }

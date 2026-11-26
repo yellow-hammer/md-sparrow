@@ -149,6 +149,8 @@ public final class MdObjectStructureDto {
     public String contentFile;
     /** Содержимое двоичное: показывать его нечем. */
     public boolean binaryContent;
+    /** Вид содержимого макета для выбора редактора. */
+    public String templateContentKind;
 
     public MdTemplateDto() {
     }

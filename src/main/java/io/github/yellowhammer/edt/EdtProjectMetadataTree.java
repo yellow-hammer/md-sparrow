@@ -35,6 +35,7 @@ import io.github.yellowhammer.designerxml.cf.LocalStrings;
 import io.github.yellowhammer.designerxml.cf.SupportRules;
 import io.github.yellowhammer.designerxml.cf.MetadataTreeTagGroups;
 import io.github.yellowhammer.designerxml.cf.ProjectMetadataTreeDto;
+import io.github.yellowhammer.designerxml.cf.ChildContentFile;
 
 /**
  * Дерево метаданных проектов 1С:EDT.
@@ -170,6 +171,9 @@ public final class EdtProjectMetadataTree {
       String relativePath = objectMdo == null ? "" : relative(workspaceRoot, objectMdo);
       // Описание объекта читается один раз: из него и принадлежность, и синоним, и идентификатор
       EdtObjectReader.EdtNode node = objectMdo == null ? null : read(workspaceRoot, objectMdo);
+      String templateKind = objectMdo != null && "CommonTemplate".equals(payload.objectType())
+        ? ChildContentFile.templateKind(ChildContentFile.fileIn(objectMdo.getParent(), "Template"))
+        : null;
       items.add(new ProjectMetadataTreeDto.MetadataItemDto(
           payload.objectType(),
           payload.name(),
@@ -177,7 +181,8 @@ public final class EdtProjectMetadataTree {
           readBelonging ? belonging(node) : null,
           supportState(node, support, inlineUuids.get(payload.objectType() + "." + payload.name())),
           synonym(node),
-          EdtObjectOpen.resolve(workspaceRoot, payload.objectType(), objectMdo)));
+          EdtObjectOpen.resolve(workspaceRoot, payload.objectType(), objectMdo),
+          templateKind));
     }
     return items;
   }

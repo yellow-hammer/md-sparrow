@@ -21,6 +21,11 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import com.ctc.wstx.stax.WstxInputFactory;
+
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -70,6 +75,54 @@ public final class ChildContentFile {
     }
     String name = contentFile.getFileName().toString().toLowerCase(Locale.ROOT);
     return BINARY_SUFFIXES.stream().anyMatch(name::endsWith);
+  }
+
+  /** Вид содержимого макета для выбора редактора. Пусто, если файла нет. */
+  public static String templateKind(Path contentFile) {
+    if (contentFile == null) {
+      return null;
+    }
+    String name = contentFile.getFileName().toString().toLowerCase(Locale.ROOT);
+    if (name.endsWith(".mxlx")) {
+      return "spreadsheet";
+    }
+    if (name.endsWith(".dcs")) {
+      return "dcs";
+    }
+    if (isBinary(contentFile)) {
+      return "binary";
+    }
+    return name.endsWith(".xml") ? xmlTemplateKind(contentFile) : "text";
+  }
+
+  /** По корню различает XML-макеты, не читая данные ячеек и схемы. */
+  private static String xmlTemplateKind(Path contentFile) {
+    XMLInputFactory factory = new WstxInputFactory();
+    factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+    factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+    try (var input = Files.newInputStream(contentFile)) {
+      var reader = factory.createXMLStreamReader(input);
+      try {
+        while (reader.hasNext()) {
+          if (reader.next() == XMLStreamConstants.START_ELEMENT) {
+            if ("DataCompositionSchema".equals(reader.getLocalName())
+                && "http://v8.1c.ru/8.1/data-composition-system/schema".equals(reader.getNamespaceURI())) {
+              return "dcs";
+            }
+            if ("document".equals(reader.getLocalName())
+                && "http://v8.1c.ru/8.2/data/spreadsheet".equals(reader.getNamespaceURI())) {
+              return "spreadsheet";
+            }
+            break;
+          }
+        }
+      } finally {
+        reader.close();
+      }
+    } catch (IOException | XMLStreamException ignored) {
+      // Текстовые макеты с расширением XML можно открыть и при неполной разметке.
+    }
+    return "text";
   }
 
   private static Path firstContentFile(Path directory, String prefix) {
