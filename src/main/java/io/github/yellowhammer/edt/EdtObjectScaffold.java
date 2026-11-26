@@ -179,6 +179,9 @@ public final class EdtObjectScaffold {
     Path sourceRoot = sourceRoot(configurationMdo);
     Path projectDir = sourceRoot.getParent();
     requireKindInProject(kind, projectDir);
+    if (model.classOf(kind.configurationXmlTag()) == null) {
+      throw new IllegalArgumentException("Схема EDT не знает вид объекта " + kind.configurationXmlTag());
+    }
     Path objectDir = sourceRoot.resolve(kind.cfSubdir()).resolve(name);
     if (Files.exists(objectDir)) {
       throw new IllegalArgumentException(UiLabels.alreadyExists(kind.configurationXmlTag(), name));

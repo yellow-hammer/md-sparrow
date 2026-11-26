@@ -178,8 +178,25 @@ class CfeBorrowTest {
       Path created = CfeBorrow.borrowObject(objectXml, cfe.resolve(CfLayout.CONFIGURATION_XML), version);
 
       List<String> expected = new ArrayList<>(common);
+      String xml = GoldenSnapshots.read(created);
+      boolean linksOriginal = version.compareTo(SchemaVersion.V2_22) >= 0;
+      if (linksOriginal) {
+        expected.addAll(List.of("ExtendedConfigurationObject", "ActionOnConfigurationObjectMissing"));
+        Matcher originalUuid = Pattern.compile("<" + kind.element() + " uuid=\"([^\"]+)\"")
+          .matcher(GoldenSnapshots.read(objectXml));
+        assertThat(originalUuid.find()).isTrue();
+        assertThat(propertyXml(xml, kind.element(), "ExtendedConfigurationObject"))
+          .isEqualTo("<ExtendedConfigurationObject>" + originalUuid.group(1) + "</ExtendedConfigurationObject>");
+        assertThat(propertyXml(xml, kind.element(), "ActionOnConfigurationObjectMissing"))
+          .isEqualTo("<ActionOnConfigurationObjectMissing>Auto</ActionOnConfigurationObjectMissing>");
+      }
       expected.addAll(kindProperties(kind.element(), version));
-      assertThat(properties(GoldenSnapshots.read(created), kind.element()).stream().map(XmlLines.Node::name))
+      if (linksOriginal && (kind.element().equals("CommonForm") || kind.element().equals("CommonTemplate"))) {
+        expected.add("ActionOnConfigurationExtensionChangeError");
+        assertThat(propertyXml(xml, kind.element(), "ActionOnConfigurationExtensionChangeError"))
+          .isEqualTo("<ActionOnConfigurationExtensionChangeError>Warning</ActionOnConfigurationExtensionChangeError>");
+      }
+      assertThat(properties(xml, kind.element()).stream().map(XmlLines.Node::name))
         .as("%s, формат %s", kind.element(), version)
         .containsExactlyElementsOf(expected);
     }
@@ -187,16 +204,16 @@ class CfeBorrowTest {
 
   /**
    * Свойства вида, которые платформа пишет у заимствованного объекта в формате: так выгружает
-   * расширение ibcmd каждой линейки. Движения, состав, тип определяемого типа и вид формы - во всех
-   * форматах, вид макета - с 2.15, доступность картинки - до 2.14, пространство имён пакета XDTO - до
-   * 2.18.
+   * расширение ibcmd каждой линейки. Движения, состав и тип определяемого типа - во всех форматах,
+   * вид формы - до 2.21, вид макета - с 2.15, доступность картинки - до 2.14,
+   * пространство имён пакета XDTO - до 2.18.
    */
   private static List<String> kindProperties(String element, SchemaVersion version) {
     return switch (element) {
       case "Document" -> List.of("RegisterRecords");
       case "Subsystem" -> List.of("Content");
       case "DefinedType" -> List.of("Type");
-      case "CommonForm" -> List.of("FormType");
+      case "CommonForm" -> version.compareTo(SchemaVersion.V2_21) <= 0 ? List.of("FormType") : List.of();
       case "CommonTemplate" -> version.compareTo(SchemaVersion.V2_15) >= 0 ? List.of("TemplateType") : List.of();
       case "CommonPicture" -> version.compareTo(SchemaVersion.V2_14) <= 0
         ? List.of("AvailabilityForChoice", "AvailabilityForAppearance")
@@ -253,8 +270,12 @@ class CfeBorrowTest {
       "Subsystem", "Content")).isEqualTo("<Content/>");
     assertThat(propertyXml(borrow(bare.resolve("DefinedTypes/ОпределяемыйТип1.xml"), extensionXml, version),
       "DefinedType", "Type")).isEqualTo("<Type/>");
-    assertThat(propertyXml(borrow(bare.resolve("CommonForms/ОбщаяФорма1.xml"), extensionXml, version),
-      "CommonForm", "FormType")).isEqualTo("<FormType>Managed</FormType>");
+    String borrowedForm = borrow(bare.resolve("CommonForms/ОбщаяФорма1.xml"), extensionXml, version);
+    if (version.compareTo(SchemaVersion.V2_21) <= 0) {
+      assertThat(propertyXml(borrowedForm, "CommonForm", "FormType")).isEqualTo("<FormType>Managed</FormType>");
+    } else {
+      assertThat(borrowedForm).doesNotContain("<FormType>");
+    }
 
     Path template = original(version, bare, "CommonTemplates/ОбщийМакет1.xml",
       "<TemplateType>SpreadsheetDocument</TemplateType>", "<TemplateType>TextDocument</TemplateType>");

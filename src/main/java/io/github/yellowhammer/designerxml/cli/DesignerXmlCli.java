@@ -204,7 +204,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "1", description = "Корень submodule resources/namespace-forest")
     Path xsdRoot;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -279,7 +279,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к Configuration.xml")
     Path configurationXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -307,7 +307,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Option(names = "--tag", required = true, description = "Тег XML: Catalog, Document, Enum, Constant, …")
     String tag;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -337,7 +337,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "1", arity = "0..1", description = "Имя объекта (идентификатор 1С); не указывать с --auto-name")
     String objectName;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Option(names = "--type", required = true, description = "Вид объекта: CATALOG, DOCUMENT, INFORMATION_REGISTER, COMMON_FORM, … (перечень - docs/cf-md-object.md)")
@@ -394,7 +394,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к Catalogs/&lt;имя&gt;.xml")
     Path catalogXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -425,7 +425,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "1", description = "Путь к JSON (как у cf-catalog-form-get)")
     Path jsonFile;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -459,7 +459,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к MetaDataObject .xml или .mdo")
     Path objectXml;
 
-    @Option(names = {"-v", "--schema-version"}, description = "Версия формата выгрузки конфигуратора, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, description = "Версия формата выгрузки конфигуратора, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -516,7 +516,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к MetaDataObject .xml или .mdo")
     Path objectXml;
 
-    @Option(names = {"-v", "--schema-version"}, description = "Версия формата выгрузки конфигуратора, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, description = "Версия формата выгрузки конфигуратора, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -543,7 +543,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     description = "Вывести JSON состава свойств видов элементов формы."
   )
   static final class CfFormItemPropertiesCmd implements Callable<Integer> {
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -575,7 +575,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к Ext/Form.xml")
     Path formXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -603,7 +603,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к Ext/Form.xml")
     Path formXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Option(names = "--changes", required = true, description = "Путь к UTF-8 JSON: массив {itemId, property, value}")
@@ -639,7 +639,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Путь к Configuration.xml")
     Path configurationXml;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -670,7 +670,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "1", description = "Путь к JSON")
     Path jsonFile;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Override
@@ -720,7 +720,7 @@ public final class DesignerXmlCli implements Callable<Integer> {
     @Parameters(index = "0", description = "Каталог выгрузки src/cf либо каталог проекта EDT")
     Path targetCfRoot;
 
-    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_21)")
+    @Option(names = {"-v", "--schema-version"}, required = true, description = "Версия формата, например V2_17 (V2_10…V2_22)")
     SchemaVersion version;
 
     @Option(names = "--format", description = "Формат исходников: designer (по умолчанию) или edt")

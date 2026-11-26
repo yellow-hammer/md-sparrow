@@ -68,6 +68,7 @@ public final class MdObjectStructureRead {
     new KindDef("filterCriterion", "getFilterCriterion"),
     new KindDef("eventSubscription", "getEventSubscription"),
     new KindDef("scheduledJob", "getScheduledJob"),
+    new KindDef("queue", "getQueue"),
     new KindDef("functionalOption", "getFunctionalOption"),
     new KindDef("functionalOptionsParameter", "getFunctionalOptionsParameter"),
     new KindDef("definedType", "getDefinedType"),

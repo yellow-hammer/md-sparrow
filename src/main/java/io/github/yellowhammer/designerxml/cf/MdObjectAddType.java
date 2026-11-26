@@ -83,7 +83,8 @@ public enum MdObjectAddType {
   ACCOUNTING_REGISTER("AccountingRegister", "РегистрБухгалтерии"),
   CALCULATION_REGISTER("CalculationRegister", "РегистрРасчета"),
   BUSINESS_PROCESS("BusinessProcess", "БизнесПроцесс"),
-  INTEGRATION_SERVICE("IntegrationService", "СервисИнтеграции");
+  INTEGRATION_SERVICE("IntegrationService", "СервисИнтеграции"),
+  QUEUE("Queue", "Очередь");
 
   private final String configurationXmlTag;
   private final String namePrefix;

@@ -121,7 +121,7 @@ public final class MdObjectGraphExtractor {
       case "DocumentJournal" -> extractDocumentJournal(properties, edges);
       case "Subsystem" -> extractSubsystem(properties, childObjects, edges);
       case "InformationRegister",
-        "AccumulationRegister" -> extractRegister(childObjects, edges);
+        "AccumulationRegister", "Queue" -> extractRegister(childObjects, edges);
       case "AccountingRegister" -> extractAccountingRegister(properties, childObjects, edges);
       case "CalculationRegister" -> extractCalculationRegister(properties, childObjects, edges);
       case "BusinessProcess", "Task" -> extractCatalogLikeWithAttributes(childObjects, edges);

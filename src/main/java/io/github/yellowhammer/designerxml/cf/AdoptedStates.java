@@ -21,6 +21,8 @@
  */
 package io.github.yellowhammer.designerxml.cf;
 
+import io.github.yellowhammer.designerxml.SchemaVersion;
+
 import java.io.ByteArrayInputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -65,7 +67,8 @@ public final class AdoptedStates {
    * состояния нет, у макета его нет и в метамодели EDT.
    */
   private static final Set<String> STATELESS = Set.of(
-      "Name", "Comment", "ObjectBelonging", "RegisterRecords", "Content", "FormType", "TemplateType");
+      "Name", "Comment", "ObjectBelonging", "RegisterRecords", "Content", "FormType", "TemplateType",
+      "ActionOnConfigurationObjectMissing", "ActionOnConfigurationExtensionChangeError");
   /** Узлы, у которых тип пишется всегда: у реквизита, измерения, ресурса и определяемого типа. */
   private static final Set<String> TYPED_ALWAYS = Set.of("Attribute", "Dimension", "Resource", "DefinedType");
   /**
@@ -132,6 +135,7 @@ public final class AdoptedStates {
     Deque<String> path = new ArrayDeque<>();
     String stateProperty = null;
     String stateValue = null;
+    boolean linksOriginalByDefault = false;
     StringBuilder text = new StringBuilder();
     try {
       while (reader.hasNext()) {
@@ -143,14 +147,19 @@ public final class AdoptedStates {
           text.setLength(0);
           int depth = path.size();
           Frame top = frames.peek();
-          if (depth == 2 || (parent.equals(CHILD_OBJECTS) && top != null && depth == top.depth + 2)) {
+          if (depth == 1) {
+            linksOriginalByDefault = SchemaVersion.byVersionAttribute(reader.getAttributeValue(null, "version"))
+              .map(version -> version.compareTo(SchemaVersion.V2_22) >= 0)
+              .orElse(false);
+          } else if (depth == 2 || (parent.equals(CHILD_OBJECTS) && top != null && depth == top.depth + 2)) {
             Frame frame = new Frame(local, depth);
             if (root == null) {
               root = frame;
             }
             frames.push(frame);
           } else if (top != null && parent.equals(PROPERTIES) && depth == top.depth + 2
-              && !STATELESS.contains(local) && !(local.equals("Type") && TYPED_ALWAYS.contains(top.element))) {
+              && !STATELESS.contains(local) && !(local.equals("Type") && TYPED_ALWAYS.contains(top.element))
+              && !(linksOriginalByDefault && local.equals("ExtendedConfigurationObject"))) {
             top.present.add(local);
           } else if (local.equals(PROPERTY_STATE)) {
             stateProperty = null;

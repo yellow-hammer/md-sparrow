@@ -306,7 +306,7 @@ class EdtChildMutationsTest {
    * конфигуратора того же формата.
    */
   @ParameterizedTest
-  @EnumSource(SchemaVersion.class)
+  @EnumSource(value = SchemaVersion.class, names = "V2_22", mode = EnumSource.Mode.EXCLUDE)
   void табличнаяЧастьПоФорматуПлатформыПроекта(SchemaVersion version) throws Exception {
     Path configuration = EdtConfigurationScaffold.create(
         workDir.resolve("Проект"), null, "Основа", null, null, null, version, model);

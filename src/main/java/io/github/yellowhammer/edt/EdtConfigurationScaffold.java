@@ -94,6 +94,11 @@ public final class EdtConfigurationScaffold {
   private EdtConfigurationScaffold() {
   }
 
+  /** Платформа, для которой проект создаётся из готового эталона EDT. */
+  public static boolean canScaffold(SchemaVersion version) throws IOException {
+    return version.compareTo(canonicalVersion()) <= 0;
+  }
+
   /**
    * Создаёт проект с пустой конфигурацией.
    *
