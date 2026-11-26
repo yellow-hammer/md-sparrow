@@ -178,7 +178,7 @@ class EdtObjectScaffoldTest {
   @Test
   void каждыйВидОбъектаСоздаётсяИЧитается() throws Exception {
     Path root = source();
-    for (MdObjectAddType kind : MdObjectAddType.values()) {
+    for (MdObjectAddType kind : supportedKinds()) {
       String name = EdtObjectScaffold.addWithNextAvailableName(configuration(root), model, kind);
       Path mdo = root.resolve(kind.cfSubdir()).resolve(name).resolve(name + ".mdo");
       assertThat(mdo).as(kind.name()).exists();
@@ -403,7 +403,7 @@ class EdtObjectScaffoldTest {
   void каждыйВидСовпадаетСЭталономИЧитается() throws Exception {
     Path root = project("8.5.1");
     Map<String, String> created = new LinkedHashMap<>();
-    for (MdObjectAddType kind : MdObjectAddType.values()) {
+    for (MdObjectAddType kind : supportedKinds()) {
       String proto = kind.namePrefix() + "1";
       String name = "Нов" + proto;
       EdtObjectScaffold.add(configuration(root), model, kind, name);
@@ -468,7 +468,7 @@ class EdtObjectScaffoldTest {
   @Test
   void составКонфигурацииИдётВПорядкеСхемы() throws Exception {
     Path root = project("8.5.1");
-    List<MdObjectAddType> kinds = new ArrayList<>(List.of(MdObjectAddType.values()));
+    List<MdObjectAddType> kinds = new ArrayList<>(supportedKinds());
     Collections.reverse(kinds);
     for (MdObjectAddType kind : kinds) {
       String name = EdtObjectScaffold.addWithNextAvailableName(configuration(root), model, kind);
@@ -519,19 +519,24 @@ class EdtObjectScaffoldTest {
   void видыПроектаПоВерсииПлатформы(SchemaVersion version) throws Exception {
     Path root = project(version.platformLine());
     for (MdObjectAddType kind : MdObjectAddType.values()) {
-      if (kind.existsIn(version)) {
+      if (kind.existsIn(version) && model.classOf(kind.configurationXmlTag()) != null) {
         String name = EdtObjectScaffold.addWithNextAvailableName(configuration(root), model, kind);
         assertThat(root.resolve(kind.cfSubdir()).resolve(name)).as("%s в %s", kind, version).isDirectory();
         continue;
       }
       String before = Files.readString(configuration(root), StandardCharsets.UTF_8);
+      String reason = kind.existsIn(version) ? "Схема EDT не знает вид объекта " + kind.configurationXmlTag()
+        : "Платформа проекта " + version.platformLine() + ": вид " + kind.configurationXmlTag() + " появился в формате";
       assertThatThrownBy(() -> EdtObjectScaffold.addWithNextAvailableName(configuration(root), model, kind))
           .as("%s в %s", kind, version)
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Платформа проекта " + version.platformLine())
-          .hasMessageContaining("вид " + kind.configurationXmlTag() + " появился в формате");
+          .hasMessageContaining(reason);
       assertThat(root.resolve(kind.cfSubdir())).as("%s в %s", kind, version).doesNotExist();
       assertThat(Files.readString(configuration(root), StandardCharsets.UTF_8)).isEqualTo(before);
     }
+  }
+
+  private List<MdObjectAddType> supportedKinds() {
+    return Stream.of(MdObjectAddType.values()).filter(kind -> model.classOf(kind.configurationXmlTag()) != null).toList();
   }
 }

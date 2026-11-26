@@ -90,4 +90,28 @@ class ConfigurationPropertiesEditTest {
     ConfigurationPropertiesDto after = ConfigurationPropertiesEdit.read(copy, SchemaVersion.V2_20);
     assertThat(after.usePurposes).containsExactly("PLATFORM_APPLICATION", "MOBILE_PLATFORM_APPLICATION");
   }
+
+  @Test
+  void writesCompatibility851InFormat222() throws Exception {
+    Path copy = tempDir.resolve("Configuration.xml");
+    String original = Files.readString(Ssl31SubmodulePaths.configurationXml()).replace("version=\"2.20\"", "version=\"2.22\"");
+    Files.writeString(copy, original);
+
+    var version = SchemaVersion.V2_22;
+    var dto = ConfigurationPropertiesEdit.read(copy, version);
+    dto.compatibilityMode = "VERSION_8_5_1";
+    dto.configurationExtensionCompatibilityMode = "VERSION_8_5_1";
+    ConfigurationPropertiesEdit.write(copy, version, dto);
+
+    var after = ConfigurationPropertiesEdit.read(copy, version);
+    assertThat(after.compatibilityMode).isEqualTo("VERSION_8_5_1");
+    assertThat(after.configurationExtensionCompatibilityMode).isEqualTo("VERSION_8_5_1");
+    assertThat(Files.readString(copy))
+      .contains("<CompatibilityMode>Version8_5_1</CompatibilityMode>")
+      .contains("<ConfigurationExtensionCompatibilityMode>Version8_5_1</ConfigurationExtensionCompatibilityMode>");
+    assertThat(MdObjectPropertyEnums.forVersion(SchemaVersion.V2_21).get("configuration.compatibilityMode"))
+      .doesNotContain("VERSION_8_5_1");
+    assertThat(MdObjectPropertyEnums.forVersion(version).get("configuration.compatibilityMode"))
+      .contains("VERSION_8_5_1");
+  }
 }

@@ -88,7 +88,9 @@ public final class ConfigurationPropertiesEdit {
     LocalStringSync.setOrPut(JaxbReflect.getOptional(p, "getSynonym"), nvl(incoming.synonym));
     JaxbReflect.setOptional(p, "setComment", nvl(incoming.comment));
     JaxbReflect.setEnumOrKeep(p, "setDefaultRunMode", incoming.defaultRunMode);
-    applyUsePurposes(schemaVersion, p, incoming.usePurposes);
+    if (!safeTrimmedList(baseline.usePurposes).equals(safeTrimmedList(incoming.usePurposes))) {
+      applyUsePurposes(schemaVersion, p, incoming.usePurposes);
+    }
     JaxbReflect.setEnumOrKeep(p, "setScriptVariant", incoming.scriptVariant);
     Object roles = JaxbReflect.getOptional(p, "getDefaultRoles");
     if (roles != null) {
@@ -113,23 +115,11 @@ public final class ConfigurationPropertiesEdit {
     JaxbReflect.setEnumOrKeep(p, "setSynchronousPlatformExtensionAndAddInCallUseMode",
       incoming.synchronousPlatformExtensionAndAddInCallUseMode);
     JaxbReflect.setEnumOrKeep(p, "setInterfaceCompatibilityMode", incoming.interfaceCompatibilityMode);
-    // Режимы совместимости бывают вне перечисления модели. Неизменённое значение в модель не
-    // переносим: точечная запись его не трогает, и в файле оно остаётся как было.
-    setEnumIfChanged(p, "setCompatibilityMode", baseline.compatibilityMode, incoming.compatibilityMode);
-    setEnumIfChanged(p, "setConfigurationExtensionCompatibilityMode",
-      baseline.configurationExtensionCompatibilityMode, incoming.configurationExtensionCompatibilityMode);
     byte[] patched = tryGranularWrite(originalXml, root, schemaVersion, baseline, incoming)
       .orElseThrow(() -> new IllegalStateException(
         "Не удалось применить изменения точечно. Полная пересборка XML через JAXB предотвращена."
       ));
     Files.write(configurationXml, patched);
-  }
-
-  /** Переносит значение в модель, только если оно изменилось: неизвестное ей значение она отвергнет. */
-  private static void setEnumIfChanged(Object p, String setter, String baseline, String incoming) {
-    if (!nvl(baseline).equals(nvl(incoming))) {
-      JaxbReflect.setEnumOrKeep(p, setter, incoming);
-    }
   }
 
   /** {@code Configuration.Properties} любой версии; иначе — исключение. */
@@ -213,12 +203,17 @@ public final class ConfigurationPropertiesEdit {
     List<Replacement> reps = new ArrayList<>();
     try {
       for (String tag : changedTags) {
-        MdObjectXmlRegions.Region updatedReg =
-          MdObjectXmlRegions.findDirectChildOfPropertiesRegion(updatedXml, "Configuration", tag);
-        if (!updatedReg.isValid()) {
-          return Optional.empty();
+        String replacement;
+        if (tag.equals("CompatibilityMode") || tag.equals("ConfigurationExtensionCompatibilityMode")) {
+          replacement = compatibilityElement(tag, incoming, version);
+        } else {
+          MdObjectXmlRegions.Region updatedReg =
+            MdObjectXmlRegions.findDirectChildOfPropertiesRegion(updatedXml, "Configuration", tag);
+          if (!updatedReg.isValid()) {
+            return Optional.empty();
+          }
+          replacement = updatedXml.substring(updatedReg.start(), updatedReg.end());
         }
-        String replacement = updatedXml.substring(updatedReg.start(), updatedReg.end());
         MdObjectXmlRegions.Region currentReg =
           MdObjectXmlRegions.findDirectChildOfPropertiesRegion(originalXml, "Configuration", tag);
         if (currentReg.isValid()) {
@@ -250,6 +245,19 @@ public final class ConfigurationPropertiesEdit {
     } catch (JAXBException e) {
       return Optional.empty();
     }
+  }
+
+  /** В XSD compatibility mode перечислен только до 8.3.12, хотя платформа пишет и более новые значения. */
+  private static String compatibilityElement(String tag, ConfigurationPropertiesDto dto, SchemaVersion version) {
+    boolean extension = tag.equals("ConfigurationExtensionCompatibilityMode");
+    String key = extension ? "configurationExtensionCompatibilityMode" : "compatibilityMode";
+    String mode = extension ? dto.configurationExtensionCompatibilityMode : dto.compatibilityMode;
+    if (!MdObjectPropertyEnums.forVersion(version).get("configuration." + key).contains(mode)) {
+      throw new IllegalArgumentException("Недопустимый режим совместимости для формата "
+        + version.metadataObjectVersionAttribute() + ": " + mode);
+    }
+    String text = mode.equals("DONT_USE") ? "DontUse" : "Version" + mode.substring("VERSION_".length());
+    return "<" + tag + ">" + text + "</" + tag + ">";
   }
 
   private static ConfigurationPropertiesDto readDto(byte[] xmlBytes, SchemaVersion version) throws JAXBException {
@@ -352,6 +360,9 @@ public final class ConfigurationPropertiesEdit {
     if (out.compatibilityMode.isEmpty()) {
       out.compatibilityMode = baseline.compatibilityMode;
     }
+    if (nvl(out.configurationExtensionCompatibilityMode).isEmpty()) {
+      out.configurationExtensionCompatibilityMode = baseline.configurationExtensionCompatibilityMode;
+    }
     return out;
   }
 
@@ -430,6 +441,9 @@ public final class ConfigurationPropertiesEdit {
     if (!nvl(baseline.compatibilityMode).equals(nvl(incoming.compatibilityMode))) {
       tags.add("CompatibilityMode");
     }
+    if (!nvl(baseline.configurationExtensionCompatibilityMode).equals(nvl(incoming.configurationExtensionCompatibilityMode))) {
+      tags.add("ConfigurationExtensionCompatibilityMode");
+    }
     return tags;
   }
 
@@ -464,7 +478,8 @@ public final class ConfigurationPropertiesEdit {
       && nvl(left.synchronousPlatformExtensionAndAddInCallUseMode)
       .equals(nvl(right.synchronousPlatformExtensionAndAddInCallUseMode))
       && nvl(left.interfaceCompatibilityMode).equals(nvl(right.interfaceCompatibilityMode))
-      && nvl(left.compatibilityMode).equals(nvl(right.compatibilityMode));
+      && nvl(left.compatibilityMode).equals(nvl(right.compatibilityMode))
+      && nvl(left.configurationExtensionCompatibilityMode).equals(nvl(right.configurationExtensionCompatibilityMode));
   }
 
   private record Replacement(int start, int end, String text) {

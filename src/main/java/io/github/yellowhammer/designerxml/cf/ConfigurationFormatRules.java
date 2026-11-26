@@ -147,6 +147,10 @@ final class ConfigurationFormatRules {
    */
   static String asNewConfiguration(String xml, SchemaVersion version) {
     String result = ScaffoldPropertyEdit.setLeaf(xml, "CompatibilityMode", compatibilityMode(version));
+    if (version.compareTo(SchemaVersion.V2_22) >= 0) {
+      result = ScaffoldPropertyEdit.setOrInsertLeaf(
+        result, "DynamicDataRestructuringUseMode", "Use", "DatabaseTablespacesUseMode");
+    }
     Optional<XmlLines.Node> purposes = property(result, "UsePurposes");
     if (purposes.isEmpty() || !result.startsWith("<UsePurposes/>", purposes.get().start())) {
       return result;

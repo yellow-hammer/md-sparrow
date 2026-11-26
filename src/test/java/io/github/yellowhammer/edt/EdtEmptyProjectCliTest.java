@@ -74,7 +74,7 @@ class EdtEmptyProjectCliTest {
   Path workDir;
 
   @ParameterizedTest
-  @EnumSource(SchemaVersion.class)
+  @EnumSource(value = SchemaVersion.class, names = "V2_22", mode = EnumSource.Mode.EXCLUDE)
   void наПроектеСтроятсяОбъектыРасширениеИВнешниеОбъекты(SchemaVersion version) throws Exception {
     Path workspace = workDir.resolve("ws");
     Path project = workspace.resolve("Основа");

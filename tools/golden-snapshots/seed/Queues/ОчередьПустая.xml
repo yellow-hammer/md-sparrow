@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" version="2.22">
+	<Queue uuid="45f4c568-2658-4fcd-9b06-7051b920d9b9">
+		<InternalInfo>
+			<xr:GeneratedType name="QueueMessage.ОчередьПустая" category="Record">
+				<xr:TypeId>55492125-ed6d-44cf-883a-a9ec6a3522ed</xr:TypeId>
+				<xr:ValueId>a530b67d-98ff-4088-8c43-7a346ca55429</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="QueueManager.ОчередьПустая" category="Manager">
+				<xr:TypeId>0a41419e-abab-4a2b-9bdd-e193fbe3fac3</xr:TypeId>
+				<xr:ValueId>516018aa-45a3-4abd-8c93-3ff620eb2250</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>ОчередьПустая</Name>
+			<Transactioned>true</Transactioned>
+			<ProcessingPortionSize>1000</ProcessingPortionSize>
+			<AutoProcessing>true</AutoProcessing>
+		</Properties>
+		<ChildObjects/>
+	</Queue>
+</MetaDataObject>

@@ -97,6 +97,7 @@ public final class CfObjectPathResolver {
     Map.entry("Interface", "Interfaces"),
     Map.entry("Language", "Languages"),
     Map.entry("PaletteColor", "PaletteColors"),
+    Map.entry("Queue", "Queues"),
     Map.entry("Report", "Reports"),
     Map.entry("Role", "Roles"),
     Map.entry("ScheduledJob", "ScheduledJobs"),

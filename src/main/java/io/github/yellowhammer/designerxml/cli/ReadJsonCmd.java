@@ -47,10 +47,12 @@ import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.FormContentDto;
 import io.github.yellowhammer.designerxml.cf.FormItemPropertyDictionary;
 import io.github.yellowhammer.designerxml.cf.FormContentRead;
+import io.github.yellowhammer.designerxml.cf.GoldenScaffold;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.MdObjectPropertiesEdit;
 import io.github.yellowhammer.edt.EdtConfigurationLists;
+import io.github.yellowhammer.edt.EdtConfigurationScaffold;
 import io.github.yellowhammer.edt.EdtConfigurationProperties;
 import io.github.yellowhammer.edt.EdtExchangePlanContent;
 import io.github.yellowhammer.edt.EdtFormContent;
@@ -281,7 +283,12 @@ final class ReadJsonCmd implements Callable<Integer> {
       case "cf-format-versions": {
         // Форматы и линейки платформы одним списком: своей копии у потребителя нет
         java.util.List<Map<String, String>> formats = new java.util.ArrayList<>();
+        SourceFormat scaffold = p.format == null ? null : SourceFormat.fromCliName(p.format);
         for (SchemaVersion version : SchemaVersion.values()) {
+          if ((scaffold == SourceFormat.DESIGNER && !GoldenScaffold.canScaffold(version))
+            || (scaffold == SourceFormat.EDT && !EdtConfigurationScaffold.canScaffold(version))) {
+            continue;
+          }
           Map<String, String> format = new java.util.LinkedHashMap<>();
           format.put("version", version.metadataObjectVersionAttribute());
           format.put("platform", version.platformLine());

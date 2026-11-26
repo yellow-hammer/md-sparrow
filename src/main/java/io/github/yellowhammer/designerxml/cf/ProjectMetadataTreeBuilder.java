@@ -134,7 +134,7 @@ public final class ProjectMetadataTreeBuilder {
     ConfigurationChildObjectsExtractor.Contents loaded =
       loadConfiguration(projectRoot, configurationXml, schema);
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
-      MetadataTreeTagGroups.buildGroups(loaded.children());
+      MetadataTreeTagGroups.buildGroups(loaded.children(), schema);
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
       mapGroups(projectRoot, cfRoot, payloads);
     String cfgRel = projectRoot.relativize(configurationXml).toString().replace('\\', '/');
@@ -201,7 +201,7 @@ public final class ProjectMetadataTreeBuilder {
       loadConfiguration(projectRoot, configurationXml, schema.get());
     List<ChildObjectEntry> entries = loaded.children();
     List<MetadataTreeTagGroups.MetadataTreeGroupPayload> payloads =
-      MetadataTreeTagGroups.buildGroups(entries);
+      MetadataTreeTagGroups.buildGroups(entries, schema.get());
     List<ProjectMetadataTreeDto.MetadataGroupDto> groups =
       mapGroups(projectRoot, extensionRoot, payloads, true, null);
     return new ProjectMetadataTreeDto.MetadataSourceDto(
@@ -303,7 +303,7 @@ public final class ProjectMetadataTreeBuilder {
           String rel = relativePathForItem(projectRoot, metadataRoot, it.objectType(), it.name());
           items.add(itemDto(projectRoot, it.objectType(), it.name(), rel, readBelonging, supportRules));
         }
-        subgroups.add(new ProjectMetadataTreeDto.MetadataSubgroupDto(sp.id(), sp.label(), sp.iconHint(), items));
+        subgroups.add(new ProjectMetadataTreeDto.MetadataSubgroupDto(sp.id(), sp.label(), sp.iconHint(), items, sp.canAdd()));
       }
       List<ProjectMetadataTreeDto.MetadataItemDto> items = new ArrayList<>();
       for (MetadataTreeTagGroups.MetadataTreeItemPayload it : p.items()) {

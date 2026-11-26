@@ -68,6 +68,7 @@ public final class MdObjectPropertiesEdit {
     new SimpleKindDef("role", "getRole"),
     new SimpleKindDef("eventSubscription", "getEventSubscription"),
     new SimpleKindDef("scheduledJob", "getScheduledJob"),
+    new SimpleKindDef("queue", "getQueue"),
     new SimpleKindDef("commonCommand", "getCommonCommand"),
     new SimpleKindDef("documentJournal", "getDocumentJournal"),
     new SimpleKindDef("businessProcess", "getBusinessProcess"),
@@ -776,7 +777,7 @@ public final class MdObjectPropertiesEdit {
     "functionalOption", "functionalOptionsParameter", "definedType",
     "commandGroup", "xdtoPackage", "wsReference", "style", "styleItem",
     "language", "interface", "bot", "webSocketClient", "paletteColor", "sequence",
-    "accountingRegister", "calculationRegister");
+    "accountingRegister", "calculationRegister", "queue");
 
   /**
    * Свойства, которые в скаляры не попадают: имя, синоним и комментарий несут
@@ -844,7 +845,7 @@ public final class MdObjectPropertiesEdit {
       case "externalReport", "externalDataProcessor" -> readCatalogLikeChildren(objectNode, dto);
       // Регистры бухгалтерии и расчёта: измерения, ресурсы и реквизиты как у
       // остальных регистров; перерасчёты приходят общим чтением состава
-      case "accountingRegister", "calculationRegister" -> readRegisterChildren(objectNode, dto);
+      case "accountingRegister", "calculationRegister", "queue" -> readRegisterChildren(objectNode, dto);
       default -> {
       }
     }
@@ -1118,7 +1119,7 @@ public final class MdObjectPropertiesEdit {
     for (Object dimension : JaxbReflect.<Object>list(childObjects, "getDimension")) {
       dto.dimensions.add(namedDto(dimension));
     }
-    for (Object resource : JaxbReflect.<Object>list(childObjects, "getResource")) {
+    for (Object resource : JaxbReflect.<Object>listOptional(childObjects, "getResource")) {
       dto.resources.add(namedDto(resource));
     }
     for (Object attribute : JaxbReflect.<Object>list(childObjects, "getAttribute")) {
