@@ -48,6 +48,7 @@ import io.github.yellowhammer.designerxml.cf.ConfigurationCatalogLister;
 import io.github.yellowhammer.designerxml.cf.ConfigurationChildObjectLister;
 import io.github.yellowhammer.designerxml.cf.ConfigurationRefTypeLister;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
+import io.github.yellowhammer.bsl.BspVersions;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
 import io.github.yellowhammer.designerxml.cf.ExternalArtifactPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.FormContentDto;
@@ -183,6 +184,7 @@ final class ReadJsonCmd implements Callable<Integer> {
     "cf-dcs-type-dictionary",
     "cf-template-content-kind",
     "cf-spreadsheet-get",
+    "bsp-libraries-get",
     "cf-support-object-get",
     "cf-support-get",
     "cf-support-object-states",
@@ -268,6 +270,20 @@ final class ReadJsonCmd implements Callable<Integer> {
       return edtSupport;
     }
     switch (p.op) {
+      case "bsp-external-versions-get": {
+        Map<String, String> versions = new java.util.LinkedHashMap<>();
+        for (String module : p.moduleFiles == null ? java.util.List.<String>of() : p.moduleFiles) {
+          String version = BspVersions.externalVersion(p.path(module));
+          if (version != null) {
+            versions.put(module, version);
+          }
+        }
+        return gson.toJson(versions);
+      }
+      case "bsp-libraries-get": {
+        Path file = p.reqPath(p.configurationXml, "configurationXml");
+        return gson.toJson(BspVersions.libraries(file, EdtLayout.isObjectFile(file), p.name));
+      }
       case "cf-metadata-file-info": {
         Path file = p.reqPath(p.objectXml, "objectXml");
         String version = MetaDataObjectHeadReader.readMetaDataObjectVersion(file);

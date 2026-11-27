@@ -158,6 +158,8 @@ final class CliParams {
   String expectedGeneration;
 
   String payloadJson;
+  String moduleFile;
+  java.util.List<String> moduleFiles;
 
   /** Путь из значения поля: относительный считается от рабочего каталога команды. */
   private transient Function<String, Path> paths = Path::of;
