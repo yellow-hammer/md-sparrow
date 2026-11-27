@@ -858,6 +858,10 @@ public final class EdtObjectWriter {
       if (node == null || !ADOPTED.equals(node.property("objectBelonging"))) {
         continue;
       }
+      // Версия принадлежит самому расширению и хранится вне блока состояний ConfigurationExtension.
+      if (change.node() == null && "Configuration".equals(node.kind()) && "version".equals(change.name())) {
+        continue;
+      }
       if (change.type() != null) {
         throw new IllegalArgumentException(
             "Тип заимствованного реквизита правится в расширяемой конфигурации: " + change.node().name());

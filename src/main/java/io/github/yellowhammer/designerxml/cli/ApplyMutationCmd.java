@@ -24,12 +24,15 @@ package io.github.yellowhammer.designerxml.cli;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import io.github.yellowhammer.bsl.BspVersions;
 import io.github.yellowhammer.designerxml.Cancellation;
+import io.github.yellowhammer.designerxml.SchemaVersion;
 import io.github.yellowhammer.designerxml.cf.CfLayout;
 import io.github.yellowhammer.designerxml.cf.CfMdObjectMutations;
 import io.github.yellowhammer.designerxml.cf.ConfigurationLanguage;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesDto;
 import io.github.yellowhammer.designerxml.cf.ConfigurationPropertiesEdit;
+import io.github.yellowhammer.designerxml.cf.MetaDataObjectHeadReader;
 import io.github.yellowhammer.designerxml.cf.EmptyCfScaffold;
 import io.github.yellowhammer.designerxml.cf.CfeBorrow;
 import io.github.yellowhammer.designerxml.cf.ExchangePlanContentFile;
@@ -230,6 +233,7 @@ final class ApplyMutationCmd implements Callable<Integer> {
   private static final java.util.Set<String> EDT_WRITES = java.util.Set.of(
     "cf-md-object-set",
     "cf-configuration-properties-set",
+    "configuration-version-set",
     "cf-role-rights-set",
     "cf-object-rights-set",
     "cf-md-object-rename",
@@ -1326,6 +1330,30 @@ final class ApplyMutationCmd implements Callable<Integer> {
         FormCompositionEdit.setEvent(
           p.reqPath(p.formXml, "formXml"), p.version(), p.itemId, p.req(p.event, "event"), p.handler, p.callType);
         return "OK";
+      case "bsp-external-version-set":
+        BspVersions.setExternalVersion(p.reqPath(p.moduleFile, "moduleFile"), p.req(p.name, "name"));
+        return "OK";
+      case "bsp-library-version-set":
+        BspVersions.setLibraryVersion(p.reqPath(p.moduleFile, "moduleFile"), p.req(p.name, "name"));
+        return "OK";
+      case "configuration-version-set": {
+        Path configuration = p.reqPath(p.configurationXml, "configurationXml");
+        String version = p.req(p.name, "name");
+        if (EdtLayout.isObjectFile(configuration)) {
+          EdtModel model = EdtModel.bundled();
+          ConfigurationPropertiesDto properties = EdtConfigurationProperties.read(configuration, model);
+          properties.version = version;
+          EdtConfigurationProperties.write(configuration, properties, model);
+        } else {
+          String formatVersion = MetaDataObjectHeadReader.readMetaDataObjectVersion(configuration);
+          SchemaVersion schema = SchemaVersion.byVersionAttribute(formatVersion).orElseThrow(() ->
+            new IllegalArgumentException("Не поддерживается формат выгрузки " + formatVersion + ": " + configuration));
+          ConfigurationPropertiesDto properties = ConfigurationPropertiesEdit.read(configuration, schema);
+          properties.version = version;
+          ConfigurationPropertiesEdit.write(configuration, schema, properties);
+        }
+        return "OK";
+      }
       case "cf-configuration-properties-set": {
         ConfigurationPropertiesDto dto = parsePayload(p, ConfigurationPropertiesDto.class);
         java.nio.file.Path configuration = p.reqPath(p.configurationXml, "configurationXml");
